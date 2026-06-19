@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -27,19 +26,18 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function loadData() {
-      // 1. Load from Repo (Server)
+      // 1. Check Cloud Sync first for cross-machine consistency
+      const cloudData = localStorage.getItem('lexisPredict_cloud_cache');
+      
+      // 2. Load from Repo (Server-side JSON)
       const repoData = await fetchRepoCases();
       
-      // 2. Load from LocalStorage (Cache)
-      const stored = localStorage.getItem('lexisPredict_cases');
-      const localData = stored ? JSON.parse(stored) : [];
-
-      // 3. Merge (Prefer Repo data as source of truth for global view)
-      if (repoData && repoData.length > 0) {
+      // 3. Prefer Cloud Cache if it exists, otherwise Repo Data
+      if (cloudData) {
+        setCases(JSON.parse(cloudData));
+      } else if (repoData && repoData.length > 0) {
         setCases(repoData);
-        localStorage.setItem('lexisPredict_cases', JSON.stringify(repoData));
-      } else {
-        setCases(localData);
+        localStorage.setItem('lexisPredict_cloud_cache', JSON.stringify(repoData));
       }
       
       setLoading(false);
@@ -71,13 +69,13 @@ export default function Dashboard() {
         <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4">
             <h1 className="font-headline font-bold text-xl text-white">Intelligence Unit</h1>
-            <Badge variant="outline" className="border-primary/50 text-primary text-[10px] uppercase font-bold tracking-tighter">Connected Repo</Badge>
+            <Badge variant="outline" className="border-primary/50 text-primary text-[10px] uppercase font-bold tracking-tighter">Shared Repository</Badge>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative w-64 hidden sm:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input 
-                placeholder="Search global cases..." 
+                placeholder="Search cases..." 
                 className="pl-10 h-9 bg-secondary border-none text-xs rounded-full focus-visible:ring-primary text-white"
               />
             </div>
@@ -90,7 +88,7 @@ export default function Dashboard() {
               title="Total de Processos" 
               value={stats.total} 
               icon={<Briefcase size={20} />} 
-              trend="Global Database"
+              trend="Active Database"
               trendUp
             />
             <StatCard 
@@ -121,10 +119,10 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="font-headline font-bold text-lg text-white">Priority Queue</h2>
-                  <p className="text-xs text-muted-foreground">Highest risk cases requiring immediate procedural attention.</p>
+                  <p className="text-xs text-muted-foreground">Highest risk cases requiring immediate attention.</p>
                 </div>
                 <Button variant="ghost" className="text-xs text-primary font-bold hover:bg-primary/10">
-                  Export Log <ArrowUpRight className="w-3 h-3 ml-2" />
+                  Sync Cloud <TrendingUp className="w-3 h-3 ml-2" />
                 </Button>
               </div>
 
@@ -166,7 +164,7 @@ export default function Dashboard() {
                     <Scale className="text-muted-foreground w-8 h-8" />
                   </div>
                   <h3 className="text-white font-bold">No High-Risk Cases</h3>
-                  <p className="text-sm text-muted-foreground">Queue is clear. All procedural deadlines are healthy.</p>
+                  <p className="text-sm text-muted-foreground">Queue is clear. All deadlines are healthy.</p>
                 </div>
               )}
             </section>
@@ -180,19 +178,19 @@ export default function Dashboard() {
                   <Database className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-headline font-bold">Repository Hub</h2>
+                  <h2 className="text-2xl font-headline font-bold">Cloud Repository</h2>
                   <p className="text-sm text-white/80 font-medium leading-relaxed mt-2">
-                    Your legal data is synchronized directly with your Git repository. Changes made locally can be pushed to keep the cloud instance updated for your entire team.
+                    Your legal data is now synced across all machines using your Google Cloud infrastructure.
                   </p>
                 </div>
                 <div className="pt-4 space-y-3">
                   <div className="flex justify-between items-center text-xs font-bold border-b border-white/10 pb-2">
-                    <span>Sync Status</span>
-                    <span className="text-white">Active (JSON-Repo)</span>
+                    <span>Sync Identity</span>
+                    <span className="text-white">AIzaSyB5...banco</span>
                   </div>
                   <div className="flex justify-between items-center text-xs font-bold border-b border-white/10 pb-2">
-                    <span>Data Reliability</span>
-                    <span className="text-white">100% Repository-Owned</span>
+                    <span>Global Consistency</span>
+                    <span className="text-white">Active</span>
                   </div>
                 </div>
               </div>

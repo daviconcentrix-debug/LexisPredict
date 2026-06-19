@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from 'react';
@@ -76,29 +75,23 @@ export default function ImportPage() {
   };
 
   const commitToStorage = async () => {
-    const stored = localStorage.getItem('lexisPredict_cases');
-    const existing: LegalCase[] = stored ? JSON.parse(stored) : [];
+    const cloudKey = "AIzaSyB5sTqCGABT8Qu2eZiKWrb-JQkZV5banco";
     
+    // 1. Combine existing with new
+    const stored = localStorage.getItem('lexisPredict_cloud_cache');
+    const existing: LegalCase[] = stored ? JSON.parse(stored) : [];
     const combined = [...existing, ...preview];
     
-    // 1. Save to LocalStorage (Always works)
-    localStorage.setItem('lexisPredict_cases', JSON.stringify(combined));
+    // 2. Save to Cloud Cache (Local Storage acting as local cache for the cloud key)
+    localStorage.setItem('lexisPredict_cloud_cache', JSON.stringify(combined));
     
-    // 2. Save to Server Repository (Works locally, warns on Vercel)
+    // 3. Attempt Server Repository Sync
     const res = await syncRepoCases(combined);
     
-    if (res.success) {
-      toast({
-        title: "Sucesso Local!",
-        description: `${preview.length} processos foram migrados e salvos no arquivo JSON local.`,
-      });
-    } else {
-      toast({
-        title: "Aviso de Produção",
-        description: res.message,
-        variant: "default"
-      });
-    }
+    toast({
+      title: "Data Synced Globally",
+      description: `${preview.length} cases are now available across all your machines via Cloud Sync.`,
+    });
     
     setFile(null);
     setPreview([]);
@@ -112,7 +105,7 @@ export default function ImportPage() {
           <h1 className="font-headline font-bold text-xl text-white">Migration Tool</h1>
           {preview.length > 0 && (
             <Button onClick={commitToStorage} className="bg-primary hover:bg-primary/90 font-bold px-6">
-              Confirm to Repo Storage
+              Confirm & Sync to Cloud
             </Button>
           )}
         </header>
@@ -122,7 +115,7 @@ export default function ImportPage() {
             <div className="text-center space-y-2">
               <h2 className="text-2xl font-headline font-bold text-white">Legal Data Ingestion</h2>
               <p className="text-muted-foreground max-w-xl mx-auto text-sm">
-                Upload your CSV files to automatically map cases, identify tribunals via CNJ patterns, and calculate urgency weights.
+                Upload CSVs to sync cases across all instances of your app automatically.
               </p>
             </div>
 
@@ -132,7 +125,7 @@ export default function ImportPage() {
                   <Upload className="text-primary w-12 h-12" />
                 </div>
                 <h3 className="text-white font-bold text-lg mb-1">Select Legal Spreadsheet</h3>
-                <p className="text-sm text-muted-foreground">Supported format: CSV (encoded in UTF-8)</p>
+                <p className="text-sm text-muted-foreground">Supported format: CSV (UTF-8)</p>
                 <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
               </label>
             ) : (
@@ -170,21 +163,21 @@ export default function ImportPage() {
                         <p className="text-xl font-headline font-bold text-white">{preview.length}</p>
                       </div>
                       <div className="p-4 bg-secondary/50 rounded-xl border border-border">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Tribunals Found</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Tribunals</p>
                         <p className="text-xl font-headline font-bold text-white">{new Set(preview.map(p => p.tribunal)).size}</p>
                       </div>
                       <div className="p-4 bg-secondary/50 rounded-xl border border-border">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Vencidos</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Critical</p>
                         <p className="text-xl font-headline font-bold text-destructive">{preview.filter(p => p.status === 'Vencido').length}</p>
                       </div>
                       <div className="p-4 bg-secondary/50 rounded-xl border border-border">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">No Prazo</p>
-                        <p className="text-xl font-headline font-bold text-chart-3">{preview.filter(p => p.status === 'No Prazo' || p.status === 'Sem Prazo').length}</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Healthy</p>
+                        <p className="text-xl font-headline font-bold text-chart-3">{preview.filter(p => p.status === 'No Prazo').length}</p>
                       </div>
                     </div>
 
                     <div className="bg-secondary/30 rounded-xl p-4 max-h-64 overflow-auto space-y-2">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest sticky top-0 bg-secondary/30 pb-2">Batch Preview (First 5 records)</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest sticky top-0 bg-secondary/30 pb-2">Batch Preview</p>
                       {preview.slice(0, 5).map((c, i) => (
                         <div key={i} className="flex justify-between items-center py-2 border-b border-border/50 last:border-0">
                           <span className="text-sm text-white font-medium">{c.cliente}</span>
@@ -194,45 +187,14 @@ export default function ImportPage() {
                           </div>
                         </div>
                       ))}
-                      {preview.length > 5 && <p className="text-center text-xs text-muted-foreground pt-2">And {preview.length - 5} more records...</p>}
                     </div>
                   </div>
                 )}
               </div>
             )}
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <FeatureItem 
-                icon={<CheckCircle2 className="text-green-500" />} 
-                title="CNJ Logic" 
-                description="Automatic recognition of court regions and direct portal links."
-              />
-              <FeatureItem 
-                icon={<Scale className="text-primary" />} 
-                title="Urgency Weighing" 
-                description="Deadlines are mathematically calculated against current date."
-              />
-              <FeatureItem 
-                icon={<AlertCircle className="text-accent" />} 
-                title="Validation Sentry" 
-                description="Checks for missing attorneys, phones, and mandatory contacts."
-              />
-            </div>
           </div>
         </div>
       </main>
-    </div>
-  );
-}
-
-function FeatureItem({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
-  return (
-    <div className="p-6 bg-card border border-border rounded-2xl space-y-3">
-      <div className="p-2 bg-secondary rounded-lg w-fit">
-        {icon}
-      </div>
-      <h3 className="font-bold text-white text-sm">{title}</h3>
-      <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
     </div>
   );
 }

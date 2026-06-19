@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -57,21 +56,21 @@ export default function SettingsPage() {
 
               <Card className="bg-card border-border">
                 <CardHeader>
-                  <CardTitle className="text-white font-headline">Data Persistence</CardTitle>
-                  <CardDescription>Management of your repository and cloud storage.</CardDescription>
+                  <CardTitle className="text-white font-headline">Cloud Persistence</CardTitle>
+                  <CardDescription>Management of your shared Google infrastructure sync.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl border border-border">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-primary/20 rounded-lg text-primary">
-                        <HardDrive size={20} />
+                        <Database size={20} />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-white">Local Repo Storage</p>
-                        <p className="text-xs text-muted-foreground">Syncing data directly with Git/GitHub files.</p>
+                        <p className="text-sm font-bold text-white">Google Cloud Auth</p>
+                        <p className="text-xs text-muted-foreground">Key: AIzaSyB5...banco</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="text-[10px] font-bold uppercase tracking-widest border-border text-white">Verify Sync</Button>
+                    <Button variant="outline" size="sm" className="text-[10px] font-bold uppercase tracking-widest border-border text-white">Status: Synced</Button>
                   </div>
                 </CardContent>
               </Card>

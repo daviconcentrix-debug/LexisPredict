@@ -48,7 +48,7 @@ export const TRIBUNAIS_CNJ: Record<string, { tribunal: string; url: string }> = 
   "4.01": { tribunal: "TRF1", url: "https://pje1g.trf1.jus.br/consultapublica/ConsultaPublica/listView.seam" },
   "4.02": { tribunal: "TRF2", url: "https://eproc.trf2.jus.br/eproc.php?acao=consulta_publica" },
   "4.03": { tribunal: "TRF3", url: "https://pje1g.trf3.jus.br/pje/ConsultaPublica/listView.seam" },
-  "4.04": { tribunal: "TRF4", url: "https://eproc.trf4.jus.br/eproc2trf4/externo_controlador.php?acao=consulta_publica" },
+  "4.04": { tribunal: "TRF4", url: "https://eproc.trf2trf4/externo_controlador.php?acao=consulta_publica" },
   "4.05": { tribunal: "TRF5", url: "https://pje.trf5.jus.br/pje/ConsultaPublica/listView.seam" },
   "4.06": { tribunal: "TRF6", url: "https://pje1g.trf6.jus.br/pje/ConsultaPublica/listView.seam" }
 };
