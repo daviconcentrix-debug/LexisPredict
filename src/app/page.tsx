@@ -8,7 +8,7 @@ import {
   Briefcase, 
   ShieldAlert, 
   TrendingUp,
-  BrainCircuit,
+  Database,
   Search,
   ArrowUpRight,
   ChevronRight,
@@ -34,8 +34,8 @@ export default function Dashboard() {
       const stored = localStorage.getItem('lexisPredict_cases');
       const localData = stored ? JSON.parse(stored) : [];
 
-      // 3. Merge (Prefer Repo data as source of truth)
-      if (repoData.length > 0) {
+      // 3. Merge (Prefer Repo data as source of truth for global view)
+      if (repoData && repoData.length > 0) {
         setCases(repoData);
         localStorage.setItem('lexisPredict_cases', JSON.stringify(repoData));
       } else {
@@ -51,7 +51,7 @@ export default function Dashboard() {
     const total = cases.length;
     const critical = cases.filter(c => c.status === 'Vencido').length;
     const attention = cases.filter(c => c.status === 'Atenção').length;
-    const processed = cases.filter(c => !!c.scoreIA).length;
+    const processed = cases.filter(c => c.situacao === 'EM ANDAMENTO').length;
     const riskScore = total ? Math.round(((critical + attention) / total) * 100) : 0;
 
     return { total, critical, attention, processed, riskScore };
@@ -81,9 +81,6 @@ export default function Dashboard() {
                 className="pl-10 h-9 bg-secondary border-none text-xs rounded-full focus-visible:ring-primary text-white"
               />
             </div>
-            <Button size="icon" variant="ghost" className="rounded-full text-muted-foreground hover:text-white">
-              <BrainCircuit className="w-5 h-5" />
-            </Button>
           </div>
         </header>
 
@@ -93,7 +90,7 @@ export default function Dashboard() {
               title="Total de Processos" 
               value={stats.total} 
               icon={<Briefcase size={20} />} 
-              trend="+12% vs last month"
+              trend="Global Database"
               trendUp
             />
             <StatCard 
@@ -110,11 +107,11 @@ export default function Dashboard() {
               color="accent"
             />
             <StatCard 
-              title="Triagem IA" 
+              title="Ativos" 
               value={stats.processed} 
-              icon={<BrainCircuit size={20} />} 
+              icon={<Scale size={20} />} 
               color="success"
-              trend="Automated Analysis"
+              trend="Ongoing Procedures"
               trendUp
             />
           </section>
@@ -180,27 +177,24 @@ export default function Dashboard() {
               
               <div className="relative z-10 space-y-6">
                 <div className="p-3 bg-white/20 w-fit rounded-xl backdrop-blur-md border border-white/20">
-                  <BrainCircuit className="w-6 h-6 text-white" />
+                  <Database className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-headline font-bold">DeepSeek Analyst</h2>
+                  <h2 className="text-2xl font-headline font-bold">Repository Hub</h2>
                   <p className="text-sm text-white/80 font-medium leading-relaxed mt-2">
-                    Predictive modeling indicates that your team could save up to 45h/week by automating the initial triage of new filings using our vertex-based AI logic.
+                    Your legal data is synchronized directly with your Git repository. Changes made locally can be pushed to keep the cloud instance updated for your entire team.
                   </p>
                 </div>
                 <div className="pt-4 space-y-3">
                   <div className="flex justify-between items-center text-xs font-bold border-b border-white/10 pb-2">
-                    <span>Efficiency Gain</span>
-                    <span className="text-white">42% Increase</span>
+                    <span>Sync Status</span>
+                    <span className="text-white">Active (JSON-Repo)</span>
                   </div>
                   <div className="flex justify-between items-center text-xs font-bold border-b border-white/10 pb-2">
-                    <span>Model Confidence</span>
-                    <span className="text-white">98.4% Accuracy</span>
+                    <span>Data Reliability</span>
+                    <span className="text-white">100% Repository-Owned</span>
                   </div>
                 </div>
-                <Button className="w-full bg-white text-primary font-bold hover:bg-white/90">
-                  Explore Full Insights
-                </Button>
               </div>
             </section>
           </div>

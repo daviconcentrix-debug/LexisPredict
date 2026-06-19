@@ -81,16 +81,24 @@ export default function ImportPage() {
     
     const combined = [...existing, ...preview];
     
-    // 1. Save to LocalStorage
+    // 1. Save to LocalStorage (Always works)
     localStorage.setItem('lexisPredict_cases', JSON.stringify(combined));
     
-    // 2. Save to Server Repository (GitHub Sync)
-    await syncRepoCases(combined);
+    // 2. Save to Server Repository (Works locally, warns on Vercel)
+    const res = await syncRepoCases(combined);
     
-    toast({
-      title: "Sucesso!",
-      description: `${preview.length} processos foram migrados para a base local e sincronizados com o repositório.`,
-    });
+    if (res.success) {
+      toast({
+        title: "Sucesso Local!",
+        description: `${preview.length} processos foram migrados e salvos no arquivo JSON local.`,
+      });
+    } else {
+      toast({
+        title: "Aviso de Produção",
+        description: res.message,
+        variant: "default"
+      });
+    }
     
     setFile(null);
     setPreview([]);
@@ -104,7 +112,7 @@ export default function ImportPage() {
           <h1 className="font-headline font-bold text-xl text-white">Migration Tool</h1>
           {preview.length > 0 && (
             <Button onClick={commitToStorage} className="bg-primary hover:bg-primary/90 font-bold px-6">
-              Commit to Repo Storage
+              Confirm to Repo Storage
             </Button>
           )}
         </header>

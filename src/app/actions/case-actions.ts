@@ -15,6 +15,6 @@ export async function fetchRepoCases() {
  * Synchronizes client cases with the server-side repository.
  */
 export async function syncRepoCases(cases: LegalCase[]) {
-  await saveStoredCases(cases);
-  return { success: true };
+  const result = await saveStoredCases(cases);
+  return result;
 }

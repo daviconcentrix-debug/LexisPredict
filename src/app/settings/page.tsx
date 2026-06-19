@@ -33,14 +33,14 @@ export default function SettingsPage() {
             <div className="md:col-span-3 space-y-8">
               <Card className="bg-card border-border">
                 <CardHeader>
-                  <CardTitle className="text-white font-headline">Intelligence Engine</CardTitle>
-                  <CardDescription>Configure how AI analyzes and weighs your legal cases.</CardDescription>
+                  <CardTitle className="text-white font-headline">Procedural Engine</CardTitle>
+                  <CardDescription>Configure how the system weighs your legal cases and court deadines.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label className="text-white font-bold">Auto-Analyze Filings</Label>
-                      <p className="text-xs text-muted-foreground">Run DeepSeek analysis automatically on new imports.</p>
+                      <Label className="text-white font-bold">Auto-Calculate Weights</Label>
+                      <p className="text-xs text-muted-foreground">Calculate urgency weights automatically on new imports.</p>
                     </div>
                     <Switch defaultChecked />
                   </div>
