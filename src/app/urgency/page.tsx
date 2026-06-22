@@ -1,21 +1,32 @@
+
 "use client";
 
 import React from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { ShieldAlert, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ShieldAlert, Clock, AlertTriangle, CheckCircle2, Lock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { useAdmin } from '@/hooks/use-admin';
 
 export default function UrgencyEngine() {
+  const { isAdmin } = useAdmin();
+
   return (
     <div className="flex h-screen bg-background font-body">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8">
-          <h1 className="font-headline font-bold text-xl text-white">Urgency Engine</h1>
-          <Badge className="bg-accent/20 text-accent border-accent/30 font-bold uppercase text-[10px]">Algorithm Active</Badge>
+          <div className="flex items-center gap-4">
+            <h1 className="font-headline font-bold text-xl text-white">Urgency Engine</h1>
+            <Badge className="bg-accent/20 text-accent border-accent/30 font-bold uppercase text-[10px]">Algorithm Active</Badge>
+            {!isAdmin && (
+              <Badge variant="secondary" className="bg-secondary/50 text-[10px] text-muted-foreground uppercase flex items-center gap-1.5">
+                <Lock size={10} /> Visitor Mode
+              </Badge>
+            )}
+          </div>
         </header>
 
         <div className="flex-1 overflow-auto p-8 max-w-5xl mx-auto w-full space-y-8">
@@ -52,10 +63,12 @@ export default function UrgencyEngine() {
             />
           </div>
 
-          <Card className="bg-card border-border">
+          <Card className={cn("bg-card border-border", !isAdmin && "opacity-60")}>
             <CardHeader>
               <CardTitle className="text-white font-headline">Engine Calibration</CardTitle>
-              <CardDescription>Fine-tune the mathematical boundaries for procedural alerts.</CardDescription>
+              <CardDescription>
+                {isAdmin ? "Fine-tune the mathematical boundaries for procedural alerts." : "Access restricted to Administrators."}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-10 py-6">
               <div className="space-y-4">
@@ -63,7 +76,7 @@ export default function UrgencyEngine() {
                   <Label className="text-white font-bold text-sm">Alert Threshold (Days)</Label>
                   <span className="text-accent font-bold">7 Days</span>
                 </div>
-                <Slider defaultValue={[7]} max={30} step={1} className="[&_[role=slider]]:bg-accent" />
+                <Slider defaultValue={[7]} max={30} step={1} className="[&_[role=slider]]:bg-accent" disabled={!isAdmin} />
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Cases with return dates closer than this value will be flagged as 'Atenção'.</p>
               </div>
 
@@ -72,7 +85,7 @@ export default function UrgencyEngine() {
                   <Label className="text-white font-bold text-sm">Critical Buffer (Days)</Label>
                   <span className="text-destructive font-bold">2 Days</span>
                 </div>
-                <Slider defaultValue={[2]} max={10} step={1} className="[&_[role=slider]]:bg-destructive" />
+                <Slider defaultValue={[2]} max={10} step={1} className="[&_[role=slider]]:bg-destructive" disabled={!isAdmin} />
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Hard buffer for final procedural review before filing expires.</p>
               </div>
             </CardContent>
