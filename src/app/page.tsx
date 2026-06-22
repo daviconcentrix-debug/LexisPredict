@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { 
@@ -19,31 +19,50 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { fetchRepoCases } from '@/app/actions/case-actions';
+import { supabase } from '@/lib/supabaseClient'; // Conexão com o Supabase
 
 export default function Dashboard() {
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadData() {
-      // 1. Check Cloud Sync first for cross-machine consistency
-      const cloudData = localStorage.getItem('lexisPredict_cloud_cache');
-      
-      // 2. Load from Repo (Server-side JSON)
+  // Função para carregar os dados isolada para podermos usar no botão de Sync também
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // 1. Busca os dados globais direto na nuvem do Supabase
+      const { data: cloudRows, error } = await supabase
+        .from('processos')
+        .select('dados');
+
+      if (error) throw error;
+
+      // 2. Carrega os dados padrão do repositório (Server-side JSON) como backup
       const repoData = await fetchRepoCases();
-      
-      // 3. Prefer Cloud Cache if it exists, otherwise Repo Data
-      if (cloudData) {
-        setCases(JSON.parse(cloudData));
+
+      // 3. Se houver dados na nuvem, usa eles. Se não, usa o do repositório e sincroniza na nuvem
+      if (cloudRows && cloudRows.length > 0) {
+        const cloudCases = cloudRows.map((item: any) => item.dados as LegalCase);
+        setCases(cloudCases);
       } else if (repoData && repoData.length > 0) {
         setCases(repoData);
-        localStorage.setItem('lexisPredict_cloud_cache', JSON.stringify(repoData));
+        
+        // Salva os dados iniciais no Supabase para espelhar em todas as máquinas
+        const rowsToInsert = repoData.map(c => ({ dados: c }));
+        await supabase.from('processos').insert(rowsToInsert);
       }
-      
+    } catch (err) {
+      console.error('Erro ao sincronizar com o Supabase:', err);
+      // Fallback de segurança se o banco falhar: carrega o local do servidor
+      const repoData = await fetchRepoCases();
+      if (repoData) setCases(repoData);
+    } finally {
       setLoading(false);
     }
-    loadData();
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const stats = useMemo(() => {
     const total = cases.length;
@@ -121,12 +140,22 @@ export default function Dashboard() {
                   <h2 className="font-headline font-bold text-lg text-white">Priority Queue</h2>
                   <p className="text-xs text-muted-foreground">Highest risk cases requiring immediate attention.</p>
                 </div>
-                <Button variant="ghost" className="text-xs text-primary font-bold hover:bg-primary/10">
-                  Sync Cloud <TrendingUp className="w-3 h-3 ml-2" />
+                {/* Agora o botão realmente busca as atualizações mais recentes na nuvem */}
+                <Button 
+                  variant="ghost" 
+                  className="text-xs text-primary font-bold hover:bg-primary/10"
+                  onClick={loadData}
+                  disabled={loading}
+                >
+                  {loading ? 'Syncing...' : 'Sync Cloud'} <TrendingUp className="w-3 h-3 ml-2" />
                 </Button>
               </div>
 
-              {urgentQueue.length > 0 ? (
+              {loading ? (
+                <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">
+                  Loading global database...
+                </div>
+              ) : urgentQueue.length > 0 ? (
                 <div className="space-y-3">
                   {urgentQueue.map((c) => (
                     <div key={c.id} className="group p-4 bg-secondary/30 border border-border hover:border-primary/50 rounded-xl transition-all flex items-center justify-between">
@@ -179,25 +208,4 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-headline font-bold">Cloud Repository</h2>
-                  <p className="text-sm text-white/80 font-medium leading-relaxed mt-2">
-                    Your legal data is now synced across all machines using your Google Cloud infrastructure.
-                  </p>
-                </div>
-                <div className="pt-4 space-y-3">
-                  <div className="flex justify-between items-center text-xs font-bold border-b border-white/10 pb-2">
-                    <span>Sync Identity</span>
-                    <span className="text-white">AIzaSyB5...banco</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs font-bold border-b border-white/10 pb-2">
-                    <span>Global Consistency</span>
-                    <span className="text-white">Active</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
+                  <p className="text-sm text-white/80 font-medium leading
