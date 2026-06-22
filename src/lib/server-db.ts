@@ -44,12 +44,23 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 export async function getStoredNotes(): Promise<CaseNote[]> {
   if (!isSupabaseConfigured) return [];
   try {
+    // Try both schemas: 'dados' column or flat columns
     const { data, error } = await supabase
       .from('notes')
-      .select('dados');
+      .select('*');
 
     if (error) throw error;
-    return data ? data.map(item => item.dados as CaseNote) : [];
+    
+    return data ? data.map(item => {
+      if (item.dados) return item.dados as CaseNote;
+      return {
+        id: item.id,
+        title: item.title,
+        content: item.content,
+        color: item.color || 'bg-sidebar/40',
+        updatedAt: item.updated_at || item.created_at
+      } as CaseNote;
+    }) : [];
   } catch (error) {
     console.error('Supabase notes fetch failed:', error);
     return [];
@@ -60,13 +71,19 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
   if (!isSupabaseConfigured) return { success: false };
   try {
     // Clear existing notes in cloud
-    await supabase.from('notes').delete().neq('id', -1);
+    await supabase.from('notes').delete().neq('id', '00000000-0000-0000-0000-000000000000' as any);
     
     if (notes.length === 0) return { success: true };
     
+    // Save with both patterns for maximum compatibility
     const { error } = await supabase
       .from('notes')
-      .insert(notes.map(n => ({ dados: n })));
+      .insert(notes.map(n => ({ 
+        id: n.id,
+        title: n.title,
+        content: n.content,
+        dados: n 
+      })));
 
     if (error) throw error;
     return { success: true };
