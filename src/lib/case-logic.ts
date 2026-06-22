@@ -19,6 +19,14 @@ export type LegalCase = {
   ultimoRetorno?: string;
 };
 
+export type CaseNote = {
+  id: string;
+  title: string;
+  content: string;
+  color: string;
+  updatedAt: string;
+};
+
 export const TRIBUNAIS_CNJ: Record<string, { tribunal: string; url: string }> = {
   "8.01": { tribunal: "TJAC", url: "https://esaj.tjac.jus.br/cpopg/open.do" },
   "8.02": { tribunal: "TJAL", url: "https://www2.tjal.jus.br/cpopg/open.do" },
