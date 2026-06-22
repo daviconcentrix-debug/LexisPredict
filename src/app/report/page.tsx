@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -106,8 +107,7 @@ export default function UnifiedReport() {
               <tr className="uppercase font-extrabold">
                 <th className="px-5 py-3 border-r border-gray-300">Cliente</th>
                 <th className="px-5 py-3 border-r border-gray-300">Protocolo CNJ</th>
-                <th className="px-5 py-3 border-r border-gray-300">Tribunal</th>
-                <th className="px-5 py-3 border-r border-gray-300">Prazo</th>
+                <th className="px-5 py-3 border-r border-gray-300">Próximo Prazo</th>
                 <th className="px-5 py-3">Status</th>
               </tr>
             </thead>
@@ -116,8 +116,7 @@ export default function UnifiedReport() {
                 <tr key={i} className="hover:bg-gray-50/50">
                   <td className="px-5 py-3 font-extrabold uppercase border-r border-gray-200">{c.cliente}</td>
                   <td className="px-5 py-3 font-mono text-gray-600 border-r border-gray-200">{c.protocolo}</td>
-                  <td className="px-5 py-3 font-bold border-r border-gray-200">{c.tribunal}</td>
-                  <td className="px-5 py-3 border-r border-gray-200">{c.proximoPrazo || 'N/A'}</td>
+                  <td className="px-5 py-3 font-bold border-r border-gray-200">{c.proximoPrazo || 'N/A'}</td>
                   <td className="px-5 py-3 font-extrabold">
                     <span className={c.status === 'Vencido' ? 'text-red-600' : 'text-amber-600'}>
                       {c.status.toUpperCase()}
@@ -126,8 +125,8 @@ export default function UnifiedReport() {
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={5} className="px-5 py-16 text-center text-gray-400 italic font-medium">
-                    Sem processos de alto risco registrados no banco de dados.
+                  <td colSpan={4} className="px-5 py-16 text-center text-gray-400 italic font-medium">
+                    Sem processos de alto risco registrados.
                   </td>
                 </tr>
               )}
@@ -142,7 +141,7 @@ export default function UnifiedReport() {
           <div className="p-1.5 bg-black text-white rounded">
             <MessageSquare size={18} />
           </div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">3. Atualizações e Anotações (Team Keep)</h2>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">3. Atualizações e Anotações (Keep Board)</h2>
         </div>
         {notes.length > 0 ? (
           <div className="grid grid-cols-2 gap-6">
@@ -158,18 +157,14 @@ export default function UnifiedReport() {
           </div>
         ) : (
           <div className="py-12 border-2 border-dashed border-gray-200 rounded-xl text-center">
-            <p className="text-xs text-gray-400 italic font-medium">Nenhuma anotação estratégica registrada para este período.</p>
+            <p className="text-xs text-gray-400 italic font-medium">Nenhuma anotação estratégica registrada.</p>
           </div>
         )}
       </section>
 
-      {/* FOOTER */}
       <footer className="mt-20 pt-8 border-t-2 border-gray-100 text-center">
         <p className="text-[9px] text-gray-400 uppercase tracking-[0.3em] font-bold">
-          Documento gerado automaticamente via LexisPredict AI CRM — Todos os direitos reservados
-        </p>
-        <p className="text-[8px] text-gray-300 mt-3 font-mono">
-          REF-ID: {crypto.randomUUID().split('-')[0].toUpperCase()}
+          Gerado via LexisPredict AI CRM — Documento Confidencial
         </p>
       </footer>
     </div>
