@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -6,11 +5,14 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { 
   ShieldAlert, 
   Scale, 
-  Users
+  Users,
+  FileDown,
+  RefreshCcw
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { fetchRepoCases } from '@/app/actions/case-actions';
 
 export default function AnalyticsPage() {
@@ -23,9 +25,6 @@ export default function AnalyticsPage() {
       const repoData = await fetchRepoCases();
       if (repoData && repoData.length > 0) {
         setCases(repoData);
-      } else {
-        const cached = localStorage.getItem('lexisPredict_cloud_cache');
-        if (cached) setCases(JSON.parse(cached));
       }
       setLoading(false);
     }
@@ -75,20 +74,37 @@ export default function AnalyticsPage() {
 
   const getPercent = (val: number) => metrics.total ? Math.round((val / metrics.total) * 100) : 0;
 
+  const handleExportPDF = () => {
+    window.print();
+  };
+
   return (
     <div className="flex h-screen bg-background font-body">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden text-white">
-        <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8">
+        <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8 print:hidden">
           <div className="flex items-center gap-4">
             <h1 className="font-headline font-bold text-xl text-white">Analytics Hub</h1>
             <Badge variant="outline" className="text-accent border-accent/30 font-bold uppercase text-[10px]">Cloud Connected</Badge>
           </div>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={handleExportPDF} className="text-muted-foreground hover:text-white border border-border h-8 font-bold">
+              <FileDown size={14} className="mr-2" /> Export Report
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => window.location.reload()} className="text-muted-foreground hover:text-white">
+              <RefreshCcw size={16} />
+            </Button>
+          </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-8 space-y-8 max-w-7xl mx-auto w-full">
-          <section className="bg-card border border-border rounded-2xl p-8 shadow-2xl">
-            <div className="flex items-center gap-3 mb-8">
+        <div className="flex-1 overflow-auto p-8 space-y-8 max-w-7xl mx-auto w-full print:p-0">
+          <div className="hidden print:block mb-8 border-b pb-4">
+            <h1 className="text-2xl font-bold text-black">Procedural Analytics Report</h1>
+            <p className="text-sm text-gray-600">Generated on {new Date().toLocaleDateString()}</p>
+          </div>
+
+          <section className="bg-card border border-border rounded-2xl p-8 shadow-2xl print:bg-white print:border-gray-200">
+            <div className="flex items-center gap-3 mb-8 print:hidden">
               <div className="p-2.5 bg-primary/20 rounded-full border border-primary/30">
                 <ShieldAlert className="text-primary w-5 h-5" />
               </div>
@@ -105,7 +121,7 @@ export default function AnalyticsPage() {
               <MetricItem label="Arquivado / Encerrado" value={metrics.statusCounts.Arquivado} pct={getPercent(metrics.statusCounts.Arquivado)} color="bg-muted-foreground/50" />
             </div>
 
-            <div className="h-3 w-full bg-secondary/50 rounded-full flex overflow-hidden">
+            <div className="h-3 w-full bg-secondary/50 rounded-full flex overflow-hidden print:border print:border-gray-200">
               <div style={{ width: `${getPercent(metrics.statusCounts.Vencido)}%` }} className="bg-destructive h-full transition-all duration-1000" />
               <div style={{ width: `${getPercent(metrics.statusCounts.Atenção)}%` }} className="bg-accent h-full transition-all duration-1000" />
               <div style={{ width: `${getPercent(metrics.statusCounts['No Prazo'] + metrics.statusCounts['Sem Prazo'])}%` }} className="bg-chart-3 h-full transition-all duration-1000" />
@@ -114,8 +130,8 @@ export default function AnalyticsPage() {
           </section>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-8">
-            <section className="bg-card border border-border rounded-2xl p-8">
-              <div className="flex items-center gap-3 mb-8">
+            <section className="bg-card border border-border rounded-2xl p-8 print:bg-white print:border-gray-200">
+              <div className="flex items-center gap-3 mb-8 print:hidden">
                 <div className="p-2.5 bg-accent/20 rounded-full border border-accent/30">
                   <Scale className="text-accent w-5 h-5" />
                 </div>
@@ -127,11 +143,11 @@ export default function AnalyticsPage() {
               <div className="space-y-7">
                 {metrics.topTribunals.length > 0 ? metrics.topTribunals.map(([name, count]) => (
                   <div key={name} className="space-y-2.5">
-                    <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-white">
+                    <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-white print:text-black">
                       <span>{name}</span>
                       <span className="text-muted-foreground">{count} ({getPercent(count)}%)</span>
                     </div>
-                    <div className="h-1.5 w-full bg-secondary/50 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-secondary/50 rounded-full overflow-hidden print:bg-gray-100">
                       <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${getPercent(count)}%` }} />
                     </div>
                   </div>
@@ -143,8 +159,8 @@ export default function AnalyticsPage() {
               </div>
             </section>
 
-            <section className="bg-card border border-border rounded-2xl p-8">
-              <div className="flex items-center gap-3 mb-8">
+            <section className="bg-card border border-border rounded-2xl p-8 print:bg-white print:border-gray-200">
+              <div className="flex items-center gap-3 mb-8 print:hidden">
                 <div className="p-2.5 bg-chart-3/20 rounded-full border border-chart-3/30">
                   <Users className="text-chart-3 w-5 h-5" />
                 </div>
@@ -156,11 +172,11 @@ export default function AnalyticsPage() {
               <div className="space-y-7">
                 {metrics.topAttorneys.length > 0 ? metrics.topAttorneys.map(([name, count]) => (
                   <div key={name} className="space-y-2.5">
-                    <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-white">
+                    <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-white print:text-black">
                       <span className="truncate pr-4">{name}</span>
                       <span className="text-muted-foreground shrink-0">{count} ({getPercent(count)}%)</span>
                     </div>
-                    <div className="h-1.5 w-full bg-secondary/50 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-secondary/50 rounded-full overflow-hidden print:bg-gray-100">
                       <div className="h-full bg-accent transition-all duration-1000" style={{ width: `${getPercent(count)}%` }} />
                     </div>
                   </div>
@@ -180,10 +196,10 @@ export default function AnalyticsPage() {
 
 function MetricItem({ label, value, pct, color }: { label: string, value: number, pct: number, color: string }) {
   return (
-    <div className="p-5 bg-secondary/20 border border-border rounded-2xl">
-      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">{label}</p>
+    <div className="p-5 bg-secondary/20 border border-border rounded-2xl print:bg-gray-50 print:border-gray-200">
+      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 print:text-gray-500">{label}</p>
       <div className="flex items-end gap-3">
-        <span className="text-3xl font-headline font-bold text-white leading-none">{value}</span>
+        <span className="text-3xl font-headline font-bold text-white leading-none print:text-black">{value}</span>
         <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded text-white mb-0.5", color)}>{pct}%</span>
       </div>
     </div>
