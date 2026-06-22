@@ -109,6 +109,7 @@ export function processarCaso(linha: Record<string, string>): LegalCase {
     tribunal = linha.TRIBUNAL;
   }
 
+  // FIXED: Use Protocol as ID to prevent duplicates (180 processes issue)
   const finalId = cnjLimpo || linha.PROTOCOLO || `AUTO-${Math.random().toString(36).substr(2, 9)}`;
 
   return {
