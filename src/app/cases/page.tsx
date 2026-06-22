@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   Search, 
@@ -9,8 +10,8 @@ import {
   Filter, 
   Download,
   MoreVertical,
-  Plus,
-  Briefcase
+  Briefcase,
+  RefreshCcw
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -26,41 +27,57 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { fetchRepoCases, syncRepoCases } from '@/app/actions/case-actions';
 
 export default function CasesPage() {
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const stored = localStorage.getItem('lexisPredict_cases');
-    if (stored) {
-      setCases(JSON.parse(stored));
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const repoData = await fetchRepoCases();
+      if (Array.isArray(repoData)) {
+        setCases(repoData);
+        localStorage.setItem('lexisPredict_cloud_cache', JSON.stringify(repoData));
+      }
+    } catch (error) {
+      console.error('Failed to load cases:', error);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  const deleteCase = (id: string) => {
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const deleteCase = async (id: string) => {
     if (confirm('Are you sure you want to delete this case?')) {
       const updated = cases.filter(c => c.id !== id);
       setCases(updated);
-      localStorage.setItem('lexisPredict_cases', JSON.stringify(updated));
-      toast({ title: "Case Deleted", description: "The record has been removed from the local store." });
+      await syncRepoCases(updated);
+      toast({ title: "Case Deleted", description: "Cloud database updated." });
     }
   };
 
-  const clearAll = () => {
-    if (confirm('DANGER: This will wipe ALL cases from your local database. Continue?')) {
+  const clearAll = async () => {
+    if (confirm('DANGER: This will wipe ALL cases from the cloud. Continue?')) {
       setCases([]);
-      localStorage.removeItem('lexisPredict_cases');
-      toast({ title: "Database Wiped", description: "All records cleared.", variant: "destructive" });
+      await syncRepoCases([]);
+      toast({ title: "Database Wiped", description: "The cloud storage is now empty.", variant: "destructive" });
     }
   };
 
-  const filtered = cases.filter(c => 
-    c.cliente.toLowerCase().includes(search.toLowerCase()) || 
-    c.protocolo.includes(search) ||
-    c.advogado.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    return cases.filter(c => 
+      (c.cliente || '').toLowerCase().includes(search.toLowerCase()) || 
+      (c.protocolo || '').includes(search) ||
+      (c.advogado && c.advogado.toLowerCase().includes(search.toLowerCase()))
+    );
+  }, [cases, search]);
 
   return (
     <div className="flex h-screen bg-background font-body">
@@ -72,11 +89,11 @@ export default function CasesPage() {
             <Badge variant="outline" className="text-muted-foreground">{filtered.length} active records</Badge>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="destructive" size="sm" onClick={clearAll} className="h-8 font-bold">
-              <Trash2 className="w-3.5 h-3.5 mr-2" /> Clear Database
+            <Button variant="ghost" size="sm" onClick={loadData} className="h-8 text-muted-foreground hover:text-white">
+              <RefreshCcw className={cn("w-3.5 h-3.5 mr-2", loading && "animate-spin")} /> Refresh
             </Button>
-            <Button size="sm" className="h-8 bg-primary font-bold">
-              <Plus className="w-3.5 h-3.5 mr-2" /> New Case
+            <Button variant="destructive" size="sm" onClick={clearAll} className="h-8 font-bold">
+              <Trash2 className="w-3.5 h-3.5 mr-2" /> Clear Cloud
             </Button>
           </div>
         </header>
@@ -90,16 +107,8 @@ export default function CasesPage() {
                   placeholder="Filter by name, protocol, or attorney..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10 bg-secondary border-none h-10 text-sm focus-visible:ring-primary"
+                  className="pl-10 bg-secondary border-none h-10 text-sm focus-visible:ring-primary text-white"
                 />
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="h-10 px-4 border-border text-xs font-bold">
-                  <Filter className="w-4 h-4 mr-2" /> Filters
-                </Button>
-                <Button variant="outline" size="sm" className="h-10 px-4 border-border text-xs font-bold">
-                  <Download className="w-4 h-4 mr-2" /> Export
-                </Button>
               </div>
             </div>
 
@@ -124,7 +133,7 @@ export default function CasesPage() {
                         </div>
                       </td>
                       <td className="px-6 py-5">
-                        <Badge variant="secondary" className="bg-sidebar border-border font-bold text-[10px]">
+                        <Badge variant="secondary" className="bg-sidebar border-border font-bold text-[10px] text-white">
                           {c.tribunal}
                         </Badge>
                       </td>
@@ -144,26 +153,9 @@ export default function CasesPage() {
                               <ExternalLink size={16} />
                             </a>
                           </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white">
-                                <MoreVertical size={16} />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-card border-border text-white">
-                              <DropdownMenuLabel>Options</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="focus:bg-primary focus:text-white">Edit Details</DropdownMenuItem>
-                              <DropdownMenuItem className="focus:bg-primary focus:text-white">Run AI Analysis</DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                className="text-destructive focus:bg-destructive focus:text-white"
-                                onClick={() => deleteCase(c.id)}
-                              >
-                                Delete Record
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <Button variant="ghost" size="icon" onClick={() => deleteCase(c.id)} className="text-muted-foreground hover:text-destructive">
+                            <Trash2 size={16} />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -174,8 +166,10 @@ export default function CasesPage() {
                           <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center mx-auto">
                             <Briefcase className="text-muted-foreground" />
                           </div>
-                          <h3 className="text-white font-bold">Base Clear</h3>
-                          <p className="text-sm text-muted-foreground">Search yielded zero matches or your local database is currently empty.</p>
+                          <h3 className="text-white font-bold">{loading ? "Loading CRM Data..." : "No Cases Found"}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Connect your Supabase database or import a spreadsheet.
+                          </p>
                         </div>
                       </td>
                     </tr>

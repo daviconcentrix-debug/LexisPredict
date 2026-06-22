@@ -5,10 +5,7 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { 
   Upload, 
   FileSpreadsheet, 
-  CheckCircle2, 
-  AlertCircle, 
-  X,
-  Scale
+  X
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
@@ -16,6 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { syncRepoCases } from '@/app/actions/case-actions';
+import { cn } from '@/lib/utils';
 
 export default function ImportPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -42,7 +40,7 @@ export default function ImportPage() {
       const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
       
       if (lines.length < 2) {
-        toast({ title: "Arquivo Inválido", description: "O CSV parece estar vazio.", variant: "destructive" });
+        toast({ title: "Invalid File", description: "The CSV appears to be empty.", variant: "destructive" });
         setParsing(false);
         return;
       }
@@ -75,26 +73,29 @@ export default function ImportPage() {
   };
 
   const commitToStorage = async () => {
-    const cloudKey = "AIzaSyB5sTqCGABT8Qu2eZiKWrb-JQkZV5banco";
+    const cached = localStorage.getItem('lexisPredict_cloud_cache');
+    const existing: LegalCase[] = cached ? JSON.parse(cached) : [];
     
-    // 1. Combine existing with new
-    const stored = localStorage.getItem('lexisPredict_cloud_cache');
-    const existing: LegalCase[] = stored ? JSON.parse(stored) : [];
-    const combined = [...existing, ...preview];
+    // Use protocol as key for deduplication
+    const caseMap = new Map();
+    existing.forEach(c => caseMap.set(c.protocolo, c));
+    preview.forEach(c => caseMap.set(c.protocolo, c));
     
-    // 2. Save to Cloud Cache (Local Storage acting as local cache for the cloud key)
-    localStorage.setItem('lexisPredict_cloud_cache', JSON.stringify(combined));
+    const combined = Array.from(caseMap.values());
     
-    // 3. Attempt Server Repository Sync
-    const res = await syncRepoCases(combined);
+    const result = await syncRepoCases(combined);
     
-    toast({
-      title: "Data Synced Globally",
-      description: `${preview.length} cases are now available across all your machines via Cloud Sync.`,
-    });
-    
-    setFile(null);
-    setPreview([]);
+    if (result.success) {
+      localStorage.setItem('lexisPredict_cloud_cache', JSON.stringify(combined));
+      toast({
+        title: "Database Synced",
+        description: `${preview.length} cases updated in the cloud CRM.`,
+      });
+      setFile(null);
+      setPreview([]);
+    } else {
+      toast({ title: "Sync Failed", description: result.message, variant: "destructive" });
+    }
   };
 
   return (
@@ -105,7 +106,7 @@ export default function ImportPage() {
           <h1 className="font-headline font-bold text-xl text-white">Migration Tool</h1>
           {preview.length > 0 && (
             <Button onClick={commitToStorage} className="bg-primary hover:bg-primary/90 font-bold px-6">
-              Confirm & Sync to Cloud
+              Confirm & Cloud Sync
             </Button>
           )}
         </header>
@@ -115,7 +116,7 @@ export default function ImportPage() {
             <div className="text-center space-y-2">
               <h2 className="text-2xl font-headline font-bold text-white">Legal Data Ingestion</h2>
               <p className="text-muted-foreground max-w-xl mx-auto text-sm">
-                Upload CSVs to sync cases across all instances of your app automatically.
+                Upload CSVs to sync cases across all machines. Duplicates are merged by protocol number.
               </p>
             </div>
 
@@ -125,7 +126,7 @@ export default function ImportPage() {
                   <Upload className="text-primary w-12 h-12" />
                 </div>
                 <h3 className="text-white font-bold text-lg mb-1">Select Legal Spreadsheet</h3>
-                <p className="text-sm text-muted-foreground">Supported format: CSV (UTF-8)</p>
+                <p className="text-sm text-muted-foreground">Format: CSV (UTF-8)</p>
                 <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
               </label>
             ) : (
@@ -178,7 +179,7 @@ export default function ImportPage() {
 
                     <div className="bg-secondary/30 rounded-xl p-4 max-h-64 overflow-auto space-y-2">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest sticky top-0 bg-secondary/30 pb-2">Batch Preview</p>
-                      {preview.slice(0, 5).map((c, i) => (
+                      {preview.slice(0, 10).map((c, i) => (
                         <div key={i} className="flex justify-between items-center py-2 border-b border-border/50 last:border-0">
                           <span className="text-sm text-white font-medium">{c.cliente}</span>
                           <div className="flex items-center gap-3">

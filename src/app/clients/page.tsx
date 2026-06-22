@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -16,17 +17,25 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { fetchRepoCases, syncRepoCases } from '@/app/actions/case-actions';
 
 export default function ClientDirectory() {
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const stored = localStorage.getItem('lexisPredict_cases');
-    if (stored) {
-      setCases(JSON.parse(stored));
+  const loadData = async () => {
+    setLoading(true);
+    const repoData = await fetchRepoCases();
+    if (repoData) {
+      setCases(repoData);
     }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const clientGroups = useMemo(() => {
@@ -41,11 +50,11 @@ export default function ClientDirectory() {
       .sort((a, b) => b[1].length - a[1].length);
   }, [cases, search]);
 
-  const deleteClient = (name: string) => {
+  const deleteClient = async (name: string) => {
     if (confirm(`Excluir CLIENTE: ${name}? Todos os ${cases.filter(c => c.cliente === name).length} processos serão removidos.`)) {
       const updated = cases.filter(c => c.cliente !== name);
       setCases(updated);
-      localStorage.setItem('lexisPredict_cases', JSON.stringify(updated));
+      await syncRepoCases(updated);
       toast({ title: "Client Removed", description: "All associated case logs were deleted." });
     }
   };
@@ -69,7 +78,7 @@ export default function ClientDirectory() {
                 placeholder="Search by client name..." 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 bg-secondary border-none h-11 text-sm rounded-xl focus-visible:ring-primary"
+                className="pl-10 bg-secondary border-none h-11 text-sm rounded-xl focus-visible:ring-primary text-white"
               />
             </div>
           </div>
@@ -124,7 +133,7 @@ export default function ClientDirectory() {
                     <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto">
                       <Users className="text-muted-foreground" size={32} />
                     </div>
-                    <h3 className="text-white font-bold text-xl">Directory Empty</h3>
+                    <h3 className="text-white font-bold text-xl">{loading ? "Loading..." : "Directory Empty"}</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">No clients found matching your search. Try importing a case log to populate the database.</p>
                   </div>
                 </div>

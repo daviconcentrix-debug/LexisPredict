@@ -1,3 +1,4 @@
+
 export type LegalCase = {
   id: string;
   cliente: string;
@@ -100,8 +101,11 @@ export function processarCaso(linha: Record<string, string>): LegalCase {
     tribunal = linha.TRIBUNAL;
   }
 
+  // USE PROTOCOL AS ID TO PREVENT DUPLICATES (180 PROCESSES ISSUE)
+  const finalId = cnjLimpo || linha.PROTOCOLO || `AUTO-${Math.random().toString(36).substr(2, 9)}`;
+
   return {
-    id: crypto.randomUUID(),
+    id: finalId,
     cliente: linha.CLIENTE || linha.NOME || 'Desconhecido',
     advogado: linha['ADVOGADO RESPONSÁVEL'] || linha.ADVOGADO || linha.RESPONSÁVEL || 'Não Atribuído',
     protocolo: cnjLimpo || linha.PROTOCOLO || 'S/N',

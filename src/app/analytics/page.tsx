@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -10,15 +11,25 @@ import {
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { fetchRepoCases } from '@/app/actions/case-actions';
 
 export default function AnalyticsPage() {
   const [cases, setCases] = useState<LegalCase[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem('lexisPredict_cases');
-    if (stored) {
-      setCases(JSON.parse(stored));
+    async function load() {
+      setLoading(true);
+      const repoData = await fetchRepoCases();
+      if (repoData && repoData.length > 0) {
+        setCases(repoData);
+      } else {
+        const cached = localStorage.getItem('lexisPredict_cloud_cache');
+        if (cached) setCases(JSON.parse(cached));
+      }
+      setLoading(false);
     }
+    load();
   }, []);
 
   const metrics = useMemo(() => {
@@ -28,20 +39,23 @@ export default function AnalyticsPage() {
     const attorneyCounts: Record<string, number> = {};
 
     cases.forEach(c => {
-      const status = c.status || 'Sem Prazo';
-      if (statusCounts.hasOwnProperty(status)) {
-        statusCounts[status as keyof typeof statusCounts]++;
+      const situacao = (c.situacao || '').toUpperCase();
+      const isArchived = ['ENCERRADO', 'SUSPENSO', 'ARQUIVADO'].some(s => situacao.includes(s));
+      
+      if (isArchived) {
+        statusCounts.Arquivado++;
       } else {
-        statusCounts['Sem Prazo']++;
+        const status = c.status || 'Sem Prazo';
+        if (statusCounts.hasOwnProperty(status)) {
+          statusCounts[status as keyof typeof statusCounts]++;
+        } else {
+          statusCounts['Sem Prazo']++;
+        }
       }
+
       tribunalCounts[c.tribunal] = (tribunalCounts[c.tribunal] || 0) + 1;
       attorneyCounts[c.advogado] = (attorneyCounts[c.advogado] || 0) + 1;
     });
-
-    // Grouping for logical display
-    // Active cases without defined deadlines are grouped with Routine (No Prazo)
-    const healthyTotal = statusCounts['No Prazo'] + statusCounts['Sem Prazo'];
-    const archivedTotal = statusCounts.Arquivado;
 
     const topTribunals = Object.entries(tribunalCounts)
       .sort((a, b) => b[1] - a[1])
@@ -54,8 +68,6 @@ export default function AnalyticsPage() {
     return { 
       total, 
       statusCounts, 
-      healthyTotal, 
-      archivedTotal, 
       topTribunals, 
       topAttorneys 
     };
@@ -66,52 +78,49 @@ export default function AnalyticsPage() {
   return (
     <div className="flex h-screen bg-background font-body">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden text-white">
         <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8">
           <div className="flex items-center gap-4">
             <h1 className="font-headline font-bold text-xl text-white">Analytics Hub</h1>
-            <Badge variant="outline" className="text-accent border-accent/30 font-bold uppercase text-[10px]">Technical View</Badge>
+            <Badge variant="outline" className="text-accent border-accent/30 font-bold uppercase text-[10px]">Cloud Connected</Badge>
           </div>
         </header>
 
         <div className="flex-1 overflow-auto p-8 space-y-8 max-w-7xl mx-auto w-full">
-          {/* Top Section: Criticidade Processual */}
           <section className="bg-card border border-border rounded-2xl p-8 shadow-2xl">
             <div className="flex items-center gap-3 mb-8">
               <div className="p-2.5 bg-primary/20 rounded-full border border-primary/30">
                 <ShieldAlert className="text-primary w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-headline font-bold text-white uppercase tracking-wider">Criticidade Processual</h2>
-                <p className="text-xs text-muted-foreground">Distribution of cases based on calculated deadline proximity.</p>
+                <h2 className="text-lg font-headline font-bold text-white uppercase tracking-wider">Procedural Health</h2>
+                <p className="text-xs text-muted-foreground">Distribution of cases based on live cloud data.</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <MetricItem label="Vencido (Crítico)" value={metrics.statusCounts.Vencido} pct={getPercent(metrics.statusCounts.Vencido)} color="bg-destructive" />
               <MetricItem label="Atenção (≤ 7 dias)" value={metrics.statusCounts.Atenção} pct={getPercent(metrics.statusCounts.Atenção)} color="bg-accent" />
-              <MetricItem label="No Prazo (> 7 dias)" value={metrics.healthyTotal} pct={getPercent(metrics.healthyTotal)} color="bg-chart-3" />
-              <MetricItem label="Arquivado / Encerrado" value={metrics.archivedTotal} pct={getPercent(metrics.archivedTotal)} color="bg-muted-foreground/50" />
+              <MetricItem label="No Prazo (> 7 dias)" value={metrics.statusCounts['No Prazo'] + metrics.statusCounts['Sem Prazo']} pct={getPercent(metrics.statusCounts['No Prazo'] + metrics.statusCounts['Sem Prazo'])} color="bg-chart-3" />
+              <MetricItem label="Arquivado / Encerrado" value={metrics.statusCounts.Arquivado} pct={getPercent(metrics.statusCounts.Arquivado)} color="bg-muted-foreground/50" />
             </div>
 
             <div className="h-3 w-full bg-secondary/50 rounded-full flex overflow-hidden">
               <div style={{ width: `${getPercent(metrics.statusCounts.Vencido)}%` }} className="bg-destructive h-full transition-all duration-1000" />
               <div style={{ width: `${getPercent(metrics.statusCounts.Atenção)}%` }} className="bg-accent h-full transition-all duration-1000" />
-              <div style={{ width: `${getPercent(metrics.healthyTotal)}%` }} className="bg-chart-3 h-full transition-all duration-1000" />
-              <div style={{ width: `${getPercent(metrics.archivedTotal)}%` }} className="bg-muted-foreground/30 h-full transition-all duration-1000" />
+              <div style={{ width: `${getPercent(metrics.statusCounts['No Prazo'] + metrics.statusCounts['Sem Prazo'])}%` }} className="bg-chart-3 h-full transition-all duration-1000" />
+              <div style={{ width: `${getPercent(metrics.statusCounts.Arquivado)}%` }} className="bg-muted-foreground/30 h-full transition-all duration-1000" />
             </div>
           </section>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-8">
-            {/* Tribunal concentration */}
             <section className="bg-card border border-border rounded-2xl p-8">
               <div className="flex items-center gap-3 mb-8">
                 <div className="p-2.5 bg-accent/20 rounded-full border border-accent/30">
                   <Scale className="text-accent w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-headline font-bold text-white uppercase tracking-wider">Concentração por Tribunal</h2>
-                  <p className="text-xs text-muted-foreground">Procedural load distributed across identified court regions.</p>
+                  <h2 className="text-lg font-headline font-bold text-white uppercase tracking-wider">Tribunal Load</h2>
                 </div>
               </div>
 
@@ -120,7 +129,7 @@ export default function AnalyticsPage() {
                   <div key={name} className="space-y-2.5">
                     <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-white">
                       <span>{name}</span>
-                      <span className="text-muted-foreground">{count} cases ({getPercent(count)}%)</span>
+                      <span className="text-muted-foreground">{count} ({getPercent(count)}%)</span>
                     </div>
                     <div className="h-1.5 w-full bg-secondary/50 rounded-full overflow-hidden">
                       <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${getPercent(count)}%` }} />
@@ -128,21 +137,19 @@ export default function AnalyticsPage() {
                   </div>
                 )) : (
                   <div className="py-20 text-center border-2 border-dashed border-border rounded-xl">
-                    <p className="text-sm text-muted-foreground">Waiting for ingested data...</p>
+                    <p className="text-sm text-muted-foreground">No data sync available.</p>
                   </div>
                 )}
               </div>
             </section>
 
-            {/* Attorney Load */}
             <section className="bg-card border border-border rounded-2xl p-8">
               <div className="flex items-center gap-3 mb-8">
                 <div className="p-2.5 bg-chart-3/20 rounded-full border border-chart-3/30">
                   <Users className="text-chart-3 w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-headline font-bold text-white uppercase tracking-wider">Carga por Advogado</h2>
-                  <p className="text-xs text-muted-foreground">Resource allocation based on assigned case volume.</p>
+                  <h2 className="text-lg font-headline font-bold text-white uppercase tracking-wider">Attorney Workload</h2>
                 </div>
               </div>
 
@@ -151,7 +158,7 @@ export default function AnalyticsPage() {
                   <div key={name} className="space-y-2.5">
                     <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-white">
                       <span className="truncate pr-4">{name}</span>
-                      <span className="text-muted-foreground shrink-0">{count} cases ({getPercent(count)}%)</span>
+                      <span className="text-muted-foreground shrink-0">{count} ({getPercent(count)}%)</span>
                     </div>
                     <div className="h-1.5 w-full bg-secondary/50 rounded-full overflow-hidden">
                       <div className="h-full bg-accent transition-all duration-1000" style={{ width: `${getPercent(count)}%` }} />
@@ -159,7 +166,7 @@ export default function AnalyticsPage() {
                   </div>
                 )) : (
                   <div className="py-20 text-center border-2 border-dashed border-border rounded-xl">
-                    <p className="text-sm text-muted-foreground">Waiting for ingested data...</p>
+                    <p className="text-sm text-muted-foreground">Waiting for sync...</p>
                   </div>
                 )}
               </div>

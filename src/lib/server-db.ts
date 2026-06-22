@@ -1,28 +1,45 @@
-import { supabase } from '@/lib/supabaseClient';
 
-export async function getStoredCases() {
-  // Busca tudo na tabela 'processos' que criámos no Supabase
-  const { data, error } = await supabase
-    .from('processos')
-    .select('dados');
+import { supabase } from './supabase';
+import { LegalCase } from './case-logic';
 
-  if (error) {
-    console.error("Erro ao buscar no Supabase:", error);
+export async function getStoredCases(): Promise<LegalCase[]> {
+  try {
+    const { data, error } = await supabase
+      .from('processos')
+      .select('dados');
+
+    if (error) {
+      console.warn('Supabase fetch failed, trying local fallback:', error);
+      return [];
+    }
+
+    return data ? data.map(item => item.dados as LegalCase) : [];
+  } catch (error) {
+    console.error('Supabase connection failed:', error);
     return [];
   }
-  
-  // Extrai o objeto 'dados' de cada linha
-  return data ? data.map(item => item.dados) : [];
 }
 
-export async function saveStoredCases(cases: any[]) {
-  // Limpa a tabela antes de salvar para garantir que é a versão mais recente
-  await supabase.from('processos').delete().neq('id', 0);
-  
-  // Insere os novos dados
-  const { error } = await supabase
-    .from('processos')
-    .insert(cases.map(c => ({ dados: c })));
+export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: boolean; message: string }> {
+  try {
+    // 1. Delete all existing records
+    const { error: deleteError } = await supabase.from('processos').delete().neq('id', -1);
+    if (deleteError) throw deleteError;
 
-  return { success: !error };
+    if (cases.length === 0) {
+      return { success: true, message: "Database cleared." };
+    }
+
+    // 2. Batch insert new records
+    const { error: insertError } = await supabase
+      .from('processos')
+      .insert(cases.map(c => ({ dados: c })));
+
+    if (insertError) throw insertError;
+
+    return { success: true, message: "Cloud database updated." };
+  } catch (error) {
+    console.error('Error saving to Supabase:', error);
+    return { success: false, message: "Sync failed. Check Supabase connection." };
+  }
 }
