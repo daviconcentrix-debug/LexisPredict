@@ -1,6 +1,5 @@
-
 import { supabase } from './supabase';
-import { LegalCase } from './case-logic';
+import { LegalCase, CaseNote } from './case-logic';
 
 export async function getStoredCases(): Promise<LegalCase[]> {
   try {
@@ -9,7 +8,7 @@ export async function getStoredCases(): Promise<LegalCase[]> {
       .select('dados');
 
     if (error) {
-      console.warn('Supabase fetch failed, trying local fallback:', error);
+      console.warn('Supabase fetch failed:', error);
       return [];
     }
 
@@ -22,7 +21,6 @@ export async function getStoredCases(): Promise<LegalCase[]> {
 
 export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: boolean; message: string }> {
   try {
-    // 1. Delete all existing records
     const { error: deleteError } = await supabase.from('processos').delete().neq('id', -1);
     if (deleteError) throw deleteError;
 
@@ -30,7 +28,6 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
       return { success: true, message: "Database cleared." };
     }
 
-    // 2. Batch insert new records
     const { error: insertError } = await supabase
       .from('processos')
       .insert(cases.map(c => ({ dados: c })));
@@ -41,5 +38,33 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
   } catch (error) {
     console.error('Error saving to Supabase:', error);
     return { success: false, message: "Sync failed. Check Supabase connection." };
+  }
+}
+
+export async function getStoredNotes(): Promise<CaseNote[]> {
+  try {
+    const { data, error } = await supabase
+      .from('notes')
+      .select('dados');
+
+    if (error) return [];
+    return data ? data.map(item => item.dados as CaseNote) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boolean }> {
+  try {
+    await supabase.from('notes').delete().neq('id', -1);
+    if (notes.length === 0) return { success: true };
+    
+    const { error } = await supabase
+      .from('notes')
+      .insert(notes.map(n => ({ dados: n })));
+
+    return { success: !error };
+  } catch {
+    return { success: false };
   }
 }
