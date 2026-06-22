@@ -66,12 +66,8 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
 export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boolean }> {
   if (!isSupabaseConfigured) return { success: false };
   try {
-    // Note: In a real app with many users, we'd use a single insert/update 
-    // but for this MVP we are syncing the full array by clearing and re-inserting
-    // to keep the client logic simple.
-    
-    // Clear existing (if id is a valid UUID, use a filter that matches all)
-    await supabase.from('notes').delete().neq('title', '___NON_EXISTENT_NOTE___');
+    // Overwrite-style sync for simplified CRM logic
+    await supabase.from('notes').delete().not('id', 'is', null);
     
     if (notes.length === 0) return { success: true };
     
