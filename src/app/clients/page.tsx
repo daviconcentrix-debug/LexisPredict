@@ -8,9 +8,9 @@ import {
   Search, 
   Trash2, 
   Briefcase, 
-  ChevronRight,
-  MoreVertical
+  ChevronRight
 } from 'lucide-react';
+import Link from 'next/link';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -116,14 +116,11 @@ export default function ClientDirectory() {
                           {trib}
                         </div>
                       ))}
-                      {new Set(clientCases.map(c => c.tribunal)).size > 3 && (
-                        <div className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center text-[8px] font-bold text-muted-foreground">
-                          +{new Set(clientCases.map(c => c.tribunal)).size - 3}
-                        </div>
-                      )}
                     </div>
-                    <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-widest hover:text-primary">
-                      Open Profile <ChevronRight size={14} className="ml-1" />
+                    <Button variant="ghost" size="sm" asChild className="h-8 text-[10px] font-bold uppercase tracking-widest hover:text-primary">
+                      <Link href={`/cases?search=${encodeURIComponent(name)}`}>
+                        Open Profile <ChevronRight size={14} className="ml-1" />
+                      </Link>
                     </Button>
                   </div>
                 </div>

@@ -15,6 +15,7 @@ import {
   RefreshCcw,
   BrainCircuit
 } from 'lucide-react';
+import Link from 'next/link';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -73,7 +74,7 @@ export default function Dashboard() {
         <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4">
             <h1 className="font-headline font-bold text-xl text-white">Intelligence Unit</h1>
-            <Badge variant="outline" className="border-primary/50 text-primary text-[10px] uppercase font-bold tracking-tighter">Live Supabase Database</Badge>
+            <Badge variant="outline" className="border-primary/50 text-primary text-[10px] uppercase font-bold tracking-tighter">Live CRM Database</Badge>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={loadData} className="text-muted-foreground hover:text-white">
@@ -136,7 +137,11 @@ export default function Dashboard() {
               {urgentQueue.length > 0 ? (
                 <div className="space-y-3">
                   {urgentQueue.map((c) => (
-                    <div key={c.protocolo} className="group p-4 bg-secondary/30 border border-border hover:border-primary/50 rounded-xl transition-all flex items-center justify-between">
+                    <Link 
+                      key={c.protocolo} 
+                      href={`/cases?search=${encodeURIComponent(c.protocolo)}`}
+                      className="group p-4 bg-secondary/30 border border-border hover:border-primary/50 rounded-xl transition-all flex items-center justify-between cursor-pointer"
+                    >
                       <div className="flex items-center gap-4">
                         <div className={cn(
                           "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-[10px] shrink-0",
@@ -160,9 +165,9 @@ export default function Dashboard() {
                         )}>
                           {c.diasFaltando !== null && c.diasFaltando < 0 ? `${Math.abs(c.diasFaltando)}d VENCIDO` : `${c.diasFaltando}d RESTANDO`}
                         </Badge>
-                        <ChevronRight className="text-muted-foreground w-4 h-4" />
+                        <ChevronRight className="text-muted-foreground w-4 h-4 group-hover:text-primary transition-colors" />
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               ) : (
@@ -171,7 +176,7 @@ export default function Dashboard() {
                     <Scale className="text-muted-foreground w-8 h-8" />
                   </div>
                   <h3 className="text-white font-bold">{loading ? "Synchronizing..." : "No High-Risk Cases"}</h3>
-                  <p className="text-sm text-muted-foreground">{loading ? "Connecting to Supabase cloud..." : "Queue is clear. All deadlines are healthy."}</p>
+                  <p className="text-sm text-muted-foreground">{loading ? "Connecting to cloud..." : "Queue is clear. All deadlines are healthy."}</p>
                 </div>
               )}
             </section>

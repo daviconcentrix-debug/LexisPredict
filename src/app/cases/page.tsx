@@ -1,39 +1,53 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   Search, 
   Trash2, 
   ExternalLink, 
-  Filter, 
-  Download,
-  MoreVertical,
+  RefreshCcw,
+  Plus,
   Briefcase,
-  RefreshCcw
+  Edit2
 } from 'lucide-react';
-import { LegalCase } from '@/lib/case-logic';
+import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useSearchParams } from 'next/navigation';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from '@/components/ui/label';
 import { fetchRepoCases, syncRepoCases } from '@/app/actions/case-actions';
 
-export default function CasesPage() {
+function CasesContent() {
   const [cases, setCases] = useState<LegalCase[]>([]);
-  const [search, setSearch] = useState('');
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
+  const [search, setSearch] = useState(initialSearch);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCase, setEditingCase] = useState<LegalCase | null>(null);
   const { toast } = useToast();
+
+  const [formState, setFormState] = useState({
+    cliente: '',
+    protocolo: '',
+    advogado: '',
+    proximoPrazo: '',
+    situacao: 'EM ANDAMENTO'
+  });
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -53,6 +67,49 @@ export default function CasesPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleSaveCase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formState.cliente || !formState.protocolo) {
+      toast({ title: "Validation Error", description: "Name and Protocol are required.", variant: "destructive" });
+      return;
+    }
+
+    const processed = processarCaso({
+      CLIENTE: formState.cliente,
+      PROTOCOLO: formState.protocolo,
+      ADVOGADO: formState.advogado,
+      'PRÓXIMO PRAZO': formState.proximoPrazo,
+      SITUAÇÃO: formState.situacao
+    });
+
+    const caseMap = new Map();
+    cases.forEach(c => caseMap.set(c.protocolo, c));
+    caseMap.set(processed.protocolo, processed);
+    
+    const updated = Array.from(caseMap.values());
+    
+    const result = await syncRepoCases(updated);
+    if (result.success) {
+      setCases(updated);
+      setIsModalOpen(false);
+      setEditingCase(null);
+      setFormState({ cliente: '', protocolo: '', advogado: '', proximoPrazo: '', situacao: 'EM ANDAMENTO' });
+      toast({ title: editingCase ? "Case Updated" : "Case Added", description: "Successfully synchronized with cloud database." });
+    }
+  };
+
+  const handleEditClick = (c: LegalCase) => {
+    setEditingCase(c);
+    setFormState({
+      cliente: c.cliente,
+      protocolo: c.protocolo,
+      advogado: c.advogado,
+      proximoPrazo: c.proximoPrazo,
+      situacao: c.situacao
+    });
+    setIsModalOpen(true);
+  };
 
   const deleteCase = async (id: string) => {
     if (confirm('Are you sure you want to delete this case?')) {
@@ -89,11 +146,58 @@ export default function CasesPage() {
             <Badge variant="outline" className="text-muted-foreground">{filtered.length} active records</Badge>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={loadData} className="h-8 text-muted-foreground hover:text-white">
+            <Dialog open={isModalOpen} onOpenChange={(open) => {
+              setIsModalOpen(open);
+              if (!open) {
+                setEditingCase(null);
+                setFormState({ cliente: '', protocolo: '', advogado: '', proximoPrazo: '', situacao: 'EM ANDAMENTO' });
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button className="bg-primary hover:bg-primary/90 font-bold h-8">
+                  <Plus className="w-3.5 h-3.5 mr-2" /> New Case
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-card border-border text-white sm:max-w-[425px]">
+                <form onSubmit={handleSaveCase}>
+                  <DialogHeader>
+                    <DialogTitle>{editingCase ? "Edit Case Entry" : "Manual Case Registry"}</DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
+                      {editingCase ? "Update existing procedural details." : "Input new procedural details. Duplicate protocols will be merged."}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="name">Client Name</Label>
+                      <Input id="name" value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="bg-secondary border-none" />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="protocol">CNJ Protocol</Label>
+                      <Input id="protocol" placeholder="0000000-00.2025.8.00.0000" value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="bg-secondary border-none" disabled={!!editingCase} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="attorney">Attorney</Label>
+                        <Input id="attorney" value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="bg-secondary border-none" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="deadline">Deadline (DD/MM/YYYY)</Label>
+                        <Input id="deadline" placeholder="30/12/2026" value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="bg-secondary border-none" />
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" className="w-full font-bold">{editingCase ? "Update Record" : "Register in Cloud"}</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+            
+            <Button variant="ghost" size="sm" onClick={loadData} className="h-8 text-muted-foreground hover:text-white border border-border">
               <RefreshCcw className={cn("w-3.5 h-3.5 mr-2", loading && "animate-spin")} /> Refresh
             </Button>
             <Button variant="destructive" size="sm" onClick={clearAll} className="h-8 font-bold">
-              <Trash2 className="w-3.5 h-3.5 mr-2" /> Clear Cloud
+              <Trash2 className="w-3.5 h-3.5 mr-2" /> Clear All
             </Button>
           </div>
         </header>
@@ -104,7 +208,7 @@ export default function CasesPage() {
               <div className="relative w-full sm:w-80">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input 
-                  placeholder="Filter by name, protocol, or attorney..." 
+                  placeholder="Search name, protocol, or attorney..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-10 bg-secondary border-none h-10 text-sm focus-visible:ring-primary text-white"
@@ -148,6 +252,9 @@ export default function CasesPage() {
                       </td>
                       <td className="px-6 py-5 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleEditClick(c)} className="text-muted-foreground hover:text-white">
+                            <Edit2 size={16} />
+                          </Button>
                           <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-white">
                             <a href={c.linkConsulta} target="_blank" rel="noopener noreferrer">
                               <ExternalLink size={16} />
@@ -168,7 +275,7 @@ export default function CasesPage() {
                           </div>
                           <h3 className="text-white font-bold">{loading ? "Loading CRM Data..." : "No Cases Found"}</h3>
                           <p className="text-sm text-muted-foreground">
-                            Connect your Supabase database or import a spreadsheet.
+                            Database is currently empty. Use "New Case" or Migration tool.
                           </p>
                         </div>
                       </td>
@@ -197,5 +304,13 @@ function StatusBadge({ status }: { status: LegalCase['status'] }) {
     <Badge className={cn("px-2 py-0.5 font-bold text-[10px] uppercase tracking-tighter", styles[status])}>
       {status}
     </Badge>
+  );
+}
+
+export default function CasesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-white">Loading interface...</div>}>
+      <CasesContent />
+    </Suspense>
   );
 }

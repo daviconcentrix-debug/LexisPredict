@@ -1,9 +1,9 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Shield, User, Bell, Database, HardDrive, RefreshCcw } from 'lucide-react';
+import { Shield, Database, HardDrive, RefreshCcw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -17,19 +17,30 @@ import { fetchRepoCases } from '@/app/actions/case-actions';
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('Sync');
   const [syncing, setSyncing] = useState(false);
+  const [status, setStatus] = useState<'online' | 'offline' | 'loading'>('online');
   const { toast } = useToast();
 
   const handleManualSync = async () => {
     setSyncing(true);
     try {
-      await fetchRepoCases();
-      toast({ title: "Supabase Synced", description: "CRM state is now up to date." });
+      const data = await fetchRepoCases();
+      if (Array.isArray(data)) {
+        setStatus('online');
+        toast({ title: "Supabase Synced", description: `${data.length} records refreshed from cloud.` });
+      } else {
+        setStatus('offline');
+      }
     } catch (e) {
+      setStatus('offline');
       toast({ title: "Sync Failed", variant: "destructive" });
     } finally {
       setSyncing(false);
     }
   };
+
+  useEffect(() => {
+    handleManualSync();
+  }, []);
 
   return (
     <div className="flex h-screen bg-background font-body">
@@ -38,7 +49,12 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8">
           <div className="flex items-center gap-4">
             <h1 className="font-headline font-bold text-xl text-white">System Settings</h1>
-            <Badge variant="outline" className="text-accent border-accent/30 font-bold uppercase text-[10px]">CRM Operational</Badge>
+            <Badge variant="outline" className={cn(
+              "text-[10px] uppercase font-bold",
+              status === 'online' ? "text-chart-3 border-chart-3/30" : "text-destructive border-destructive/30"
+            )}>
+              {status === 'online' ? "CRM OPERATIONAL" : "DATABASE OFFLINE"}
+            </Badge>
           </div>
         </header>
 
@@ -67,10 +83,10 @@ export default function SettingsPage() {
                   <Separator className="bg-border" />
                   <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl border border-border">
                     <div className="flex items-center gap-3">
-                      <Database className="w-5 h-5 text-primary" />
+                      {status === 'online' ? <CheckCircle2 className="w-5 h-5 text-chart-3" /> : <AlertCircle className="w-5 h-5 text-destructive" />}
                       <div>
-                        <p className="text-sm font-bold text-white">Supabase Status</p>
-                        <p className="text-xs text-muted-foreground">Active Connection</p>
+                        <p className="text-sm font-bold text-white">Supabase Connection</p>
+                        <p className="text-xs text-muted-foreground">{status === 'online' ? "Active and healthy" : "Configuration error"}</p>
                       </div>
                     </div>
                     <Button 
@@ -80,9 +96,23 @@ export default function SettingsPage() {
                       disabled={syncing}
                       className="text-[10px] font-bold uppercase border-border text-white hover:bg-primary"
                     >
-                      {syncing ? <RefreshCcw className="w-3 h-3 animate-spin mr-2" /> : "Force Sync"}
+                      {syncing ? <RefreshCcw className="w-3 h-3 animate-spin mr-2" /> : "Force Refresh"}
                     </Button>
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="text-white font-headline text-lg">Auto-Migration</CardTitle>
+                  <CardDescription>Control how the system handles file imports.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-white">Deduplication Motor (CNJ Protocol)</Label>
+                    <Switch defaultChecked disabled />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">This is a core system feature and cannot be disabled to prevent database bloating.</p>
                 </CardContent>
               </Card>
             </div>
