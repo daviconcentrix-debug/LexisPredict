@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
@@ -11,7 +12,8 @@ import {
   Briefcase,
   Edit2,
   CheckCircle,
-  Clock
+  Clock,
+  Lock
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -32,6 +34,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { fetchRepoCases, syncRepoCases } from '@/app/actions/case-actions';
 import { format } from 'date-fns';
+import { useAdmin } from '@/hooks/use-admin';
 
 function CasesContent() {
   const [cases, setCases] = useState<LegalCase[]>([]);
@@ -41,6 +44,7 @@ function CasesContent() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCase, setEditingCase] = useState<LegalCase | null>(null);
+  const { isAdmin } = useAdmin();
   const { toast } = useToast();
 
   const [formState, setFormState] = useState({
@@ -58,7 +62,6 @@ function CasesContent() {
       const repoData = await fetchRepoCases();
       if (Array.isArray(repoData)) {
         setCases(repoData);
-        localStorage.setItem('lexisPredict_cloud_cache', JSON.stringify(repoData));
       }
     } catch (error) {
       console.error('Failed to load cases:', error);
@@ -73,6 +76,8 @@ function CasesContent() {
 
   const handleSaveCase = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
+    
     if (!formState.cliente || !formState.protocolo) {
       toast({ title: "Validation Error", description: "Name and Protocol are required.", variant: "destructive" });
       return;
@@ -103,6 +108,7 @@ function CasesContent() {
   };
 
   const handleLogReturn = async (protocolo: string) => {
+    if (!isAdmin) return;
     const today = format(new Date(), 'dd/MM/yyyy');
     const updated = cases.map(c => {
       if (c.protocolo === protocolo) {
@@ -119,6 +125,7 @@ function CasesContent() {
   };
 
   const handleEditClick = (c: LegalCase) => {
+    if (!isAdmin) return;
     setEditingCase(c);
     setFormState({
       cliente: c.cliente,
@@ -132,6 +139,7 @@ function CasesContent() {
   };
 
   const deleteCase = async (id: string) => {
+    if (!isAdmin) return;
     if (confirm('Are you sure you want to delete this case?')) {
       const updated = cases.filter(c => c.id !== id);
       setCases(updated);
@@ -141,6 +149,7 @@ function CasesContent() {
   };
 
   const clearAll = async () => {
+    if (!isAdmin) return;
     if (confirm('DANGER: This will wipe ALL cases from the cloud. Continue?')) {
       setCases([]);
       await syncRepoCases([]);
@@ -164,64 +173,73 @@ function CasesContent() {
           <div className="flex items-center gap-4">
             <h1 className="font-headline font-bold text-xl text-white">Case Management</h1>
             <Badge variant="outline" className="text-muted-foreground">{filtered.length} active records</Badge>
+            {!isAdmin && (
+              <Badge variant="secondary" className="bg-secondary/50 text-[10px] text-muted-foreground uppercase flex items-center gap-1.5">
+                <Lock size={10} /> Visitor Mode
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-3">
-            <Dialog open={isModalOpen} onOpenChange={(open) => {
-              setIsModalOpen(open);
-              if (!open) {
-                setEditingCase(null);
-                setFormState({ cliente: '', protocolo: '', advogado: '', proximoPrazo: '', situacao: 'EM ANDAMENTO', ultimoRetorno: '' });
-              }
-            }}>
-              <DialogTrigger asChild>
-                <Button className="bg-primary hover:bg-primary/90 font-bold h-8">
-                  <Plus className="w-3.5 h-3.5 mr-2" /> New Case
+            {isAdmin && (
+              <>
+                <Dialog open={isModalOpen} onOpenChange={(open) => {
+                  setIsModalOpen(open);
+                  if (!open) {
+                    setEditingCase(null);
+                    setFormState({ cliente: '', protocolo: '', advogado: '', proximoPrazo: '', situacao: 'EM ANDAMENTO', ultimoRetorno: '' });
+                  }
+                }}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-primary hover:bg-primary/90 font-bold h-8 text-white">
+                      <Plus className="w-3.5 h-3.5 mr-2" /> New Case
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-card border-border text-white sm:max-w-[425px]">
+                    <form onSubmit={handleSaveCase}>
+                      <DialogHeader>
+                        <DialogTitle>{editingCase ? "Edit Case Entry" : "Manual Case Registry"}</DialogTitle>
+                        <DialogDescription className="text-muted-foreground">
+                          {editingCase ? "Update existing procedural details." : "Input new procedural details."}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="name">Client Name</Label>
+                          <Input id="name" value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="bg-secondary border-none text-white" />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="protocol">CNJ Protocol</Label>
+                          <Input id="protocol" placeholder="0000000-00.2025.8.00.0000" value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="bg-secondary border-none text-white" disabled={!!editingCase} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="attorney">Attorney</Label>
+                            <Input id="attorney" value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="bg-secondary border-none text-white" />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="deadline">Deadline (DD/MM/YYYY)</Label>
+                            <Input id="deadline" placeholder="30/12/2026" value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="bg-secondary border-none text-white" />
+                          </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="ultimoRetorno">Last Return Date (DD/MM/YYYY)</Label>
+                          <Input id="ultimoRetorno" placeholder="22/06/2026" value={formState.ultimoRetorno} onChange={(e) => setFormState({...formState, ultimoRetorno: e.target.value})} className="bg-secondary border-none text-white" />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="submit" className="w-full font-bold text-white">{editingCase ? "Update Record" : "Register in Cloud"}</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+                <Button variant="destructive" size="sm" onClick={clearAll} className="h-8 font-bold text-white">
+                  <Trash2 className="w-3.5 h-3.5 mr-2" /> Clear All
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-card border-border text-white sm:max-w-[425px]">
-                <form onSubmit={handleSaveCase}>
-                  <DialogHeader>
-                    <DialogTitle>{editingCase ? "Edit Case Entry" : "Manual Case Registry"}</DialogTitle>
-                    <DialogDescription className="text-muted-foreground">
-                      {editingCase ? "Update existing procedural details." : "Input new procedural details."}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="name">Client Name</Label>
-                      <Input id="name" value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="bg-secondary border-none" />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="protocol">CNJ Protocol</Label>
-                      <Input id="protocol" placeholder="0000000-00.2025.8.00.0000" value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="bg-secondary border-none" disabled={!!editingCase} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="attorney">Attorney</Label>
-                        <Input id="attorney" value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="bg-secondary border-none" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="deadline">Deadline (DD/MM/YYYY)</Label>
-                        <Input id="deadline" placeholder="30/12/2026" value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="bg-secondary border-none" />
-                      </div>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="ultimoRetorno">Last Return Date (DD/MM/YYYY)</Label>
-                      <Input id="ultimoRetorno" placeholder="22/06/2026" value={formState.ultimoRetorno} onChange={(e) => setFormState({...formState, ultimoRetorno: e.target.value})} className="bg-secondary border-none" />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit" className="w-full font-bold">{editingCase ? "Update Record" : "Register in Cloud"}</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+              </>
+            )}
             
             <Button variant="ghost" size="sm" onClick={loadData} className="h-8 text-muted-foreground hover:text-white border border-border">
               <RefreshCcw className={cn("w-3.5 h-3.5 mr-2", loading && "animate-spin")} /> Refresh
-            </Button>
-            <Button variant="destructive" size="sm" onClick={clearAll} className="h-8 font-bold">
-              <Trash2 className="w-3.5 h-3.5 mr-2" /> Clear All
             </Button>
           </div>
         </header>
@@ -285,26 +303,32 @@ function CasesContent() {
                       </td>
                       <td className="px-6 py-5 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => handleLogReturn(c.protocolo)} 
-                            title="Confirm Contact Today"
-                            className="text-muted-foreground hover:text-chart-3"
-                          >
-                            <CheckCircle size={16} />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleEditClick(c)} className="text-muted-foreground hover:text-white">
-                            <Edit2 size={16} />
-                          </Button>
+                          {isAdmin && (
+                            <>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => handleLogReturn(c.protocolo)} 
+                                title="Confirm Contact Today"
+                                className="text-muted-foreground hover:text-chart-3"
+                              >
+                                <CheckCircle size={16} />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleEditClick(c)} className="text-muted-foreground hover:text-white">
+                                <Edit2 size={16} />
+                              </Button>
+                            </>
+                          )}
                           <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-white">
                             <a href={c.linkConsulta} target="_blank" rel="noopener noreferrer">
                               <ExternalLink size={16} />
                             </a>
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteCase(c.id)} className="text-muted-foreground hover:text-destructive">
-                            <Trash2 size={16} />
-                          </Button>
+                          {isAdmin && (
+                            <Button variant="ghost" size="icon" onClick={() => deleteCase(c.id)} className="text-muted-foreground hover:text-destructive">
+                              <Trash2 size={16} />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -317,7 +341,7 @@ function CasesContent() {
                           </div>
                           <h3 className="text-white font-bold">{loading ? "Loading CRM Data..." : "No Cases Found"}</h3>
                           <p className="text-sm text-muted-foreground">
-                            Database is currently empty. Use "New Case" or Migration tool.
+                            {isAdmin ? "Database is currently empty. Use 'New Case' or Migration tool." : "No procedural records available."}
                           </p>
                         </div>
                       </td>
