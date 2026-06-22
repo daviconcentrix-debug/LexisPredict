@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -64,6 +63,7 @@ export default function NotesPage() {
     const updated = notes.filter(n => n.id !== id);
     setNotes(updated);
     await syncRepoNotes(updated);
+    toast({ title: "Note Deleted", description: "Database updated." });
   };
 
   const filteredNotes = useMemo(() => {
@@ -92,7 +92,7 @@ export default function NotesPage() {
               placeholder="Filter notes..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 h-9 bg-secondary border-none text-xs rounded-full focus-visible:ring-primary"
+              className="pl-10 h-9 bg-secondary border-none text-xs rounded-full focus-visible:ring-primary text-white"
             />
           </div>
         </header>
@@ -104,13 +104,13 @@ export default function NotesPage() {
                 placeholder="Title (Optional)" 
                 value={newNote.title}
                 onChange={(e) => setNewNote({...newNote, title: e.target.value})}
-                className="bg-transparent border-none text-sm font-bold placeholder:text-muted-foreground focus-visible:ring-0 px-0"
+                className="bg-transparent border-none text-sm font-bold placeholder:text-muted-foreground focus-visible:ring-0 px-0 text-white"
               />
               <Textarea 
                 placeholder="Take a note/update..." 
                 value={newNote.content}
                 onChange={(e) => setNewNote({...newNote, content: e.target.value})}
-                className="bg-transparent border-none text-sm placeholder:text-muted-foreground focus-visible:ring-0 px-0 min-h-[40px] resize-none"
+                className="bg-transparent border-none text-sm placeholder:text-muted-foreground focus-visible:ring-0 px-0 min-h-[40px] resize-none text-white"
               />
               <div className="flex justify-end">
                 <Button size="sm" onClick={handleAddNote} className="h-8 font-bold">
@@ -145,7 +145,7 @@ export default function NotesPage() {
               </div>
             )) : (
               <div className="col-span-full py-20 text-center border-2 border-dashed border-border rounded-2xl opacity-40">
-                <p className="text-sm font-medium">No updates found.</p>
+                <p className="text-sm font-medium">{loading ? "Loading updates..." : "No updates found."}</p>
               </div>
             )}
           </div>
