@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -12,7 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/use-admin';
 import { fetchRepoNotes, syncRepoNotes } from '@/app/actions/case-actions';
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 export default function NotesPage() {
@@ -44,14 +42,17 @@ export default function NotesPage() {
 
   const handleAddNote = async () => {
     if (!isAdmin) return;
-    if (!newNote.content.trim()) return;
+    if (!newNote.content.trim()) {
+      toast({ title: "Validation Error", description: "Note content cannot be empty.", variant: "destructive" });
+      return;
+    }
 
     const note: CaseNote = {
       id: crypto.randomUUID(),
       title: newNote.title || 'Untitled Update',
       content: newNote.content,
       color: 'bg-sidebar/40',
-      updatedAt: format(new Date(), 'dd/MM/yyyy HH:mm')
+      updatedAt: new Date().toLocaleString('pt-BR')
     };
 
     const updated = [note, ...notes];
@@ -62,7 +63,7 @@ export default function NotesPage() {
     if (result.success) {
       toast({ title: "Update Saved", description: "Note synchronized to cloud." });
     } else {
-      toast({ title: "Sync Failed", description: "Could not save to cloud.", variant: "destructive" });
+      toast({ title: "Sync Failed", description: "Could not save to cloud. Check Supabase connection.", variant: "destructive" });
     }
   };
 
@@ -138,8 +139,7 @@ export default function NotesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-8">
             {filteredNotes.length > 0 ? filteredNotes.map((note) => (
               <div key={note.id} className={cn(
-                "p-5 rounded-xl border border-border transition-all hover:shadow-lg group relative",
-                note.color || 'bg-sidebar/40'
+                "p-5 rounded-xl border border-border transition-all hover:shadow-lg group relative bg-sidebar/40"
               )}>
                 {isAdmin && (
                   <Button 
