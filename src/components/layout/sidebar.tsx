@@ -79,14 +79,14 @@ export function Sidebar() {
       <div className="p-4 border-t border-border">
         {!collapsed ? (
           <div className="flex items-center gap-3 bg-secondary/50 p-2 rounded-xl">
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-white">JD</div>
+            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-white">DA</div>
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-white">John Doe</span>
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Senior Attorney</span>
+              <span className="text-sm font-semibold text-white">Davi Alves</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Analise de Processos Juridicos</span>
             </div>
           </div>
         ) : (
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-white mx-auto">JD</div>
+          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-white mx-auto">DA</div>
         )}
       </div>
     </aside>
