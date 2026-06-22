@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -16,7 +15,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   Lock,
-  Unlock
+  Unlock,
+  StickyNote
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ export function Sidebar() {
     { label: 'Case Management', href: '/cases', icon: Briefcase },
     { label: 'Client Directory', href: '/clients', icon: Users },
     { label: 'Migration Tool', href: '/import', icon: Upload },
+    { label: 'Notes & Updates', href: '/notes', icon: StickyNote },
     { label: 'Analytics Hub', href: '/analytics', icon: BarChart3 },
     { label: 'Urgency Engine', href: '/urgency', icon: ShieldAlert },
     { label: 'System Settings', href: '/settings', icon: Settings },
@@ -39,7 +40,7 @@ export function Sidebar() {
 
   return (
     <aside className={cn(
-      "h-screen bg-sidebar flex flex-col transition-all duration-300 border-r border-border shrink-0",
+      "h-screen bg-sidebar flex flex-col transition-all duration-300 border-r border-border shrink-0 print:hidden",
       collapsed ? "w-20" : "w-64"
     )}>
       <div className="h-16 flex items-center justify-between px-6 border-b border-border">
@@ -63,7 +64,7 @@ export function Sidebar() {
         </Button>
       </div>
 
-      <nav className="flex-1 py-6 px-3 space-y-1">
+      <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
