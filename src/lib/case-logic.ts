@@ -1,4 +1,3 @@
-
 export type LegalCase = {
   id: string;
   cliente: string;
@@ -17,6 +16,7 @@ export type LegalCase = {
   riscoIA?: string;
   parecerIA?: string;
   origemPlanilha?: string;
+  ultimoRetorno?: string;
 };
 
 export const TRIBUNAIS_CNJ: Record<string, { tribunal: string; url: string }> = {
@@ -101,7 +101,6 @@ export function processarCaso(linha: Record<string, string>): LegalCase {
     tribunal = linha.TRIBUNAL;
   }
 
-  // USE PROTOCOL AS ID TO PREVENT DUPLICATES (180 PROCESSES ISSUE)
   const finalId = cnjLimpo || linha.PROTOCOLO || `AUTO-${Math.random().toString(36).substr(2, 9)}`;
 
   return {
@@ -120,6 +119,7 @@ export function processarCaso(linha: Record<string, string>): LegalCase {
     atendente: linha.ATENDENTE || '',
     scoreIA: linha.RISCO ? parseInt(linha.RISCO, 10) : undefined,
     riscoIA: linha.ALERTA || '',
-    parecerIA: linha.OBSERVAÇÕES || linha.OBSERVAÇÃO || ''
+    parecerIA: linha.OBSERVAÇÕES || linha.OBSERVAÇÃO || '',
+    ultimoRetorno: linha.ULTIMO_RETORNO || linha['ÚLTIMO RETORNO'] || undefined
   };
 }
