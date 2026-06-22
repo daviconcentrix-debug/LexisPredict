@@ -1,20 +1,20 @@
-
 'use server';
 
-import { getStoredCases, saveStoredCases } from '@/lib/server-db';
-import { LegalCase } from '@/lib/case-logic';
+import { getStoredCases, saveStoredCases, getStoredNotes, saveStoredNotes } from '@/lib/server-db';
+import { LegalCase, CaseNote } from '@/lib/case-logic';
 
-/**
- * Fetches all cases from the server-side repository.
- */
 export async function fetchRepoCases() {
   return await getStoredCases();
 }
 
-/**
- * Synchronizes client cases with the server-side repository.
- */
 export async function syncRepoCases(cases: LegalCase[]) {
-  const result = await saveStoredCases(cases);
-  return result;
+  return await saveStoredCases(cases);
+}
+
+export async function fetchRepoNotes() {
+  return await getStoredNotes();
+}
+
+export async function syncRepoNotes(notes: CaseNote[]) {
+  return await saveStoredNotes(notes);
 }
