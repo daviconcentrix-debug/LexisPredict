@@ -1,116 +1,134 @@
-import { supabase } from "@/lib/supabase";
-import Link from "next/link";
 
-export default async function UnifiedReportPage() {
-  // Busca os Processos e as Notas ao mesmo tempo (Paralelismo de alta performance)
-  const [processosRes, notasRes] = await Promise.all([
-    supabase.from("processos").select("dados"),
-    supabase.from("notes").select("*").order("created_at", { ascending: false })
-  ]);
+"use client";
 
-  const processos = (processosRes.data || []).map(item => item.dados);
-  const notas = notasRes.data || [];
+import React, { useState, useEffect } from 'react';
+import { fetchRepoCases, fetchRepoNotes } from '@/app/actions/case-actions';
+import { LegalCase, CaseNote } from '@/lib/case-logic';
+import { Button } from '@/components/ui/button';
+import { Printer, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
-  // Cálculos consolidados para o Analytics Hub
-  const total = processos.length;
-  const noPrazo = processos.filter(p => p.risco?.includes("NO PRAZO")).length;
-  const atencao = processos.filter(p => p.risco?.includes("ATENÇÃO")).length;
-  const critico = processos.filter(p => p.risco?.includes("CRÍTICO")).length;
+export default function UnifiedReport() {
+  const [cases, setCases] = useState<LegalCase[]>([]);
+  const [notes, setNotes] = useState<CaseNote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    async function load() {
+      try {
+        const [c, n] = await Promise.all([fetchRepoCases(), fetchRepoNotes()]);
+        setCases(c);
+        setNotes(n);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  if (!mounted) return null;
+
+  const stats = {
+    total: cases.length,
+    vencido: cases.filter(c => c.status === 'Vencido').length,
+    atencao: cases.filter(c => c.status === 'Atenção').length,
+    emAndamento: cases.filter(c => c.situacao === 'EM ANDAMENTO').length
+  };
+
+  const criticalCases = cases
+    .filter(c => c.status === 'Vencido' || c.status === 'Atenção')
+    .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0));
 
   return (
-    <div className="max-w-4xl mx-auto p-8 bg-white text-black min-h-screen print:p-0">
-      
-      {/* BARRA DE COMANDOS (Oculta na hora que vira PDF) */}
-      <div className="flex justify-between items-center mb-8 print:hidden">
-        <Link href="/" className="text-sm bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded">
-          ← Voltar ao CRM
-        </Link>
-        <button 
-          // O pulo do gato: aciona a impressão do navegador ao clicar
-          onClick={() => window.print()} 
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded shadow"
-        >
-          🖨️ Salvar PDF Oficial
-        </button>
+    <div className="min-h-screen bg-white text-black p-8 md:p-16 max-w-5xl mx-auto print:p-0">
+      <div className="flex justify-between items-center mb-10 print:hidden">
+        <Button variant="outline" asChild size="sm">
+          <Link href="/"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao CRM</Link>
+        </Button>
+        <Button onClick={() => window.print()} className="bg-black text-white hover:bg-black/90">
+          <Printer className="mr-2 h-4 w-4" /> Imprimir Relatório
+        </Button>
       </div>
 
-      {/* CABEÇALHO DO DOCUMENTO */}
-      <div className="border-b-2 border-black pb-4 mb-6">
-        <h1 className="text-2xl font-extrabold tracking-tight">RELATÓRIO JURÍDICO EXECUTIVO — CONSOLIDADO</h1>
-        <p className="text-xs text-gray-500 mt-1">
-          Gerado por: Davi Alves (Análise de Processos) • Data: {new Date().toLocaleDateString('pt-BR')}
-        </p>
-      </div>
-
-      {/* SESSÃO 1: ANALYTICS HUB */}
-      <div className="mb-8">
-        <h2 className="text-sm font-bold bg-black text-white p-1 px-2 uppercase tracking-wider mb-4">
-          1. Analytics Hub (Distribuição de Risco)
-        </h2>
-        <div className="grid grid-cols-4 gap-4 text-center">
-          <div className="p-3 bg-gray-50 border rounded"><p className="text-xs text-gray-500">Total</p><p className="text-xl font-bold">{total}</p></div>
-          <div className="p-3 bg-green-50 border border-green-200 rounded"><p className="text-xs text-green-700">No Prazo</p><p className="text-xl font-bold text-green-700">{noPrazo}</p></div>
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded"><p className="text-xs text-yellow-700">Atenção</p><p className="text-xl font-bold text-yellow-700">{atencao}</p></div>
-          <div className="p-3 bg-red-50 border border-red-200 rounded"><p className="text-xs text-red-700">Crítico</p><p className="text-xl font-bold text-red-700">{critico}</p></div>
+      <header className="border-b-4 border-black pb-6 mb-8">
+        <h1 className="text-3xl font-bold uppercase tracking-tighter">Relatório Jurídico Consolidado</h1>
+        <div className="flex justify-between items-end mt-4">
+          <p className="text-sm font-medium">Responsável: Davi Alves (LexisPredict)</p>
+          <p className="text-sm text-gray-500 font-mono">Data de Emissão: {new Date().toLocaleDateString()}</p>
         </div>
-      </div>
+      </header>
 
-      {/* SESSÃO 2: INTELLIGENCE UNIT (Fila de Prioridade) */}
-      <div className="mb-8">
-        <h2 className="text-sm font-bold bg-black text-white p-1 px-2 uppercase tracking-wider mb-4">
-          2. Intelligence Unit (Fila de Casos Prioritários)
-        </h2>
-        <table className="w-full text-left border-collapse text-xs">
-          <thead>
-            <tr className="border-b border-gray-400 font-bold">
-              <th className="pb-2">Cliente</th>
-              <th className="pb-2">Protocolo</th>
-              <th className="pb-2">Próx. Prazo</th>
-              <th className="pb-2">Status / Risco</th>
-            </tr>
-          </thead>
-          <tbody>
-            {processos
-              .filter(p => p.risco?.includes("CRÍTICO") || p.risco?.includes("ATENÇÃO"))
-              .slice(0, 15) // Limita aos 15 piores para o PDF não ter 30 páginas
-              .map((p, i) => (
-                <tr key={i} className="border-b border-gray-100">
-                  <td className="py-2 font-semibold">{p.cliente}</td>
-                  <td className="py-2 text-gray-500">{p.protocolo}</td>
-                  <td className="py-2">{p.proximo_prazo || p.proximoPrazo || "-"}</td>
-                  <td className="py-2">{p.risco}</td>
+      <section className="mb-12">
+        <h2 className="text-sm font-bold bg-black text-white px-3 py-1 uppercase tracking-widest mb-4 inline-block">1. Indicadores de Performance (Analytics)</h2>
+        <div className="grid grid-cols-4 gap-4">
+          <StatBox label="Total de Processos" value={stats.total} />
+          <StatBox label="Críticos / Vencidos" value={stats.vencido} color="text-red-600" />
+          <StatBox label="Em Atenção" value={stats.atencao} color="text-amber-600" />
+          <StatBox label="Ativos" value={stats.emAndamento} />
+        </div>
+      </section>
+
+      <section className="mb-12">
+        <h2 className="text-sm font-bold bg-black text-white px-3 py-1 uppercase tracking-widest mb-4 inline-block">2. Fila de Prioridade (Intelligence)</h2>
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 font-bold">Cliente</th>
+                <th className="px-4 py-3 font-bold">Protocolo CNJ</th>
+                <th className="px-4 py-3 font-bold">Tribunal</th>
+                <th className="px-4 py-3 font-bold">Prazo</th>
+                <th className="px-4 py-3 font-bold">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {criticalCases.length > 0 ? criticalCases.map((c, i) => (
+                <tr key={i}>
+                  <td className="px-4 py-3 font-bold uppercase">{c.cliente}</td>
+                  <td className="px-4 py-3 font-mono">{c.protocolo}</td>
+                  <td className="px-4 py-3">{c.tribunal}</td>
+                  <td className="px-4 py-3">{c.proximoPrazo}</td>
+                  <td className="px-4 py-3 font-bold">{c.status}</td>
                 </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+              )) : (
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 italic">Sem processos críticos registrados.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-      {/* SESSÃO 3: GOOGLE KEEP / ANOTAÇÕES */}
-      <div className="mb-8">
-        <h2 className="text-sm font-bold bg-black text-white p-1 px-2 uppercase tracking-wider mb-4">
-          3. Quadro de Atualizações & Anotações
-        </h2>
-        {notas.length === 0 ? (
-          <p className="text-xs text-gray-400 italic">Nenhuma anotação ativa.</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            {notas.map((n) => (
-              <div key={n.id} className="p-3 border border-gray-300 rounded bg-amber-50/40 break-inside-avoid">
-                <span className="text-[10px] text-gray-400 font-mono block mb-1">
-                  {new Date(n.created_at).toLocaleDateString('pt-BR')}
-                </span>
-                <h3 className="font-bold text-xs mb-1">{n.title}</h3>
-                <p className="text-xs text-gray-700 whitespace-pre-wrap">{n.content}</p>
+      <section className="mb-12">
+        <h2 className="text-sm font-bold bg-black text-white px-3 py-1 uppercase tracking-widest mb-4 inline-block">3. Atualizações e Anotações</h2>
+        {notes.length > 0 ? (
+          <div className="grid grid-cols-2 gap-6">
+            {notes.map((n, i) => (
+              <div key={i} className="border border-gray-200 p-4 rounded-lg bg-gray-50 break-inside-avoid">
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">{n.updatedAt}</p>
+                <h3 className="font-bold text-sm mb-2">{n.title}</h3>
+                <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">{n.content}</p>
               </div>
             ))}
           </div>
+        ) : (
+          <p className="text-xs text-gray-400 italic">Nenhuma anotação registrada no período.</p>
         )}
-      </div>
+      </section>
 
-      <div className="text-center text-[10px] text-gray-400 mt-12 pt-4 border-t">
-        LexisPredict AI • Documento de uso restrito Davi Alves
-      </div>
+      <footer className="mt-20 pt-8 border-t border-gray-200 text-center text-[10px] text-gray-400 uppercase tracking-widest">
+        Documento gerado automaticamente via LexisPredict CRM Intelligence Unit
+      </footer>
+    </div>
+  );
+}
 
+function StatBox({ label, value, color = "text-black" }: { label: string, value: number, color?: string }) {
+  return (
+    <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl">
+      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter mb-1">{label}</p>
+      <p className={`text-2xl font-bold ${color}`}>{value}</p>
     </div>
   );
 }
