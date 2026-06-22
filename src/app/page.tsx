@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -16,7 +15,7 @@ import {
   BrainCircuit,
   FileDown
 } from 'lucide-react';
-import Link from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -28,6 +27,7 @@ export default function Dashboard() {
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
@@ -75,6 +75,10 @@ export default function Dashboard() {
 
   const handleExportPDF = () => {
     window.print();
+  };
+
+  const handleCaseDetailClick = (protocolo: string) => {
+    router.push(`/cases?search=${encodeURIComponent(protocolo)}`);
   };
 
   return (
@@ -150,7 +154,8 @@ export default function Dashboard() {
                   {urgentQueue.map((c) => (
                     <div 
                       key={c.protocolo} 
-                      className="group p-4 bg-secondary/30 border border-border hover:border-primary/50 rounded-xl transition-all flex items-center justify-between cursor-default print:bg-gray-50 print:border-gray-100"
+                      onClick={() => handleCaseDetailClick(c.protocolo)}
+                      className="group p-4 bg-secondary/30 border border-border hover:border-primary/50 rounded-xl transition-all flex items-center justify-between cursor-pointer print:bg-gray-50 print:border-gray-100"
                     >
                       <div className="flex items-center gap-4">
                         <div className={cn(
@@ -160,7 +165,7 @@ export default function Dashboard() {
                           {c.tribunal}
                         </div>
                         <div>
-                          <p className="font-bold text-sm text-white print:text-black">{c.cliente}</p>
+                          <p className="font-bold text-sm text-white group-hover:text-primary transition-colors print:text-black">{c.cliente}</p>
                           <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest print:text-gray-500">{c.protocolo}</p>
                         </div>
                       </div>
@@ -169,12 +174,15 @@ export default function Dashboard() {
                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 print:text-gray-500">Return Date</p>
                           <p className="text-sm font-medium text-white print:text-black">{c.proximoPrazo}</p>
                         </div>
-                        <Badge className={cn(
-                          "px-3 py-1 font-bold rounded-md print:bg-gray-200 print:text-black",
-                          c.status === 'Vencido' ? "bg-destructive/20 text-destructive border-destructive/20" : "bg-accent/20 text-accent border-accent/20"
-                        )}>
-                          {c.diasFaltando !== null && c.diasFaltando < 0 ? `${Math.abs(c.diasFaltando)}d VENCIDO` : `${c.diasFaltando}d RESTANDO`}
-                        </Badge>
+                        <div className="flex items-center gap-3">
+                          <Badge className={cn(
+                            "px-3 py-1 font-bold rounded-md print:bg-gray-200 print:text-black",
+                            c.status === 'Vencido' ? "bg-destructive/20 text-destructive border-destructive/20" : "bg-accent/20 text-accent border-accent/20"
+                          )}>
+                            {c.diasFaltando !== null && c.diasFaltando < 0 ? `${Math.abs(c.diasFaltando)}d VENCIDO` : `${c.diasFaltando}d RESTANDO`}
+                          </Badge>
+                          <ChevronRight size={16} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -199,20 +207,20 @@ export default function Dashboard() {
                   <Database className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-headline font-bold">Cloud Persistence</h2>
+                  <h2 className="text-2xl font-headline font-bold">Cloud CRM Engine</h2>
                   <p className="text-sm text-white/80 font-medium leading-relaxed mt-2">
-                    Your legal data is now automatically synced across all machines using <strong>Supabase</strong>.
+                    Your procedural data is automatically synchronized via <strong>Supabase</strong> across all legal workstations.
                   </p>
                 </div>
                 <div className="pt-4 space-y-3">
                   <div className="flex justify-between items-center text-xs font-bold border-b border-white/10 pb-2">
-                    <span>Sync Status</span>
-                    <span className="text-white">Continuous</span>
+                    <span>Database Engine</span>
+                    <span className="text-white">Active</span>
                   </div>
                   <div className="flex justify-between items-center text-xs font-bold border-b border-white/10 pb-2">
-                    <span>Engine Pulse</span>
+                    <span>System Sync</span>
                     <span className="text-white flex items-center gap-1">
-                      <BrainCircuit size={10} className="text-accent animate-pulse" /> Operational
+                      <BrainCircuit size={10} className="text-accent animate-pulse" /> Live
                     </span>
                   </div>
                 </div>
