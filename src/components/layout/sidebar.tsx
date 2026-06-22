@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -13,14 +14,18 @@ import {
   Settings, 
   Scale, 
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useAdmin } from '@/hooks/use-admin';
 
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = React.useState(false);
+  const { isAdmin } = useAdmin();
 
   const navItems = [
     { label: 'Intelligence Unit', href: '/', icon: LayoutDashboard },
@@ -41,7 +46,10 @@ export function Sidebar() {
         {!collapsed && (
           <div className="flex items-center gap-2">
             <Scale className="text-primary w-6 h-6" />
-            <span className="font-headline font-bold text-lg text-white">LexisPredict</span>
+            <div className="flex flex-col">
+              <span className="font-headline font-bold text-lg text-white leading-none">LexisPredict</span>
+              <span className="text-[8px] uppercase tracking-widest text-muted-foreground font-bold mt-1">Procedural Intelligence</span>
+            </div>
           </div>
         )}
         {collapsed && <Scale className="text-primary w-6 h-6 mx-auto" />}
@@ -76,13 +84,26 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border space-y-3">
+        {!collapsed && (
+          <div className={cn(
+            "flex items-center justify-between px-2 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-tighter",
+            isAdmin ? "border-primary/30 bg-primary/5 text-primary" : "border-muted bg-muted/5 text-muted-foreground"
+          )}>
+            <span className="flex items-center gap-1.5">
+              {isAdmin ? <Unlock size={10} /> : <Lock size={10} />}
+              {isAdmin ? "Admin Active" : "Visitor Mode"}
+            </span>
+            {!isAdmin && <Link href="/settings" className="hover:underline text-[9px]">Unlock</Link>}
+          </div>
+        )}
+        
         {!collapsed ? (
           <div className="flex items-center gap-3 bg-secondary/50 p-2 rounded-xl">
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-white">DA</div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-white">Davi Alves</span>
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Analise de Processos Juridicos</span>
+            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-white shrink-0">DA</div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-semibold text-white truncate">Davi Alves</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold truncate">Análise Jurídica</span>
             </div>
           </div>
         ) : (
