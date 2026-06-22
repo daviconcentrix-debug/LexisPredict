@@ -1,3 +1,4 @@
+
 import { supabase, isSupabaseConfigured } from './supabase';
 import { LegalCase, CaseNote } from './case-logic';
 
@@ -19,8 +20,8 @@ export async function getStoredCases(): Promise<LegalCase[]> {
 export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: boolean; message: string }> {
   if (!isSupabaseConfigured) return { success: false, message: "Cloud not configured." };
   try {
-    const { error: deleteError } = await supabase.from('processos').delete().neq('id', -1);
-    if (deleteError) throw deleteError;
+    // Clear existing
+    await supabase.from('processos').delete().neq('id', -1);
 
     if (cases.length === 0) {
       return { success: true, message: "Database cleared." };
@@ -65,6 +66,7 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
 export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boolean }> {
   if (!isSupabaseConfigured) return { success: false };
   try {
+    // Note: Overwrite sync for MVP simplicity
     await supabase.from('notes').delete().not('id', 'is', null);
     
     if (notes.length === 0) return { success: true };
