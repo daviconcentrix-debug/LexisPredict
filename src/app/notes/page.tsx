@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -25,9 +26,16 @@ export default function NotesPage() {
 
   useEffect(() => {
     async function load() {
-      const data = await fetchRepoNotes();
-      setNotes(data);
-      setLoading(false);
+      try {
+        const data = await fetchRepoNotes();
+        if (Array.isArray(data)) {
+          setNotes(data);
+        }
+      } catch (e) {
+        console.error('Notes failed to load');
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);
@@ -41,7 +49,7 @@ export default function NotesPage() {
       title: newNote.title || 'Untitled Update',
       content: newNote.content,
       color: 'bg-sidebar/40',
-      updatedAt: format(newDate(), 'dd/MM/yyyy HH:mm')
+      updatedAt: format(new Date(), 'dd/MM/yyyy HH:mm')
     };
 
     const updated = [note, ...notes];
@@ -60,8 +68,8 @@ export default function NotesPage() {
 
   const filteredNotes = useMemo(() => {
     return notes.filter(n => 
-      n.title.toLowerCase().includes(search.toLowerCase()) || 
-      n.content.toLowerCase().includes(search.toLowerCase())
+      (n.title || '').toLowerCase().includes(search.toLowerCase()) || 
+      (n.content || '').toLowerCase().includes(search.toLowerCase())
     );
   }, [notes, search]);
 
@@ -116,7 +124,7 @@ export default function NotesPage() {
             {filteredNotes.length > 0 ? filteredNotes.map((note) => (
               <div key={note.id} className={cn(
                 "p-5 rounded-xl border border-border transition-all hover:shadow-lg group relative",
-                note.color
+                note.color || 'bg-sidebar/40'
               )}>
                 {isAdmin && (
                   <Button 
