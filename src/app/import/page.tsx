@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -5,24 +6,28 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { 
   Upload, 
   FileSpreadsheet, 
-  X
+  X,
+  Lock
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { syncRepoCases } from '@/app/actions/case-actions';
+import { syncRepoCases, fetchRepoCases } from '@/app/actions/case-actions';
 import { cn } from '@/lib/utils';
+import { useAdmin } from '@/hooks/use-admin';
 
 export default function ImportPage() {
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [preview, setPreview] = useState<LegalCase[]>([]);
+  const { isAdmin } = useAdmin();
   const { toast } = useToast();
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isAdmin) return;
     const selected = e.target.files?.[0];
     if (selected) {
       setFile(selected);
@@ -73,28 +78,31 @@ export default function ImportPage() {
   };
 
   const commitToStorage = async () => {
-    const cached = localStorage.getItem('lexisPredict_cloud_cache');
-    const existing: LegalCase[] = cached ? JSON.parse(cached) : [];
+    if (!isAdmin) return;
     
-    // Use protocol as key for deduplication
-    const caseMap = new Map();
-    existing.forEach(c => caseMap.set(c.protocolo, c));
-    preview.forEach(c => caseMap.set(c.protocolo, c));
-    
-    const combined = Array.from(caseMap.values());
-    
-    const result = await syncRepoCases(combined);
-    
-    if (result.success) {
-      localStorage.setItem('lexisPredict_cloud_cache', JSON.stringify(combined));
-      toast({
-        title: "Database Synced",
-        description: `${preview.length} cases updated in the cloud CRM.`,
-      });
-      setFile(null);
-      setPreview([]);
-    } else {
-      toast({ title: "Sync Failed", description: result.message, variant: "destructive" });
+    try {
+      const existing = await fetchRepoCases();
+      const existingArray = Array.isArray(existing) ? existing : [];
+      
+      const caseMap = new Map();
+      existingArray.forEach(c => caseMap.set(c.protocolo, c));
+      preview.forEach(c => caseMap.set(c.protocolo, c));
+      
+      const combined = Array.from(caseMap.values());
+      const result = await syncRepoCases(combined);
+      
+      if (result.success) {
+        toast({
+          title: "Database Synced",
+          description: `${preview.length} cases updated in the cloud CRM.`,
+        });
+        setFile(null);
+        setPreview([]);
+      } else {
+        toast({ title: "Sync Failed", description: result.message, variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: "Cloud Error", description: "Could not connect to database.", variant: "destructive" });
     }
   };
 
@@ -103,9 +111,16 @@ export default function ImportPage() {
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden text-white">
         <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8">
-          <h1 className="font-headline font-bold text-xl text-white">Migration Tool</h1>
-          {preview.length > 0 && (
-            <Button onClick={commitToStorage} className="bg-primary hover:bg-primary/90 font-bold px-6">
+          <div className="flex items-center gap-4">
+            <h1 className="font-headline font-bold text-xl text-white">Migration Tool</h1>
+            {!isAdmin && (
+              <Badge variant="secondary" className="bg-secondary/50 text-[10px] text-muted-foreground uppercase flex items-center gap-1.5">
+                <Lock size={10} /> Visitor Mode
+              </Badge>
+            )}
+          </div>
+          {preview.length > 0 && isAdmin && (
+            <Button onClick={commitToStorage} className="bg-primary hover:bg-primary/90 font-bold px-6 text-white">
               Confirm & Cloud Sync
             </Button>
           )}
@@ -116,18 +131,21 @@ export default function ImportPage() {
             <div className="text-center space-y-2">
               <h2 className="text-2xl font-headline font-bold text-white">Legal Data Ingestion</h2>
               <p className="text-muted-foreground max-w-xl mx-auto text-sm">
-                Upload CSVs to sync cases across all machines. Duplicates are merged by protocol number.
+                Upload CSVs to sync cases across all machines. {isAdmin ? "Duplicates are merged by protocol number." : "Modifications restricted to Admin users."}
               </p>
             </div>
 
             {!file ? (
-              <label className="group border-2 border-dashed border-border rounded-3xl p-16 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all">
+              <label className={cn(
+                "group border-2 border-dashed border-border rounded-3xl p-16 flex flex-col items-center justify-center transition-all",
+                isAdmin ? "cursor-pointer hover:border-primary/50 hover:bg-primary/5" : "cursor-not-allowed opacity-50"
+              )}>
                 <div className="p-6 bg-secondary rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300">
                   <Upload className="text-primary w-12 h-12" />
                 </div>
-                <h3 className="text-white font-bold text-lg mb-1">Select Legal Spreadsheet</h3>
+                <h3 className="text-white font-bold text-lg mb-1">{isAdmin ? "Select Legal Spreadsheet" : "Ingestion Locked"}</h3>
                 <p className="text-sm text-muted-foreground">Format: CSV (UTF-8)</p>
-                <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
+                {isAdmin && <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />}
               </label>
             ) : (
               <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
