@@ -1,14 +1,14 @@
-
 "use client";
 
 import React from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { ShieldAlert, Clock, AlertTriangle, CheckCircle2, Lock } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, CheckCircle2, Lock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { useAdmin } from '@/hooks/use-admin';
+import { cn } from '@/lib/utils';
 
 export default function UrgencyEngine() {
   const { isAdmin } = useAdmin();
