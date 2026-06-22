@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
@@ -10,7 +9,9 @@ import {
   RefreshCcw,
   Plus,
   Briefcase,
-  Edit2
+  Edit2,
+  CheckCircle,
+  Clock
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { fetchRepoCases, syncRepoCases } from '@/app/actions/case-actions';
+import { format } from 'date-fns';
 
 function CasesContent() {
   const [cases, setCases] = useState<LegalCase[]>([]);
@@ -46,7 +48,8 @@ function CasesContent() {
     protocolo: '',
     advogado: '',
     proximoPrazo: '',
-    situacao: 'EM ANDAMENTO'
+    situacao: 'EM ANDAMENTO',
+    ultimoRetorno: ''
   });
 
   const loadData = useCallback(async () => {
@@ -80,22 +83,38 @@ function CasesContent() {
       PROTOCOLO: formState.protocolo,
       ADVOGADO: formState.advogado,
       'PRÓXIMO PRAZO': formState.proximoPrazo,
-      SITUAÇÃO: formState.situacao
+      SITUAÇÃO: formState.situacao,
+      ULTIMO_RETORNO: formState.ultimoRetorno
     });
 
-    const caseMap = new Map();
-    cases.forEach(c => caseMap.set(c.protocolo, c));
-    caseMap.set(processed.protocolo, processed);
-    
-    const updated = Array.from(caseMap.values());
+    const updated = cases.map(c => c.protocolo === processed.protocolo ? processed : c);
+    if (!cases.find(c => c.protocolo === processed.protocolo)) {
+      updated.push(processed);
+    }
     
     const result = await syncRepoCases(updated);
     if (result.success) {
       setCases(updated);
       setIsModalOpen(false);
       setEditingCase(null);
-      setFormState({ cliente: '', protocolo: '', advogado: '', proximoPrazo: '', situacao: 'EM ANDAMENTO' });
+      setFormState({ cliente: '', protocolo: '', advogado: '', proximoPrazo: '', situacao: 'EM ANDAMENTO', ultimoRetorno: '' });
       toast({ title: editingCase ? "Case Updated" : "Case Added", description: "Successfully synchronized with cloud database." });
+    }
+  };
+
+  const handleLogReturn = async (protocolo: string) => {
+    const today = format(new Date(), 'dd/MM/yyyy');
+    const updated = cases.map(c => {
+      if (c.protocolo === protocolo) {
+        return { ...c, ultimoRetorno: today };
+      }
+      return c;
+    });
+
+    setCases(updated);
+    const result = await syncRepoCases(updated);
+    if (result.success) {
+      toast({ title: "Return Logged", description: `Contact confirmed for today (${today}).` });
     }
   };
 
@@ -106,7 +125,8 @@ function CasesContent() {
       protocolo: c.protocolo,
       advogado: c.advogado,
       proximoPrazo: c.proximoPrazo,
-      situacao: c.situacao
+      situacao: c.situacao,
+      ultimoRetorno: c.ultimoRetorno || ''
     });
     setIsModalOpen(true);
   };
@@ -150,7 +170,7 @@ function CasesContent() {
               setIsModalOpen(open);
               if (!open) {
                 setEditingCase(null);
-                setFormState({ cliente: '', protocolo: '', advogado: '', proximoPrazo: '', situacao: 'EM ANDAMENTO' });
+                setFormState({ cliente: '', protocolo: '', advogado: '', proximoPrazo: '', situacao: 'EM ANDAMENTO', ultimoRetorno: '' });
               }
             }}>
               <DialogTrigger asChild>
@@ -163,7 +183,7 @@ function CasesContent() {
                   <DialogHeader>
                     <DialogTitle>{editingCase ? "Edit Case Entry" : "Manual Case Registry"}</DialogTitle>
                     <DialogDescription className="text-muted-foreground">
-                      {editingCase ? "Update existing procedural details." : "Input new procedural details. Duplicate protocols will be merged."}
+                      {editingCase ? "Update existing procedural details." : "Input new procedural details."}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
@@ -184,6 +204,10 @@ function CasesContent() {
                         <Label htmlFor="deadline">Deadline (DD/MM/YYYY)</Label>
                         <Input id="deadline" placeholder="30/12/2026" value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="bg-secondary border-none" />
                       </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="ultimoRetorno">Last Return Date (DD/MM/YYYY)</Label>
+                      <Input id="ultimoRetorno" placeholder="22/06/2026" value={formState.ultimoRetorno} onChange={(e) => setFormState({...formState, ultimoRetorno: e.target.value})} className="bg-secondary border-none" />
                     </div>
                   </div>
                   <DialogFooter>
@@ -217,13 +241,14 @@ function CasesContent() {
             </div>
 
             <div className="flex-1 overflow-auto">
-              <table className="w-full text-left border-collapse min-w-[800px]">
+              <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead className="sticky top-0 bg-card z-10">
                   <tr className="border-b border-border text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
                     <th className="px-6 py-4">Client / CNJ Protocol</th>
                     <th className="px-6 py-4">Tribunal</th>
                     <th className="px-6 py-4">Assigned Attorney</th>
                     <th className="px-6 py-4">Procedural Status</th>
+                    <th className="px-6 py-4">Last Return</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -250,8 +275,25 @@ function CasesContent() {
                           <p className="text-[10px] text-muted-foreground font-medium">{c.proximoPrazo || 'No Deadline Set'}</p>
                         </div>
                       </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground font-medium">
+                            {c.ultimoRetorno || 'Never Contacted'}
+                          </span>
+                        </div>
+                      </td>
                       <td className="px-6 py-5 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleLogReturn(c.protocolo)} 
+                            title="Confirm Contact Today"
+                            className="text-muted-foreground hover:text-chart-3"
+                          >
+                            <CheckCircle size={16} />
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleEditClick(c)} className="text-muted-foreground hover:text-white">
                             <Edit2 size={16} />
                           </Button>
@@ -268,7 +310,7 @@ function CasesContent() {
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan={5} className="py-20 text-center">
+                      <td colSpan={6} className="py-20 text-center">
                         <div className="max-w-xs mx-auto space-y-3">
                           <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center mx-auto">
                             <Briefcase className="text-muted-foreground" />
