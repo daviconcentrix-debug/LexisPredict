@@ -19,42 +19,43 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { fetchRepoCases } from '@/app/actions/case-actions';
-import { supabase } from '@/lib/supabaseClient'; // Conexão com o Supabase
+import { supabase } from '@/lib/supabaseClient';
 
 export default function Dashboard() {
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Função para carregar os dados isolada para podermos usar no botão de Sync também
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Busca os dados globais direto na nuvem do Supabase
+      // 1. Tenta buscar os dados globais direto na nuvem do Supabase
       const { data: cloudRows, error } = await supabase
         .from('processos')
         .select('dados');
 
-      if (error) throw error;
-
-      // 2. Carrega os dados padrão do repositório (Server-side JSON) como backup
+      // 2. Carrega SEMPRE os dados do repositório/servidor como fonte principal ou backup estável
       const repoData = await fetchRepoCases();
+      const validRepoData = Array.isArray(repoData) ? repoData : [];
 
-      // 3. Se houver dados na nuvem, usa eles. Se não, usa o do repositório e sincroniza na nuvem
-      if (cloudRows && cloudRows.length > 0) {
+      if (!error && cloudRows && cloudRows.length > 0) {
+        // Se já existem dados na nuvem, usamos eles
         const cloudCases = cloudRows.map((item: any) => item.dados as LegalCase);
         setCases(cloudCases);
-      } else if (repoData && repoData.length > 0) {
-        setCases(repoData);
+      } else {
+        // Se a nuvem estiver vazia ou der erro, usamos os dados do repositório que alimentam a outra aba
+        setCases(validRepoData);
         
-        // Salva os dados iniciais no Supabase para espelhar em todas as máquinas
-        const rowsToInsert = repoData.map(c => ({ dados: c }));
-        await supabase.from('processos').insert(rowsToInsert);
+        // Se a nuvem estava vazia mas temos dados locais, alimenta o Supabase para sincronizar as máquinas
+        if (validRepoData.length > 0 && !cloudRows?.length) {
+          const rowsToInsert = validRepoData.map(c => ({ dados: c }));
+          await supabase.from('processos').insert(rowsToInsert);
+        }
       }
     } catch (err) {
-      console.error('Erro ao sincronizar com o Supabase:', err);
-      // Fallback de segurança se o banco falhar: carrega o local do servidor
+      console.error('Erro geral na sincronização:', err);
+      // Fallback definitivo para garantir que a tela nunca fique zerada se houver dados no sistema
       const repoData = await fetchRepoCases();
-      if (repoData) setCases(repoData);
+      if (Array.isArray(repoData)) setCases(repoData);
     } finally {
       setLoading(false);
     }
@@ -68,7 +69,11 @@ export default function Dashboard() {
     const total = cases.length;
     const critical = cases.filter(c => c.status === 'Vencido').length;
     const attention = cases.filter(c => c.status === 'Atenção').length;
-    const processed = cases.filter(c => c.situacao === 'EM ANDAMENTO').length;
+    
+    // Filtra os que estão em andamento com base no seu padrão visual
+    const processed = cases.filter(c => c.status === 'No Prazo' || c.status === 'Atenção').length;
+    
+    // Cálculo da taxa de risco baseado nos alertas críticos e atenção
     const riskScore = total ? Math.round(((critical + attention) / total) * 100) : 0;
 
     return { total, critical, attention, processed, riskScore };
@@ -77,7 +82,12 @@ export default function Dashboard() {
   const urgentQueue = useMemo(() => {
     return cases
       .filter(c => c.status === 'Vencido' || c.status === 'Atenção')
-      .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
+      .sort((a, b) => {
+        // Coloca os Vencidos primeiro, depois ordena por data/dias restantes
+        if (a.status === 'Vencido' && b.status !== 'Vencido') return -1;
+        if (a.status !== 'Vencido' && b.status === 'Vencido') return 1;
+        return (a.diasFaltando || 0) - (b.diasFaltando || 0);
+      })
       .slice(0, 5);
   }, [cases]);
 
@@ -92,120 +102,4 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-3">
             <div className="relative w-64 hidden sm:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input 
-                placeholder="Search cases..." 
-                className="pl-10 h-9 bg-secondary border-none text-xs rounded-full focus-visible:ring-primary text-white"
-              />
-            </div>
-          </div>
-        </header>
-
-        <div className="flex-1 overflow-auto p-8 space-y-8">
-          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard 
-              title="Total de Processos" 
-              value={stats.total} 
-              icon={<Briefcase size={20} />} 
-              trend="Active Database"
-              trendUp
-            />
-            <StatCard 
-              title="Alertas Críticos" 
-              value={stats.critical} 
-              icon={<ShieldAlert size={20} />} 
-              color="destructive"
-              trend="Requires Action"
-            />
-            <StatCard 
-              title="Taxa de Risco" 
-              value={`${stats.riskScore}%`} 
-              icon={<TrendingUp size={20} />} 
-              color="accent"
-            />
-            <StatCard 
-              title="Ativos" 
-              value={stats.processed} 
-              icon={<Scale size={20} />} 
-              color="success"
-              trend="Ongoing Procedures"
-              trendUp
-            />
-          </section>
-
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            <section className="xl:col-span-2 bg-card border border-border rounded-2xl p-6 shadow-xl">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="font-headline font-bold text-lg text-white">Priority Queue</h2>
-                  <p className="text-xs text-muted-foreground">Highest risk cases requiring immediate attention.</p>
-                </div>
-                {/* Agora o botão realmente busca as atualizações mais recentes na nuvem */}
-                <Button 
-                  variant="ghost" 
-                  className="text-xs text-primary font-bold hover:bg-primary/10"
-                  onClick={loadData}
-                  disabled={loading}
-                >
-                  {loading ? 'Syncing...' : 'Sync Cloud'} <TrendingUp className="w-3 h-3 ml-2" />
-                </Button>
-              </div>
-
-              {loading ? (
-                <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">
-                  Loading global database...
-                </div>
-              ) : urgentQueue.length > 0 ? (
-                <div className="space-y-3">
-                  {urgentQueue.map((c) => (
-                    <div key={c.id} className="group p-4 bg-secondary/30 border border-border hover:border-primary/50 rounded-xl transition-all flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className={cn(
-                          "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xs shrink-0",
-                          c.status === 'Vencido' ? "bg-destructive/10 text-destructive" : "bg-accent/10 text-accent"
-                        )}>
-                          {c.tribunal}
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm text-white group-hover:text-primary transition-colors">{c.cliente}</p>
-                          <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">{c.protocolo}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-6">
-                        <div className="text-right hidden sm:block">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Return Date</p>
-                          <p className="text-sm font-medium text-white">{c.proximoPrazo}</p>
-                        </div>
-                        <Badge className={cn(
-                          "px-3 py-1 font-bold rounded-md",
-                          c.status === 'Vencido' ? "bg-destructive/20 text-destructive border-destructive/20" : "bg-accent/20 text-accent border-accent/20"
-                        )}>
-                          {c.diasFaltando && c.diasFaltando < 0 ? `${Math.abs(c.diasFaltando)}d VENCIDO` : `${c.diasFaltando}d RESTANDO`}
-                        </Badge>
-                        <ChevronRight className="text-muted-foreground w-4 h-4" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl bg-secondary/10">
-                  <div className="p-4 bg-secondary rounded-full mb-4">
-                    <Scale className="text-muted-foreground w-8 h-8" />
-                  </div>
-                  <h3 className="text-white font-bold">No High-Risk Cases</h3>
-                  <p className="text-sm text-muted-foreground">Queue is clear. All deadlines are healthy.</p>
-                </div>
-              )}
-            </section>
-
-            <section className="bg-gradient-to-br from-primary to-accent rounded-2xl p-8 text-white relative overflow-hidden flex flex-col justify-center">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-xl" />
-              
-              <div className="relative z-10 space-y-6">
-                <div className="p-3 bg-white/20 w-fit rounded-xl backdrop-blur-md border border-white/20">
-                  <Database className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-headline font-bold">Cloud Repository</h2>
-                  <p className="text-sm text-white/80 font-medium leading
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4
