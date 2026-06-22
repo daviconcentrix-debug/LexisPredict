@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -14,7 +13,8 @@ import {
   RefreshCcw,
   FileDown,
   Users,
-  StickyNote
+  StickyNote,
+  ExternalLink
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { LegalCase, CaseNote } from '@/lib/case-logic';
@@ -63,17 +63,7 @@ export default function Dashboard() {
     const processed = cases.filter(c => c.situacao === 'EM ANDAMENTO').length;
     const riskScore = total ? Math.round(((critical + attention) / total) * 100) : 0;
 
-    const tribunalCounts: Record<string, number> = {};
-    const attorneyCounts: Record<string, number> = {};
-    cases.forEach(c => {
-      tribunalCounts[c.tribunal] = (tribunalCounts[c.tribunal] || 0) + 1;
-      attorneyCounts[c.advogado] = (attorneyCounts[c.advogado] || 0) + 1;
-    });
-
-    const topTribunals = Object.entries(tribunalCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const topAttorneys = Object.entries(attorneyCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-
-    return { total, critical, attention, processed, riskScore, topTribunals, topAttorneys };
+    return { total, critical, attention, processed, riskScore };
   }, [cases]);
 
   const urgentQueue = useMemo(() => {
@@ -217,6 +207,11 @@ export default function Dashboard() {
                     Procedural data is automatically synchronized across all legal workstations.
                   </p>
                 </div>
+                <Button variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white w-full font-bold" asChild>
+                  <Link href="/report" target="_blank">
+                    <FileDown size={14} className="mr-2" /> Preview Unified PDF
+                  </Link>
+                </Button>
               </div>
             </section>
           </div>
