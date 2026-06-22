@@ -1,8 +1,9 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Plus, Trash2, StickyNote, Lock, Search } from 'lucide-react';
+import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw } from 'lucide-react';
 import { CaseNote } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,20 +24,22 @@ export default function NotesPage() {
 
   const [newNote, setNewNote] = useState({ title: '', content: '' });
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await fetchRepoNotes();
-        if (Array.isArray(data)) {
-          setNotes(data);
-        }
-      } catch (e) {
-        console.error('Notes failed to load');
-      } finally {
-        setLoading(false);
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchRepoNotes();
+      if (Array.isArray(data)) {
+        setNotes(data);
       }
+    } catch (e) {
+      console.error('Notes failed to load');
+    } finally {
+      setLoading(false);
     }
-    load();
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const handleAddNote = async () => {
@@ -54,16 +57,23 @@ export default function NotesPage() {
     const updated = [note, ...notes];
     setNotes(updated);
     setNewNote({ title: '', content: '' });
-    await syncRepoNotes(updated);
-    toast({ title: "Update Saved", description: "Note synchronized to cloud." });
+    
+    const result = await syncRepoNotes(updated);
+    if (result.success) {
+      toast({ title: "Update Saved", description: "Note synchronized to cloud." });
+    } else {
+      toast({ title: "Sync Failed", description: "Could not save to cloud.", variant: "destructive" });
+    }
   };
 
   const deleteNote = async (id: string) => {
     if (!isAdmin) return;
     const updated = notes.filter(n => n.id !== id);
     setNotes(updated);
-    await syncRepoNotes(updated);
-    toast({ title: "Note Deleted", description: "Database updated." });
+    const result = await syncRepoNotes(updated);
+    if (result.success) {
+      toast({ title: "Note Deleted", description: "Database updated." });
+    }
   };
 
   const filteredNotes = useMemo(() => {
@@ -79,21 +89,26 @@ export default function NotesPage() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden text-white">
         <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8">
           <div className="flex items-center gap-4">
-            <h1 className="font-headline font-bold text-xl">Updates & Annotations</h1>
+            <h1 className="font-headline font-bold text-xl text-white">Updates & Annotations</h1>
             {!isAdmin && (
               <Badge variant="secondary" className="bg-secondary/50 text-[10px] text-muted-foreground uppercase flex items-center gap-1.5">
                 <Lock size={10} /> Visitor Mode
               </Badge>
             )}
           </div>
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input 
-              placeholder="Filter notes..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 h-9 bg-secondary border-none text-xs rounded-full focus-visible:ring-primary text-white"
-            />
+          <div className="flex items-center gap-3">
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input 
+                placeholder="Filter notes..." 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10 h-9 bg-secondary border-none text-xs rounded-full focus-visible:ring-primary text-white"
+              />
+            </div>
+            <Button variant="ghost" size="icon" onClick={loadData} className="text-muted-foreground hover:text-white">
+              <RefreshCcw className={cn("w-4 h-4", loading && "animate-spin")} />
+            </Button>
           </div>
         </header>
 
@@ -113,7 +128,7 @@ export default function NotesPage() {
                 className="bg-transparent border-none text-sm placeholder:text-muted-foreground focus-visible:ring-0 px-0 min-h-[40px] resize-none text-white"
               />
               <div className="flex justify-end">
-                <Button size="sm" onClick={handleAddNote} className="h-8 font-bold">
+                <Button size="sm" onClick={handleAddNote} className="h-8 font-bold text-white">
                   <Plus className="w-3.5 h-3.5 mr-2" /> Save Note
                 </Button>
               </div>
@@ -136,7 +151,7 @@ export default function NotesPage() {
                     <Trash2 size={14} />
                   </Button>
                 )}
-                <h3 className="font-bold text-sm mb-2">{note.title}</h3>
+                <h3 className="font-bold text-sm mb-2 text-white">{note.title}</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{note.content}</p>
                 <div className="mt-4 pt-4 border-t border-border/30 flex justify-between items-center">
                   <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">{note.updatedAt}</span>
@@ -145,7 +160,7 @@ export default function NotesPage() {
               </div>
             )) : (
               <div className="col-span-full py-20 text-center border-2 border-dashed border-border rounded-2xl opacity-40">
-                <p className="text-sm font-medium">{loading ? "Loading updates..." : "No updates found."}</p>
+                <p className="text-sm font-medium text-white">{loading ? "Loading updates from cloud..." : "No updates found."}</p>
               </div>
             )}
           </div>
