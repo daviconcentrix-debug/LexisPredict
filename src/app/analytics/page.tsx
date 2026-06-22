@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -18,8 +19,10 @@ import { fetchRepoCases } from '@/app/actions/case-actions';
 export default function AnalyticsPage() {
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     async function load() {
       setLoading(true);
       const repoData = await fetchRepoCases();
@@ -100,7 +103,7 @@ export default function AnalyticsPage() {
         <div className="flex-1 overflow-auto p-8 space-y-8 max-w-7xl mx-auto w-full print:p-0">
           <div className="hidden print:block mb-8 border-b pb-4">
             <h1 className="text-2xl font-bold text-black">Procedural Analytics Report</h1>
-            <p className="text-sm text-gray-600">Generated on {new Date().toLocaleDateString()}</p>
+            <p className="text-sm text-gray-600">Generated on {mounted ? new Date().toLocaleDateString() : '...'}</p>
           </div>
 
           <section className="bg-card border border-border rounded-2xl p-8 shadow-2xl print:bg-white print:border-gray-200">
