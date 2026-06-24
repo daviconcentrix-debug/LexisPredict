@@ -16,7 +16,7 @@ export default function UrgencyEngine() {
   return (
     <div className="flex h-screen bg-background font-body">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden text-white">
         <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8">
           <div className="flex items-center gap-4">
             <h1 className="font-headline font-bold text-xl text-white">Urgency Engine</h1>

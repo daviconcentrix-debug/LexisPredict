@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -99,6 +98,11 @@ export default function Dashboard() {
         </header>
 
         <div className="flex-1 overflow-auto p-8 space-y-8">
+          <div className="hidden print:block mb-8 border-b pb-4">
+            <h1 className="text-2xl font-bold text-black">Intelligence Unit - Procedural Report</h1>
+            <p className="text-sm text-gray-600">Generated on {mounted ? new Date().toLocaleDateString('pt-BR') : '...'}</p>
+          </div>
+
           <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard 
               title="Total de Processos" 

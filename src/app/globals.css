@@ -38,11 +38,12 @@
     --sidebar-border: 217 32% 17%;
     --sidebar-ring: 226 100% 59%;
   }
+}
 
+@layer base {
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
@@ -50,112 +51,31 @@
 }
 
 @media print {
-  @page {
-    margin: 18mm;
-  }
-
-  html,
-  body {
-    background: #fff !important;
-    color: #111827 !important;
-    overflow: visible !important;
-  }
-
-  body {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    padding: 0 !important;
-  }
-
   .print\:hidden {
     display: none !important;
   }
-
-  .report-page {
-    max-width: none !important;
+  body {
+    background-color: white !important;
+    color: black !important;
+    overflow: visible !important;
+  }
+  main {
     padding: 0 !important;
     margin: 0 !important;
+    width: 100% !important;
   }
-
-  .report-page * {
+  .bg-card {
+    background-color: white !important;
+    border: 1px solid #e5e7eb !important;
     box-shadow: none !important;
-    backdrop-filter: none !important;
   }
-
-  .report-brand,
-  .print-brand {
-    position: fixed;
-    top: 12mm;
-    right: 16mm;
-    z-index: 9999;
-    display: block !important;
-    text-align: right;
-  }
-
-  .report-footer {
-    position: fixed;
-    left: 16mm;
-    right: 16mm;
-    bottom: 12mm;
-    background: white;
-    padding-top: 8mm;
-  }
-
-  .report-page::after {
-    content: "Davi Alves • Relatório gerado automaticamente";
-    position: fixed;
-    bottom: 8mm;
-    left: 16mm;
-    font-size: 10px;
-    color: #6b7280;
-    font-weight: 700;
-    z-index: 9999;
-  }
-
-  .bg-card,
-  .bg-white,
-  .bg-gray-50,
-  .bg-gray-100 {
-    background: white !important;
-  }
-
   .text-white {
-    color: #111827 !important;
+    color: black !important;
   }
-
   .text-muted-foreground {
     color: #4b5563 !important;
   }
-
-  .border-black,
-  .border-gray-100,
-  .border-gray-200 {
-    border-color: #d1d5db !important;
-  }
-
-  table {
-    break-inside: auto;
-  }
-
-  tr,
-  td,
-  th,
-  .break-inside-avoid {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  .print\:mb-6 {
-    margin-bottom: 1.5rem !important;
-  }
-
-  .print\:p-0 {
-    padding: 0 !important;
-  }
-
-  aside,
-  .sidebar,
-  header nav {
+  aside, header, .sidebar {
     display: none !important;
   }
 }
