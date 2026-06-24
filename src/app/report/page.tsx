@@ -11,8 +11,7 @@ import Link from 'next/link';
 /**
  * MASTER UNIFIED REPORT ENGINE — LEXISPREDICT
  * Propriedade de: W1 Capital
- * Autor e Gestor: Davi Alves Figueredo
- * Este motor extrai dados das tabelas 'processos' e 'notes' do Supabase.
+ * FUNDADOR DAVI ALVES FIGUEREDO
  */
 
 export default function UnifiedReport() {
@@ -22,7 +21,7 @@ export default function UnifiedReport() {
   const [mounted, setMounted] = useState(false);
 
   const userName = "Davi Alves Figueredo";
-  const userRole = "Fundador & Arquiteto de Dados — W1 Capital";
+  const userRole = "Fundador & Gestor — W1 Capital";
 
   useEffect(() => {
     setMounted(true);
@@ -56,7 +55,7 @@ export default function UnifiedReport() {
     return (
       <div className="p-8 text-center font-mono text-black bg-white min-h-screen flex flex-col items-center justify-center space-y-4">
         <Activity className="animate-spin text-blue-600" size={32} />
-        <p className="font-bold uppercase tracking-widest text-xs italic">Compilando Inteligência Unificada (W1 Capital)...</p>
+        <p className="font-bold uppercase tracking-widest text-[10px] italic">Compilando Inteligência Unificada (W1 Capital)...</p>
       </div>
     );
   }
@@ -75,7 +74,6 @@ export default function UnifiedReport() {
   return (
     <div className="min-h-screen bg-white text-black p-8 md:p-12 max-w-5xl mx-auto print:p-0">
       
-      {/* TOOLBAR */}
       <div className="flex justify-between items-center mb-10 print:hidden">
         <Button variant="outline" asChild size="sm" className="border-gray-300 text-gray-600">
           <Link href="/"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao CRM</Link>
@@ -85,12 +83,11 @@ export default function UnifiedReport() {
         </Button>
       </div>
 
-      {/* HEADER OFICIAL */}
       <header className="border-b-4 border-black pb-8 mb-10">
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-extrabold uppercase tracking-tighter leading-none">Relatório Jurídico Consolidado</h1>
-            <p className="text-sm font-bold text-gray-700 mt-2 uppercase tracking-wide italic">LexisPredict Intelligence Unit — W1 Capital</p>
+            <p className="text-sm font-bold text-gray-700 mt-2 uppercase tracking-wide italic">W1 Capital — FUNDADOR DAVI ALVES FIGUEREDO</p>
           </div>
           <div className="text-right">
             <p className="text-sm font-black uppercase">{userName}</p>
@@ -110,7 +107,6 @@ export default function UnifiedReport() {
         </div>
       </header>
 
-      {/* PERFORMANCE */}
       <section className="mb-12">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded"><Activity size={18} /></div>
@@ -136,11 +132,10 @@ export default function UnifiedReport() {
         </div>
       </section>
 
-      {/* PRIORITY QUEUE */}
       <section className="mb-12">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded"><FileText size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">2. Intelligence Unit — Fila de Casos Críticos</h2>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">2. Intelligence Unit — Casos Críticos</h2>
         </div>
         <div className="border-2 border-black rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-left text-[10px] border-collapse">
@@ -149,7 +144,7 @@ export default function UnifiedReport() {
                 <th className="px-5 py-3 border-r border-gray-300">Cliente</th>
                 <th className="px-5 py-3 border-r border-gray-300">Protocolo CNJ</th>
                 <th className="px-5 py-3 border-r border-gray-300">Próximo Prazo</th>
-                <th className="px-5 py-3">Risco Atribuído</th>
+                <th className="px-5 py-3">Risco</th>
               </tr>
             </thead>
             <tbody className="divide-y border-gray-200">
@@ -163,18 +158,17 @@ export default function UnifiedReport() {
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={4} className="px-5 py-10 text-center italic text-gray-400">Sem registros críticos no período.</td></tr>
+                <tr><td colSpan={4} className="px-5 py-10 text-center italic text-gray-400">Sem registros críticos.</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </section>
 
-      {/* NOTES */}
       <section className="mb-12 break-inside-avoid">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded"><MessageSquare size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">3. Atualizações & Anotações Estratégicas</h2>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">3. Anotações Estratégicas</h2>
         </div>
         {notes.length > 0 ? (
           <div className="grid grid-cols-2 gap-4">
@@ -189,7 +183,7 @@ export default function UnifiedReport() {
             ))}
           </div>
         ) : (
-          <p className="text-center py-10 border-2 border-dashed rounded-2xl italic text-gray-400 font-bold">Sem anotações estratégicas registradas.</p>
+          <p className="text-center py-10 border-2 border-dashed rounded-2xl italic text-gray-400 font-bold">Sem anotações.</p>
         )}
       </section>
 
@@ -197,7 +191,7 @@ export default function UnifiedReport() {
         <div className="flex items-center justify-center gap-2 text-[10px] text-black font-black uppercase tracking-widest">
           <Copyright size={10} /> 2024 W1 Capital. Todos os direitos reservados.
         </div>
-        <p className="text-[8px] text-gray-400 uppercase font-bold tracking-widest">Relatório Consolidado • LexisPredict Master Engine • Davi Alves Figueredo</p>
+        <p className="text-[8px] text-gray-400 uppercase font-bold tracking-widest">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</p>
       </footer>
     </div>
   );

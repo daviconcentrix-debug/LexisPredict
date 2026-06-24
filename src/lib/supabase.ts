@@ -14,5 +14,5 @@ export const isSupabaseConfigured =
   supabaseAnonKey &&
   supabaseAnonKey !== 'placeholder';
 
-// Inicialização segura para evitar crash durante o build ou deploy incompleto
+// Inicialização segura para garantir a conexão com o banco PostgreSQL
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

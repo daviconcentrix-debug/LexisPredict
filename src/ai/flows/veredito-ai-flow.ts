@@ -2,7 +2,8 @@
 'use server';
 /**
  * @fileOverview Motor de Programação Veredito IA v3.0
- * Integração Direta DataJud (CNJ) + Lógica Cognitiva Gemini/DeepSeek.
+ * Integração Direta DataJud (CNJ) + Lógica Cognitiva Gemini/Grok.
+ * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
 import {ai} from '@/ai/genkit';
@@ -11,7 +12,7 @@ import {fetchDataJud} from '@/lib/datajud';
 
 const VereditoInputSchema = z.object({
   cnj: z.string().describe('O número do processo no formato CNJ.'),
-  preferredModel: z.enum(['gemini', 'deepseek']).optional().default('gemini'),
+  preferredModel: z.enum(['gemini', 'grok']).optional().default('gemini'),
 });
 
 const VereditoOutputSchema = z.object({
@@ -41,6 +42,38 @@ Diretrizes:
 Saída: JSON estruturado conforme o esquema.`,
 });
 
+/**
+ * CHAMADA NATIVA PARA GROK (VIA GROQ)
+ * Evita dependência de plugins externos que falham no build.
+ */
+async function callGrokNativo(datajud: any) {
+  const GROQ_API_KEY = process.env.GROK_API_KEY || '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';
+  const prompt = `Analise este processo do DataJud para a W1 Capital (Fundador Davi Alves Figueredo) e responda APENAS em JSON:
+  {
+    "resumoTecnico": "string",
+    "analiseRisco": "string",
+    "proximosPassos": "string"
+  }
+  DADOS: ${JSON.stringify(datajud)}`;
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${GROQ_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile', // Groq Engine de alta velocidade
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' }
+    })
+  });
+
+  if (!response.ok) throw new Error("Falha na comunicação com motor Grok/Groq.");
+  const data = await response.json();
+  return JSON.parse(data.choices[0].message.content);
+}
+
 export const vereditoAIFlow = ai.defineFlow(
   {
     name: 'vereditoAIFlow',
@@ -54,16 +87,25 @@ export const vereditoAIFlow = ai.defineFlow(
       throw new Error("Processo não encontrado na base pública do DataJud.");
     }
 
-    const modelId = input.preferredModel === 'deepseek' ? 'openai/deepseek-chat' : 'googleai/gemini-2.0-flash';
+    if (input.preferredModel === 'grok') {
+      const output = await callGrokNativo(dataJudData);
+      return {
+        ...output,
+        dataJudRaw: dataJudData,
+        engineUtilizada: 'GROK/GROQ'
+      };
+    }
 
-    const {output} = await vereditoPrompt({datajud: dataJudData}, {
-      model: modelId
+    // Default: Gemini via Genkit com especificação de modelo garantida
+    const {output} = await ai.generate({
+      model: 'googleai/gemini-1.5-flash',
+      prompt: vereditoPrompt({datajud: dataJudData}),
     });
     
     return {
       ...output!,
       dataJudRaw: dataJudData,
-      engineUtilizada: input.preferredModel.toUpperCase()
+      engineUtilizada: 'GEMINI 1.5 FLASH'
     };
   }
 );

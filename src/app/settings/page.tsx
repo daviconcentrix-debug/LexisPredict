@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Shield, Database, HardDrive, RefreshCcw, CheckCircle2, AlertCircle, Lock, Unlock, Cpu, Copyright } from 'lucide-react';
+import { Shield, HardDrive, RefreshCcw, CheckCircle2, AlertCircle, Lock, Unlock, Cpu, Copyright } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -22,15 +22,15 @@ export default function SettingsPage() {
   const [syncing, setSyncing] = useState(false);
   const [status, setStatus] = useState<'online' | 'offline' | 'loading'>('online');
   const [password, setPassword] = useState('');
-  const [iaModel, setIaModel] = useState<'gemini' | 'deepseek'>('gemini');
+  const [iaModel, setIaModel] = useState<'gemini' | 'grok'>('gemini');
   
   const { isAdmin, login, logout } = useAdmin();
   const { toast } = useToast();
 
   useEffect(() => {
     const saved = localStorage.getItem('lexisPredict_preferred_ia');
-    if (saved === 'deepseek' || saved === 'gemini') {
-      setIaModel(saved);
+    if (saved === 'grok' || saved === 'gemini') {
+      setIaModel(saved as any);
     }
     handleManualSync();
   }, []);
@@ -53,7 +53,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleIaChange = (value: 'gemini' | 'deepseek') => {
+  const handleIaChange = (value: 'gemini' | 'grok') => {
     setIaModel(value);
     localStorage.setItem('lexisPredict_preferred_ia', value);
     toast({ title: "Motor IA Alterado", description: `Engine ${value.toUpperCase()} configurada como padrão.` });
@@ -125,13 +125,13 @@ export default function SettingsPage() {
 
                       <div className={cn(
                         "flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer",
-                        iaModel === 'deepseek' ? "bg-accent/10 border-accent shadow-lg" : "bg-secondary/20 border-border"
-                      )} onClick={() => handleIaChange('deepseek')}>
+                        iaModel === 'grok' ? "bg-accent/10 border-accent shadow-lg" : "bg-secondary/20 border-border"
+                      )} onClick={() => handleIaChange('grok')}>
                         <div className="flex items-center gap-3">
-                          <RadioGroupItem value="deepseek" id="deepseek" />
+                          <RadioGroupItem value="grok" id="grok" />
                           <div>
-                            <Label htmlFor="deepseek" className="text-white font-bold cursor-pointer">DeepSeek-Chat v3</Label>
-                            <p className="text-xs text-muted-foreground">Raciocínio lógico avançado e análise técnica profunda.</p>
+                            <Label htmlFor="grok" className="text-white font-bold cursor-pointer">X.AI Grok-Beta</Label>
+                            <p className="text-xs text-muted-foreground">Raciocínio lógico e inteligência de ponta da X.AI.</p>
                           </div>
                         </div>
                         <Badge className="bg-accent/20 text-accent">Elite</Badge>
@@ -149,7 +149,7 @@ export default function SettingsPage() {
                       <CardTitle className="text-white font-headline text-lg">Administrative Triage</CardTitle>
                     </div>
                     <CardDescription>
-                      {isAdmin ? "You are currently in Admin Mode. Modifications are enabled." : "Locked. Enter password to enable database modifications."}
+                      {isAdmin ? "Sessão Administrativa ativa para W1 Capital." : "Acesso restrito ao Fundador Davi Alves Figueredo."}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -158,7 +158,7 @@ export default function SettingsPage() {
                         <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl">
                           <p className="text-sm text-primary font-medium">Session Valid. All system buttons are now functional.</p>
                         </div>
-                        <Button variant="destructive" onClick={logout} className="w-full font-bold">
+                        <Button variant="destructive" onClick={logout} className="w-full font-bold text-white">
                           Exit Admin Mode
                         </Button>
                       </div>
@@ -175,7 +175,7 @@ export default function SettingsPage() {
                             placeholder="••••••••"
                           />
                         </div>
-                        <Button type="submit" className="w-full font-bold">Authorize Access</Button>
+                        <Button type="submit" className="w-full font-bold text-white">Authorize Access</Button>
                       </form>
                     )}
                   </CardContent>

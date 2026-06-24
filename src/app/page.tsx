@@ -8,12 +8,12 @@ import {
   Briefcase, 
   ShieldAlert, 
   TrendingUp,
-  Database,
-  Scale,
   RefreshCcw,
   FileDown,
   ChevronRight,
-  Copyright
+  Copyright,
+  Zap,
+  Scale
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -23,10 +23,8 @@ import { fetchRepoCases } from '@/app/actions/case-actions';
 import Link from 'next/link';
 
 /**
- * INTELLIGENCE UNIT — DASHBOARD MESTRE
+ * INTELLIGENCE UNIT — DASHBOARD MESTRE (W1 CAPITAL)
  * FUNDADOR E GESTOR: DAVI ALVES FIGUEREDO
- * EMPRESA: W1 CAPITAL
- * DIREITOS RESERVADOS: © 2024 W1 CAPITAL.
  */
 export default function Dashboard() {
   const [cases, setCases] = useState<LegalCase[]>([]);
@@ -57,7 +55,7 @@ export default function Dashboard() {
     const total = cases.length;
     const critical = cases.filter(c => c.status === 'Vencido').length;
     const attention = cases.filter(c => c.status === 'Atenção').length;
-    const active = cases.filter(c => !['ENCERRADO', 'ARQUIVADO'].includes(c.situacao.toUpperCase())).length;
+    const active = cases.filter(c => !['ENCERRADO', 'ARQUIVADO'].includes((c.situacao || '').toUpperCase())).length;
     const riskScore = total ? Math.round(((critical + attention) / total) * 100) : 0;
 
     return { total, critical, attention, active, riskScore };
@@ -86,7 +84,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <Button variant="default" size="sm" asChild className="bg-primary hover:bg-primary/90 text-white h-8 font-bold shadow-lg">
               <Link href="/report">
-                <FileDown size={14} className="mr-2" /> Export Unified Report
+                <FileDown size={14} className="mr-2" /> Unified Master Report
               </Link>
             </Button>
             <Button variant="ghost" size="icon" onClick={loadData} className="text-muted-foreground hover:text-white">
@@ -136,21 +134,21 @@ export default function Dashboard() {
                   ))}
                 </div>
               ) : (
-                <div className="py-20 text-center opacity-40 italic">Sem registros críticos ativos.</div>
+                <div className="py-20 text-center opacity-40 italic text-white">Sem registros críticos ativos.</div>
               )}
             </section>
 
             <section className="bg-gradient-to-br from-primary to-accent rounded-2xl p-8 text-white flex flex-col justify-center shadow-2xl relative overflow-hidden">
                <div className="relative z-10 space-y-6">
                 <div className="p-3 bg-white/20 w-fit rounded-xl border border-white/20">
-                  <Database size={24} />
+                  <Zap size={24} />
                 </div>
                 <div>
                   <h2 className="text-2xl font-headline font-bold uppercase tracking-tighter">Unified Master Report</h2>
-                  <p className="text-sm text-white/80 mt-2">Extraia Analytics, Inteligência e Notas em um único ofício assinado por Davi Alves Figueredo.</p>
+                  <p className="text-sm text-white/80 mt-2">Relatório Consolidado assinado oficialmente por Davi Alves Figueredo.</p>
                 </div>
                 <Button variant="outline" asChild className="bg-white/10 border-white/20 hover:bg-white/20 text-white w-full font-bold h-11">
-                  <Link href="/report">View Consolidated PDF</Link>
+                  <Link href="/report">View Official PDF</Link>
                 </Button>
               </div>
             </section>
@@ -160,7 +158,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               <Copyright size={10} /> 2024 W1 Capital. Todos os direitos reservados.
             </div>
-            <p className="text-[8px] uppercase tracking-tighter font-medium text-primary/80">FUNDADOR DAVI ALVES FIGUEREDO • LEXISPREDICT AI CRM ENGINE</p>
+            <p className="text-[8px] uppercase tracking-tighter font-medium text-primary/80">FUNDADOR DAVI ALVES FIGUEREDO • LEXISPREDICT AI ENGINE</p>
           </footer>
         </div>
       </main>

@@ -27,13 +27,13 @@ export default function VereditoPage() {
   const [cnj, setCnj] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [model, setModel] = useState<'gemini' | 'deepseek'>('gemini');
+  const [model, setModel] = useState<'gemini' | 'grok'>('gemini');
   const { toast } = useToast();
 
   useEffect(() => {
     const saved = localStorage.getItem('lexisPredict_preferred_ia');
-    if (saved === 'deepseek' || saved === 'gemini') {
-      setModel(saved);
+    if (saved === 'grok' || saved === 'gemini') {
+      setModel(saved as any);
     }
   }, []);
 
@@ -80,7 +80,7 @@ export default function VereditoPage() {
             </div>
             <h2 className="text-3xl font-headline font-bold text-white tracking-tight">OmniReport Intelligent Analyzer</h2>
             <p className="text-muted-foreground text-sm font-medium">
-              Motor v3.0: Integramos DataJud & Lógica {model === 'gemini' ? 'Gemini 2.5' : 'DeepSeek-Chat'}.
+              Motor v3.0: Integramos DataJud & Lógica {model === 'gemini' ? 'Gemini 2.5' : 'Grok Elite'}.
             </p>
             
             <form onSubmit={handleSearch} className="flex gap-2 mt-8">
