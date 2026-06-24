@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'LexisPredict | Intelligent Legal CRM',
-  description: 'AI-Powered Legal Case Management and Risk Analysis',
+  title: 'LexisPredict | W1 Capital Intelligence',
+  description: 'Sistema de Gestão Jurídica e Análise de Risco - Fundador Davi Alves Figueredo',
 };
 
 export default function RootLayout({

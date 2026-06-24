@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -12,7 +11,8 @@ import {
   Scale,
   RefreshCcw,
   FileDown,
-  ChevronRight
+  ChevronRight,
+  Copyright
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -23,7 +23,8 @@ import Link from 'next/link';
 
 /**
  * INTELLIGENCE UNIT — DASHBOARD MESTRE
- * Autor e Gestor: Davi Alves
+ * FUNDADOR E GESTOR: DAVI ALVES FIGUEREDO
+ * EMPRESA: W1 CAPITAL
  */
 export default function Dashboard() {
   const [cases, setCases] = useState<LegalCase[]>([]);
@@ -64,7 +65,7 @@ export default function Dashboard() {
     return cases
       .filter(c => c.status === 'Vencido' || c.status === 'Atenção')
       .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
-      .slice(0, 5);
+      .slice(0, 10);
   }, [cases]);
 
   if (!mounted) return null;
@@ -76,8 +77,8 @@ export default function Dashboard() {
         <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4">
             <h1 className="font-headline font-bold text-xl text-white">Intelligence Unit</h1>
-            <Badge variant="outline" className="border-primary/50 text-primary text-[10px] uppercase font-bold tracking-tighter tracking-widest">
-              Supabase Cloud Operational
+            <Badge variant="outline" className="border-primary/50 text-primary text-[10px] uppercase font-bold tracking-widest">
+              W1 Capital Cloud CRM
             </Badge>
           </div>
           <div className="flex items-center gap-3">
@@ -115,18 +116,18 @@ export default function Dashboard() {
               {urgentQueue.length > 0 ? (
                 <div className="space-y-3">
                   {urgentQueue.map((c) => (
-                    <div key={c.id} className="p-4 bg-secondary/30 border border-border hover:border-primary/50 rounded-xl transition-all flex items-center justify-between">
+                    <div key={c.id} className="p-4 bg-secondary/30 border border-border hover:border-primary/50 rounded-xl transition-all flex items-center justify-between group">
                       <div className="flex items-center gap-4">
                         <div className={cn(
                           "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-[10px]",
                           c.status === 'Vencido' ? "bg-destructive/10 text-destructive" : "bg-accent/10 text-accent"
                         )}>{c.tribunal}</div>
                         <div>
-                          <p className="font-bold text-sm text-white">{c.cliente}</p>
+                          <p className="font-bold text-sm text-white group-hover:text-primary transition-colors">{c.cliente}</p>
                           <p className="text-[10px] text-muted-foreground font-mono">{c.protocolo}</p>
                         </div>
                       </div>
-                      <Badge className={c.status === 'Vencido' ? "bg-destructive/20 text-destructive" : "bg-accent/20 text-accent"}>
+                      <Badge className={c.status === 'Vencido' ? "bg-destructive/20 text-destructive border-none" : "bg-accent/20 text-accent border-none"}>
                         {c.diasFaltando !== null && c.diasFaltando < 0 ? `${Math.abs(c.diasFaltando)}d ATRASADO` : `${c.diasFaltando}d`}
                       </Badge>
                     </div>
@@ -143,8 +144,8 @@ export default function Dashboard() {
                   <Database size={24} />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-headline font-bold uppercase tracking-tighter">Unified PDF Preview</h2>
-                  <p className="text-sm text-white/80 mt-2">Extraia Analytics, Inteligência e Notas em um único ofício assinado por Davi Alves.</p>
+                  <h2 className="text-2xl font-headline font-bold uppercase tracking-tighter">Unified Master Report</h2>
+                  <p className="text-sm text-white/80 mt-2">Extraia Analytics, Inteligência e Notas em um único ofício assinado por Davi Alves Figueredo.</p>
                 </div>
                 <Button variant="outline" asChild className="bg-white/10 border-white/20 hover:bg-white/20 text-white w-full font-bold h-11">
                   <Link href="/report" target="_blank">View Consolidated PDF</Link>
@@ -152,6 +153,13 @@ export default function Dashboard() {
               </div>
             </section>
           </div>
+
+          <footer className="pt-8 border-t border-border/50 text-center space-y-2 opacity-50 hover:opacity-100 transition-opacity">
+            <div className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <Copyright size={10} /> 2024 W1 Capital. Todos os direitos reservados.
+            </div>
+            <p className="text-[8px] uppercase tracking-tighter font-medium">FUNDADOR DAVI ALVES FIGUEREDO • LEXISPREDICT AI CRM ENGINE</p>
+          </footer>
         </div>
       </main>
     </div>

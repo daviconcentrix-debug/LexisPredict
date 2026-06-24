@@ -1,16 +1,16 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
 import { LegalCase, CaseNote } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
-import { Printer, ArrowLeft, ShieldCheck, Activity, FileText, MessageSquare } from 'lucide-react';
+import { Printer, ArrowLeft, ShieldCheck, Activity, FileText, MessageSquare, Copyright } from 'lucide-react';
 import Link from 'next/link';
 
 /**
  * MASTER UNIFIED REPORT ENGINE — LEXISPREDICT
- * Gerado e assinado eletronicamente por: Davi Alves
+ * Propriedade de: W1 Capital
+ * Autor e Gestor: Davi Alves Figueredo
  */
 
 export default function UnifiedReport() {
@@ -19,8 +19,8 @@ export default function UnifiedReport() {
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
-  const userName = "Davi Alves";
-  const userRole = "Análise Jurídica & Governança de Dados";
+  const userName = "Davi Alves Figueredo";
+  const userRole = "Fundador & Gestor de Dados — W1 Capital";
 
   useEffect(() => {
     setMounted(true);
@@ -54,7 +54,7 @@ export default function UnifiedReport() {
     return (
       <div className="p-8 text-center font-mono text-black bg-white min-h-screen flex flex-col items-center justify-center space-y-4">
         <Activity className="animate-spin text-blue-600" size={32} />
-        <p className="font-bold uppercase tracking-widest text-xs italic">Compilando Inteligência Unificada...</p>
+        <p className="font-bold uppercase tracking-widest text-xs italic">Compilando Inteligência Unificada (W1 Capital)...</p>
       </div>
     );
   }
@@ -68,7 +68,7 @@ export default function UnifiedReport() {
 
   const highRiskCases = cases
     .filter(c => c.status === 'Vencido' || c.status === 'Atenção')
-    .slice(0, 30);
+    .slice(0, 50);
 
   return (
     <div className="min-h-screen bg-white text-black p-8 md:p-12 max-w-5xl mx-auto print:p-0">
@@ -88,7 +88,7 @@ export default function UnifiedReport() {
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-extrabold uppercase tracking-tighter leading-none">Relatório Jurídico Consolidado</h1>
-            <p className="text-sm font-bold text-gray-700 mt-2 uppercase tracking-wide italic">LexisPredict Intelligence Unit — Governança Digital</p>
+            <p className="text-sm font-bold text-gray-700 mt-2 uppercase tracking-wide italic">LexisPredict Intelligence Unit — W1 Capital</p>
           </div>
           <div className="text-right">
             <p className="text-sm font-black uppercase">{userName}</p>
@@ -112,7 +112,7 @@ export default function UnifiedReport() {
       <section className="mb-12">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded"><Activity size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">1. Indicadores de Performance (Analytics Hub)</h2>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">1. Indicadores de Performance</h2>
         </div>
         <div className="grid grid-cols-4 gap-6 text-center">
           <div className="p-5 bg-gray-50 border-2 border-gray-100 rounded-2xl">
@@ -192,8 +192,10 @@ export default function UnifiedReport() {
       </section>
 
       <footer className="mt-20 pt-8 border-t text-center space-y-2">
-        <p className="text-[10px] text-black font-black uppercase tracking-widest">Documento Gerado e Assinado Eletronicamente por {userName}</p>
-        <p className="text-[8px] text-gray-400 uppercase font-bold tracking-widest">LexisPredict AI CRM — Governança Corporativa de Dados</p>
+        <div className="flex items-center justify-center gap-2 text-[10px] text-black font-black uppercase tracking-widest">
+          <Copyright size={10} /> 2024 W1 Capital. Todos os direitos reservados.
+        </div>
+        <p className="text-[8px] text-gray-400 uppercase font-bold tracking-widest">Documento Gerado por {userName} • São Paulo - SP</p>
       </footer>
     </div>
   );

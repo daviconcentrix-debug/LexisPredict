@@ -1,10 +1,9 @@
-
 import { supabase, isSupabaseConfigured } from './supabase';
 import { LegalCase, CaseNote } from './case-logic';
 
 /**
  * MOTOR DE PERSISTÊNCIA RELACIONAL LEXISPREDICT (SUPABASE)
- * Implementação cirúrgica focada em integridade e não duplicidade.
+ * Implementação resiliente via UPSERT.
  */
 
 export async function getStoredCases(): Promise<LegalCase[]> {
@@ -24,12 +23,10 @@ export async function getStoredCases(): Promise<LegalCase[]> {
 }
 
 export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: boolean; message: string }> {
-  if (!isSupabaseConfigured) return { success: false, message: "Cloud Supabase não configurado." };
+  if (!isSupabaseConfigured) return { success: false, message: "Supabase não configurado." };
   try {
-    // Sincronização via UPSERT para evitar perda de dados e duplicatas
     if (cases.length > 0) {
       const updates = cases.map(c => ({
-        // Usamos o ID (que é o protocolo) para garantir unicidade no banco
         id: c.protocolo || c.id,
         dados: c
       }));
@@ -37,8 +34,7 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
       const { error } = await supabase.from('processos').upsert(updates, { onConflict: 'id' });
       if (error) throw error;
     }
-
-    return { success: true, message: "Sincronização Cloud Concluída." };
+    return { success: true, message: "Nuvem Sincronizada." };
   } catch (error: any) {
     console.error('Supabase save processes error:', error);
     return { success: false, message: error.message };
@@ -72,7 +68,8 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
   if (!isSupabaseConfigured) return { success: false };
   try {
     // Sincronização de Notas: Mapeamento direto para colunas SQL
-    // Limpamos para garantir que a ordem e a exclusão reflitam o estado do frontend (Google Keep style)
+    // Nota: Como as notas não têm um identificador único estável no frontend MVP,
+    // limpamos e reinserimos para manter o "Keep" sincronizado.
     await supabase.from('notes').delete().neq('title', '___GUARD_NOTE___');
     
     if (notes.length > 0) {
@@ -84,7 +81,6 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
       const { error } = await supabase.from('notes').insert(dbNotes);
       if (error) throw error;
     }
-
     return { success: true };
   } catch (error) {
     console.error('Supabase save notes error:', error);
