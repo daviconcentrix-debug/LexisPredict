@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   ShieldCheck, 
@@ -11,7 +12,8 @@ import {
   ArrowRight,
   Database,
   Printer,
-  Copyright
+  Copyright,
+  Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +27,15 @@ export default function VereditoPage() {
   const [cnj, setCnj] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [model, setModel] = useState<'gemini' | 'deepseek'>('gemini');
   const { toast } = useToast();
+
+  useEffect(() => {
+    const saved = localStorage.getItem('lexisPredict_preferred_ia');
+    if (saved === 'deepseek' || saved === 'gemini') {
+      setModel(saved);
+    }
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,9 +44,9 @@ export default function VereditoPage() {
     setLoading(true);
     setResult(null);
     try {
-      const data = await executarVereditoAI({ cnj });
+      const data = await executarVereditoAI({ cnj, preferredModel: model });
       setResult(data);
-      toast({ title: "Análise Concluída", description: "Dados sincronizados via DataJud e Veredito AI." });
+      toast({ title: "Análise Concluída", description: `Sincronizado via DataJud & Engine ${model.toUpperCase()}.` });
     } catch (error: any) {
       toast({ title: "Falha na Extração", description: error.message, variant: "destructive" });
     } finally {
@@ -52,6 +62,9 @@ export default function VereditoPage() {
           <div className="flex items-center gap-4">
             <h1 className="font-headline font-bold text-xl text-white">Veredito AI (Busca 360)</h1>
             <Badge className="bg-primary/20 text-primary border-primary/30 uppercase text-[10px] font-bold">DataJud Connect Active</Badge>
+            <Badge variant="secondary" className="bg-sidebar text-accent border-accent/20 text-[9px] uppercase flex items-center gap-1">
+              <Zap size={10} /> {model} Engine Active
+            </Badge>
           </div>
           <div className="flex items-center gap-3">
              <Button variant="ghost" size="sm" onClick={() => window.print()} className="text-muted-foreground hover:text-white border border-border h-8 font-bold">
@@ -67,7 +80,7 @@ export default function VereditoPage() {
             </div>
             <h2 className="text-3xl font-headline font-bold text-white tracking-tight">OmniReport Intelligent Analyzer</h2>
             <p className="text-muted-foreground text-sm font-medium">
-              Motor de análise técnica v3.0. Integramos o DataJud à lógica cognitiva do Gemini para processar protocolos em segundos.
+              Motor v3.0: Integramos DataJud & Lógica {model === 'gemini' ? 'Gemini 2.5' : 'DeepSeek-Chat'}.
             </p>
             
             <form onSubmit={handleSearch} className="flex gap-2 mt-8">
@@ -95,7 +108,7 @@ export default function VereditoPage() {
                       <CardTitle className="text-white font-headline text-lg">Parecer Técnico Veredito AI</CardTitle>
                       <CardDescription className="font-mono text-xs mt-1 text-primary">{cnj}</CardDescription>
                     </div>
-                    <Badge variant="outline" className="border-chart-3/30 text-chart-3 font-bold uppercase text-[9px]">Sincronizado</Badge>
+                    <Badge variant="outline" className="border-chart-3/30 text-chart-3 font-bold uppercase text-[9px]">Engine {result.engineUtilizada}</Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="p-8 space-y-8">

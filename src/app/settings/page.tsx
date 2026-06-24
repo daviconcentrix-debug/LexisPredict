@@ -3,12 +3,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Shield, Database, HardDrive, RefreshCcw, CheckCircle2, AlertCircle, Lock, Unlock } from 'lucide-react';
+import { Shield, Database, HardDrive, RefreshCcw, CheckCircle2, AlertCircle, Lock, Unlock, Cpu, Copyright } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -21,8 +22,18 @@ export default function SettingsPage() {
   const [syncing, setSyncing] = useState(false);
   const [status, setStatus] = useState<'online' | 'offline' | 'loading'>('online');
   const [password, setPassword] = useState('');
+  const [iaModel, setIaModel] = useState<'gemini' | 'deepseek'>('gemini');
+  
   const { isAdmin, login, logout } = useAdmin();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const saved = localStorage.getItem('lexisPredict_preferred_ia');
+    if (saved === 'deepseek' || saved === 'gemini') {
+      setIaModel(saved);
+    }
+    handleManualSync();
+  }, []);
 
   const handleManualSync = async () => {
     setSyncing(true);
@@ -42,6 +53,12 @@ export default function SettingsPage() {
     }
   };
 
+  const handleIaChange = (value: 'gemini' | 'deepseek') => {
+    setIaModel(value);
+    localStorage.setItem('lexisPredict_preferred_ia', value);
+    toast({ title: "Motor IA Alterado", description: `Engine ${value.toUpperCase()} configurada como padrão.` });
+  };
+
   const handleAdminAuth = (e: React.FormEvent) => {
     e.preventDefault();
     if (login(password)) {
@@ -51,10 +68,6 @@ export default function SettingsPage() {
       toast({ title: "Auth Failed", description: "Incorrect administrative password.", variant: "destructive" });
     }
   };
-
-  useEffect(() => {
-    handleManualSync();
-  }, []);
 
   return (
     <div className="flex h-screen bg-background font-body">
@@ -79,12 +92,56 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <aside className="md:col-span-1 space-y-1">
               <NavSettingItem icon={<HardDrive size={18} />} label="Cloud Sync" active={activeTab === 'Sync'} onClick={() => setActiveTab('Sync')} />
+              <NavSettingItem icon={<Cpu size={18} />} label="OmniReport IA" active={activeTab === 'IA'} onClick={() => setActiveTab('IA')} />
               <NavSettingItem icon={<Lock size={18} />} label="Admin Access" active={activeTab === 'Admin'} onClick={() => setActiveTab('Admin')} />
               <NavSettingItem icon={<Shield size={18} />} label="Security" active={activeTab === 'Security'} onClick={() => setActiveTab('Security')} />
             </aside>
 
             <div className="md:col-span-3 space-y-8">
-              {activeTab === 'Admin' ? (
+              {activeTab === 'IA' && (
+                <Card className="bg-card border-border shadow-2xl">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <Cpu className="text-primary" />
+                      <CardTitle className="text-white font-headline text-lg">OmniReport IA Engine</CardTitle>
+                    </div>
+                    <CardDescription>Escolha o motor de inteligência para análises do Veredito AI.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <RadioGroup value={iaModel} onValueChange={(v) => handleIaChange(v as any)} className="grid gap-4">
+                      <div className={cn(
+                        "flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer",
+                        iaModel === 'gemini' ? "bg-primary/10 border-primary shadow-lg" : "bg-secondary/20 border-border"
+                      )} onClick={() => handleIaChange('gemini')}>
+                        <div className="flex items-center gap-3">
+                          <RadioGroupItem value="gemini" id="gemini" />
+                          <div>
+                            <Label htmlFor="gemini" className="text-white font-bold cursor-pointer">Google Gemini 2.0 Flash</Label>
+                            <p className="text-xs text-muted-foreground">Alta velocidade e integração DataJud nativa.</p>
+                          </div>
+                        </div>
+                        <Badge className="bg-primary/20 text-primary">Recomendado</Badge>
+                      </div>
+
+                      <div className={cn(
+                        "flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer",
+                        iaModel === 'deepseek' ? "bg-accent/10 border-accent shadow-lg" : "bg-secondary/20 border-border"
+                      )} onClick={() => handleIaChange('deepseek')}>
+                        <div className="flex items-center gap-3">
+                          <RadioGroupItem value="deepseek" id="deepseek" />
+                          <div>
+                            <Label htmlFor="deepseek" className="text-white font-bold cursor-pointer">DeepSeek-Chat v3</Label>
+                            <p className="text-xs text-muted-foreground">Raciocínio lógico avançado e análise técnica profunda.</p>
+                          </div>
+                        </div>
+                        <Badge className="bg-accent/20 text-accent">Elite</Badge>
+                      </div>
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
+              )}
+
+              {activeTab === 'Admin' && (
                 <Card className="bg-card border-border shadow-2xl">
                   <CardHeader>
                     <div className="flex items-center gap-3">
@@ -123,60 +180,53 @@ export default function SettingsPage() {
                     )}
                   </CardContent>
                 </Card>
-              ) : (
-                <>
-                  <Card className="bg-card border-border shadow-2xl">
-                    <CardHeader>
-                      <CardTitle className="text-white font-headline text-lg">CRM Engine</CardTitle>
-                      <CardDescription>Configure automation and cloud behavior.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label className="text-white font-bold cursor-pointer">Live Cloud Connection</Label>
-                          <p className="text-xs text-muted-foreground">Keep data synchronized across all devices via Supabase.</p>
-                        </div>
-                        <Switch defaultChecked disabled={!isAdmin} />
-                      </div>
-                      <Separator className="bg-border" />
-                      <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl border border-border">
-                        <div className="flex items-center gap-3">
-                          {status === 'online' ? <CheckCircle2 className="w-5 h-5 text-chart-3" /> : <AlertCircle className="w-5 h-5 text-destructive" />}
-                          <div>
-                            <p className="text-sm font-bold text-white">Supabase Connection</p>
-                            <p className="text-xs text-muted-foreground">{status === 'online' ? "Active and healthy" : "Configuration error"}</p>
-                          </div>
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={handleManualSync}
-                          disabled={syncing || !isAdmin}
-                          className="text-[10px] font-bold uppercase border-border text-white hover:bg-primary"
-                        >
-                          {syncing ? <RefreshCcw className="w-3 h-3 animate-spin mr-2" /> : "Force Refresh"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+              )}
 
-                  <Card className="bg-card border-border">
-                    <CardHeader>
-                      <CardTitle className="text-white font-headline text-lg">Auto-Migration</CardTitle>
-                      <CardDescription>Control how the system handles file imports.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-white">Deduplication Motor (CNJ Protocol)</Label>
-                        <Switch defaultChecked disabled />
+              {activeTab === 'Sync' && (
+                <Card className="bg-card border-border shadow-2xl">
+                  <CardHeader>
+                    <CardTitle className="text-white font-headline text-lg">CRM Cloud Engine</CardTitle>
+                    <CardDescription>Configure automação e comportamento na nuvem Supabase.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-white font-bold cursor-pointer">Live Cloud Connection</Label>
+                        <p className="text-xs text-muted-foreground">Mantenha os dados sincronizados via PostgreSQL relacional.</p>
                       </div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">This is a core system feature and cannot be disabled to prevent database bloating.</p>
-                    </CardContent>
-                  </Card>
-                </>
+                      <Switch defaultChecked disabled={!isAdmin} />
+                    </div>
+                    <Separator className="bg-border" />
+                    <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl border border-border">
+                      <div className="flex items-center gap-3">
+                        {status === 'online' ? <CheckCircle2 className="w-5 h-5 text-chart-3" /> : <AlertCircle className="w-5 h-5 text-destructive" />}
+                        <div>
+                          <p className="text-sm font-bold text-white">Supabase Connection</p>
+                          <p className="text-xs text-muted-foreground">{status === 'online' ? "Ativo e Saudável" : "Erro de Configuração"}</p>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleManualSync}
+                        disabled={syncing || !isAdmin}
+                        className="text-[10px] font-bold uppercase border-border text-white hover:bg-primary"
+                      >
+                        {syncing ? <RefreshCcw className="w-3 h-3 animate-spin mr-2" /> : "Force Refresh"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </div>
           </div>
+          
+          <footer className="pt-12 border-t border-border/30 text-center space-y-2 opacity-40">
+            <div className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <Copyright size={10} /> 2024 W1 Capital. Todos os direitos reservados.
+            </div>
+            <p className="text-[8px] uppercase tracking-tighter font-medium text-primary">FUNDADOR DAVI ALVES FIGUEREDO</p>
+          </footer>
         </div>
       </main>
     </div>

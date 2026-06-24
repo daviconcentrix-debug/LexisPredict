@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -25,6 +26,7 @@ import Link from 'next/link';
  * INTELLIGENCE UNIT — DASHBOARD MESTRE
  * FUNDADOR E GESTOR: DAVI ALVES FIGUEREDO
  * EMPRESA: W1 CAPITAL
+ * DIREITOS RESERVADOS: © 2024 W1 CAPITAL.
  */
 export default function Dashboard() {
   const [cases, setCases] = useState<LegalCase[]>([]);
@@ -83,7 +85,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-3">
             <Button variant="default" size="sm" asChild className="bg-primary hover:bg-primary/90 text-white h-8 font-bold shadow-lg">
-              <Link href="/report" target="_blank">
+              <Link href="/report">
                 <FileDown size={14} className="mr-2" /> Export Unified Report
               </Link>
             </Button>
@@ -148,7 +150,7 @@ export default function Dashboard() {
                   <p className="text-sm text-white/80 mt-2">Extraia Analytics, Inteligência e Notas em um único ofício assinado por Davi Alves Figueredo.</p>
                 </div>
                 <Button variant="outline" asChild className="bg-white/10 border-white/20 hover:bg-white/20 text-white w-full font-bold h-11">
-                  <Link href="/report" target="_blank">View Consolidated PDF</Link>
+                  <Link href="/report">View Consolidated PDF</Link>
                 </Button>
               </div>
             </section>
@@ -158,7 +160,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               <Copyright size={10} /> 2024 W1 Capital. Todos os direitos reservados.
             </div>
-            <p className="text-[8px] uppercase tracking-tighter font-medium">FUNDADOR DAVI ALVES FIGUEREDO • LEXISPREDICT AI CRM ENGINE</p>
+            <p className="text-[8px] uppercase tracking-tighter font-medium text-primary/80">FUNDADOR DAVI ALVES FIGUEREDO • LEXISPREDICT AI CRM ENGINE</p>
           </footer>
         </div>
       </main>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -18,7 +19,7 @@ import {
   Unlock,
   StickyNote,
   Cpu,
-  FileSearch,
+  Copyright,
   Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -126,6 +127,13 @@ export function Sidebar() {
           </div>
         ) : (
           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-white mx-auto shadow-lg shadow-primary/20">DA</div>
+        )}
+
+        {!collapsed && (
+          <div className="px-2 pt-2 flex items-center justify-center gap-1.5 opacity-30 hover:opacity-100 transition-opacity cursor-default">
+            <Copyright size={8} className="text-white" />
+            <span className="text-[7px] uppercase font-black text-white tracking-widest">2024 W1 Capital</span>
+          </div>
         )}
       </div>
     </aside>

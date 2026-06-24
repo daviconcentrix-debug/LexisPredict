@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -11,6 +12,7 @@ import Link from 'next/link';
  * MASTER UNIFIED REPORT ENGINE — LEXISPREDICT
  * Propriedade de: W1 Capital
  * Autor e Gestor: Davi Alves Figueredo
+ * Este motor extrai dados das tabelas 'processos' e 'notes' do Supabase.
  */
 
 export default function UnifiedReport() {
@@ -20,7 +22,7 @@ export default function UnifiedReport() {
   const [mounted, setMounted] = useState(false);
 
   const userName = "Davi Alves Figueredo";
-  const userRole = "Fundador & Gestor de Dados — W1 Capital";
+  const userRole = "Fundador & Arquiteto de Dados — W1 Capital";
 
   useEffect(() => {
     setMounted(true);
@@ -195,7 +197,7 @@ export default function UnifiedReport() {
         <div className="flex items-center justify-center gap-2 text-[10px] text-black font-black uppercase tracking-widest">
           <Copyright size={10} /> 2024 W1 Capital. Todos os direitos reservados.
         </div>
-        <p className="text-[8px] text-gray-400 uppercase font-bold tracking-widest">Documento Gerado por {userName} • São Paulo - SP</p>
+        <p className="text-[8px] text-gray-400 uppercase font-bold tracking-widest">Relatório Consolidado • LexisPredict Master Engine • Davi Alves Figueredo</p>
       </footer>
     </div>
   );
