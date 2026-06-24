@@ -13,7 +13,9 @@ import {
   Database,
   Printer,
   Copyright,
-  Zap
+  Zap,
+  Users,
+  Copy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,6 +56,11 @@ export default function VereditoPage() {
     }
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copiado!", description: "Conteúdo copiado para a área de transferência." });
+  };
+
   return (
     <div className="flex h-screen bg-background font-body">
       <Sidebar />
@@ -80,7 +87,7 @@ export default function VereditoPage() {
             </div>
             <h2 className="text-3xl font-headline font-bold text-white tracking-tight">OmniReport Intelligent Analyzer</h2>
             <p className="text-muted-foreground text-sm font-medium">
-              Motor v3.0: Integramos DataJud & Lógica {model === 'gemini' ? 'Gemini 2.5' : 'Grok Elite'}.
+              Motor v3.0: Integramos DataJud & Lógica {model === 'gemini' ? 'Gemini 1.5' : 'Grok Elite'}.
             </p>
             
             <form onSubmit={handleSearch} className="flex gap-2 mt-8">
@@ -101,74 +108,100 @@ export default function VereditoPage() {
 
           {result && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <Card className="lg:col-span-2 bg-card border-border shadow-2xl overflow-hidden">
-                <CardHeader className="border-b border-border bg-secondary/10">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <CardTitle className="text-white font-headline text-lg">Parecer Técnico Veredito AI</CardTitle>
-                      <CardDescription className="font-mono text-xs mt-1 text-primary">{cnj}</CardDescription>
+              <div className="lg:col-span-2 space-y-6">
+                <Card className="bg-card border-border shadow-2xl overflow-hidden">
+                  <CardHeader className="border-b border-border bg-secondary/10">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle className="text-white font-headline text-lg">Parecer Técnico Veredito AI</CardTitle>
+                        <CardDescription className="font-mono text-xs mt-1 text-primary">{cnj}</CardDescription>
+                      </div>
+                      <Badge variant="outline" className="border-chart-3/30 text-chart-3 font-bold uppercase text-[9px]">Engine {result.engineUtilizada}</Badge>
                     </div>
-                    <Badge variant="outline" className="border-chart-3/30 text-chart-3 font-bold uppercase text-[9px]">Engine {result.engineUtilizada}</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-8 space-y-8">
-                  <div className="space-y-3">
-                    <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                      <FileText size={12} className="text-primary" /> Resumo Estruturado
-                    </h4>
-                    <p className="text-sm text-white/90 leading-relaxed font-medium bg-secondary/20 p-4 rounded-xl border border-border">
-                      {result.resumoTecnico}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  </CardHeader>
+                  <CardContent className="p-8 space-y-8">
                     <div className="space-y-3">
                       <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                        <AlertTriangle size={12} className="text-accent" /> Análise de Risco
+                        <FileText size={12} className="text-primary" /> Resumo Estruturado
                       </h4>
-                      <div className="p-4 bg-accent/5 border border-accent/20 rounded-xl">
-                        <p className="text-xs text-white/80 leading-relaxed font-medium italic">
-                          {result.analiseRisco}
-                        </p>
-                      </div>
+                      <p className="text-sm text-white/90 leading-relaxed font-medium bg-secondary/20 p-4 rounded-xl border border-border">
+                        {result.resumoTecnico}
+                      </p>
                     </div>
-                    <div className="space-y-3">
-                      <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                        <ArrowRight size={12} className="text-chart-3" /> Sugestão Estratégica
-                      </h4>
-                      <div className="p-4 bg-chart-3/5 border border-chart-3/20 rounded-xl">
-                        <p className="text-xs text-white/80 leading-relaxed font-medium">
-                          {result.proximosPassos}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
 
-              <Card className="bg-card border-border shadow-2xl flex flex-col">
-                <CardHeader className="border-b border-border bg-secondary/10">
-                  <div className="flex items-center gap-2">
-                    <Database className="text-primary w-4 h-4" />
-                    <CardTitle className="text-white font-headline text-sm">Metadata DataJud</CardTitle>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+                          <AlertTriangle size={12} className="text-accent" /> Análise de Risco
+                        </h4>
+                        <div className="p-4 bg-accent/5 border border-accent/20 rounded-xl">
+                          <p className="text-xs text-white/80 leading-relaxed font-medium italic">
+                            {result.analiseRisco}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+                          <ArrowRight size={12} className="text-chart-3" /> Sugestão Estratégica
+                        </h4>
+                        <div className="p-4 bg-chart-3/5 border border-chart-3/20 rounded-xl">
+                          <p className="text-xs text-white/80 leading-relaxed font-medium">
+                            {result.proximosPassos}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-primary/5 border-primary/20 shadow-2xl overflow-hidden border-l-4 border-l-primary">
+                  <CardHeader className="bg-primary/10 border-b border-primary/20">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <Users className="text-primary w-5 h-5" />
+                        <CardTitle className="text-white font-headline text-lg">Mensagem ao Cliente</CardTitle>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => copyToClipboard(result.mensagemCliente)} className="h-7 text-[10px] font-bold border-primary/30 hover:bg-primary/20">
+                        <Copy className="w-3 h-3 mr-1" /> Copiar para WhatsApp
+                      </Button>
+                    </div>
+                    <CardDescription className="text-muted-foreground italic">Conteúdo humanizado para comunicação direta e acolhedora.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-8">
+                    <div className="bg-sidebar/50 p-6 rounded-2xl border border-border shadow-inner">
+                      <p className="text-sm text-white/90 leading-relaxed font-medium italic whitespace-pre-wrap">
+                        {result.mensagemCliente}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-6">
+                <Card className="bg-card border-border shadow-2xl flex flex-col">
+                  <CardHeader className="border-b border-border bg-secondary/10">
+                    <div className="flex items-center gap-2">
+                      <Database className="text-primary w-4 h-4" />
+                      <CardTitle className="text-white font-headline text-sm">Metadata DataJud</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-auto p-6">
+                     <div className="space-y-4">
+                      <MetaItem label="Órgão Julgador" value={result.dataJudRaw?.orgaoJulgador?.nome || 'N/A'} />
+                      <MetaItem label="Classe" value={result.dataJudRaw?.classe?.nome || 'N/A'} />
+                      <MetaItem label="Tribunal" value={result.dataJudRaw?.tribunal || 'N/A'} />
+                      <MetaItem label="Grau" value={result.dataJudRaw?.grau || '1º Grau'} />
+                      <MetaItem label="Última Atualização" value={result.dataJudRaw?.dataHoraUltimaAtualizacao ? new Date(result.dataJudRaw.dataHoraUltimaAtualizacao).toLocaleString('pt-BR') : 'N/A'} />
+                    </div>
+                  </CardContent>
+                  <div className="p-6 border-t border-border bg-secondary/5 mt-auto">
+                    <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-xl border border-primary/20">
+                      <ShieldCheck className="text-primary w-5 h-5 shrink-0" />
+                      <p className="text-[10px] text-white/70 font-medium">Análise autenticada por <b>W1 Capital Intelligence</b> sob supervisão de Davi Alves Figueredo.</p>
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-auto p-6">
-                   <div className="space-y-4">
-                    <MetaItem label="Órgão Julgador" value={result.dataJudRaw?.orgaoJulgador?.nome || 'N/A'} />
-                    <MetaItem label="Classe" value={result.dataJudRaw?.classe?.nome || 'N/A'} />
-                    <MetaItem label="Tribunal" value={result.dataJudRaw?.tribunal || 'N/A'} />
-                    <MetaItem label="Grau" value={result.dataJudRaw?.grau || '1º Grau'} />
-                    <MetaItem label="Última Atualização" value={new Date(result.dataJudRaw?.dataHoraUltimaAtualizacao).toLocaleString('pt-BR') || 'N/A'} />
-                  </div>
-                </CardContent>
-                <div className="p-6 border-t border-border bg-secondary/5 mt-auto">
-                  <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-xl border border-primary/20">
-                    <ShieldCheck className="text-primary w-5 h-5 shrink-0" />
-                    <p className="text-[10px] text-white/70 font-medium">Análise autenticada por <b>W1 Capital Intelligence</b> sob supervisão de Davi Alves Figueredo.</p>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </div>
             </div>
           )}
 

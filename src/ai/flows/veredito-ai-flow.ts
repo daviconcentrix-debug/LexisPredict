@@ -19,6 +19,7 @@ const VereditoOutputSchema = z.object({
   resumoTecnico: z.string().describe('Resumo sintetizado do processo.'),
   analiseRisco: z.string().describe('Análise de risco baseada nas últimas movimentações.'),
   proximosPassos: z.string().describe('Sugestão estratégica de próximos passos.'),
+  mensagemCliente: z.string().describe('Mensagem humanizada e acolhedora para o cliente leigo.'),
   dataJudRaw: z.any().optional(),
   engineUtilizada: z.string().optional()
 });
@@ -33,27 +34,35 @@ Analise os seguintes dados brutos extraídos do DataJud (CNJ) e gere um relatór
 DADOS DO PROCESSO:
 {{{json datajud}}}
 
-Diretrizes:
-- Seja extremamente técnico e preciso.
+Diretrizes de Análise Técnica:
+- Seja extremamente técnico e preciso no resumo, risco e passos estratégicos.
 - Identifique a classe processual e o órgão julgador.
 - Analise a última movimentação para determinar a urgência.
-- O relatório é para o fundador Davi Alves Figueredo.
 
+Diretriz de Comunicação (campo mensagemCliente):
+- Gere uma mensagem para o cliente que seja: tranquilizadora, humanizada, acolhedora, conciliativa, com coesão, coerência, cortesia, cordialidade, direta e para pessoas leigas no assunto.
+- Explique o que está acontecendo sem termos técnicos assustadores.
+
+O relatório final é para o fundador Davi Alves Figueredo.
 Saída: JSON estruturado conforme o esquema.`,
 });
 
 /**
  * CHAMADA NATIVA PARA GROK (VIA GROQ)
- * Evita dependência de plugins externos que falham no build.
  */
 async function callGrokNativo(datajud: any) {
   const GROQ_API_KEY = process.env.GROK_API_KEY || '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';
-  const prompt = `Analise este processo do DataJud para a W1 Capital (Fundador Davi Alves Figueredo) e responda APENAS em JSON:
+  const prompt = `Você é o Veredito AI v3.0 da W1 Capital. Analise este processo do DataJud para o Fundador Davi Alves Figueredo.
+  Responda APENAS em JSON seguindo este esquema:
   {
     "resumoTecnico": "string",
     "analiseRisco": "string",
-    "proximosPassos": "string"
+    "proximosPassos": "string",
+    "mensagemCliente": "string"
   }
+  
+  DIRETRIZ PARA mensagemCliente: Deve ser tranquilizadora, humanizada, acolhedora, conciliativa, cortês, cordial, direta e em linguagem simples para leigos.
+  
   DADOS: ${JSON.stringify(datajud)}`;
 
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -63,7 +72,7 @@ async function callGrokNativo(datajud: any) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile', // Groq Engine de alta velocidade
+      model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' }
     })
@@ -96,7 +105,7 @@ export const vereditoAIFlow = ai.defineFlow(
       };
     }
 
-    // Default: Gemini via Genkit com especificação de modelo garantida
+    // Default: Gemini via Genkit
     const {output} = await ai.generate({
       model: 'googleai/gemini-1.5-flash',
       prompt: vereditoPrompt({datajud: dataJudData}),

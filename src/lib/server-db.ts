@@ -32,7 +32,7 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
      * Removemos o estado anterior e injetamos o lote consolidado.
      * Isso resolve o problema de tentar salvar IDs como bigint e garante a integridade dos dados.
      */
-    const { error: deleteError } = await supabase.from('processos').delete().neq('id', -1);
+    const { error: deleteError } = await supabase.from('processos').delete().not('id', 'is', null);
     
     if (deleteError) throw deleteError;
 
@@ -80,9 +80,8 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
   try {
     /**
      * Sincronização de Notas: Mantemos a paridade com o UI limpando e reinserindo.
-     * Isso garante que as colunas 'title' e 'content' sejam povoadas corretamente.
      */
-    await supabase.from('notes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await supabase.from('notes').delete().not('id', 'is', null);
     
     if (notes.length > 0) {
       const dbNotes = notes.map(n => ({
