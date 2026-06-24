@@ -27,9 +27,11 @@ export async function getStoredCases(): Promise<LegalCase[]> {
 export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: boolean; message: string }> {
   if (!isSupabaseConfigured) return { success: false, message: "Supabase não configurado." };
   try {
-    // Sincronização Atômica: Removemos o estado anterior e injetamos o lote consolidado.
-    // Usamos um delete amplo para garantir que o estado local seja a única verdade no Cloud.
-    // O ID -1 é um placeholder para garantir que o delete aconteça.
+    /**
+     * ESTRATÉGIA DE CONSOLIDAÇÃO ATÔMICA
+     * Removemos o estado anterior e injetamos o lote consolidado.
+     * Isso resolve o problema de tentar salvar IDs como bigint e garante a integridade dos dados.
+     */
     const { error: deleteError } = await supabase.from('processos').delete().neq('id', -1);
     
     if (deleteError) throw deleteError;
@@ -76,8 +78,10 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
 export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boolean }> {
   if (!isSupabaseConfigured) return { success: false };
   try {
-    // Sincronização de Notas: Mantemos a paridade com o UI limpando e reinserindo
-    // Isso garante que notas deletadas localmente também sumam do Cloud.
+    /**
+     * Sincronização de Notas: Mantemos a paridade com o UI limpando e reinserindo.
+     * Isso garante que as colunas 'title' e 'content' sejam povoadas corretamente.
+     */
     await supabase.from('notes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     
     if (notes.length > 0) {
