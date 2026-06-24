@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -8,25 +9,26 @@ import {
   ShieldAlert, 
   TrendingUp,
   Database,
-  ChevronRight,
   Scale,
   RefreshCcw,
-  FileDown
+  FileDown,
+  ChevronRight
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { LegalCase, CaseNote } from '@/lib/case-logic';
+import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { fetchRepoCases, fetchRepoNotes } from '@/app/actions/case-actions';
+import { fetchRepoCases } from '@/app/actions/case-actions';
 import Link from 'next/link';
 
+/**
+ * INTELLIGENCE UNIT — DASHBOARD MESTRE
+ * Autor e Gestor: Davi Alves
+ */
 export default function Dashboard() {
   const [cases, setCases] = useState<LegalCase[]>([]);
-  const [notes, setNotes] = useState<CaseNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
@@ -35,32 +37,27 @@ export default function Dashboard() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [caseData, noteData] = await Promise.all([
-        fetchRepoCases(),
-        fetchRepoNotes()
-      ]);
-      
+      const caseData = await fetchRepoCases();
       if (Array.isArray(caseData)) setCases(caseData);
-      if (Array.isArray(noteData)) setNotes(noteData);
     } catch (error) {
-      console.error('Failed to load data:', error);
+      console.error('Dashboard sync failure:', error);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (mounted) loadData();
+  }, [mounted, loadData]);
 
   const metrics = useMemo(() => {
     const total = cases.length;
     const critical = cases.filter(c => c.status === 'Vencido').length;
     const attention = cases.filter(c => c.status === 'Atenção').length;
-    const emAndamento = cases.filter(c => c.situacao === 'EM ANDAMENTO').length;
+    const active = cases.filter(c => !['ENCERRADO', 'ARQUIVADO'].includes(c.situacao.toUpperCase())).length;
     const riskScore = total ? Math.round(((critical + attention) / total) * 100) : 0;
 
-    return { total, critical, attention, emAndamento, riskScore };
+    return { total, critical, attention, active, riskScore };
   }, [cases]);
 
   const urgentQueue = useMemo(() => {
@@ -70,23 +67,21 @@ export default function Dashboard() {
       .slice(0, 5);
   }, [cases]);
 
-  const handleCaseDetailClick = (protocolo: string) => {
-    router.push(`/cases?search=${encodeURIComponent(protocolo)}`);
-  };
-
   if (!mounted) return null;
 
   return (
     <div className="flex h-screen bg-background font-body">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden text-white">
-        <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8 shrink-0 print:hidden">
+        <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4">
             <h1 className="font-headline font-bold text-xl text-white">Intelligence Unit</h1>
-            <Badge variant="outline" className="border-primary/50 text-primary text-[10px] uppercase font-bold tracking-tighter">Live CRM Database</Badge>
+            <Badge variant="outline" className="border-primary/50 text-primary text-[10px] uppercase font-bold tracking-tighter tracking-widest">
+              Supabase Cloud Operational
+            </Badge>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-white border border-border h-8 font-bold">
+            <Button variant="default" size="sm" asChild className="bg-primary hover:bg-primary/90 text-white h-8 font-bold shadow-lg">
               <Link href="/report" target="_blank">
                 <FileDown size={14} className="mr-2" /> Export Unified Report
               </Link>
@@ -98,121 +93,61 @@ export default function Dashboard() {
         </header>
 
         <div className="flex-1 overflow-auto p-8 space-y-8">
-          <div className="hidden print:block mb-8 border-b pb-4">
-            <h1 className="text-2xl font-bold text-black">Intelligence Unit - Procedural Report</h1>
-            <p className="text-sm text-gray-600">Generated on {mounted ? new Date().toLocaleDateString('pt-BR') : '...'}</p>
-          </div>
-
           <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard 
-              title="Total de Processos" 
-              value={loading ? "..." : metrics.total} 
-              icon={<Briefcase size={20} />} 
-              trend="Global Repository"
-              trendUp
-            />
-            <StatCard 
-              title="Alertas Críticos" 
-              value={loading ? "..." : metrics.critical} 
-              icon={<ShieldAlert size={20} />} 
-              color="destructive"
-              trend="Requires Action"
-            />
-            <StatCard 
-              title="Taxa de Risco" 
-              value={loading ? "..." : `${metrics.riskScore}%`} 
-              icon={<TrendingUp size={20} />} 
-              color="accent"
-            />
-            <StatCard 
-              title="Ativos" 
-              value={loading ? "..." : metrics.emAndamento} 
-              icon={<Scale size={20} />} 
-              color="success"
-              trend="Ongoing Procedures"
-              trendUp
-            />
+            <StatCard title="Total de Processos" value={loading ? "..." : metrics.total} icon={<Briefcase size={20} />} trend="Global" trendUp />
+            <StatCard title="Alertas Críticos" value={loading ? "..." : metrics.critical} icon={<ShieldAlert size={20} />} color="destructive" trend="Ação Imediata" />
+            <StatCard title="Taxa de Risco" value={loading ? "..." : `${metrics.riskScore}%`} icon={<TrendingUp size={20} />} color="accent" />
+            <StatCard title="Casos Ativos" value={loading ? "..." : metrics.active} icon={<Scale size={20} />} color="success" trend="Fluxo" trendUp />
           </section>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 pb-8">
             <section className="xl:col-span-2 bg-card border border-border rounded-2xl p-6 shadow-xl">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="font-headline font-bold text-lg text-white">Priority Queue</h2>
-                  <p className="text-xs text-muted-foreground">Highest risk cases requiring immediate attention.</p>
+                  <h2 className="font-headline font-bold text-lg text-white uppercase tracking-tight">Priority Queue</h2>
+                  <p className="text-xs text-muted-foreground">Triagem técnica baseada em proximidade de prazo.</p>
                 </div>
-                <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">
-                  Cloud Sync Active
-                </Badge>
+                <Button variant="ghost" size="sm" asChild className="text-xs text-muted-foreground hover:text-primary">
+                  <Link href="/cases">View All Cases <ChevronRight size={12} className="ml-1" /></Link>
+                </Button>
               </div>
 
               {urgentQueue.length > 0 ? (
                 <div className="space-y-3">
                   {urgentQueue.map((c) => (
-                    <div 
-                      key={c.protocolo} 
-                      onClick={() => handleCaseDetailClick(c.protocolo)}
-                      className="group p-4 bg-secondary/30 border border-border hover:border-primary/50 rounded-xl transition-all flex items-center justify-between cursor-pointer"
-                    >
+                    <div key={c.id} className="p-4 bg-secondary/30 border border-border hover:border-primary/50 rounded-xl transition-all flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div className={cn(
-                          "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-[10px] shrink-0",
+                          "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-[10px]",
                           c.status === 'Vencido' ? "bg-destructive/10 text-destructive" : "bg-accent/10 text-accent"
-                        )}>
-                          {c.tribunal}
-                        </div>
+                        )}>{c.tribunal}</div>
                         <div>
-                          <p className="font-bold text-sm text-white group-hover:text-primary transition-colors">{c.cliente}</p>
-                          <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">{c.protocolo}</p>
+                          <p className="font-bold text-sm text-white">{c.cliente}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">{c.protocolo}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-6">
-                        <div className="text-right hidden sm:block">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Deadline</p>
-                          <p className="text-sm font-medium text-white">{c.proximoPrazo}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Badge className={cn(
-                            "px-3 py-1 font-bold rounded-md",
-                            c.status === 'Vencido' ? "bg-destructive/20 text-destructive border-destructive/20" : "bg-accent/20 text-accent border-accent/20"
-                          )}>
-                            {c.diasFaltando !== null && c.diasFaltando < 0 ? `${Math.abs(c.diasFaltando)}d ATRASADO` : `${c.diasFaltando}d RESTANDO`}
-                          </Badge>
-                          <ChevronRight size={16} className="text-muted-foreground group-hover:text-primary transition-colors" />
-                        </div>
-                      </div>
+                      <Badge className={c.status === 'Vencido' ? "bg-destructive/20 text-destructive" : "bg-accent/20 text-accent"}>
+                        {c.diasFaltando !== null && c.diasFaltando < 0 ? `${Math.abs(c.diasFaltando)}d ATRASADO` : `${c.diasFaltando}d`}
+                      </Badge>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl bg-secondary/10">
-                  <div className="p-4 bg-secondary rounded-full mb-4">
-                    <Scale className="text-muted-foreground w-8 h-8" />
-                  </div>
-                  <h3 className="text-white font-bold">{loading ? "Synchronizing..." : "No High-Risk Cases"}</h3>
-                  <p className="text-sm text-muted-foreground">{loading ? "Connecting to cloud..." : "Queue is clear. All deadlines are healthy."}</p>
-                </div>
+                <div className="py-20 text-center opacity-40 italic">Sem registros críticos ativos.</div>
               )}
             </section>
 
-            <section className="bg-gradient-to-br from-primary to-accent rounded-2xl p-8 text-white relative overflow-hidden flex flex-col justify-center">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-xl" />
-              
-              <div className="relative z-10 space-y-6">
-                <div className="p-3 bg-white/20 w-fit rounded-xl backdrop-blur-md border border-white/20">
-                  <Database className="w-6 h-6 text-white" />
+            <section className="bg-gradient-to-br from-primary to-accent rounded-2xl p-8 text-white flex flex-col justify-center shadow-2xl relative overflow-hidden">
+               <div className="relative z-10 space-y-6">
+                <div className="p-3 bg-white/20 w-fit rounded-xl border border-white/20">
+                  <Database size={24} />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-headline font-bold">Cloud CRM Engine</h2>
-                  <p className="text-sm text-white/80 font-medium leading-relaxed mt-2">
-                    Procedural data is automatically synchronized across all legal workstations.
-                  </p>
+                  <h2 className="text-2xl font-headline font-bold uppercase tracking-tighter">Unified PDF Preview</h2>
+                  <p className="text-sm text-white/80 mt-2">Extraia Analytics, Inteligência e Notas em um único ofício assinado por Davi Alves.</p>
                 </div>
-                <Button variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white w-full font-bold" asChild>
-                  <Link href="/report" target="_blank">
-                    <FileDown size={14} className="mr-2" /> Preview Unified PDF
-                  </Link>
+                <Button variant="outline" asChild className="bg-white/10 border-white/20 hover:bg-white/20 text-white w-full font-bold h-11">
+                  <Link href="/report" target="_blank">View Consolidated PDF</Link>
                 </Button>
               </div>
             </section>

@@ -1,16 +1,16 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder';
+/**
+ * CLIENTE SUPABASE LEXISPREDICT - CONFIGURAÇÃO RESILIENTE
+ * Prioriza variáveis de ambiente do Vercel/Produção.
+ */
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://vmfkrvpwnbllmzwqzjqt.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_yEX6mVid3dpC7o7eOzuB1g_VhQodoTg';
 
-// Check if we have valid-looking credentials to prevent app crash
-const isValid = supabaseUrl !== 'https://placeholder.supabase.co' && supabaseAnonKey !== 'placeholder';
+export const isSupabaseConfigured = 
+  supabaseUrl !== 'https://placeholder.supabase.co' && 
+  supabaseAnonKey !== 'placeholder';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false
-  }
-});
-
-export const isSupabaseConfigured = isValid;
+// Inicialização com fallback para evitar erros de build
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);

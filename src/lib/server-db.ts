@@ -1,85 +1,47 @@
+
 import { supabase, isSupabaseConfigured } from './supabase';
 import { LegalCase, CaseNote } from './case-logic';
-import DOMPurify from 'isomorphic-dompurify';
 
 /**
- * MOTOR DE BUSCA AVANÇADO E PERSISTÊNCIA RELACIONAL
- * Implementa sanitização contra XSS e isolamento via Supabase
+ * MOTOR DE PERSISTÊNCIA RELACIONAL LEXISPREDICT (SUPABASE)
+ * Implementação cirúrgica focada em integridade e não duplicidade.
  */
 
-export async function getStoredCases(searchTerm?: string): Promise<LegalCase[]> {
+export async function getStoredCases(): Promise<LegalCase[]> {
   if (!isSupabaseConfigured) return [];
   try {
-    let query = supabase.from('processos').select('*');
-
-    if (searchTerm) {
-      query = query.or(`cliente.ilike.%${searchTerm}%,protocolo.ilike.%${searchTerm}%,advogado.ilike.%${searchTerm}%`);
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('processos')
+      .select('dados')
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
-    
-    return data ? data.map(item => ({
-      id: item.id,
-      cliente: item.cliente,
-      protocolo: item.protocolo,
-      advogado: item.advogado,
-      situacao: item.situacao,
-      proximoPrazo: item.proximo_prazo,
-      tribunal: item.tribunal,
-      status: item.status as any,
-      diasFaltando: item.dias_faltando,
-      linkConsulta: item.link_consulta,
-      tipo: item.tipo,
-      telefone: item.telefone,
-      atendente: item.atendente,
-      scoreIA: item.score_ia,
-      riscoIA: item.risco_ia,
-      parecerIA: item.parecer_ia,
-      ultimoRetorno: item.ultimo_retorno
-    })) : [];
+    return data ? data.map(item => item.dados as LegalCase) : [];
   } catch (error) {
-    console.error('Supabase fetch failed:', error);
+    console.error('Supabase fetch processes error:', error);
     return [];
   }
 }
 
 export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: boolean; message: string }> {
-  if (!isSupabaseConfigured) return { success: false, message: "Cloud not configured." };
+  if (!isSupabaseConfigured) return { success: false, message: "Cloud Supabase não configurado." };
   try {
-    const dbCases = cases.map(c => ({
-      cliente: c.cliente,
-      protocolo: c.protocolo,
-      advogado: c.advogado,
-      situacao: c.situacao,
-      proximo_prazo: c.proximoPrazo,
-      tribunal: c.tribunal,
-      status: c.status,
-      dias_faltando: c.diasFaltando,
-      link_consulta: c.linkConsulta,
-      tipo: c.tipo,
-      telefone: c.telefone,
-      atendente: c.atendente,
-      score_ia: c.scoreIA,
-      risco_ia: c.riscoIA,
-      parecer_ia: DOMPurify.sanitize(c.parecerIA || ''),
-      ultimo_retorno: c.ultimoRetorno
-    }));
-
-    // No modo MVP, limpamos e reinserimos para garantir sincronia.
-    // Em produção real usaríamos upsert por protocolo.
-    await supabase.from('processos').delete().neq('protocolo', '___VOID___');
-
-    if (dbCases.length > 0) {
-      const { error: insertError } = await supabase.from('processos').insert(dbCases);
-      if (insertError) throw insertError;
+    // Sincronização via UPSERT para evitar perda de dados e duplicatas
+    if (cases.length > 0) {
+      const updates = cases.map(c => ({
+        // Usamos o ID (que é o protocolo) para garantir unicidade no banco
+        id: c.protocolo || c.id,
+        dados: c
+      }));
+      
+      const { error } = await supabase.from('processos').upsert(updates, { onConflict: 'id' });
+      if (error) throw error;
     }
 
-    return { success: true, message: "Cloud database updated." };
-  } catch (error) {
-    console.error('Error saving to Supabase:', error);
-    return { success: false, message: "Sync failed." };
+    return { success: true, message: "Sincronização Cloud Concluída." };
+  } catch (error: any) {
+    console.error('Supabase save processes error:', error);
+    return { success: false, message: error.message };
   }
 }
 
@@ -101,7 +63,7 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
       updatedAt: new Date(item.created_at).toLocaleString('pt-BR')
     })) : [];
   } catch (error) {
-    console.error('Supabase notes fetch failed:', error);
+    console.error('Supabase fetch notes error:', error);
     return [];
   }
 }
@@ -109,22 +71,23 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
 export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boolean }> {
   if (!isSupabaseConfigured) return { success: false };
   try {
-    const cleanNotes = notes.map(n => ({
-      title: DOMPurify.sanitize(n.title),
-      content: DOMPurify.sanitize(n.content)
-    }));
-
-    // Limpa para sincronia completa do array (estratégia MVP)
-    await supabase.from('notes').delete().neq('title', '___VOID___');
+    // Sincronização de Notas: Mapeamento direto para colunas SQL
+    // Limpamos para garantir que a ordem e a exclusão reflitam o estado do frontend (Google Keep style)
+    await supabase.from('notes').delete().neq('title', '___GUARD_NOTE___');
     
-    if (cleanNotes.length === 0) return { success: true };
-    
-    const { error } = await supabase.from('notes').insert(cleanNotes);
-    if (error) throw error;
+    if (notes.length > 0) {
+      const dbNotes = notes.map(n => ({
+        title: n.title || 'Sem Título',
+        content: n.content || ''
+      }));
+      
+      const { error } = await supabase.from('notes').insert(dbNotes);
+      if (error) throw error;
+    }
 
     return { success: true };
   } catch (error) {
-    console.error('Error saving notes:', error);
+    console.error('Supabase save notes error:', error);
     return { success: false };
   }
 }
