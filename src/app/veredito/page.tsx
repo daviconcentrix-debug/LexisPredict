@@ -93,29 +93,30 @@ export default function VereditoPage() {
     return () => clearInterval(timer);
   }, [retryAfter]);
 
+  // Função ultra-resiliente para carregar PDF.js via CDN sem erros de build
   const loadPdfJs = async (): Promise<any> => {
     return new Promise((resolve, reject) => {
       if ((window as any).pdfjsLib) {
         resolve((window as any).pdfjsLib);
         return;
       }
+      
       const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.mjs';
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs';
       script.type = 'module';
-      script.onload = async () => {
-        try {
-          // No ESM, pdfjsLib might not be attached to window directly via script tag
-          // We need to wait or use a global-safe version
-          const script2 = document.createElement('script');
-          script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js';
-          script2.onload = () => {
-            const pdfjs = (window as any).pdfjsLib;
-            pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
-            resolve(pdfjs);
-          };
-          document.head.appendChild(script2);
-        } catch (err) {
-          reject(err);
+      script.onload = () => {
+        // PDF.js v4+ uses ESM. We need to handle the worker separately.
+        const pdfjs = (window as any).pdfjsLib;
+        if (pdfjs) {
+          pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+          resolve(pdfjs);
+        } else {
+          // Fallback if global is not set
+          setTimeout(() => {
+            const retry = (window as any).pdfjsLib;
+            if (retry) resolve(retry);
+            else reject(new Error("PDF.js não carregado corretamente."));
+          }, 500);
         }
       };
       script.onerror = () => reject(new Error("Falha ao carregar motor de PDF."));
@@ -129,6 +130,7 @@ export default function VereditoPage() {
 
     setPdfExtracting(true);
     try {
+      // Carregamento dinâmico no navegador para evitar erros de Turbopack
       const pdfjsLib = await loadPdfJs();
       const arrayBuffer = await file.arrayBuffer();
       const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
@@ -147,7 +149,7 @@ export default function VereditoPage() {
       setDocInput(fullText);
       toast({ title: "PDF Processado", description: "Texto extraído com sucesso para análise." });
     } catch (error: any) {
-      console.error("PDF_ERROR:", error);
+      console.error("PDF_EXTRACTION_FAILURE:", error);
       toast({ 
         title: "Erro no PDF", 
         description: "Falha ao processar arquivo. Tente colar o texto manualmente.", 
@@ -232,7 +234,7 @@ export default function VereditoPage() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden text-white">
         <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4">
-            <h1 className="font-headline font-bold text-xl">Veredito AI v9.0 Elite</h1>
+            <h1 className="font-headline font-bold text-xl">Veredito AI v10.0 Elite</h1>
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="text-[9px] uppercase tracking-widest bg-primary/10 border-primary/20 text-primary">
                 <Zap size={10} className="mr-1" /> {model === 'openrouter' ? 'CLAUDE 3.5 SONNET' : model.toUpperCase()}
@@ -251,7 +253,7 @@ export default function VereditoPage() {
             <TabsList className="bg-secondary/50 mb-8 p-1 rounded-xl">
               <TabsTrigger value="analysis" className="rounded-lg data-[state=active]:bg-primary">Análise Estratégica</TabsTrigger>
               <TabsTrigger value="chat" className="rounded-lg data-[state=active]:bg-primary">Chat Consultivo</TabsTrigger>
-              <TabsTrigger value="docs" className="rounded-lg data-[state=active]:bg-primary">Gerador de Docs v9.0</TabsTrigger>
+              <TabsTrigger value="docs" className="rounded-lg data-[state=active]:bg-primary">Gerador de Docs v10.0</TabsTrigger>
               <TabsTrigger value="templates" className="rounded-lg data-[state=active]:bg-primary">Biblioteca</TabsTrigger>
             </TabsList>
 
@@ -405,7 +407,7 @@ export default function VereditoPage() {
                 <div className="space-y-6">
                   <div className="space-y-2">
                     <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
-                      <FileSignature className="text-primary" /> Gerador de Procurações v9.0
+                      <FileSignature className="text-primary" /> Gerador de Procurações v10.0
                     </h2>
                     <p className="text-muted-foreground text-xs font-medium">Extração de dados cirúrgica via Texto ou PDF.</p>
                   </div>
@@ -502,7 +504,7 @@ export default function VereditoPage() {
                     <div className="border-2 border-dashed border-border rounded-xl h-[700px] flex flex-col items-center justify-center opacity-30 text-center p-8 bg-secondary/10">
                       <FileSignature size={64} className="mb-4 text-muted-foreground" />
                       <p className="text-sm font-bold">Preview do documento oficial.</p>
-                      <p className="text-[10px] mt-2">Extração automática e formatação rigorosa v9.0.</p>
+                      <p className="text-[10px] mt-2">Extração automática e formatação rigorosa v10.0.</p>
                     </div>
                   )}
                 </div>
