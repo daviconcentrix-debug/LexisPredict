@@ -71,6 +71,7 @@ export default function VereditoPage() {
   const [docLoading, setDocLoading] = useState(false);
   const [pdfExtracting, setPdfExtracting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
 
@@ -93,31 +94,15 @@ export default function VereditoPage() {
     return () => clearInterval(timer);
   }, [retryAfter]);
 
-  // Carregador resiliente de PDF.js via DOM para evitar conflitos com o Turbopack
-  const loadPdfJs = async (): Promise<any> => {
-    return new Promise((resolve, reject) => {
-      if ((window as any).pdfjsLib) {
-        resolve((window as any).pdfjsLib);
-        return;
+  // Scroll to bottom on new chat messages
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
-      
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs';
-      script.type = 'module';
-      script.onload = () => {
-        const check = setInterval(() => {
-          if ((window as any).pdfjsLib) {
-            clearInterval(check);
-            const pdfjs = (window as any).pdfjsLib;
-            pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
-            resolve(pdfjs);
-          }
-        }, 100);
-      };
-      script.onerror = () => reject(new Error("Falha ao carregar motor de PDF via CDN."));
-      document.head.appendChild(script);
-    });
-  };
+    }
+  }, [chatHistory]);
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -125,7 +110,29 @@ export default function VereditoPage() {
 
     setPdfExtracting(true);
     try {
-      const pdfjsLib = await loadPdfJs();
+      // Injeção resiliente de script para evitar conflitos com Turbopack
+      const loadPdfScript = () => {
+        return new Promise<void>((resolve, reject) => {
+          if ((window as any).pdfjsLib) return resolve();
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs';
+          script.type = 'module';
+          script.onload = () => {
+            const check = setInterval(() => {
+              if ((window as any).pdfjsLib) {
+                clearInterval(check);
+                (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+                resolve();
+              }
+            }, 100);
+          };
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      };
+
+      await loadPdfScript();
+      const pdfjsLib = (window as any).pdfjsLib;
       const arrayBuffer = await file.arrayBuffer();
       const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
       const pdf = await loadingTask.promise;
@@ -138,17 +145,12 @@ export default function VereditoPage() {
         fullText += pageText + "\n";
       }
 
-      if (!fullText.trim()) throw new Error("O PDF parece estar vazio ou é uma imagem (OCR não suportado).");
+      if (!fullText.trim()) throw new Error("PDF sem texto legível.");
 
       setDocInput(fullText);
       toast({ title: "PDF Processado", description: "Texto extraído com sucesso para análise." });
     } catch (error: any) {
-      console.error("PDF_EXTRACTION_FAILURE:", error);
-      toast({ 
-        title: "Erro no PDF", 
-        description: "Falha ao processar arquivo. Tente colar o texto manualmente.", 
-        variant: "destructive" 
-      });
+      toast({ title: "Erro no PDF", description: "Falha ao processar arquivo. Tente colar o texto.", variant: "destructive" });
     } finally {
       setPdfExtracting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -180,12 +182,21 @@ export default function VereditoPage() {
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || chatLoading || retryAfter !== null) return;
+    
     const msg = chatInput;
+    const currentHistory = [...chatHistory];
+    
     setChatHistory(prev => [...prev, { role: 'user', content: msg }]);
     setChatInput('');
     setChatLoading(true);
+    
     try {
-      const res = await perguntarIA({ pergunta: msg, preferredModel: model, deepThinking });
+      const res = await perguntarIA({ 
+        pergunta: msg, 
+        historico: currentHistory, // Envia o histórico acumulado para memória
+        preferredModel: model, 
+        deepThinking 
+      });
       setChatHistory(prev => [...prev, { role: 'assistant', content: res.resposta, engine: res.engineUtilizada }]);
     } catch (error: any) {
       if (error.message.includes('RATE_LIMIT')) {
@@ -348,7 +359,7 @@ export default function VereditoPage() {
               )}
             </TabsContent>
 
-            <TabsContent value="chat" className="h-[600px]">
+            <TabsContent value="chat" className="h-[650px]">
               <div className="bg-card border border-border rounded-3xl h-full flex flex-col shadow-2xl overflow-hidden">
                 <div className="p-4 bg-secondary/20 border-b border-border flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -357,21 +368,28 @@ export default function VereditoPage() {
                     </div>
                     <div>
                       <p className="text-sm font-bold">Consultor Sênior W1</p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Inteligência Estratégica</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Inteligência Estratégica (Com Memória)</p>
                     </div>
                   </div>
-                  {chatLoading && <Badge className="bg-primary/20 text-primary border-none animate-pulse">PENSANDO...</Badge>}
+                  {chatLoading && <Badge className="bg-primary/20 text-primary border-none animate-pulse">ANALISANDO CONTEXTO...</Badge>}
                 </div>
                 
-                <ScrollArea className="flex-1 p-6">
+                <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
                   <div className="space-y-6">
+                    {chatHistory.length === 0 && (
+                      <div className="h-full flex flex-col items-center justify-center opacity-30 py-20 text-center">
+                        <MessageSquare size={48} className="mb-4" />
+                        <p className="text-sm font-bold">Inicie uma consulta jurídica estratégica.</p>
+                        <p className="text-[10px]">O motor de elite agora possui memória de contexto.</p>
+                      </div>
+                    )}
                     {chatHistory.map((m, i) => (
-                      <div key={i} className={cn("flex flex-col gap-2 max-w-[85%]", m.role === 'user' ? "ml-auto items-end" : "mr-auto items-start")}>
+                      <div key={i} className={cn("flex flex-col gap-2 max-w-[85%] animate-in fade-in slide-in-from-bottom-2 duration-300", m.role === 'user' ? "ml-auto items-end" : "mr-auto items-start")}>
                         <div className={cn(
                           "p-5 rounded-2xl text-sm leading-relaxed shadow-lg",
                           m.role === 'user' ? "bg-primary text-white rounded-tr-none" : "bg-secondary text-foreground rounded-tl-none border border-border/50"
                         )}>
-                          <div className="whitespace-pre-wrap">{m.content}</div>
+                          <div className="whitespace-pre-wrap font-medium">{m.content}</div>
                           {m.engine && <div className="mt-4 pt-2 border-t border-white/10 text-[8px] opacity-50 uppercase font-black tracking-widest">{m.engine}</div>}
                         </div>
                       </div>
@@ -381,7 +399,7 @@ export default function VereditoPage() {
                 
                 <form onSubmit={handleChatSubmit} className="p-4 border-t border-border bg-sidebar/30 flex gap-3">
                   <Input 
-                    placeholder="Sua pergunta jurídica..." 
+                    placeholder="Consulte o Consultor Sênior (Ex: 'Analise o último andamento deste processo')..." 
                     value={chatInput} 
                     onChange={e => setChatInput(e.target.value)} 
                     className="bg-secondary border-border h-12 rounded-xl focus-visible:ring-primary shadow-inner" 
@@ -419,7 +437,7 @@ export default function VereditoPage() {
                       disabled={pdfExtracting}
                     >
                       {pdfExtracting ? <Clock className="animate-spin mr-2" /> : <FileUp className="mr-2" />}
-                      {pdfExtracting ? "Processando..." : "Carregar PDF"}
+                      {pdfExtracting ? "Extraindo PDF..." : "Carregar PDF"}
                     </Button>
                     <Button 
                       variant="ghost" 
@@ -435,7 +453,7 @@ export default function VereditoPage() {
 
                   <Card className="bg-card border-border shadow-xl">
                     <CardContent className="p-6 space-y-4">
-                      <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Dados do Contrato ou PDF Extraído</Label>
+                      <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Dados para Extração (Script v5.5)</Label>
                       <Textarea 
                         placeholder="Cole aqui o texto ou carregue um PDF..." 
                         value={docInput}
@@ -458,7 +476,7 @@ export default function VereditoPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground flex items-center gap-2">
-                      <FileCheck size={14} className="text-chart-3" /> Preview Documento (.docx)
+                      <FileCheck size={14} className="text-chart-3" /> Preview Documento Oficial
                     </Label>
                     {docResult && (
                       <Button variant="ghost" size="sm" onClick={() => copyToClipboard(docResult)} className="text-primary text-[10px] font-bold uppercase">
@@ -495,7 +513,7 @@ export default function VereditoPage() {
                   ) : (
                     <div className="border-2 border-dashed border-border rounded-xl h-[700px] flex flex-col items-center justify-center opacity-30 text-center p-8 bg-secondary/10">
                       <FileSignature size={64} className="mb-4 text-muted-foreground" />
-                      <p className="text-sm font-bold">Preview do documento oficial.</p>
+                      <p className="text-sm font-bold">Preview do documento definitivo.</p>
                       <p className="text-[10px] mt-2">Extração automática e formatação rigorosa v11.5.</p>
                     </div>
                   )}

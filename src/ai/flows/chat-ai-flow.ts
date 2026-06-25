@@ -1,46 +1,40 @@
 'use server';
 /**
- * @fileOverview Motor de Chat Consultivo LexisPredict v1.5 Elite
- * Claude 3.5 Sonnet + Grok com tratamento resiliente de formato.
+ * @fileOverview Motor de Chat Consultivo LexisPredict v2.0 Elite
+ * Memória de Contexto Ativa + Suporte a Respostas Longas.
+ * Claude 3.5 Sonnet | Grok (Llama 3.3) | Gemini 1.5 Flash
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const ChatInputSchema = z.object({
-  pergunta: z.string().describe('A pergunta do usuário.'),
+  pergunta: z.string().describe('A pergunta atual do usuário.'),
+  historico: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string()
+  })).optional().default([]).describe('O histórico de mensagens anteriores para contexto.'),
   preferredModel: z.enum(['gemini', 'grok', 'openrouter']).optional().default('gemini'),
   deepThinking: z.boolean().optional().default(false),
 });
 
 const ChatOutputSchema = z.object({
-  resposta: z.string().describe('A resposta estratégica da IA.'),
+  resposta: z.string().describe('A resposta estratégica completa da IA.'),
   engineUtilizada: z.string().optional()
 });
 
-const chatPrompt = ai.definePrompt({
-  name: 'chatPrompt',
-  input: {schema: z.object({pergunta: z.string(), deepThinking: z.boolean()})},
-  output: {schema: z.object({resposta: z.string()})},
-  prompt: `Você é o Consultor Jurídico Sênior da W1 Capital e Get Assessoria.
-Responda de forma estratégica, técnica e clara.
+const SYSTEM_PROMPT = `Você é o Consultor Jurídico Sênior de Elite da W1 Capital e Get Assessoria.
+Sua missão é fornecer orientações estratégicas, técnicas e resolutivas sobre processos judiciais.
 
-{{#if deepThinking}}
-MODO PENSAMENTO PROFUNDO (ATIVADO):
-- Analise exaustivamente os riscos.
-- Identifique brechas estratégicas e precedentes.
-{{/if}}
+DIRETRIZES DE OURO:
+1. MEMÓRIA: Utilize as mensagens anteriores para manter a continuidade do raciocínio.
+2. COMPLETUDE: Nunca corte a resposta pela metade. Entregue a análise completa, mesmo que seja extensa.
+3. TOM: Profissional, assertivo e focado em proteger o cliente e acelerar o processo.
+4. FORMATO: Responda de forma estratégica, identificando riscos e brechas.
+5. ASSINATURA: Finalize sempre com "Setor Processual — Get Assessoria".
 
-PERGUNTA: {{{pergunta}}}
-
-DIRETRIZES:
-1. TOM: Profissional e assertivo.
-2. FOCO: Acelerar o processo e proteger o cliente.
-3. ASSINATURA: "Setor Processual — Get Assessoria".
-
-SAÍDA: Retorne estritamente um JSON plano { "resposta": "texto_da_resposta" }.
-IMPORTANTE: O campo "resposta" deve conter apenas uma string de texto formatado, NUNCA um objeto.`,
-});
+RESTRIÇÃO TÉCNICA: Retorne estritamente um JSON plano: { "resposta": "todo_o_texto_aqui" }.
+O campo "resposta" deve conter apenas uma string de texto formatado (use \n para quebras de linha).`;
 
 function forceStringResponse(raw: any): string {
   if (typeof raw === 'string') return raw;
@@ -51,18 +45,23 @@ function forceStringResponse(raw: any): string {
   return String(raw);
 }
 
-async function callGrokChat(pergunta: string, deepThinking: boolean) {
+async function callGrokChat(pergunta: string, historico: any[], deepThinking: boolean) {
   const GROQ_API_KEY = process.env.GROQ_API_KEY || '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';
+  
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT + ' Use a palavra JSON na resposta.' },
+    ...historico.map(m => ({ role: m.role, content: m.content })),
+    { role: 'user', content: pergunta }
+  ];
+
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: 'Você é Consultor Jurídico Sênior. Retorne apenas JSON com campo string "resposta". Use a palavra JSON.' },
-        { role: 'user', content: pergunta }
-      ],
+      messages,
       temperature: deepThinking ? 0.1 : 0.4,
+      max_tokens: 4096,
       response_format: { type: 'json_object' }
     })
   });
@@ -82,23 +81,28 @@ async function callGrokChat(pergunta: string, deepThinking: boolean) {
   }
 }
 
-async function callOpenRouterChat(pergunta: string, deepThinking: boolean) {
+async function callOpenRouterChat(pergunta: string, historico: any[], deepThinking: boolean) {
   const OPENROUTER_API_KEY = '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';
+  
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...historico.map(m => ({ role: m.role, content: m.content })),
+    { role: 'user', content: pergunta }
+  ];
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
       'Content-Type': 'application/json',
       'HTTP-Referer': 'https://lexispredict.w1.capital',
-      'X-Title': 'LexisPredict Chat'
+      'X-Title': 'LexisPredict Chat Elite'
     },
     body: JSON.stringify({
       model: 'anthropic/claude-3.5-sonnet',
-      messages: [
-        { role: 'system', content: 'Você é Consultor Jurídico Sênior W1 Capital. Responda apenas em JSON: { "resposta": "texto" }.' },
-        { role: 'user', content: pergunta }
-      ],
-      temperature: deepThinking ? 0.2 : 0.5
+      messages,
+      temperature: deepThinking ? 0.2 : 0.5,
+      max_tokens: 4096
     })
   });
 
@@ -110,7 +114,10 @@ async function callOpenRouterChat(pergunta: string, deepThinking: boolean) {
 
   const data = await response.json();
   try {
-    const content = JSON.parse(data.choices[0].message.content);
+    const rawContent = data.choices[0].message.content;
+    // Tenta extrair JSON se o modelo retornar texto puro em volta
+    const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+    const content = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(rawContent);
     return { resposta: forceStringResponse(content) };
   } catch {
     return { resposta: data.choices[0].message.content };
@@ -128,17 +135,27 @@ export const chatAIFlow = ai.defineFlow(
     let engine;
     try {
       if (input.preferredModel === 'grok') {
-        result = await callGrokChat(input.pergunta, input.deepThinking);
+        result = await callGrokChat(input.pergunta, input.historico, input.deepThinking);
         engine = `GROK (LLAMA 3.3)`;
       } else if (input.preferredModel === 'openrouter') {
-        result = await callOpenRouterChat(input.pergunta, input.deepThinking);
+        result = await callOpenRouterChat(input.pergunta, input.historico, input.deepThinking);
         engine = `CLAUDE 3.5 SONNET`;
       } else {
+        // Fallback Gemini com Memória
         const {output} = await ai.generate({
           model: 'googleai/gemini-1.5-flash',
-          prompt: chatPrompt({pergunta: input.pergunta, deepThinking: input.deepThinking}),
+          system: SYSTEM_PROMPT,
+          messages: [
+            ...input.historico.map(m => ({ role: m.role, content: [{ text: m.content }] })),
+            { role: 'user', content: [{ text: input.pergunta }] }
+          ],
+          config: {
+            maxOutputTokens: 4096,
+            temperature: input.deepThinking ? 0.1 : 0.4,
+          },
+          output: { schema: z.object({ resposta: z.string() }) }
         });
-        result = { resposta: forceStringResponse(output.resposta) };
+        result = { resposta: forceStringResponse(output?.resposta || "O motor não retornou uma resposta válida.") };
         engine = `GEMINI 1.5 FLASH`;
       }
       return { resposta: result.resposta, engineUtilizada: engine };
