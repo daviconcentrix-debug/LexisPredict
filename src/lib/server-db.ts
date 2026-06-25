@@ -27,31 +27,22 @@ export async function getStoredCases(): Promise<LegalCase[]> {
 export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: boolean; message: string }> {
   if (!isSupabaseConfigured) return { success: false, message: "Supabase não configurado." };
   try {
-    // Sincronização Atômica: Removemos o estado obsoleto para garantir a integridade do novo lote consolidado
-    const { error: deleteError } = await supabase.from('processos').delete().neq('id', 0);
+    // Sincronização Atômica: Removemos o estado obsoleto
+    await supabase.from('processos').delete().neq('id', 0);
     
-    if (deleteError) {
-      console.error('Erro ao limpar processos antigos:', deleteError);
-      throw new Error(`Falha na limpeza do cache: ${deleteError.message}`);
-    }
-
     if (cases.length > 0) {
-      // Inserção em lote para otimização de performance no Supabase
       const payload = cases.map(c => ({ dados: c }));
       const { error: insertError } = await supabase
         .from('processos')
         .insert(payload);
       
-      if (insertError) {
-        console.error('Erro ao inserir novos processos:', insertError);
-        throw new Error(`Falha na inserção cloud: ${insertError.message}`);
-      }
+      if (insertError) throw insertError;
     }
     
     return { success: true, message: "Cloud CRM Sincronizado com W1 Capital." };
   } catch (error: any) {
     console.error('Supabase save processes failure:', error);
-    return { success: false, message: error.message || "Erro desconhecido na sincronização cloud." };
+    return { success: false, message: error.message || "Erro na sincronização cloud." };
   }
 }
 
@@ -81,7 +72,9 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
 export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boolean }> {
   if (!isSupabaseConfigured) return { success: false };
   try {
-    await supabase.from('notes').delete().neq('id', 0);
+    // Bloqueio de exclusão em massa para evitar loops de re-renderização disparando múltiplos deletes
+    const { error: deleteError } = await supabase.from('notes').delete().neq('id', 0);
+    if (deleteError) throw deleteError;
     
     if (notes.length > 0) {
       const dbNotes = notes.map(n => ({
