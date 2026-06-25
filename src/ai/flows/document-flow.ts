@@ -1,9 +1,9 @@
 
 'use server';
 /**
- * @fileOverview Motor de Geração de Documentos Jurídicos v9.0 ELITE
- * Extração de dados e preenchimento de Procuração Ad Judicia.
- * Formatação de ALTA FIDELIDADE baseada no modelo definitivo da Get Assessoria.
+ * @fileOverview Motor de Geração de Documentos Jurídicos v10.0 ELITE
+ * Extração de dados e preenchimento de Procuração Ad Judicia (Modelo Definitivo).
+ * Formatação de ALTA FIDELIDADE baseada no script oficial da Get Assessoria.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -27,7 +27,7 @@ const documentPrompt = ai.definePrompt({
   prompt: `Aja como um Assistente Jurídico Sênior da Get Assessoria (W1 Capital). Sua tarefa é extrair dados do texto fornecido e preencher a procuração "Ad Judicia" com precisão cirúrgica, seguindo RIGOROSAMENTE o modelo visual definitivo.
 
 INSTRUÇÕES DE EXECUÇÃO:
-1. Analise o texto de entrada e extraia: Nome Completo, Nacionalidade, Estado Civil, Profissão, RG, CPF, Endereço Completo e E-mail.
+1. Analise o texto de entrada e extraia: Nome Completo, Nacionalidade, Estado Civil, Profissão, RG, CPF, Endereço Completo (Rua, Número, Bairro, Cidade, UF, CEP) e E-mail.
 2. Caso algum dado esteja faltando, coloque [INSERIR DADO] no local correspondente.
 3. Mantenha os dados do procurador DIEGO GOMES DIAS e o CNPJ do Banco Votorantim (59.588.111/0001-03) exatamente como no modelo.
 4. Use a data: {{{today}}}.
@@ -44,7 +44,7 @@ MODELO DE SAÍDA EXATO (SIGA CADA NEGRITO E ESPAÇO):
 
 **DIEGO GOMES DIAS**, brasileiro, advogado, inscrito na OAB/SP sob o número 370.898, com endereço profissional na Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100, e endereço eletrônico: diego_gomesdias@yahoo.com.br.
 
-**PODERES:** Por este instrumento particular de mandato, a outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-la nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses da outorgante, agir nos autos da **AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA** promovida contra o **BANCO VOTORANTIM S/A**, inscrito no CNPJ nº **59.588.111/0001-03**.
+**PODERES:** Por este instrumento particular de mandato, a outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, in qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-la nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses da outorgante, agir nos autos da **AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA** promovida contra o **BANCO VOTORANTIM S/A**, inscrito no CNPJ nº **59.588.111/0001-03**.
 
 [CENTER]São Paulo, {{{today}}}.[/CENTER]
 
