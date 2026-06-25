@@ -1,9 +1,8 @@
 
 'use server';
 /**
- * @fileOverview Motor de Geração de Documentos Jurídicos v10.0 ELITE
- * Extração de dados e preenchimento de Procuração Ad Judicia (Modelo Definitivo).
- * Formatação de ALTA FIDELIDADE baseada no script oficial da Get Assessoria.
+ * @fileOverview Motor de Geração de Documentos Jurídicos v11.5 ELITE (DEFINITIVO)
+ * Extração de dados e preenchimento de Procuração Ad Judicia seguindo o modelo visual oficial.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -44,7 +43,7 @@ MODELO DE SAÍDA EXATO (SIGA CADA NEGRITO E ESPAÇO):
 
 **DIEGO GOMES DIAS**, brasileiro, advogado, inscrito na OAB/SP sob o número 370.898, com endereço profissional na Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100, e endereço eletrônico: diego_gomesdias@yahoo.com.br.
 
-**PODERES:** Por este instrumento particular de mandato, a outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, in qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-la nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses da outorgante, agir nos autos da **AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA** promovida contra o **BANCO VOTORANTIM S/A**, inscrito no CNPJ nº **59.588.111/0001-03**.
+**PODERES:** Por este instrumento particular de mandato, a outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-la nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses da outorgante, agir nos autos da **AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA** promovida contra o **BANCO VOTORANTIM S/A**, inscrito no CNPJ nº **59.588.111/0001-03**.
 
 [CENTER]São Paulo, {{{today}}}.[/CENTER]
 
@@ -63,7 +62,7 @@ function forceStringDocument(raw: any): string {
   if (typeof raw === 'object') {
     if (raw.documento && typeof raw.documento === 'string') return raw.documento;
     if (raw.documento && typeof raw.documento === 'object') {
-      return `ERRO: A IA retornou dados estruturados. Por favor, tente novamente com o motor CLAUDE 3.5 SONNET.`;
+      return JSON.stringify(raw.documento, null, 2);
     }
     return JSON.stringify(raw, null, 2);
   }
@@ -95,8 +94,8 @@ export const documentFlow = ai.defineFlow(
           body: JSON.stringify({
             model: 'anthropic/claude-3.5-sonnet',
             messages: [
-              { role: 'system', content: 'Você é Assistente Jurídico Sênior. Gere a procuração exclusivamente como TEXTO FORMATADO no campo "documento". NUNCA retorne objetos ou estruturas JSON dentro do texto. Use JSON apenas para o envelope externo. Use centralização com [CENTER].' },
-              { role: 'user', content: `Extraia e preencha a procuração exatamente conforme o modelo visual para: ${input.dadosBrutos}. Data: ${today}` }
+              { role: 'system', content: 'Você é Assistente Jurídico Sênior. Gere a procuração exclusivamente como TEXTO FORMATADO no campo "documento". NUNCA retorne objetos ou estruturas JSON dentro do texto. Siga o modelo definitivo da Get Assessoria.' },
+              { role: 'user', content: `Extraia dados e preencha a procuração exatamente conforme o modelo visual para: ${input.dadosBrutos}. Data: ${today}` }
             ],
             temperature: 0.1,
             response_format: { type: 'json_object' }
@@ -116,7 +115,7 @@ export const documentFlow = ai.defineFlow(
           body: JSON.stringify({
             model: 'llama-3.3-70b-versatile',
             messages: [
-              { role: 'system', content: 'Retorne apenas JSON com campo string "documento" contendo a procuração completa em texto puro formatado conforme o modelo. Use a palavra JSON. Use [CENTER] para centralização.' },
+              { role: 'system', content: 'Retorne apenas JSON com campo string "documento" contendo a procuração completa em texto puro formatado conforme o modelo oficial.' },
               { role: 'user', content: `Gere a procuração conforme o script visual para os dados: ${input.dadosBrutos}` }
             ],
             temperature: 0.1,
