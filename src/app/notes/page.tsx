@@ -1,8 +1,9 @@
+
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw } from 'lucide-react';
+import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw, Loader2 } from 'lucide-react';
 import { CaseNote } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,12 +18,14 @@ export default function NotesPage() {
   const [notes, setNotes] = useState<CaseNote[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const { isAdmin } = useAdmin();
   const { toast } = useToast();
 
   const [newNote, setNewNote] = useState({ title: '', content: '' });
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    if (!loading && notes.length > 0) return; // Evita recargas desnecessárias
     setLoading(true);
     try {
       const data = await fetchRepoNotes();
@@ -34,46 +37,59 @@ export default function NotesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loading, notes.length]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleAddNote = async () => {
-    if (!isAdmin) return;
+    if (!isAdmin || isSaving) return;
+    
     if (!newNote.content.trim()) {
-      toast({ title: "Validation Error", description: "Note content cannot be empty.", variant: "destructive" });
+      toast({ title: "Erro de Validação", description: "O conteúdo da nota não pode estar vazio.", variant: "destructive" });
       return;
     }
 
+    setIsSaving(true);
+    
     const note: CaseNote = {
       id: crypto.randomUUID(),
-      title: newNote.title || 'Untitled Update',
-      content: newNote.content,
+      title: newNote.title.trim() || 'Atualização sem Título',
+      content: newNote.content.trim(),
       color: 'bg-sidebar/40',
       updatedAt: new Date().toLocaleString('pt-BR')
     };
 
-    const updated = [note, ...notes];
-    setNotes(updated);
-    setNewNote({ title: '', content: '' });
-    
-    const result = await syncRepoNotes(updated);
-    if (result.success) {
-      toast({ title: "Update Saved", description: "Note synchronized to cloud." });
-    } else {
-      toast({ title: "Sync Failed", description: "Could not save to cloud. Check Supabase connection.", variant: "destructive" });
+    try {
+      // Atualização otimista
+      setNotes(prev => [note, ...prev]);
+      setNewNote({ title: '', content: '' });
+      
+      const updatedList = [note, ...notes];
+      const result = await syncRepoNotes(updatedList);
+      
+      if (result.success) {
+        toast({ title: "Atualização Salva", description: "Nota sincronizada com a nuvem W1 Capital." });
+      } else {
+        toast({ title: "Erro de Sincronização", description: "Falha ao salvar na nuvem. Tente novamente.", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Erro Crítico", description: "Falha na comunicação com o banco de dados.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const deleteNote = async (id: string) => {
-    if (!isAdmin) return;
+    if (!isAdmin || isSaving) return;
+    
     const updated = notes.filter(n => n.id !== id);
     setNotes(updated);
+    
     const result = await syncRepoNotes(updated);
     if (result.success) {
-      toast({ title: "Note Deleted", description: "Database updated." });
+      toast({ title: "Nota Excluída", description: "Base de dados cloud atualizada." });
     }
   };
 
@@ -90,7 +106,7 @@ export default function NotesPage() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden text-white">
         <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8">
           <div className="flex items-center gap-4">
-            <h1 className="font-headline font-bold text-xl text-white">Updates & Annotations</h1>
+            <h1 className="font-headline font-bold text-xl text-white">Notas & Atualizações</h1>
             {!isAdmin && (
               <Badge variant="secondary" className="bg-secondary/50 text-[10px] text-muted-foreground uppercase flex items-center gap-1.5">
                 <Lock size={10} /> Visitor Mode
@@ -101,13 +117,13 @@ export default function NotesPage() {
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input 
-                placeholder="Filter notes..." 
+                placeholder="Filtrar anotações..." 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10 h-9 bg-secondary border-none text-xs rounded-full focus-visible:ring-primary text-white"
               />
             </div>
-            <Button variant="ghost" size="icon" onClick={loadData} className="text-muted-foreground hover:text-white">
+            <Button variant="ghost" size="icon" onClick={() => loadData()} className="text-muted-foreground hover:text-white">
               <RefreshCcw className={cn("w-4 h-4", loading && "animate-spin")} />
             </Button>
           </div>
@@ -117,20 +133,28 @@ export default function NotesPage() {
           {isAdmin && (
             <section className="max-w-xl mx-auto bg-card border border-border p-4 rounded-2xl shadow-2xl space-y-3">
               <Input 
-                placeholder="Title (Optional)" 
+                placeholder="Título da Anotação (Opcional)" 
                 value={newNote.title}
                 onChange={(e) => setNewNote({...newNote, title: e.target.value})}
                 className="bg-transparent border-none text-sm font-bold placeholder:text-muted-foreground focus-visible:ring-0 px-0 text-white"
+                disabled={isSaving}
               />
               <Textarea 
-                placeholder="Take a note/update..." 
+                placeholder="Escreva aqui a atualização estratégica..." 
                 value={newNote.content}
                 onChange={(e) => setNewNote({...newNote, content: e.target.value})}
-                className="bg-transparent border-none text-sm placeholder:text-muted-foreground focus-visible:ring-0 px-0 min-h-[40px] resize-none text-white"
+                className="bg-transparent border-none text-sm placeholder:text-muted-foreground focus-visible:ring-0 px-0 min-h-[60px] resize-none text-white"
+                disabled={isSaving}
               />
-              <div className="flex justify-end">
-                <Button size="sm" onClick={handleAddNote} className="h-8 font-bold text-white">
-                  <Plus className="w-3.5 h-3.5 mr-2" /> Save Note
+              <div className="flex justify-end pt-2">
+                <Button 
+                  size="sm" 
+                  onClick={handleAddNote} 
+                  disabled={isSaving || !newNote.content.trim()}
+                  className="h-8 font-bold text-white px-6"
+                >
+                  {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Plus className="w-3.5 h-3.5 mr-2" />}
+                  {isSaving ? "Sincronizando..." : "Salvar Nota"}
                 </Button>
               </div>
             </section>
@@ -160,7 +184,7 @@ export default function NotesPage() {
               </div>
             )) : (
               <div className="col-span-full py-20 text-center border-2 border-dashed border-border rounded-2xl opacity-40">
-                <p className="text-sm font-medium text-white">{loading ? "Loading updates from cloud..." : "No updates found."}</p>
+                <p className="text-sm font-medium text-white">{loading ? "Carregando inteligência cloud..." : "Nenhuma anotação estratégica encontrada."}</p>
               </div>
             )}
           </div>
