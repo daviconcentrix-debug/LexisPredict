@@ -1,83 +1,83 @@
-
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
-  ShieldCheck, 
-  Search, 
-  Cpu, 
-  FileText, 
-  AlertTriangle, 
-  ArrowRight,
-  Database,
-  Printer,
-  Copyright,
   Zap,
-  Users,
-  Copy,
+  Bot,
+  BrainCircuit,
   MessageSquare,
-  ChevronRight,
-  Clock
+  Send,
+  Copy,
+  Clock,
+  FileText,
+  FileSignature,
+  FileCheck,
+  FileUp,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { executarVereditoAI } from '@/ai/flows/veredito-ai-flow';
+import { perguntarIA } from '@/ai/flows/chat-ai-flow';
+import { gerarDocumentoIA } from '@/ai/flows/document-flow';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
 
 const RESPONSE_TEMPLATES = [
   {
     category: "Apresentação",
     items: [
       { title: "Início Setor Processual", text: "Me chamo {seu_nome} e faço parte do Setor Processual da Get Assessoria. Segue as informações do seu processo." },
-      { title: "Auxílio Andamento", text: "Muito prazer, me chamo {seu_nome}, faço parte do Setor Processual da Get Assessoria. Irei te auxiliar quanto ao andamento do seu processo. Tendo alguma dúvida, pode estar me sinalizando." }
+      { title: "Auxílio Andamento", text: "Muito prazer, me chamo {seu_nome}, faço parte do Setor Processual da Get Assessoria. Irei te auxiliar quanto ao andamento do seu processo." }
     ]
   },
   {
     category: "Alerta de Golpe",
     items: [
       { title: "Desconsiderar Informações", text: "Peço que desconsidere quaisquer informações repassadas por essa pessoa, ela não faz parte do nosso escritório." },
-      { title: "Acesso de Terceiros", text: "Como o processo não tramita em segredo de justiça, qualquer pessoa que possua um tocken de advogado, consegue ter acesso as informações anexadas no processo." },
-      { title: "Contato Exclusivo", text: "Solicitamos que, por gentileza, concentre o contato exclusivamente com o grupo do Setor Jurídico ou diretamente conosco, do Setor Processual." }
-    ]
-  },
-  {
-    category: "Audiência",
-    items: [
-      { title: "Comunicado de Audiência", text: "Após o recebimento do comunicado em seu e-mail contendo a data e horário da audiência, o link para acesso à audiência virtual será enviado em um prazo de 24 a 72 horas." },
-      { title: "Agendamento de Conciliação", text: "Referente ao seu procedimento, verificamos que foi agendada uma audiência, para tentativa de conciliação entre as partes." }
+      { title: "Contato Exclusivo", text: "Solicitamos que concentre o contato exclusivamente com o grupo do Setor Jurídico ou diretamente conosco." }
     ]
   }
 ];
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  engine?: string;
+}
 
 export default function VereditoPage() {
   const [cnj, setCnj] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [model, setModel] = useState<'gemini' | 'grok' | 'openrouter'>('gemini');
+  const [model, setModel] = useState<'gemini' | 'grok' | 'openrouter'>('openrouter');
+  const [deepThinking, setDeepThinking] = useState(false);
   const [retryAfter, setRetryAfter] = useState<number | null>(null);
   
-  const [userName, setUserName] = useState('');
-  const [clientName, setClientName] = useState('');
-  const [searchTerm, setSearchName] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [chatInput, setChatInput] = useState('');
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const [docInput, setDocInput] = useState('');
+  const [docResult, setDocResult] = useState<string | null>(null);
+  const [docLoading, setDocLoading] = useState(false);
+  const [pdfExtracting, setPdfExtracting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { toast } = useToast();
 
   useEffect(() => {
     const savedIA = localStorage.getItem('lexisPredict_preferred_ia');
-    if (savedIA === 'grok' || savedIA === 'gemini' || savedIA === 'openrouter') {
-      setModel(savedIA as any);
-    }
-    const savedName = localStorage.getItem('lexisPredict_consultant_name');
-    if (savedName) setUserName(savedName);
+    if (savedIA === 'grok' || savedIA === 'gemini' || savedIA === 'openrouter') setModel(savedIA as any);
+    const savedThinking = localStorage.getItem('lexisPredict_deep_thinking');
+    if (savedThinking === 'true') setDeepThinking(true);
   }, []);
 
   useEffect(() => {
@@ -87,61 +87,129 @@ export default function VereditoPage() {
       return;
     }
     const timer = setInterval(() => {
-      setRetryAfter(prev => (prev !== null && prev > 0 ? prev - 1 : null));
+      setRetryAfter(prev => (prev && prev > 0 ? prev - 1 : null));
     }, 1000);
     return () => clearInterval(timer);
   }, [retryAfter]);
 
+  const loadPdfJs = async () => {
+    if ((window as any).pdfjsLib) return (window as any).pdfjsLib;
+
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js';
+      script.onload = () => {
+        const pdfjs = (window as any).pdfjsLib;
+        pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+        resolve(pdfjs);
+      };
+      script.onerror = () => reject(new Error("Falha ao carregar motor de PDF."));
+      document.head.appendChild(script);
+    });
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setPdfExtracting(true);
+    try {
+      const pdfjsLib: any = await loadPdfJs();
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      let fullText = "";
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item: any) => item.str).join(" ");
+        fullText += pageText + "\n";
+      }
+
+      if (!fullText.trim()) throw new Error("O PDF parece estar vazio ou é uma imagem (OCR não suportado).");
+
+      setDocInput(fullText);
+      toast({ title: "PDF Processado", description: "Texto extraído com sucesso para análise." });
+    } catch (error: any) {
+      console.error("PDF_EXTRACTION_ERROR:", error);
+      toast({ 
+        title: "Erro no PDF", 
+        description: error.message || "Falha ao processar arquivo. Tente colar o texto manualmente.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setPdfExtracting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cnj) return;
-    if (retryAfter !== null) {
-      toast({ title: "Motor em Resfriamento", description: `Aguarde ${retryAfter}s para nova consulta.`, variant: "destructive" });
-      return;
-    }
-    
+    if (!cnj || retryAfter !== null) return;
     setLoading(true);
     setResult(null);
     try {
-      const data = await executarVereditoAI({ cnj, preferredModel: model });
+      const data = await executarVereditoAI({ cnj, preferredModel: model, deepThinking });
       setResult(data);
-      toast({ title: "Análise Concluída", description: `Engine ${data.engineUtilizada} respondeu.` });
+      toast({ title: "Análise Concluída", description: `Motor ${data.engineUtilizada} entregou o parecer.` });
     } catch (error: any) {
       if (error.message.includes('RATE_LIMIT')) {
-        const seconds = parseInt(error.message.split(':')[1]) || 20;
-        setRetryAfter(seconds);
-        toast({ title: "Limite do Motor Atingido", description: `Iniciando resfriamento: ${seconds}s restantes.`, variant: "destructive" });
+        const s = parseInt(error.message.split(':')[1]) || 25;
+        setRetryAfter(s);
+        toast({ title: "Limite do Motor", description: `Aguarde ${s}s para a próxima consulta.`, variant: "destructive" });
       } else {
-        toast({ title: "Falha na Análise", description: error.message, variant: "destructive" });
+        toast({ title: "Erro na Análise", description: error.message, variant: "destructive" });
       }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleChatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || chatLoading || retryAfter !== null) return;
+    const msg = chatInput;
+    setChatHistory(prev => [...prev, { role: 'user', content: msg }]);
+    setChatInput('');
+    setChatLoading(true);
+    try {
+      const res = await perguntarIA({ pergunta: msg, preferredModel: model, deepThinking });
+      setChatHistory(prev => [...prev, { role: 'assistant', content: res.resposta, engine: res.engineUtilizada }]);
+    } catch (error: any) {
+      if (error.message.includes('RATE_LIMIT')) {
+        const s = parseInt(error.message.split(':')[1]) || 25;
+        setRetryAfter(s);
+        toast({ title: "Limite do Motor", description: `Aguarde ${s}s.`, variant: "destructive" });
+      } else {
+        toast({ title: "Erro no Chat", description: error.message, variant: "destructive" });
+      }
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const handleDocGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docInput.trim() || docLoading || retryAfter !== null) return;
+    setDocLoading(true);
+    setDocResult(null);
+    try {
+      const res = await gerarDocumentoIA({ dadosBrutos: docInput, preferredModel: model });
+      setDocResult(res.conteudoFormatado);
+      toast({ title: "Documento Gerado", description: "Procuração preenchida com sucesso." });
+    } catch (error: any) {
+      toast({ title: "Erro no Documento", description: error.message, variant: "destructive" });
+    } finally {
+      setDocLoading(false);
+    }
+  };
+
   const copyToClipboard = (text: string) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    toast({ title: "Copiado!", description: "Conteúdo pronto para colar no WhatsApp." });
+    const cleanText = text.replace(/\[CENTER\]/g, '').replace(/\[\/CENTER\]/g, '');
+    navigator.clipboard.writeText(cleanText);
+    toast({ title: "Copiado com Sucesso!" });
   };
-
-  const handleUseTemplate = (text: string) => {
-    let processed = text.replace(/{seu_nome}/g, userName || "(Seu Nome)");
-    processed = processed.replace(/{nome_cliente}/g, clientName || "(Nome do Cliente)");
-    setSelectedTemplate(processed);
-    toast({ title: "Modelo Carregado", description: "Texto pronto no editor." });
-  };
-
-  const filteredTemplates = useMemo(() => {
-    if (!searchTerm) return RESPONSE_TEMPLATES;
-    return RESPONSE_TEMPLATES.map(cat => ({
-      ...cat,
-      items: cat.items.filter(item => 
-        item.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        item.text.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    })).filter(cat => cat.items.length > 0);
-  }, [searchTerm]);
 
   return (
     <div className="flex h-screen bg-background font-body">
@@ -149,113 +217,120 @@ export default function VereditoPage() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden text-white">
         <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4">
-            <h1 className="font-headline font-bold text-xl text-white">Veredito AI (Busca 360)</h1>
-            <Badge className="bg-primary/20 text-primary border-primary/30 uppercase text-[10px] font-bold">DataJud Connect Active</Badge>
-            <Badge variant="secondary" className="bg-sidebar text-accent border-accent/20 text-[9px] uppercase flex items-center gap-1">
-              <Zap size={10} /> {model.toUpperCase()} Active
-            </Badge>
-          </div>
-          <div className="flex items-center gap-3">
-             <Button variant="ghost" size="sm" onClick={() => window.print()} className="h-8 font-bold border border-border text-muted-foreground hover:text-white">
-              <Printer size={14} className="mr-2" /> Export Case Analysis
-            </Button>
+            <h1 className="font-headline font-bold text-xl">Veredito AI v8.0 Elite</h1>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-[9px] uppercase tracking-widest bg-primary/10 border-primary/20 text-primary">
+                <Zap size={10} className="mr-1" /> {model === 'openrouter' ? 'CLAUDE 3.5 SONNET' : model.toUpperCase()}
+              </Badge>
+              {deepThinking && (
+                <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-[9px] animate-pulse uppercase tracking-widest">
+                  <BrainCircuit size={10} className="mr-1" /> Deep Thinking
+                </Badge>
+              )}
+            </div>
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-8 space-y-8">
+        <div className="flex-1 overflow-auto p-8">
           <Tabs defaultValue="analysis" className="w-full">
-            <TabsList className="bg-secondary/50 border border-border mb-8">
-              <TabsTrigger value="analysis" className="data-[state=active]:bg-primary">Análise 360º</TabsTrigger>
-              <TabsTrigger value="templates" className="data-[state=active]:bg-primary">Biblioteca de Respostas</TabsTrigger>
+            <TabsList className="bg-secondary/50 mb-8 p-1 rounded-xl">
+              <TabsTrigger value="analysis" className="rounded-lg data-[state=active]:bg-primary">Análise Estratégica</TabsTrigger>
+              <TabsTrigger value="chat" className="rounded-lg data-[state=active]:bg-primary">Chat Consultivo</TabsTrigger>
+              <TabsTrigger value="docs" className="rounded-lg data-[state=active]:bg-primary">Gerador de Docs v8.0</TabsTrigger>
+              <TabsTrigger value="templates" className="rounded-lg data-[state=active]:bg-primary">Biblioteca</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="analysis" className="space-y-8 animate-in fade-in duration-500">
-              <section className="text-center space-y-4 max-w-2xl mx-auto mb-12">
-                <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto border border-primary/20 shadow-2xl">
-                  <Cpu className="text-primary w-8 h-8" />
+            <TabsContent value="analysis" className="space-y-8">
+              <div className="max-w-2xl mx-auto text-center space-y-6">
+                <div className="space-y-2">
+                  <h2 className="text-4xl font-headline font-bold tracking-tighter">Assistente Jurídico CRM</h2>
+                  <p className="text-muted-foreground text-sm">Insira o CNJ para gerar análise técnica e mensagem para o cliente.</p>
                 </div>
-                <h2 className="text-3xl font-headline font-bold text-white tracking-tight">OmniReport Intelligent Analyzer</h2>
-                <p className="text-muted-foreground text-sm font-medium">Motor v3.0: Integramos DataJud & Inteligência Multi-Provedor.</p>
-                
-                <form onSubmit={handleSearch} className="flex gap-2 mt-8">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                    <Input 
-                      placeholder="Digite o CNJ (ex: 0000000-00.2024.8.26.0000)" 
-                      value={cnj}
-                      onChange={(e) => setCnj(e.target.value)}
-                      className="pl-12 bg-card border-border h-12 rounded-xl focus-visible:ring-primary text-white font-mono"
-                    />
-                  </div>
-                  <Button type="submit" disabled={loading || retryAfter !== null} className="h-12 px-8 bg-primary hover:bg-primary/90 font-bold rounded-xl shadow-lg min-w-[160px]">
-                    {loading ? "Processando..." : retryAfter !== null ? `Aguarde ${retryAfter}s` : "Analisar 360º"}
-                  </Button>
+                <form onSubmit={handleSearch} className="flex gap-2">
+                  <Input 
+                    placeholder="CNJ do Processo (Ex: 0000000-00.2025.8.26.0000)" 
+                    value={cnj} 
+                    onChange={(e) => setCnj(e.target.value)} 
+                    className="bg-card border-border h-14 text-lg rounded-2xl focus-visible:ring-primary shadow-2xl" 
+                  />
+                  <button type="submit" disabled={loading || retryAfter !== null} className="h-14 px-10 rounded-2xl font-bold text-white shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 disabled:opacity-50 transition-all">
+                    {loading ? (
+                      <span className="flex items-center gap-2"><Clock className="animate-spin" size={18} /> Analisando...</span>
+                    ) : retryAfter !== null ? (
+                      <span className="text-destructive font-mono">{retryAfter}s</span>
+                    ) : "Gerar Veredito"}
+                  </button>
                 </form>
-
-                {retryAfter !== null && (
-                  <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center justify-center gap-3 animate-pulse">
-                    <Clock className="text-destructive w-4 h-4" />
-                    <span className="text-xs font-bold text-destructive uppercase tracking-widest">Limite de Uso atingido. Disponível em: {retryAfter} segundos</span>
-                  </div>
-                )}
-              </section>
+              </div>
 
               {result && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
                   <div className="lg:col-span-2 space-y-6">
-                    <Card className="bg-card border-border shadow-2xl overflow-hidden">
-                      <CardHeader className="border-b border-border bg-secondary/10">
-                        <div className="flex justify-between items-center">
-                          <CardTitle className="text-white font-headline text-lg">Parecer Técnico Veredito AI</CardTitle>
-                          <Badge variant="outline" className="border-chart-3/30 text-chart-3 font-bold uppercase text-[9px]">Engine {result.engineUtilizada}</Badge>
-                        </div>
+                    <Card className="bg-card border-border shadow-2xl rounded-3xl overflow-hidden border-t-4 border-t-primary">
+                      <CardHeader className="bg-secondary/20 border-b border-border/50 py-4 px-8">
+                        <CardTitle className="text-xs uppercase tracking-widest text-primary font-bold flex items-center gap-2">
+                          <FileText size={14} /> 📋 Análise Interna (Estratégia Equipe)
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="p-8 space-y-8">
                         <div className="space-y-3">
-                          <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2"><FileText size={12} className="text-primary" /> Resumo Estruturado</h4>
-                          <p className="text-sm text-white/90 leading-relaxed font-medium bg-secondary/20 p-4 rounded-xl border border-border">{result.resumoTecnico}</p>
+                          <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Status & Andamento Relevante</Label>
+                          <div className="bg-secondary/30 p-6 rounded-2xl border border-border/50">
+                            <p className="text-sm leading-relaxed text-foreground/90 font-medium whitespace-pre-wrap">{result.resumoTecnico}</p>
+                          </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="space-y-3">
-                            <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2"><AlertTriangle size={12} className="text-accent" /> Análise de Risco</h4>
-                            <div className="p-4 bg-accent/5 border border-accent/20 rounded-xl">
-                              <p className="text-xs text-white/80 leading-relaxed font-medium italic">{result.analiseRisco}</p>
-                            </div>
+                            <Label className="text-[10px] font-black text-accent uppercase tracking-widest">Alertas e Prazos</Label>
+                            <p className="text-xs text-muted-foreground leading-relaxed italic border-l-2 border-accent pl-4 whitespace-pre-wrap">{result.analiseRisco}</p>
                           </div>
                           <div className="space-y-3">
-                            <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2"><ArrowRight size={12} className="text-chart-3" /> Sugestão Estratégica</h4>
-                            <div className="p-4 bg-chart-3/5 border border-chart-3/20 rounded-xl">
-                              <p className="text-xs text-white/80 leading-relaxed font-medium">{result.proximosPassos}</p>
-                            </div>
+                            <Label className="text-[10px] font-black text-chart-3 uppercase tracking-widest">Ações Práticas</Label>
+                            <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-chart-3 pl-4 whitespace-pre-wrap">{result.proximosPassos}</p>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
 
-                    <Card className="bg-primary/5 border-primary/20 shadow-2xl overflow-hidden border-l-4 border-l-primary">
-                      <CardHeader className="bg-primary/10 border-b border-primary/20">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2"><Users className="text-primary w-5 h-5" /><CardTitle className="text-white font-headline text-lg">Mensagem ao Cliente</CardTitle></div>
-                          <Button variant="outline" size="sm" onClick={() => copyToClipboard(result.mensagemCliente)} className="h-7 text-[10px] font-bold border-primary/30 hover:bg-primary/20">Copiar WhatsApp</Button>
-                        </div>
+                    <Card className="bg-primary/5 border-primary/20 shadow-2xl rounded-3xl border-l-8 border-l-primary overflow-hidden">
+                      <CardHeader className="bg-primary/10 border-b border-primary/10 py-4 px-8 flex flex-row items-center justify-between">
+                        <CardTitle className="text-xs uppercase tracking-widest text-primary font-bold flex items-center gap-2">
+                          <MessageSquare size={14} /> 💬 Mensagem para WhatsApp (CRM)
+                        </CardTitle>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => copyToClipboard(result.mensagemCliente)} 
+                          className="h-8 text-[10px] font-bold uppercase hover:bg-primary hover:text-white"
+                        >
+                          <Copy size={12} className="mr-2" /> Copiar Texto
+                        </Button>
                       </CardHeader>
                       <CardContent className="p-8">
-                        <div className="bg-sidebar/50 p-6 rounded-2xl border border-border shadow-inner">
-                          <p className="text-sm text-white/90 leading-relaxed font-medium italic whitespace-pre-wrap">{result.mensagemCliente}</p>
+                        <div className="bg-white/5 p-6 rounded-2xl italic text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap font-medium border border-white/5 shadow-inner">
+                          {result.mensagemCliente}
                         </div>
                       </CardContent>
                     </Card>
                   </div>
-
+                  
                   <div className="space-y-6">
-                    <Card className="bg-card border-border shadow-2xl h-fit">
-                      <CardHeader className="border-b border-border bg-secondary/10"><CardTitle className="text-white font-headline text-sm">Metadata DataJud</CardTitle></CardHeader>
+                    <Card className="bg-card border-border shadow-xl rounded-3xl overflow-hidden">
+                      <CardHeader className="bg-secondary/20 py-4 px-6 border-b border-border/50">
+                        <CardTitle className="text-[10px] uppercase font-black tracking-tighter text-muted-foreground">Extração DataJud (Metadata)</CardTitle>
+                      </CardHeader>
                       <CardContent className="p-6 space-y-4">
-                        <MetaItem label="Órgão Julgador" value={result.dataJudRaw?.orgaoJulgador?.nome || 'N/A'} />
-                        <MetaItem label="Classe" value={result.dataJudRaw?.classe?.nome || 'N/A'} />
-                        <MetaItem label="Tribunal" value={result.dataJudRaw?.tribunal || 'N/A'} />
-                        <div className="p-3 bg-primary/5 rounded-xl border border-primary/20 mt-4">
-                          <p className="text-[9px] text-white/70 font-medium">Análise autenticada por <b>W1 Capital Intelligence</b> sob supervisão de Davi Alves Figueredo.</p>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Tribunal</span>
+                          <span className="text-sm font-bold text-white">{result.dataJudRaw?.tribunal || 'N/A'}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Órgão Julgador</span>
+                          <span className="text-sm font-bold text-white">{result.dataJudRaw?.orgaoJulgador?.nome || 'N/A'}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Classe</span>
+                          <span className="text-sm font-bold text-white">{result.dataJudRaw?.classe?.nome || 'N/A'}</span>
                         </div>
                       </CardContent>
                     </Card>
@@ -264,75 +339,190 @@ export default function VereditoPage() {
               )}
             </TabsContent>
 
-            <TabsContent value="templates" className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <Card className="bg-card border-border lg:col-span-1 h-fit sticky top-4">
-                  <CardHeader><CardTitle className="text-white font-headline text-lg flex items-center gap-2"><Users className="text-primary" /> Dados do Consultor</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="c-name">Seu Nome</Label>
-                      <Input id="c-name" value={userName} onChange={(e) => { setUserName(e.target.value); localStorage.setItem('lexisPredict_consultant_name', e.target.value); }} className="bg-secondary border-none" />
+            <TabsContent value="chat" className="h-[600px]">
+              <div className="bg-card border border-border rounded-3xl h-full flex flex-col shadow-2xl overflow-hidden">
+                <div className="p-4 bg-secondary/20 border-b border-border flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary border border-primary/20 shadow-inner">
+                      <Bot size={20} />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cl-name">Nome do Cliente</Label>
-                      <Input id="cl-name" value={clientName} onChange={(e) => setClientName(e.target.value)} className="bg-secondary border-none" />
+                    <div>
+                      <p className="text-sm font-bold">Consultor Sênior W1</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Inteligência Estratégica</p>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                  {chatLoading && <Badge className="bg-primary/20 text-primary border-none animate-pulse">PENSANDO...</Badge>}
+                </div>
+                
+                <ScrollArea className="flex-1 p-6">
+                  <div className="space-y-6">
+                    {chatHistory.map((m, i) => (
+                      <div key={i} className={cn("flex flex-col gap-2 max-w-[85%]", m.role === 'user' ? "ml-auto items-end" : "mr-auto items-start")}>
+                        <div className={cn(
+                          "p-5 rounded-2xl text-sm leading-relaxed shadow-lg",
+                          m.role === 'user' ? "bg-primary text-white rounded-tr-none" : "bg-secondary text-foreground rounded-tl-none border border-border/50"
+                        )}>
+                          <div className="whitespace-pre-wrap">{m.content}</div>
+                          {m.engine && <div className="mt-4 pt-2 border-t border-white/10 text-[8px] opacity-50 uppercase font-black tracking-widest">{m.engine}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+                
+                <form onSubmit={handleChatSubmit} className="p-4 border-t border-border bg-sidebar/30 flex gap-3">
+                  <Input 
+                    placeholder="Sua pergunta jurídica..." 
+                    value={chatInput} 
+                    onChange={e => setChatInput(e.target.value)} 
+                    className="bg-secondary border-border h-12 rounded-xl focus-visible:ring-primary shadow-inner" 
+                    disabled={chatLoading}
+                  />
+                  <Button type="submit" size="icon" className="h-12 w-12 rounded-xl shadow-lg" disabled={chatLoading || !chatInput.trim()}>
+                    <Send size={18} />
+                  </Button>
+                </form>
+              </div>
+            </TabsContent>
 
-                <div className="lg:col-span-2 space-y-6">
-                  <Card className="bg-card border-border shadow-2xl">
-                    <CardHeader className="bg-secondary/10 border-b border-border"><CardTitle className="text-white font-headline">Biblioteca de Respostas Humanizadas</CardTitle></CardHeader>
-                    <CardContent className="p-0">
-                      <Accordion type="single" collapsible className="w-full">
-                        {filteredTemplates.map((cat, idx) => (
-                          <AccordionItem key={idx} value={`cat-${idx}`} className="border-border px-6">
-                            <AccordionTrigger className="text-white font-bold uppercase text-[11px] tracking-widest">{cat.category}</AccordionTrigger>
-                            <AccordionContent className="space-y-3 pb-6">
-                              {cat.items.map((item, i) => (
-                                <div key={i} className="p-4 bg-secondary/30 border border-border rounded-xl flex items-center justify-between group hover:border-primary/50 transition-all">
-                                  <div className="flex-1 pr-4"><h5 className="text-xs font-bold text-white mb-1">{item.title}</h5><p className="text-[10px] text-muted-foreground line-clamp-1">{item.text}</p></div>
-                                  <Button size="sm" variant="ghost" onClick={() => handleUseTemplate(item.text)} className="text-primary hover:bg-primary/10 text-[10px] uppercase">Usar Modelo</Button>
-                                </div>
-                              ))}
-                            </AccordionContent>
-                          </AccordionItem>
-                        ))}
-                      </Accordion>
-                    </CardContent>
-                  </Card>
+            <TabsContent value="docs" className="space-y-8">
+              <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
+                      <FileSignature className="text-primary" /> Gerador de Procurações v8.0
+                    </h2>
+                    <p className="text-muted-foreground text-xs font-medium">Extração de dados cirúrgica via Texto ou PDF.</p>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <input 
+                      type="file" 
+                      accept=".pdf" 
+                      className="hidden" 
+                      ref={fileInputRef} 
+                      onChange={handlePdfUpload} 
+                    />
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 border-primary/50 text-primary hover:bg-primary/10 h-12 font-bold"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={pdfExtracting}
+                    >
+                      {pdfExtracting ? <Clock className="animate-spin mr-2" /> : <FileUp className="mr-2" />}
+                      {pdfExtracting ? "Processando..." : "Carregar PDF"}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      className="h-12 border border-border text-muted-foreground"
+                      onClick={() => {
+                        setDocInput('');
+                        setDocResult(null);
+                      }}
+                    >
+                      Limpar
+                    </Button>
+                  </div>
 
-                  <Card className="bg-sidebar border-primary/20 shadow-2xl border-l-4 border-l-primary">
-                    <CardHeader className="flex flex-row items-center justify-between bg-primary/5">
-                      <CardTitle className="text-white font-headline text-lg">Mensagem Customizada</CardTitle>
-                      <Button onClick={() => copyToClipboard(selectedTemplate)} disabled={!selectedTemplate} className="bg-primary hover:bg-primary/90 font-bold"><Copy size={16} className="mr-2" /> Copiar WhatsApp</Button>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <Textarea value={selectedTemplate} onChange={(e) => setSelectedTemplate(e.target.value)} placeholder="Selecione um modelo acima ou digite..." className="min-h-[200px] bg-secondary/50 border-none text-sm text-white" />
+                  <Card className="bg-card border-border shadow-xl">
+                    <CardContent className="p-6 space-y-4">
+                      <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Dados do Contrato ou PDF Extraído</Label>
+                      <Textarea 
+                        placeholder="Cole aqui o texto ou carregue um PDF..." 
+                        value={docInput}
+                        onChange={(e) => setDocInput(e.target.value)}
+                        className="bg-secondary/30 border-border min-h-[300px] text-sm resize-none focus-visible:ring-primary"
+                      />
+                      <button 
+                        onClick={handleDocGenerate} 
+                        disabled={docLoading || !docInput.trim() || retryAfter !== null}
+                        className="w-full h-14 font-bold text-white shadow-lg bg-primary hover:bg-primary/90 rounded-2xl disabled:opacity-50 transition-all"
+                      >
+                        {docLoading ? (
+                          <span className="flex items-center gap-2"><Clock className="animate-spin" size={16} /> Gerando...</span>
+                        ) : "Gerar Procuração Elite"}
+                      </button>
                     </CardContent>
                   </Card>
                 </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground flex items-center gap-2">
+                      <FileCheck size={14} className="text-chart-3" /> Preview Documento (.docx)
+                    </Label>
+                    {docResult && (
+                      <Button variant="ghost" size="sm" onClick={() => copyToClipboard(docResult)} className="text-primary text-[10px] font-bold uppercase">
+                        <Copy size={12} className="mr-1" /> Copiar para Word
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {docResult ? (
+                    <div className="space-y-4 animate-in zoom-in-95 duration-300">
+                      <div className="bg-white text-black p-12 rounded-lg shadow-2xl min-h-[700px] font-serif text-[12px] leading-relaxed border border-gray-200 overflow-hidden">
+                        {docResult.split('\n').map((line, i) => {
+                          const isCentered = line.includes('[CENTER]');
+                          const cleanLine = line.replace(/\[CENTER\]/g, '').replace(/\[\/CENTER\]/g, '');
+                          
+                          if (!cleanLine.trim()) return <div key={i} className="h-4" />;
+
+                          return (
+                            <div key={i} className={cn(
+                              "mb-1",
+                              isCentered && "text-center"
+                            )}>
+                              {cleanLine.split('**').map((part, idx) => (
+                                idx % 2 === 1 ? <strong key={idx} className="font-bold">{part}</strong> : part
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <Button onClick={() => copyToClipboard(docResult)} className="w-full h-12 bg-chart-3 hover:bg-chart-3/90 font-bold text-white shadow-lg">
+                        <Copy size={16} className="mr-2" /> Copiar Formatação Final
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-border rounded-xl h-[700px] flex flex-col items-center justify-center opacity-30 text-center p-8 bg-secondary/10">
+                      <FileSignature size={64} className="mb-4 text-muted-foreground" />
+                      <p className="text-sm font-bold">Preview do documento oficial.</p>
+                      <p className="text-[10px] mt-2">Extração automática e formatação rigorosa v8.0.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="templates" className="animate-in fade-in duration-500">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                {RESPONSE_TEMPLATES.map((cat, idx) => (
+                  <div key={idx} className="space-y-4">
+                    <h3 className="text-xs uppercase font-black text-primary tracking-widest mb-4 flex items-center gap-2">
+                      <div className="h-1 w-4 bg-primary rounded-full" /> {cat.category}
+                    </h3>
+                    <div className="space-y-3">
+                      {cat.items.map((item, iidx) => (
+                        <Card key={iidx} className="bg-card border-border hover:border-primary/50 transition-all group rounded-2xl cursor-default">
+                          <CardHeader className="p-4 flex flex-row items-center justify-between">
+                            <CardTitle className="text-sm font-bold group-hover:text-primary transition-colors">{item.title}</CardTitle>
+                            <Button variant="ghost" size="icon" onClick={() => copyToClipboard(item.text)} className="h-8 w-8 hover:bg-primary/10 text-muted-foreground group-hover:text-primary">
+                              <Copy size={14} />
+                            </Button>
+                          </CardHeader>
+                          <CardContent className="px-4 pb-4">
+                            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{item.text}</p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </TabsContent>
           </Tabs>
-
-          <footer className="pt-12 border-t border-border/50 text-center space-y-3 opacity-50">
-            <div className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              <Copyright size={10} /> 2024 W1 Capital. Todos os direitos reservados.
-            </div>
-            <p className="text-[9px] uppercase tracking-tighter font-black text-primary/80">FUNDADOR DAVI ALVES FIGUEREDO • VEREDITO IA v3.0 ENGINE</p>
-          </footer>
         </div>
       </main>
-    </div>
-  );
-}
-
-function MetaItem({ label, value }: { label: string, value: string }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{label}</p>
-      <p className="text-xs text-white font-bold truncate" title={value}>{value}</p>
     </div>
   );
 }
