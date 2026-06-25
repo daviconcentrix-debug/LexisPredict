@@ -1,6 +1,7 @@
+
 'use server';
 /**
- * @fileOverview Motor de Geração de Documentos Jurídicos v8.0 Definitivo
+ * @fileOverview Motor de Geração de Documentos Jurídicos v9.0 ELITE
  * Extração de dados e preenchimento de Procuração Ad Judicia.
  * Formatação de ALTA FIDELIDADE baseada no modelo definitivo da Get Assessoria.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
@@ -23,7 +24,7 @@ const documentPrompt = ai.definePrompt({
   name: 'documentPrompt',
   input: {schema: z.object({dados: z.string(), today: z.string()})},
   output: {schema: z.object({documento: z.string()})},
-  prompt: `Aja como um Assistente Jurídico Sênior da Get Assessoria (W1 Capital). Sua tarefa é extrair dados do texto fornecido e preencher a procuração "Ad Judicia" com precisão cirúrgica, seguindo RIGOROSAMENTE o modelo definitivo fornecido.
+  prompt: `Aja como um Assistente Jurídico Sênior da Get Assessoria (W1 Capital). Sua tarefa é extrair dados do texto fornecido e preencher a procuração "Ad Judicia" com precisão cirúrgica, seguindo RIGOROSAMENTE o modelo visual definitivo.
 
 INSTRUÇÕES DE EXECUÇÃO:
 1. Analise o texto de entrada e extraia: Nome Completo, Nacionalidade, Estado Civil, Profissão, RG, CPF, Endereço Completo e E-mail.
@@ -62,8 +63,7 @@ function forceStringDocument(raw: any): string {
   if (typeof raw === 'object') {
     if (raw.documento && typeof raw.documento === 'string') return raw.documento;
     if (raw.documento && typeof raw.documento === 'object') {
-      // Se a IA retornar o documento como um objeto de dados em vez de texto
-      return `ERRO: A IA retornou dados estruturados em vez de texto. Por favor, tente novamente com o motor CLAUDE 3.5 SONNET.`;
+      return `ERRO: A IA retornou dados estruturados. Por favor, tente novamente com o motor CLAUDE 3.5 SONNET.`;
     }
     return JSON.stringify(raw, null, 2);
   }
@@ -95,7 +95,7 @@ export const documentFlow = ai.defineFlow(
           body: JSON.stringify({
             model: 'anthropic/claude-3.5-sonnet',
             messages: [
-              { role: 'system', content: 'Você é Assistente Jurídico Sênior. Gere a procuração exclusivamente como TEXTO FORMATADO no campo "documento". NUNCA retorne objetos ou estruturas JSON dentro do texto. Use JSON apenas para o envelope externo.' },
+              { role: 'system', content: 'Você é Assistente Jurídico Sênior. Gere a procuração exclusivamente como TEXTO FORMATADO no campo "documento". NUNCA retorne objetos ou estruturas JSON dentro do texto. Use JSON apenas para o envelope externo. Use centralização com [CENTER].' },
               { role: 'user', content: `Extraia e preencha a procuração exatamente conforme o modelo visual para: ${input.dadosBrutos}. Data: ${today}` }
             ],
             temperature: 0.1,
@@ -116,7 +116,7 @@ export const documentFlow = ai.defineFlow(
           body: JSON.stringify({
             model: 'llama-3.3-70b-versatile',
             messages: [
-              { role: 'system', content: 'Retorne apenas JSON com campo string "documento" contendo a procuração completa em texto puro formatado conforme o modelo. Use a palavra JSON.' },
+              { role: 'system', content: 'Retorne apenas JSON com campo string "documento" contendo a procuração completa em texto puro formatado conforme o modelo. Use a palavra JSON. Use [CENTER] para centralização.' },
               { role: 'user', content: `Gere a procuração conforme o script visual para os dados: ${input.dadosBrutos}` }
             ],
             temperature: 0.1,
