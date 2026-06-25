@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Shield, HardDrive, RefreshCcw, CheckCircle2, AlertCircle, Lock, Unlock, Cpu, Copyright } from 'lucide-react';
+import { Shield, HardDrive, RefreshCcw, CheckCircle2, AlertCircle, Lock, Unlock, Cpu, Copyright, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -22,14 +22,14 @@ export default function SettingsPage() {
   const [syncing, setSyncing] = useState(false);
   const [status, setStatus] = useState<'online' | 'offline' | 'loading'>('online');
   const [password, setPassword] = useState('');
-  const [iaModel, setIaModel] = useState<'gemini' | 'grok'>('gemini');
+  const [iaModel, setIaModel] = useState<'gemini' | 'grok' | 'openrouter'>('gemini');
   
   const { isAdmin, login, logout } = useAdmin();
   const { toast } = useToast();
 
   useEffect(() => {
     const saved = localStorage.getItem('lexisPredict_preferred_ia');
-    if (saved === 'grok' || saved === 'gemini') {
+    if (saved === 'grok' || saved === 'gemini' || saved === 'openrouter') {
       setIaModel(saved as any);
     }
     handleManualSync();
@@ -53,7 +53,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleIaChange = (value: 'gemini' | 'grok') => {
+  const handleIaChange = (value: 'gemini' | 'grok' | 'openrouter') => {
     setIaModel(value);
     localStorage.setItem('lexisPredict_preferred_ia', value);
     toast({ title: "Motor IA Alterado", description: `Engine ${value.toUpperCase()} configurada como padrão.` });
@@ -82,9 +82,6 @@ export default function SettingsPage() {
             )}>
               {status === 'online' ? "CRM OPERATIONAL" : "DATABASE OFFLINE"}
             </Badge>
-            <Badge className={cn("text-[10px] font-bold uppercase", isAdmin ? "bg-primary" : "bg-muted")}>
-              {isAdmin ? "Admin Access" : "Visitor Mode"}
-            </Badge>
           </div>
         </header>
 
@@ -92,9 +89,8 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <aside className="md:col-span-1 space-y-1">
               <NavSettingItem icon={<HardDrive size={18} />} label="Cloud Sync" active={activeTab === 'Sync'} onClick={() => setActiveTab('Sync')} />
-              <NavSettingItem icon={<Cpu size={18} />} label="OmniReport IA" active={activeTab === 'IA'} onClick={() => setActiveTab('IA')} />
+              <NavSettingItem icon={<Cpu size={18} />} label="Intelligence" active={activeTab === 'IA'} onClick={() => setActiveTab('IA')} />
               <NavSettingItem icon={<Lock size={18} />} label="Admin Access" active={activeTab === 'Admin'} onClick={() => setActiveTab('Admin')} />
-              <NavSettingItem icon={<Shield size={18} />} label="Security" active={activeTab === 'Security'} onClick={() => setActiveTab('Security')} />
             </aside>
 
             <div className="md:col-span-3 space-y-8">
@@ -103,39 +99,15 @@ export default function SettingsPage() {
                   <CardHeader>
                     <div className="flex items-center gap-3">
                       <Cpu className="text-primary" />
-                      <CardTitle className="text-white font-headline text-lg">OmniReport IA Engine</CardTitle>
+                      <CardTitle className="text-white font-headline text-lg">AI OmniEngine Selection</CardTitle>
                     </div>
-                    <CardDescription>Escolha o motor de inteligência para análises do Veredito AI.</CardDescription>
+                    <CardDescription>Configure o motor de processamento para análises de processos.</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <RadioGroup value={iaModel} onValueChange={(v) => handleIaChange(v as any)} className="grid gap-4">
-                      <div className={cn(
-                        "flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer",
-                        iaModel === 'gemini' ? "bg-primary/10 border-primary shadow-lg" : "bg-secondary/20 border-border"
-                      )} onClick={() => handleIaChange('gemini')}>
-                        <div className="flex items-center gap-3">
-                          <RadioGroupItem value="gemini" id="gemini" />
-                          <div>
-                            <Label htmlFor="gemini" className="text-white font-bold cursor-pointer">Google Gemini 2.0 Flash</Label>
-                            <p className="text-xs text-muted-foreground">Alta velocidade e integração DataJud nativa.</p>
-                          </div>
-                        </div>
-                        <Badge className="bg-primary/20 text-primary">Recomendado</Badge>
-                      </div>
-
-                      <div className={cn(
-                        "flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer",
-                        iaModel === 'grok' ? "bg-accent/10 border-accent shadow-lg" : "bg-secondary/20 border-border"
-                      )} onClick={() => handleIaChange('grok')}>
-                        <div className="flex items-center gap-3">
-                          <RadioGroupItem value="grok" id="grok" />
-                          <div>
-                            <Label htmlFor="grok" className="text-white font-bold cursor-pointer">X.AI Grok-Beta</Label>
-                            <p className="text-xs text-muted-foreground">Raciocínio lógico e inteligência de ponta da X.AI.</p>
-                          </div>
-                        </div>
-                        <Badge className="bg-accent/20 text-accent">Elite</Badge>
-                      </div>
+                  <CardContent className="space-y-4">
+                    <RadioGroup value={iaModel} onValueChange={(v) => handleIaChange(v as any)} className="grid gap-3">
+                      <IaOption id="gemini" value="gemini" title="Google Gemini 2.0 Flash" desc="Alta velocidade e integração DataJud." active={iaModel === 'gemini'} />
+                      <IaOption id="grok" value="grok" title="X.AI Grok (via Groq)" desc="Máxima performance e precisão técnica." active={iaModel === 'grok'} />
+                      <IaOption id="openrouter" value="openrouter" title="OpenRouter (DeepSeek R1)" desc="Raciocínio lógico de elite e Deep Thinking." active={iaModel === 'openrouter'} />
                     </RadioGroup>
                   </CardContent>
                 </Card>
@@ -148,34 +120,17 @@ export default function SettingsPage() {
                       {isAdmin ? <Unlock className="text-primary" /> : <Lock className="text-muted-foreground" />}
                       <CardTitle className="text-white font-headline text-lg">Administrative Triage</CardTitle>
                     </div>
-                    <CardDescription>
-                      {isAdmin ? "Sessão Administrativa ativa para W1 Capital." : "Acesso restrito ao Fundador Davi Alves Figueredo."}
-                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     {isAdmin ? (
-                      <div className="space-y-4">
-                        <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl">
-                          <p className="text-sm text-primary font-medium">Session Valid. All system buttons are now functional.</p>
-                        </div>
-                        <Button variant="destructive" onClick={logout} className="w-full font-bold text-white">
-                          Exit Admin Mode
-                        </Button>
-                      </div>
+                      <Button variant="destructive" onClick={logout} className="w-full font-bold">Exit Admin Mode</Button>
                     ) : (
                       <form onSubmit={handleAdminAuth} className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="adminPass">Admin Password</Label>
-                          <Input 
-                            id="adminPass" 
-                            type="password" 
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="bg-secondary border-none"
-                            placeholder="••••••••"
-                          />
+                          <Input id="adminPass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="bg-secondary border-none" placeholder="••••••••" />
                         </div>
-                        <Button type="submit" className="w-full font-bold text-white">Authorize Access</Button>
+                        <Button type="submit" className="w-full font-bold">Authorize Access</Button>
                       </form>
                     )}
                   </CardContent>
@@ -186,17 +141,8 @@ export default function SettingsPage() {
                 <Card className="bg-card border-border shadow-2xl">
                   <CardHeader>
                     <CardTitle className="text-white font-headline text-lg">CRM Cloud Engine</CardTitle>
-                    <CardDescription>Configure automação e comportamento na nuvem Supabase.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label className="text-white font-bold cursor-pointer">Live Cloud Connection</Label>
-                        <p className="text-xs text-muted-foreground">Mantenha os dados sincronizados via PostgreSQL relacional.</p>
-                      </div>
-                      <Switch defaultChecked disabled={!isAdmin} />
-                    </div>
-                    <Separator className="bg-border" />
                     <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl border border-border">
                       <div className="flex items-center gap-3">
                         {status === 'online' ? <CheckCircle2 className="w-5 h-5 text-chart-3" /> : <AlertCircle className="w-5 h-5 text-destructive" />}
@@ -205,13 +151,7 @@ export default function SettingsPage() {
                           <p className="text-xs text-muted-foreground">{status === 'online' ? "Ativo e Saudável" : "Erro de Configuração"}</p>
                         </div>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleManualSync}
-                        disabled={syncing || !isAdmin}
-                        className="text-[10px] font-bold uppercase border-border text-white hover:bg-primary"
-                      >
+                      <Button variant="outline" size="sm" onClick={handleManualSync} disabled={syncing || !isAdmin} className="text-[10px] font-bold uppercase">
                         {syncing ? <RefreshCcw className="w-3 h-3 animate-spin mr-2" /> : "Force Refresh"}
                       </Button>
                     </div>
@@ -233,25 +173,27 @@ export default function SettingsPage() {
   );
 }
 
-function NavSettingItem({ 
-  icon, 
-  label, 
-  active = false, 
-  onClick 
-}: { 
-  icon: React.ReactNode, 
-  label: string, 
-  active?: boolean,
-  onClick: () => void
-}) {
+function IaOption({ id, value, title, desc, active }: { id: string, value: string, title: string, desc: string, active: boolean }) {
   return (
-    <button 
-      onClick={onClick}
-      className={cn(
-        "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-left",
-        active ? "bg-primary text-white font-bold shadow-lg" : "text-muted-foreground hover:bg-secondary hover:text-white"
-      )}
-    >
+    <div className={cn(
+      "flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer",
+      active ? "bg-primary/10 border-primary shadow-lg" : "bg-secondary/20 border-border"
+    )}>
+      <div className="flex items-center gap-3">
+        <RadioGroupItem value={value} id={id} />
+        <div>
+          <Label htmlFor={id} className="text-white font-bold cursor-pointer">{title}</Label>
+          <p className="text-[10px] text-muted-foreground">{desc}</p>
+        </div>
+      </div>
+      {active && <Badge className="bg-primary/20 text-primary text-[8px]">Ativo</Badge>}
+    </div>
+  );
+}
+
+function NavSettingItem({ icon, label, active = false, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick: () => void }) {
+  return (
+    <button onClick={onClick} className={cn("w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all", active ? "bg-primary text-white font-bold" : "text-muted-foreground hover:bg-secondary hover:text-white")}>
       {icon}
       <span>{label}</span>
     </button>

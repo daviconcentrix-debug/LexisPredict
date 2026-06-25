@@ -27,28 +27,31 @@ export async function getStoredCases(): Promise<LegalCase[]> {
 export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: boolean; message: string }> {
   if (!isSupabaseConfigured) return { success: false, message: "Supabase não configurado." };
   try {
-    /**
-     * ESTRATÉGIA DE CONSOLIDAÇÃO ATÔMICA
-     * Removemos o estado anterior e injetamos o lote consolidado.
-     * Isso resolve o problema de tentar salvar IDs como bigint e garante a integridade dos dados.
-     */
-    const { error: deleteError } = await supabase.from('processos').delete().not('id', 'is', null);
+    // Sincronização Atômica: Removemos o estado obsoleto para garantir a integridade do novo lote consolidado
+    const { error: deleteError } = await supabase.from('processos').delete().neq('id', 0);
     
-    if (deleteError) throw deleteError;
+    if (deleteError) {
+      console.error('Erro ao limpar processos antigos:', deleteError);
+      throw new Error(`Falha na limpeza do cache: ${deleteError.message}`);
+    }
 
     if (cases.length > 0) {
+      // Inserção em lote para otimização de performance no Supabase
       const payload = cases.map(c => ({ dados: c }));
       const { error: insertError } = await supabase
         .from('processos')
         .insert(payload);
       
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Erro ao inserir novos processos:', insertError);
+        throw new Error(`Falha na inserção cloud: ${insertError.message}`);
+      }
     }
     
-    return { success: true, message: "Cloud Sincronizado com W1 Capital." };
+    return { success: true, message: "Cloud CRM Sincronizado com W1 Capital." };
   } catch (error: any) {
-    console.error('Supabase save processes error:', error);
-    return { success: false, message: error.message };
+    console.error('Supabase save processes failure:', error);
+    return { success: false, message: error.message || "Erro desconhecido na sincronização cloud." };
   }
 }
 
@@ -63,7 +66,7 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
     if (error) throw error;
     
     return data ? data.map(item => ({
-      id: item.id,
+      id: item.id.toString(),
       title: item.title || 'Sem Título',
       content: item.content || '',
       color: 'bg-sidebar/40',
@@ -78,10 +81,7 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
 export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boolean }> {
   if (!isSupabaseConfigured) return { success: false };
   try {
-    /**
-     * Sincronização de Notas: Mantemos a paridade com o UI limpando e reinserindo.
-     */
-    await supabase.from('notes').delete().not('id', 'is', null);
+    await supabase.from('notes').delete().neq('id', 0);
     
     if (notes.length > 0) {
       const dbNotes = notes.map(n => ({

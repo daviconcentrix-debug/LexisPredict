@@ -16,20 +16,18 @@ export const COURT_ALIASES: Record<string, string> = {
 export async function fetchDataJud(cnj: string) {
   const DATAJUD_API_KEY = 'cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw==';
   
-  // Extração do código do tribunal do CNJ formatado
   const cnjLimpo = cnj.replace(/\D/g, '');
-  if (cnjLimpo.length !== 20) throw new Error("Formato de CNJ inválido.");
+  if (cnjLimpo.length !== 20) throw new Error("Formato de CNJ inválido. Deve conter 20 dígitos.");
   
-  const courtCode = cnjLimpo.substring(13, 17); // Posição do código do tribunal
   const aliasPart = `${cnjLimpo[13]}.${cnjLimpo.substring(14, 16)}`;
-  const alias = COURT_ALIASES[aliasPart] || "tjsp"; // Default para teste se falhar a detecção
+  const alias = COURT_ALIASES[aliasPart] || "tjsp";
 
   const url = `https://api-publica.datajud.cnj.jus.br/api_publica_${alias}/_search`;
   
   const payload = {
     query: {
       term: {
-        "numeroProcesso": cnjLimpo
+        "numeroProcesso.keyword": cnjLimpo
       }
     }
   };
@@ -44,12 +42,22 @@ export async function fetchDataJud(cnj: string) {
       body: JSON.stringify(payload)
     });
 
-    if (!response.ok) throw new Error(`Erro DataJud: ${response.statusText}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`DataJud API Error (${response.status}):`, errorText);
+      throw new Error(`Tribunal ${alias.toUpperCase()} temporariamente indisponível.`);
+    }
     
     const data = await response.json();
-    return data.hits?.hits?.[0]?._source || null;
-  } catch (error) {
-    console.error("DataJud Integration Error:", error);
+    const result = data.hits?.hits?.[0]?._source || null;
+    
+    if (!result) {
+      throw new Error("Processo não localizado. Verifique se o número está correto ou se o processo tramita em segredo de justiça.");
+    }
+    
+    return result;
+  } catch (error: any) {
+    console.error("DataJud Integration Failure:", error);
     throw error;
   }
 }
