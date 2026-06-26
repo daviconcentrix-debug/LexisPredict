@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { 
@@ -24,20 +24,27 @@ export default function Dashboard() {
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const syncLock = useRef(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const loadData = useCallback(async () => {
+    if (syncLock.current) return;
+    syncLock.current = true;
+    
     setLoading(true);
     try {
       const caseData = await fetchRepoCases();
-      if (Array.isArray(caseData)) setCases(caseData);
+      if (Array.isArray(caseData)) {
+        setCases(caseData);
+      }
     } catch (error) {
-      console.error('Data sync failure:', error);
+      console.log('SYNC_FAIL');
     } finally {
       setLoading(false);
+      syncLock.current = false;
     }
   }, []);
 
@@ -65,27 +72,25 @@ export default function Dashboard() {
   if (!mounted) return null;
 
   return (
-    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black">
+    <div className="flex h-screen bg-white font-sans text-black">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-14 border-b border-[#dddbda] bg-white flex items-center justify-between px-6 shrink-0 z-40 shadow-sm">
+        <header className="h-16 border-b border-black bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-6">
-            <h1 className="font-black text-lg text-black tracking-tight uppercase hover:bg-black hover:text-white px-2 py-1 transition-colors rounded-sm cursor-default">
+            <h1 className="font-black text-xl text-black tracking-tighter uppercase hover:bg-black hover:text-white px-3 py-1 transition-all rounded-sm cursor-default">
               Painel de Gabinete Elite
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="icon-3d-wrapper">
-              <Button variant="default" size="sm" asChild className="bg-black hover:bg-gray-800 text-white font-black h-9 px-6 rounded shadow-md uppercase text-xs border-none">
-                <Link href="/report">
-                  <FileDown size={14} className="mr-2" /> Extrair Relatório Mestre
-                </Link>
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" asChild className="border-black border-2 hover:bg-black hover:text-white text-black font-black h-10 px-8 rounded-none uppercase text-xs transition-all shadow-[4px_4px_0px_#000]">
+              <Link href="/report">
+                <FileDown size={14} className="mr-2" /> Extrair Relatório Mestre
+              </Link>
+            </Button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto bg-[#f3f2f2] p-6 space-y-6">
+        <div className="flex-1 overflow-auto bg-[#f3f2f2] p-8 space-y-8">
           <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard title="Volume de Processos" value={loading ? "..." : metrics.total} icon={<Briefcase size={20} />} color="primary" />
             <StatCard title="Alertas de Crise" value={loading ? "..." : metrics.critical} icon={<ShieldAlert size={20} />} color="destructive" />
@@ -93,46 +98,46 @@ export default function Dashboard() {
             <StatCard title="Auditorias Ativas" value={loading ? "..." : metrics.active} icon={<FileCheck size={20} />} color="success" />
           </section>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             <section className="xl:col-span-2 space-y-6">
-              <div className="bg-white border border-[#dddbda] rounded shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-[#dddbda] bg-[#f8f9fb] flex items-center justify-between">
+              <div className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] overflow-hidden">
+                <div className="px-6 py-5 border-b-2 border-black bg-white flex items-center justify-between">
                   <div>
-                    <h2 className="font-black text-sm text-black uppercase tracking-wider hover:bg-black hover:text-white px-2 py-1 transition-colors rounded-sm inline-block cursor-default">Fila de Prioridade Crítica</h2>
-                    <p className="text-[11px] text-black/60 font-black uppercase">Triagem consolidada via Unidade de Auditoria.</p>
+                    <h2 className="font-black text-sm text-black uppercase tracking-widest hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm inline-block cursor-default">Fila de Prioridade Crítica</h2>
+                    <p className="text-[10px] text-black font-black uppercase opacity-60 mt-1">Triagem consolidada via Unidade de Auditoria.</p>
                   </div>
-                  <Button variant="outline" size="sm" asChild className="text-[11px] font-black h-7 border-black hover:bg-black hover:text-white text-black uppercase transition-all">
+                  <Button variant="outline" size="sm" asChild className="text-[10px] font-black h-8 border-black border-2 hover:bg-black hover:text-white text-black uppercase transition-all rounded-none px-4">
                     <Link href="/cases">Ver Registros</Link>
                   </Button>
                 </div>
 
                 <div className="p-0 overflow-x-auto">
                   <table className="w-full text-left border-collapse">
-                    <thead className="bg-[#f3f2f2] text-[10px] font-black text-black/40 uppercase tracking-widest border-b border-[#dddbda]">
+                    <thead className="bg-[#f8f9fb] text-[10px] font-black text-black uppercase tracking-widest border-b-2 border-black">
                       <tr>
-                        <th className="px-6 py-3">Tribunal</th>
-                        <th className="px-6 py-3">Conta / Cliente</th>
-                        <th className="px-6 py-3">Protocolo CNJ</th>
-                        <th className="px-6 py-3 text-right">Status</th>
+                        <th className="px-6 py-4">Tribunal</th>
+                        <th className="px-6 py-4">Conta / Cliente</th>
+                        <th className="px-6 py-4">Protocolo CNJ</th>
+                        <th className="px-6 py-4 text-right">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#dddbda]">
+                    <tbody className="divide-y-2 divide-black">
                       {urgentQueue.length > 0 ? urgentQueue.map((c) => (
                         <tr key={c.id} className="hover:bg-black group transition-all cursor-default">
-                          <td className="px-6 py-4">
-                            <Badge variant="outline" className="bg-[#e2e2e2] text-black border-black font-black text-[10px] uppercase group-hover:bg-white group-hover:text-black">
+                          <td className="px-6 py-5">
+                            <Badge variant="outline" className="bg-white text-black border-black border-2 font-black text-[10px] uppercase group-hover:bg-white group-hover:text-black">
                               {c.tribunal}
                             </Badge>
                           </td>
-                          <td className="px-6 py-4">
-                            <span className="text-[13px] font-black text-black group-hover:text-white uppercase transition-colors">{c.cliente}</span>
+                          <td className="px-6 py-5">
+                            <span className="text-sm font-black text-black group-hover:text-white uppercase transition-colors">{c.cliente}</span>
                           </td>
-                          <td className="px-6 py-4">
-                            <span className="text-[11px] font-mono text-black/60 group-hover:text-white/60 font-bold">{c.protocolo}</span>
+                          <td className="px-6 py-5">
+                            <span className="text-[11px] font-mono text-black group-hover:text-white/70 font-black">{c.protocolo}</span>
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-6 py-5 text-right">
                             <Badge className={cn(
-                              "text-[10px] font-black uppercase px-2 py-0.5 rounded border-none shadow-sm text-white",
+                              "text-[10px] font-black uppercase px-3 py-1 rounded-none border-none text-white",
                               c.status === 'Vencido' ? "bg-red-600" : "bg-orange-500"
                             )}>
                               {c.status}
@@ -141,7 +146,7 @@ export default function Dashboard() {
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan={4} className="py-20 text-center text-black/60 text-sm font-black uppercase tracking-widest italic">Nenhum alerta crítico pendente.</td>
+                          <td colSpan={4} className="py-24 text-center text-black text-xs font-black uppercase tracking-widest italic opacity-40">Nenhum alerta crítico pendente.</td>
                         </tr>
                       )}
                     </tbody>
@@ -150,50 +155,49 @@ export default function Dashboard() {
               </div>
             </section>
 
-            <aside className="space-y-6">
-              <div className="bg-white border-2 border-black rounded shadow-lg p-8 text-black flex flex-col justify-center relative overflow-hidden group transition-all hover:bg-black cursor-default">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 group-hover:text-white transition-all">
-                  <FileCheck size={120} />
-                </div>
-                <div className="relative z-10 space-y-4">
+            <aside className="space-y-8">
+              <div className="bg-white border-2 border-black rounded-none p-8 text-black flex flex-col justify-center relative overflow-hidden group transition-all hover:bg-black cursor-default shadow-[8px_8px_0px_#000]">
+                <div className="relative z-10 space-y-6">
                   <div className="icon-3d-wrapper w-fit">
-                    <div className="icon-3d-block black w-12 h-12 rounded-sm group-hover:bg-white">
-                      <FileCheck size={28} className="text-white group-hover:text-black" />
+                    <div className="icon-3d-block black w-14 h-14 rounded-none group-hover:bg-white border-black border-2">
+                      <FileCheck size={32} className="text-white group-hover:text-black" />
                     </div>
                   </div>
                   <div>
-                    <h2 className="text-xl font-black uppercase tracking-tight group-hover:text-white transition-colors">Dossiê de Gabinete</h2>
-                    <p className="text-xs text-black/60 group-hover:text-white/60 mt-2 leading-relaxed font-black uppercase">Relatório Oficial auditado e selado por Davi Alves Figueredo.</p>
+                    <h2 className="text-xl font-black uppercase tracking-tight group-hover:text-white transition-colors leading-none">Dossiê de Gabinete</h2>
+                    <p className="text-[10px] text-black group-hover:text-white/60 mt-3 leading-relaxed font-black uppercase">Relatório Oficial auditado e selado por Davi Alves Figueredo.</p>
                   </div>
-                  <Button variant="default" asChild className="bg-black border-none hover:bg-gray-800 text-white w-full font-black h-11 rounded-sm mt-4 uppercase text-xs group-hover:bg-white group-hover:text-black">
+                  <Button variant="default" asChild className="bg-white text-black border-2 border-black hover:bg-black hover:text-white w-full font-black h-12 rounded-none mt-4 uppercase text-xs transition-all shadow-[4px_4px_0px_#000] group-hover:shadow-none">
                     <Link href="/report">Acessar PDF Oficial</Link>
                   </Button>
                 </div>
               </div>
 
-              <div className="bg-white border border-[#dddbda] rounded shadow-sm p-6 space-y-4 hover:border-black transition-colors cursor-default group">
-                <h3 className="text-[11px] font-black text-black/40 uppercase tracking-widest group-hover:text-black transition-colors">Sincronia Recente</h3>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-black uppercase">DataJud Pública</span>
-                  <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 bg-green-50 font-black">ONLINE</Badge>
+              <div className="bg-white border-2 border-black rounded-none p-6 space-y-5 hover:bg-black group transition-all cursor-default shadow-[8px_8px_0px_#000]">
+                <h3 className="text-[11px] font-black text-black uppercase tracking-widest group-hover:text-white transition-colors">Sincronia Recente</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-black group-hover:text-white uppercase transition-colors">DataJud Pública</span>
+                    <Badge className="text-[9px] text-white bg-green-600 border-none font-black rounded-none px-2 py-0.5">ONLINE</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-black group-hover:text-white uppercase transition-colors">Servidor de Dados</span>
+                    <Badge className="text-[9px] text-white bg-green-600 border-none font-black rounded-none px-2 py-0.5">ATIVO</Badge>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-black uppercase">Servidor de Dados</span>
-                  <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 bg-green-50 font-black">ATIVO</Badge>
-                </div>
-                <Button variant="ghost" onClick={loadData} className="w-full text-[11px] font-black h-8 text-black hover:bg-black hover:text-white border border-black uppercase transition-all">
+                <Button variant="outline" onClick={loadData} className="w-full text-[10px] font-black h-9 border-black border-2 text-black hover:bg-black hover:text-white group-hover:bg-white group-hover:text-black uppercase transition-all rounded-none mt-2">
                   <RefreshCcw className={cn("w-3.5 h-3.5 mr-2", loading && "animate-spin")} /> Forçar Sincronização
                 </Button>
               </div>
             </aside>
           </div>
 
-          <footer className="pt-10 pb-8 border-t border-border/30 flex flex-col items-center justify-center gap-3">
-            <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-black/40 hover:text-black transition-colors cursor-default">
-              <Copyright size={10} /> 2026 W1 Capital. Todos os direitos reservados.
+          <footer className="pt-12 pb-10 border-t-2 border-black flex flex-col items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.25em] text-black hover:text-black transition-colors cursor-default">
+              <Copyright size={12} /> 2026 W1 Capital. Todos os direitos reservados.
             </div>
-            <div className="px-4 py-1 bg-white border border-black rounded-full shadow-sm hover:bg-black hover:text-white transition-all cursor-default group">
-              <p className="text-[9px] uppercase tracking-tighter font-black text-black group-hover:text-white">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</p>
+            <div className="px-6 py-2 bg-white border-2 border-black rounded-none shadow-[4px_4px_0px_#000] hover:bg-black hover:text-white transition-all cursor-default group">
+              <p className="text-[10px] uppercase tracking-tighter font-black text-black group-hover:text-white">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</p>
             </div>
           </footer>
         </div>

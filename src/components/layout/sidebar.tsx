@@ -1,9 +1,8 @@
-
 "use client";
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
   Briefcase, 
@@ -20,16 +19,20 @@ import {
   StickyNote,
   FileSearch,
   Copyright,
-  MessageSquare
+  MessageSquare,
+  LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useAdmin } from '@/hooks/use-admin';
+import { useAuth } from '@/components/auth/auth-provider';
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = React.useState(false);
-  const { isAdmin } = useAdmin();
+  const { profile, signOut } = useAuth();
+
+  const isAdmin = profile?.cargo === 'Administrador';
 
   // Engine de Personalização de Fundo Dinâmico
   useEffect(() => {
@@ -44,7 +47,7 @@ export function Sidebar() {
           main.style.backgroundSize = 'cover';
           main.style.backgroundPosition = 'center';
           main.style.backgroundAttachment = 'fixed';
-          main.style.backgroundBlendMode = 'overlay'; // Mistura a cor com a imagem
+          main.style.backgroundBlendMode = 'overlay'; 
         } else {
           main.style.backgroundImage = 'none';
         }
@@ -55,6 +58,14 @@ export function Sidebar() {
     window.addEventListener('storage', applyAppearance);
     return () => window.removeEventListener('storage', applyAppearance);
   }, []);
+
+  const handleLogout = async () => {
+    // Revogar Desbloqueio Master ao Sair (Cookies e Identidade)
+    document.cookie = "lexis_master_unlock=; path=/; max-age=0";
+    document.cookie = "lexis_master_email=; path=/; max-age=0";
+    await signOut();
+    router.push('/login');
+  };
 
   const primaryNav = [
     { label: 'Painel de Controle', href: '/', icon: LayoutDashboard },
@@ -125,27 +136,37 @@ export function Sidebar() {
         </section>
       </div>
 
-      <div className="p-2 border-t border-[#dddbda] bg-[#f8f9fb]">
+      <div className="p-2 border-t border-[#dddbda] bg-[#f8f9fb] space-y-2">
         <div className={cn(
           "flex items-center p-2 rounded-sm transition-all group",
           !collapsed ? "gap-3 bg-white border border-black shadow-sm hover:bg-black hover:text-white" : "justify-center"
         )}>
-          <div className="w-8 h-8 rounded-sm bg-black text-white flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-white group-hover:text-black transition-colors">
-            DA
+          <div className="w-8 h-8 rounded-sm bg-black text-white flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-white group-hover:text-black transition-colors border border-black">
+            {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="text-[11px] font-black text-black group-hover:text-white transition-colors truncate uppercase">Davi Alves Figueredo</span>
-              <span className="text-[9px] text-black/60 text-muted-foreground transition-colors font-black uppercase truncate italic">Fundador & Gestor</span>
+              <span className="text-[11px] font-black text-black group-hover:text-white transition-colors truncate uppercase">{profile?.nome || 'Usuário Gabinete'}</span>
+              <span className="text-[9px] text-black/60 transition-colors font-black uppercase truncate italic">{profile?.cargo || 'Operador'}</span>
             </div>
           )}
         </div>
 
-        <div className="mt-2 flex items-center justify-between px-2">
+        {!collapsed && (
+          <Button 
+            variant="ghost" 
+            onClick={handleLogout}
+            className="w-full justify-start text-[10px] font-black text-black uppercase h-8 hover:bg-black hover:text-white transition-all rounded-sm border border-transparent hover:border-black"
+          >
+            <LogOut size={14} className="mr-2" /> Encerrar Sessão
+          </Button>
+        )}
+
+        <div className="flex items-center justify-between px-2">
           {!collapsed && (
             <span className="text-[9px] font-black text-black uppercase flex items-center gap-1 group cursor-default">
               {isAdmin ? <Unlock size={10} className="text-green-600" /> : <Lock size={10} />}
-              <span className="group-hover:bg-black group-hover:text-white px-1 transition-all rounded-sm">{isAdmin ? "Admin Root" : "Visitante"}</span>
+              <span className="group-hover:bg-black group-hover:text-white px-1 transition-all rounded-sm">{isAdmin ? "Gabinete Admin" : "Operador Ativo"}</span>
             </span>
           )}
           <Button 
@@ -177,7 +198,7 @@ function NavLink({ item, collapsed, active }: { item: any, collapsed: boolean, a
     <Link 
       href={item.href}
       className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative border border-transparent",
+        "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative border-2 border-transparent",
         active 
           ? "bg-black text-white border-black" 
           : "text-black hover:bg-black hover:text-white hover:border-black"

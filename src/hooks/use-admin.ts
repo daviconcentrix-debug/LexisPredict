@@ -1,34 +1,29 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useAuth } from '@/components/auth/auth-provider';
 
 export function useAdmin() {
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const { profile, loading, signOut } = useAuth();
 
-  useEffect(() => {
-    const stored = localStorage.getItem('lexisPredict_admin_session');
-    if (stored === 'true') {
-      setIsAdmin(true);
-    }
-    setLoading(false);
-  }, []);
-
+  // O Admin agora é baseado no cargo do perfil no Supabase
+  const isAdmin = profile?.cargo === 'Administrador';
+  const isOperador = profile?.cargo === 'Operador' || isAdmin;
+  
+  // Mantendo a senha mestre apenas para o portal de código por compatibilidade de backup
   const login = (password: string) => {
-    // Nova senha mestre v27.0 Elite
     if (password === 'Ashley@25472053') {
-      setIsAdmin(true);
-      localStorage.setItem('lexisPredict_admin_session', 'true');
       return true;
     }
     return false;
   };
 
-  const logout = () => {
-    setIsAdmin(false);
-    localStorage.removeItem('lexisPredict_admin_session');
+  return { 
+    isAdmin, 
+    isOperador,
+    login, 
+    logout: signOut, 
+    loading,
+    profile 
   };
-
-  return { isAdmin, login, logout, loading };
 }

@@ -5,7 +5,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%; /* #f3f2f2 */
+    --background: 0 0% 100%; /* Branco Puro */
     --foreground: 0 0% 0%; /* Preto Puro */
     --card: 0 0% 100%;
     --card-foreground: 0 0% 0%;
@@ -13,31 +13,31 @@
     --popover-foreground: 0 0% 0%;
     --primary: 0 0% 0%; /* Preto Puro para botões */
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 90%;
+    --secondary: 0 0% 95%;
     --secondary-foreground: 0 0% 0%;
-    --muted: 0 0% 94%;
-    --muted-foreground: 0 0% 40%;
-    --accent: 0 0% 10%;
+    --muted: 0 0% 90%;
+    --muted-foreground: 0 0% 0%;
+    --accent: 0 0% 0%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 88%;
-    --input: 0 0% 88%;
+    --border: 0 0% 0%; /* Bordas Pretas por padrão */
+    --input: 0 0% 0%;
     --ring: 0 0% 0%;
-    --radius: 0.1rem;
+    --radius: 0rem; /* B&W Sharp Edges */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 0 0% 0%;
     --sidebar-primary: 0 0% 0%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 96%;
     --sidebar-accent-foreground: 0 0% 0%;
-    --sidebar-border: 0 0% 90%;
+    --sidebar-border: 0 0% 0%;
     --sidebar-ring: 0 0% 0%;
   }
 }
 
 @layer components {
-  /* Estilo de Ícone 3D Isométrico (W1 Capital Style) */
+  /* Estilo de Ícone 3D Isométrico (W1 Capital Black & White Edition) */
   .icon-3d-wrapper {
     position: relative;
     display: flex;
@@ -55,18 +55,18 @@
     background: #fff;
     transform: perspective(100px) rotate(-30deg) skew(25deg);
     transition: all 0.5s;
-    box-shadow: -10px 10px 10px rgba(0, 0, 0, 0.2);
-    border: 1px solid #eee;
+    box-shadow: -10px 10px 0px rgba(0, 0, 0, 1); /* Hard Shadow */
+    border: 2px solid #000;
   }
 
   .icon-3d-block::before {
     content: "";
     position: absolute;
-    top: 5px;
-    left: -15px;
+    top: 2px;
+    left: -12px;
     height: 100%;
-    width: 15px;
-    background: #b1b1b1;
+    width: 12px;
+    background: #000;
     transform: rotate(0deg) skewY(-45deg);
     transition: 0.5s;
   }
@@ -74,33 +74,42 @@
   .icon-3d-block::after {
     content: "";
     position: absolute;
-    bottom: -15px;
-    left: -8px;
-    height: 15px;
+    bottom: -12px;
+    left: -6px;
+    height: 12px;
     width: 100%;
-    background: #dedede;
+    background: #444;
     transform: rotate(0deg) skewX(-45deg);
     transition: 0.5s;
   }
 
   .icon-3d-wrapper:hover .icon-3d-block {
     transform: perspective(1000px) rotate(-30deg) skew(25deg) translate(10px, -10px);
-    box-shadow: -25px 25px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: -20px 20px 0px rgba(0, 0, 0, 1);
   }
 
   .icon-3d-block.black { background: #000000; }
-  .icon-3d-block.black::before { background: #1a1a1a; }
-  .icon-3d-block.black::after { background: #262626; }
+  .icon-3d-block.black::before { background: #000; }
+  .icon-3d-block.black::after { background: #111; }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-black;
+    font-family: 'Inter', sans-serif;
   }
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
+    @apply bg-white text-black;
     color: #000000;
+  }
+  
+  /* Garantia de Texto Preto em Inputs e Placeholders */
+  input, textarea, select {
+    @apply text-black placeholder:text-black/30 font-black;
+  }
+  
+  label {
+    @apply text-black font-black uppercase text-[10px];
   }
 }
 
