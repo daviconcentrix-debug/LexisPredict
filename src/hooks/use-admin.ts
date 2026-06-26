@@ -16,7 +16,8 @@ export function useAdmin() {
   }, []);
 
   const login = (password: string) => {
-    if (password === '25472053') {
+    // Nova senha mestre v27.0 Elite
+    if (password === 'Ashley@25472053') {
       setIsAdmin(true);
       localStorage.setItem('lexisPredict_admin_session', 'true');
       return true;
