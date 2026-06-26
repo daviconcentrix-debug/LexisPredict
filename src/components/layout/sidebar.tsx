@@ -132,7 +132,7 @@ export function Sidebar() {
         {!collapsed && (
           <div className="px-2 pt-2 flex items-center justify-center gap-1.5 opacity-30 hover:opacity-100 transition-opacity cursor-default">
             <Copyright size={8} className="text-white" />
-            <span className="text-[7px] uppercase font-black text-white tracking-widest">© 2024 W1 Capital. Direitos Reservados.</span>
+            <span className="text-[7px] uppercase font-black text-white tracking-widest">© 2026 W1 Capital. Todos os direitos reservados.</span>
           </div>
         )}
       </div>
