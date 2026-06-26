@@ -39,6 +39,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getEmpresaUsers, removeEmpresaUser } from '@/lib/server-db';
 import { UserProfile, supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import {
   Dialog,
   DialogContent,
@@ -55,46 +56,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const VEREDITO_SOURCE_CODE = `'use server';
-/**
- * MOTOR DE PROCESSAMENTO TÉCNICO v80.0 SAAS ELITE - DATAJUD INTEGRAL
- * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
- */
-
-// --- SERVIÇO DATAJUD (API KEY INCLUÍDA) ---
-const DATAJUD_API_KEY = 'cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw==';
-
-export async function fetchDataJud(cnj) {
-  const cnjLimpo = cnj.replace(/\\D/g, '');
-  const aliasPart = \`\${cnjLimpo[13]}.\${cnjLimpo.substring(14, 16)}\`;
-  const url = \`https://api-publica.datajud.cnj.jus.br/api_publica_\${aliasPart}/_search\`;
-  
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Authorization': 'APIKey ' + DATAJUD_API_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: { term: { "numeroProcesso.keyword": cnjLimpo } } })
-  });
-  return response.json();
-}
-
-// --- FLUXO DE ANÁLISE ---
-export const vereditoAIFlow = ai.defineFlow({
-  name: 'vereditoAIFlow',
-  inputSchema: z.object({ cnj: z.string(), preferredModel: z.string(), empresa_id: z.string() }),
-  outputSchema: VereditoOutputSchema,
-}, async (input) => {
-  const dataJudData = await fetchDataJud(input.cnj);
-  
-  const { output } = await ai.generate({
-    model: input.preferredModel,
-    system: "Você é o Analista Jurídico Sênior da W1 Capital...",
-    prompt: \`DADOS REAIS: \${JSON.stringify(dataJudData)}\`,
-    output: { schema: VereditoOutputSchema }
-  });
-  
-  return output;
-});`;
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('Sync');
@@ -127,7 +88,6 @@ export default function SettingsPage() {
     const savedColor = localStorage.getItem('lexisPredict_bg_color');
     if (savedColor) setBgColor(savedColor);
 
-    // Checar Persistência de Auditoria Global
     const checkMaster = () => {
       const cookies = document.cookie.split('; ');
       const masterUnlock = cookies.find(row => row.startsWith('lexis_master_unlock='))?.split('=')[1];
@@ -165,21 +125,14 @@ export default function SettingsPage() {
   const handleUnlockMaster = (e: React.FormEvent) => {
     e.preventDefault();
     if (masterPasswordInput === '40028922') {
-      // Grava Cookies de Auditoria Global com Escopo Total e Samesite
       const cookieParams = "path=/; max-age=31536000; samesite=lax";
       document.cookie = `lexis_master_unlock=40028922; ${cookieParams}`;
       document.cookie = `lexis_master_email=daviconcentrix@gmail.com; ${cookieParams}`;
-      
       setIsMasterActive(true);
-      toast({ title: "Gabinete Master Desbloqueado", description: "Bypass de Auditoria Global Ativado." });
-      setMasterPasswordInput('');
-      
-      // Sincronização Síncrona: Força o reload para o servidor processar os novos cookies
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      toast({ title: "Gabinete Master Desbloqueado" });
+      setTimeout(() => window.location.reload(), 500);
     } else {
-      toast({ title: "Autorização Negada", description: "Token de segurança incorreto.", variant: "destructive" });
+      toast({ title: "Token Inválido", variant: "destructive" });
     }
   };
 
@@ -187,7 +140,6 @@ export default function SettingsPage() {
     document.cookie = "lexis_master_unlock=; path=/; max-age=0";
     document.cookie = "lexis_master_email=; path=/; max-age=0";
     setIsMasterActive(false);
-    toast({ title: "Gabinete Master Bloqueado" });
     window.location.reload();
   };
 
@@ -195,10 +147,9 @@ export default function SettingsPage() {
     e.preventDefault();
     if (codePasswordInput === 'Ashley@25472053') {
       setIsCodeAuthorized(true);
-      toast({ title: "Código Desbloqueado", description: "Código-fonte integral liberado." });
-      setCodePasswordInput('');
+      toast({ title: "Código Desbloqueado" });
     } else {
-      toast({ title: "Acesso Negado", description: "Senha de segurança incorreta.", variant: "destructive" });
+      toast({ title: "Acesso Negado", variant: "destructive" });
     }
   };
 
@@ -210,8 +161,15 @@ export default function SettingsPage() {
     try {
       const cleanEmail = newUserForm.email.trim().toLowerCase();
       
-      // 1. Criação no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // 1. Instância Secundária para não deslogar o Admin
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: { persistSession: false }
+      });
+
+      // 2. Criação da conta DIRETO no Supabase
+      const { data: authData, error: authError } = await tempClient.auth.signUp({
         email: cleanEmail,
         password: newUserForm.password,
         options: { data: { full_name: newUserForm.nome } }
@@ -219,18 +177,26 @@ export default function SettingsPage() {
 
       if (authError) throw authError;
 
-      // 2. Upsert Atômico no Perfil de Gabinete
-      const { error: profileError } = await supabase
+      // 3. Criação de Perfil de Gabinete (Resiliente)
+      const { data: existingProfile } = await supabase
         .from('usuarios')
-        .upsert({
-          auth_user_id: authData.user?.id,
-          empresa_id: profile.empresa_id,
-          nome: newUserForm.nome.trim().toUpperCase(),
-          email: cleanEmail,
-          cargo: newUserForm.cargo
-        }, { onConflict: 'auth_user_id' });
+        .select('id')
+        .eq('auth_user_id', authData.user?.id)
+        .maybeSingle();
 
-      if (profileError) throw profileError;
+      const profilePayload = {
+        auth_user_id: authData.user?.id,
+        empresa_id: profile.empresa_id,
+        nome: newUserForm.nome.trim().toUpperCase(),
+        email: cleanEmail,
+        cargo: newUserForm.cargo
+      };
+
+      if (existingProfile) {
+        await supabase.from('usuarios').update(profilePayload).eq('id', existingProfile.id);
+      } else {
+        await supabase.from('usuarios').insert(profilePayload);
+      }
 
       toast({ title: "Operador Adicionado", description: "Conta provisionada no silo da empresa." });
       setIsAddUserModalOpen(false);
@@ -244,11 +210,8 @@ export default function SettingsPage() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (userId === profile?.id) {
-       toast({ title: "Ação Negada", description: "Você não pode excluir seu próprio perfil.", variant: "destructive" });
-       return;
-    }
-    if (confirm("Deseja remover este usuário da empresa?")) {
+    if (userId === profile?.id) return;
+    if (confirm("Remover este usuário?")) {
        const success = await removeEmpresaUser(userId);
        if (success) {
           toast({ title: "Usuário Removido" });
@@ -264,7 +227,7 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Configuração Sistema</h1>
-            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v80.0 SaaS Elite</Badge>
+            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v87.0 SaaS Elite</Badge>
           </div>
         </header>
 
@@ -286,11 +249,6 @@ export default function SettingsPage() {
               {isDevAccount && (
                 <Button variant={activeTab === 'Master' ? 'default' : 'ghost'} onClick={() => setActiveTab('Master')} className={cn("w-full justify-start rounded-none font-black uppercase text-xs h-10 border-l-4 border-l-red-600 border-2 border-transparent", activeTab === 'Master' ? "bg-black text-white border-black" : "text-black hover:bg-black hover:text-white")}>
                   <Skull size={18} className="mr-2 text-red-600" /> Gabinete Master
-                </Button>
-              )}
-              {isAdmin && (
-                <Button variant={activeTab === 'Code' ? 'default' : 'ghost'} onClick={() => setActiveTab('Code')} className={cn("w-full justify-start rounded-none font-black uppercase text-xs h-10 border-2 border-transparent", activeTab === 'Code' ? "bg-black text-white border-black" : "text-black hover:bg-black hover:text-white")}>
-                  <Code2 size={18} className="mr-2" /> System Code
                 </Button>
               )}
             </aside>
@@ -319,36 +277,6 @@ export default function SettingsPage() {
                 </Card>
               )}
 
-              {activeTab === 'Master' && isDevAccount && (
-                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden border-t-4 border-t-red-600">
-                    <CardHeader className="bg-red-50/50 border-b-2 border-black">
-                      <CardTitle className="text-black font-black uppercase text-sm flex items-center gap-2">
-                        <Skull className="text-red-600" size={18} /> Protocolo de Auditoria Global
-                      </CardTitle>
-                      <CardDescription className="text-black font-bold uppercase text-[10px]">Acesso irrestrito a todos os processos e notas do sistema.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-8">
-                       {!isMasterActive ? (
-                         <form onSubmit={handleUnlockMaster} className="space-y-4 max-w-sm mx-auto text-center">
-                            <Label className="text-black font-black uppercase text-[10px]">TOKEN DE AUTORIZAÇÃO MASTER</Label>
-                            <Input type="password" placeholder="DIGITE O TOKEN..." value={masterPasswordInput} onChange={(e) => setMasterPasswordInput(e.target.value)} className="border-2 border-black h-12 text-center font-black uppercase text-sm bg-white rounded-none focus-visible:ring-black" />
-                            <Button type="submit" className="w-full h-12 font-black bg-white text-black border-2 border-black uppercase text-xs rounded-none hover:bg-black hover:text-white transition-all shadow-[6px_6px_0px_#000] hover:shadow-none">Ativar Desbloqueio Geral</Button>
-                         </form>
-                       ) : (
-                         <div className="text-center space-y-6">
-                            <div className="p-6 bg-red-600 text-white rounded-none border-2 border-black shadow-lg">
-                               <p className="font-black uppercase text-xl animate-pulse">MODO GLOBAL ATIVADO</p>
-                               <p className="text-[10px] font-bold uppercase mt-2">Você está visualizando dados de todas as empresas do ecossistema.</p>
-                            </div>
-                            <Button onClick={handleLockMaster} className="bg-white text-black border-2 border-black font-black uppercase text-xs h-12 px-10 hover:bg-black hover:text-white transition-all rounded-none shadow-[6px_6px_0px_#000] hover:shadow-none">Revogar Privilégios Master</Button>
-                         </div>
-                       )}
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
               {activeTab === 'Users' && (
                 <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black flex flex-row items-center justify-between">
@@ -359,7 +287,7 @@ export default function SettingsPage() {
                     {isAdmin && (
                        <Dialog open={isAddUserModalOpen} onOpenChange={setIsAddUserModalOpen}>
                          <DialogTrigger asChild>
-                           <Button size="sm" className="bg-white text-black border-2 border-black h-9 uppercase text-[10px] font-black hover:bg-black hover:text-white transition-all rounded-none px-6">
+                           <Button size="sm" className="bg-white text-black border-2 border-black h-9 uppercase text-[10px] font-black hover:bg-black hover:text-white transition-all rounded-none px-6 shadow-[4px_4px_0px_#000] hover:shadow-none">
                               <UserPlus size={12} className="mr-2" /> Novo Operador
                            </Button>
                          </DialogTrigger>
@@ -367,7 +295,7 @@ export default function SettingsPage() {
                            <form onSubmit={handleCreateOperator}>
                              <DialogHeader>
                                <DialogTitle className="text-black font-black uppercase">Provisionar Colaborador</DialogTitle>
-                               <DialogDescription className="text-black/60 font-bold uppercase text-[10px]">Novo acesso vinculado ao seu Silo SaaS.</DialogDescription>
+                               <DialogDescription className="text-black/60 font-bold uppercase text-[10px]">Novo acesso DIRETO via Supabase Auth.</DialogDescription>
                              </DialogHeader>
                              <div className="grid gap-4 py-4">
                                <div className="grid gap-2">
@@ -398,7 +326,7 @@ export default function SettingsPage() {
                              </div>
                              <DialogFooter>
                                <Button type="submit" disabled={isAddingUser} className="w-full bg-black text-white font-black uppercase h-12 rounded-none hover:bg-white hover:text-black border-2 border-black transition-all">
-                                 {isAddingUser ? "Executando..." : "Criar Acesso"}
+                                 {isAddingUser ? "Provisionando..." : "Criar Conta Supabase"}
                                </Button>
                              </DialogFooter>
                            </form>
@@ -436,76 +364,68 @@ export default function SettingsPage() {
                 </Card>
               )}
 
-              {activeTab === 'Engine' && (
-                <div className="space-y-6">
-                  <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
-                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
+              {activeTab === 'Master' && isDevAccount && (
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden border-t-4 border-t-red-600">
+                    <CardHeader className="bg-red-50/50 border-b-2 border-black">
                       <CardTitle className="text-black font-black uppercase text-sm flex items-center gap-2">
-                        <Settings2 size={18} /> Núcleo de Processamento IA
+                        <Skull className="text-red-600" size={18} /> Auditoria Global Elite
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-6">
-                      <RadioGroup value={iaModel} onValueChange={v => handleIaChange(v as any)} className="grid gap-3">
-                        <IaOption id="gemini" value="gemini" title="Gemini 1.5 Flash" desc="Sincronia veloz para auditorias padrão." active={iaModel === 'gemini'} />
-                        <IaOption id="grok" value="grok" title="Grok (Llama 3.3)" desc="Raciocínio lógico para processos complexos." active={iaModel === 'grok'} />
-                        <IaOption id="openrouter" value="openrouter" title="Claude 3.5 Sonnet" desc="Precisão técnica máxima de gabinete." active={iaModel === 'openrouter'} />
-                      </RadioGroup>
+                    <CardContent className="p-8">
+                       {!isMasterActive ? (
+                         <form onSubmit={handleUnlockMaster} className="space-y-4 max-w-sm mx-auto text-center">
+                            <Label className="text-black font-black uppercase text-[10px]">TOKEN MASTER</Label>
+                            <Input type="password" placeholder="SENHA 40028922" value={masterPasswordInput} onChange={(e) => setMasterPasswordInput(e.target.value)} className="border-2 border-black h-12 text-center font-black uppercase text-sm bg-white rounded-none focus-visible:ring-black" />
+                            <Button type="submit" className="w-full h-12 font-black bg-white text-black border-2 border-black uppercase text-xs rounded-none hover:bg-black hover:text-white transition-all shadow-[6px_6px_0px_#000] hover:shadow-none">Liberar Todos os Dados</Button>
+                         </form>
+                       ) : (
+                         <div className="text-center space-y-6">
+                            <div className="p-6 bg-red-600 text-white rounded-none border-2 border-black shadow-lg">
+                               <p className="font-black uppercase text-xl animate-pulse">MODO GLOBAL ATIVADO</p>
+                            </div>
+                            <Button onClick={handleLockMaster} className="bg-white text-black border-2 border-black font-black uppercase text-xs h-12 px-10 hover:bg-black hover:text-white transition-all rounded-none shadow-[6px_6px_0px_#000] hover:shadow-none">Revogar Acesso Master</Button>
+                         </div>
+                       )}
                     </CardContent>
                   </Card>
                 </div>
+              )}
+
+              {activeTab === 'Engine' && (
+                <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
+                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
+                    <CardTitle className="text-black font-black uppercase text-sm flex items-center gap-2">
+                      <Settings2 size={18} /> Processamento IA
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <RadioGroup value={iaModel} onValueChange={v => handleIaChange(v as any)} className="grid gap-3">
+                      <IaOption id="gemini" value="gemini" title="Gemini 1.5 Flash" desc="Sincronia veloz para auditorias padrão." active={iaModel === 'gemini'} />
+                      <IaOption id="grok" value="grok" title="Grok (Llama 3.3)" desc="Raciocínio lógico para processos complexos." active={iaModel === 'grok'} />
+                      <IaOption id="openrouter" value="openrouter" title="Claude 3.5 Sonnet" desc="Precisão técnica máxima de gabinete." active={iaModel === 'openrouter'} />
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
               )}
 
               {activeTab === 'Style' && (
-                <div className="space-y-6">
-                  <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
-                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
-                      <CardTitle className="text-black font-black uppercase text-sm flex items-center gap-2">
-                        <Palette size={18} /> Identidade Visual do Gabinete
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-6">
-                      <div className="space-y-2">
-                        <Label className="font-black text-black text-xs uppercase">Cor Base do Ambiente</Label>
-                        <div className="flex gap-4 items-center">
-                          <input type="color" value={bgColor} onChange={handleBgColorChange} className="h-12 w-20 border-2 border-black cursor-pointer bg-white" />
-                          <Input value={bgColor} onChange={handleBgColorChange} className="font-mono border-2 border-black text-black font-black rounded-none h-12 focus-visible:ring-black uppercase" />
-                        </div>
+                <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
+                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
+                    <CardTitle className="text-black font-black uppercase text-sm flex items-center gap-2">
+                      <Palette size={18} /> Identidade Visual
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="space-y-2">
+                      <Label className="font-black text-black text-xs uppercase">Cor Base do Gabinete</Label>
+                      <div className="flex gap-4 items-center">
+                        <input type="color" value={bgColor} onChange={handleBgColorChange} className="h-12 w-20 border-2 border-black cursor-pointer bg-white" />
+                        <Input value={bgColor} readOnly className="font-mono border-2 border-black text-black font-black rounded-none h-12 uppercase" />
                       </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {activeTab === 'Code' && isAdmin && (
-                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  {!isCodeAuthorized ? (
-                    <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden border-t-2 border-t-red-600">
-                       <CardHeader className="bg-red-50/50 border-b-2 border-black">
-                        <CardTitle className="text-black font-black uppercase text-sm flex items-center gap-2">
-                          <ShieldAlert className="text-red-600" size={18} /> System Kernel Locked
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-8 text-center">
-                         <form onSubmit={handleUnlockCode} className="space-y-4 max-w-sm mx-auto">
-                            <Input type="password" placeholder="SENHA MESTRE..." value={codePasswordInput} onChange={(e) => setCodePasswordInput(e.target.value)} className="border-2 border-black h-12 text-center font-black uppercase text-sm bg-white rounded-none focus-visible:ring-black" />
-                            <Button type="submit" className="w-full h-12 font-black bg-red-600 text-white uppercase text-xs rounded-none hover:bg-black transition-all shadow-[6px_6px_0px_#000] hover:shadow-none">Desbloquear Kernel</Button>
-                         </form>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
-                      <CardHeader className="bg-[#f8f9fb] border-b-2 border-black flex flex-row items-center justify-between">
-                        <CardTitle className="text-black font-black uppercase text-sm">Veredito AI Kernel (v80.0)</CardTitle>
-                        <Button variant="outline" size="sm" onClick={() => setIsCodeAuthorized(false)} className="border-2 border-black text-black font-black uppercase text-[9px] h-8 rounded-none hover:bg-black hover:text-white transition-all">Bloquear Kernel</Button>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <ScrollArea className="h-[500px] w-full bg-[#f3f2f2]">
-                          <pre className="p-6 text-[11px] font-mono text-black leading-relaxed whitespace-pre-wrap">{VEREDITO_SOURCE_CODE}</pre>
-                        </ScrollArea>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </div>
           </div>

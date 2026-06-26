@@ -35,7 +35,6 @@ export default function SignupPage() {
     const cleanEmail = formData.email.trim().toLowerCase();
     const cleanAuthCode = formData.authCode.trim();
 
-    // 1. Validar Código de Provisionamento
     if (cleanAuthCode !== provisionCode) {
       toast({ 
         title: "Autorização Negada", 
@@ -48,18 +47,28 @@ export default function SignupPage() {
     }
 
     try {
-      // 2. Criar Empresa
-      const { data: empresaData, error: empresaError } = await supabase
+      // 1. Gerenciamento de Empresa (Check-then-Action)
+      const nomeEmpresa = formData.empresa.trim().toUpperCase();
+      let { data: existingEmpresa } = await supabase
         .from('empresas')
-        .upsert({ nome: formData.empresa.trim().toUpperCase() }, { onConflict: 'nome' })
-        .select()
-        .single();
+        .select('id')
+        .eq('nome', nomeEmpresa)
+        .maybeSingle();
 
-      if (empresaError) throw empresaError;
-      
-      const createdEmpresaId = empresaData.id;
+      let createdEmpresaId;
+      if (existingEmpresa) {
+        createdEmpresaId = existingEmpresa.id;
+      } else {
+        const { data: newEmpresa, error: insertEmpresaError } = await supabase
+          .from('empresas')
+          .insert({ nome: nomeEmpresa })
+          .select()
+          .single();
+        if (insertEmpresaError) throw insertEmpresaError;
+        createdEmpresaId = newEmpresa.id;
+      }
 
-      // 3. Cadastro Auth (Supabase)
+      // 2. Cadastro Auth Direto no Supabase
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: cleanEmail,
         password: formData.password,
@@ -69,25 +78,32 @@ export default function SignupPage() {
       if (authError) throw authError;
       if (!authData.user) throw new Error("Falha ao provisionar usuário no Auth.");
 
-      // 4. Upsert de Perfil Atômico
-      const { error: profileError } = await supabase
+      // 3. Criação de Perfil de Gabinete (Atômica)
+      const { data: existingProfile } = await supabase
         .from('usuarios')
-        .upsert({
-          auth_user_id: authData.user.id,
-          empresa_id: createdEmpresaId,
-          nome: formData.nome.trim().toUpperCase(),
-          email: cleanEmail,
-          cargo: 'Administrador'
-        }, { onConflict: 'auth_user_id' });
+        .select('id')
+        .eq('auth_user_id', authData.user.id)
+        .maybeSingle();
 
-      if (profileError) throw profileError;
+      const profilePayload = {
+        auth_user_id: authData.user.id,
+        empresa_id: createdEmpresaId,
+        nome: formData.nome.trim().toUpperCase(),
+        email: cleanEmail,
+        cargo: 'Administrador'
+      };
+
+      if (existingProfile) {
+        await supabase.from('usuarios').update(profilePayload).eq('id', existingProfile.id);
+      } else {
+        await supabase.from('usuarios').insert(profilePayload);
+      }
       
       toast({ 
         title: "Instância Ativada", 
         description: `Ambiente provisionado com sucesso para ${cleanEmail}.`,
       });
 
-      // Redirecionamento instantâneo para login ou dashboard
       router.push('/');
       router.refresh();
 
@@ -186,7 +202,7 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full h-11 bg-white text-black border-2 border-black font-black uppercase text-[10px] hover:bg-black hover:text-white transition-all rounded-none mt-4">
+              <Button type="submit" disabled={loading} className="w-full h-11 bg-white text-black border-2 border-black font-black uppercase text-[10px] hover:bg-black hover:text-white transition-all rounded-none mt-4 shadow-[4px_4px_0px_#000] hover:shadow-none">
                 {loading ? "Processando..." : "Finalizar e Ativar Instância"}
               </Button>
             </form>
