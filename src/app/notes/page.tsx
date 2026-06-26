@@ -1,9 +1,8 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw, Loader2 } from 'lucide-react';
+import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw, Loader2, Image as ImageIcon, X } from 'lucide-react';
 import { CaseNote } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,13 +12,16 @@ import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/use-admin';
 import { fetchRepoNotes, syncRepoNotes } from '@/app/actions/case-actions';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 export default function NotesPage() {
   const [notes, setNotes] = useState<CaseNote[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const hasLoaded = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { isAdmin } = useAdmin();
   const { toast } = useToast();
 
@@ -46,6 +48,17 @@ export default function NotesPage() {
     loadData();
   }, [loadData]);
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAddNote = async () => {
     if (!isAdmin || isSaving) return;
     
@@ -60,6 +73,7 @@ export default function NotesPage() {
       id: crypto.randomUUID(),
       title: newNote.title.trim() || 'Atualização sem Título',
       content: newNote.content.trim(),
+      imageUrl: imagePreview || undefined,
       color: 'bg-sidebar/40',
       updatedAt: new Date().toLocaleString('pt-BR')
     };
@@ -71,6 +85,7 @@ export default function NotesPage() {
       if (result.success) {
         setNotes(updatedList);
         setNewNote({ title: '', content: '' });
+        setImagePreview(null);
         toast({ title: "Atualização Salva", description: "Nota sincronizada com a nuvem W1 Capital." });
       } else {
         toast({ title: "Erro de Sincronização", description: "Falha ao salvar na nuvem.", variant: "destructive" });
@@ -122,7 +137,7 @@ export default function NotesPage() {
       toast({ title: "Erro Crítico", description: "Falha na comunicação com o servidor.", variant: "destructive" });
     } finally {
       setIsSaving(false);
-      loadData(true); // Força recarga para garantir sincronia visual
+      loadData(true);
     }
   };
 
@@ -190,7 +205,38 @@ export default function NotesPage() {
                 className="bg-transparent border-none text-sm placeholder:text-muted-foreground focus-visible:ring-0 px-0 min-h-[60px] resize-none text-white"
                 disabled={isSaving}
               />
-              <div className="flex justify-end pt-2">
+              
+              {imagePreview && (
+                <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-border">
+                  <Image src={imagePreview} alt="Preview" fill className="object-cover" />
+                  <button 
+                    onClick={() => setImagePreview(null)}
+                    className="absolute top-1 right-1 bg-black/60 rounded-full p-1 hover:bg-black"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center pt-2">
+                <div className="flex gap-2">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    ref={fileInputRef} 
+                    onChange={handleImageUpload} 
+                  />
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-muted-foreground hover:text-primary"
+                    disabled={isSaving}
+                  >
+                    <ImageIcon size={18} />
+                  </Button>
+                </div>
                 <Button 
                   size="sm" 
                   onClick={handleAddNote} 
@@ -207,7 +253,7 @@ export default function NotesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-8">
             {filteredNotes.length > 0 ? filteredNotes.map((note) => (
               <div key={note.id} className={cn(
-                "p-5 rounded-xl border border-border transition-all hover:shadow-lg group relative bg-sidebar/40"
+                "p-5 rounded-xl border border-border transition-all hover:shadow-lg group relative bg-sidebar/40 flex flex-col h-full"
               )}>
                 {isAdmin && (
                   <Button 
@@ -220,8 +266,16 @@ export default function NotesPage() {
                     <Trash2 size={14} />
                   </Button>
                 )}
+                
+                {note.imageUrl && (
+                  <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden border border-border/50">
+                    <Image src={note.imageUrl} alt="Note Attachment" fill className="object-cover" />
+                  </div>
+                )}
+
                 <h3 className="font-bold text-sm mb-2 text-white">{note.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{note.content}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap flex-1">{note.content}</p>
+                
                 <div className="mt-4 pt-4 border-t border-border/30 flex justify-between items-center">
                   <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">{note.updatedAt}</span>
                   <StickyNote size={12} className="text-muted-foreground/30" />

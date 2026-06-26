@@ -23,6 +23,7 @@ export type CaseNote = {
   id: string;
   title: string;
   content: string;
+  imageUrl?: string;
   color: string;
   updatedAt: string;
 };
@@ -109,7 +110,6 @@ export function processarCaso(linha: Record<string, string>): LegalCase {
     tribunal = linha.TRIBUNAL;
   }
 
-  // FIXED: Use Protocol as ID to prevent duplicates (180 processes issue)
   const finalId = cnjLimpo || linha.PROTOCOLO || `AUTO-${Math.random().toString(36).substr(2, 9)}`;
 
   return {

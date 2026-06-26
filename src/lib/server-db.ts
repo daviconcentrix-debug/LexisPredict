@@ -1,4 +1,3 @@
-
 import { supabase, isSupabaseConfigured } from './supabase';
 import { LegalCase, CaseNote } from './case-logic';
 
@@ -28,7 +27,7 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
   if (!isSupabaseConfigured) return { success: false, message: "Supabase não configurado." };
   try {
     // Purga atômica para sincronização total
-    await supabase.from('processos').delete().filter('id', 'neq', 0);
+    await supabase.from('processos').delete().neq('id', 0);
     
     if (cases.length > 0) {
       const payload = cases.map(c => ({ dados: c }));
@@ -56,13 +55,28 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
 
     if (error) throw error;
     
-    return data ? data.map(item => ({
-      id: item.id.toString(),
-      title: item.title || 'Sem Título',
-      content: item.content || '',
-      color: 'bg-sidebar/40',
-      updatedAt: new Date(item.created_at).toLocaleString('pt-BR')
-    })) : [];
+    return data ? data.map(item => {
+      // Tenta extrair metadados multimídia se houver JSON no content
+      let imageUrl;
+      let displayContent = item.content || '';
+      
+      try {
+        if (displayContent.startsWith('{')) {
+          const parsed = JSON.parse(displayContent);
+          displayContent = parsed.text;
+          imageUrl = parsed.imageUrl;
+        }
+      } catch (e) {}
+
+      return {
+        id: item.id.toString(),
+        title: item.title || 'Sem Título',
+        content: displayContent,
+        imageUrl: imageUrl,
+        color: 'bg-sidebar/40',
+        updatedAt: new Date(item.created_at).toLocaleString('pt-BR')
+      };
+    }) : [];
   } catch (error) {
     console.error('Supabase fetch notes error:', error);
     return [];
@@ -83,15 +97,14 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
       return { success: false };
     }
     
-    // Se o objetivo for apenas limpar
     if (!notes || notes.length === 0) {
       return { success: true };
     }
 
-    // Reinserção dos dados atuais
+    // Reinserção dos dados atuais (Empacotando imagem no content se não houver coluna)
     const dbNotes = notes.map(n => ({
       title: n.title || 'Sem Título',
-      content: n.content || ''
+      content: n.imageUrl ? JSON.stringify({ text: n.content, imageUrl: n.imageUrl }) : n.content
     }));
     
     const { error: insertError } = await supabase.from('notes').insert(dbNotes);
