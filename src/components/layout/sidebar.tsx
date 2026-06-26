@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
@@ -30,6 +30,31 @@ export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = React.useState(false);
   const { isAdmin } = useAdmin();
+
+  // Engine de Personalização de Fundo Dinâmico
+  useEffect(() => {
+    const applyAppearance = () => {
+      const color = localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2';
+      const wp = localStorage.getItem('lexisPredict_wallpaper');
+      const main = document.querySelector('main');
+      if (main) {
+        main.style.backgroundColor = color;
+        if (wp) {
+          main.style.backgroundImage = `url(${wp})`;
+          main.style.backgroundSize = 'cover';
+          main.style.backgroundPosition = 'center';
+          main.style.backgroundAttachment = 'fixed';
+          main.style.backgroundBlendMode = 'overlay'; // Mistura a cor com a imagem
+        } else {
+          main.style.backgroundImage = 'none';
+        }
+      }
+    };
+
+    applyAppearance();
+    window.addEventListener('storage', applyAppearance);
+    return () => window.removeEventListener('storage', applyAppearance);
+  }, []);
 
   const primaryNav = [
     { label: 'Painel de Controle', href: '/', icon: LayoutDashboard },
@@ -102,16 +127,16 @@ export function Sidebar() {
 
       <div className="p-2 border-t border-[#dddbda] bg-[#f8f9fb]">
         <div className={cn(
-          "flex items-center p-2 rounded-md transition-all group",
+          "flex items-center p-2 rounded-sm transition-all group",
           !collapsed ? "gap-3 bg-white border border-black shadow-sm hover:bg-black hover:text-white" : "justify-center"
         )}>
-          <div className="w-8 h-8 rounded bg-black text-white flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-white group-hover:text-black transition-colors">
+          <div className="w-8 h-8 rounded-sm bg-black text-white flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-white group-hover:text-black transition-colors">
             DA
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-[11px] font-black text-black group-hover:text-white transition-colors truncate uppercase">Davi Alves Figueredo</span>
-              <span className="text-[9px] text-black/60 group-hover:text-white/60 transition-colors font-black uppercase truncate italic">Fundador & Gestor</span>
+              <span className="text-[9px] text-black/60 text-muted-foreground transition-colors font-black uppercase truncate italic">Fundador & Gestor</span>
             </div>
           )}
         </div>
@@ -152,10 +177,10 @@ function NavLink({ item, collapsed, active }: { item: any, collapsed: boolean, a
     <Link 
       href={item.href}
       className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative",
+        "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative border border-transparent",
         active 
-          ? "bg-black text-white" 
-          : "text-black hover:bg-black hover:text-white"
+          ? "bg-black text-white border-black" 
+          : "text-black hover:bg-black hover:text-white hover:border-black"
       )}
     >
       <div className="icon-3d-wrapper shrink-0 scale-75">
@@ -163,7 +188,7 @@ function NavLink({ item, collapsed, active }: { item: any, collapsed: boolean, a
           <item.icon className={cn("w-4 h-4", active ? "text-black" : "text-black group-hover:text-black")} />
         </div>
       </div>
-      {!collapsed && <span className="font-black text-[13px] tracking-tight truncate uppercase transition-colors">{item.label}</span>}
+      {!collapsed && <span className="font-black text-[12px] tracking-tight truncate uppercase transition-colors">{item.label}</span>}
     </Link>
   );
 }

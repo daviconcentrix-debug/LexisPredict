@@ -1,6 +1,7 @@
+
 'use server';
 /**
- * @fileOverview Motor de Inteligência Jurídica v26.0 ELITE - CRM Get Assessoria
+ * @fileOverview Motor de Inteligência Jurídica v26.0 ELITE - CRM W1 Capital
  * Script Estratégico W1 Capital + Integração DataJud Direta + Normalização de Schema v2.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
@@ -13,7 +14,7 @@ const VereditoOutputSchema = z.object({
   resumoTecnico: z.string().describe('Status Atual + O que aconteceu (Equipe).'),
   analiseRisco: z.string().describe('Alertas e Próximos Passos (Equipe) - Explicação do impacto.'),
   proximosPassos: z.string().describe('Ações Práticas Adicionais e Estratégia.'),
-  mensagemCliente: z.string().describe('Mensagem pronta para WhatsApp (Leigo) no padrão Get Assessoria.'),
+  mensagemCliente: z.string().describe('Mensagem pronta para WhatsApp (Leigo) no padrão corporativo.'),
   historicoMovimentacoes: z.array(z.object({
     data: z.string(),
     movimento: z.string()
@@ -24,7 +25,7 @@ const VereditoOutputSchema = z.object({
 
 export type VereditoOutput = z.infer<typeof VereditoOutputSchema>;
 
-const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI v26.0 Elite, o assistente jurídico sênior mais avançado da Get Assessoria (W1 Capital).
+const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI v26.0 Elite, o assistente jurídico sênior mais avançado da W1 Capital.
 Sua missão é analisar os DADOS REAIS do tribunal (DataJud) e gerar um relatório estratégico e humano.
 
 REGRAS DE OURO PARA GERAÇÃO:
@@ -163,7 +164,7 @@ export const vereditoAIFlow = ai.defineFlow(
         engine = 'GEMINI 1.5 FLASH';
       }
 
-      if (!result) throw new Error("O motor de IA falhou em processar os dados.");
+      if (!result) throw new Error("O motor de análise falhou em processar os dados.");
 
       return {
         ...result,

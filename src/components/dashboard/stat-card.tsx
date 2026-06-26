@@ -12,14 +12,14 @@ interface StatCardProps {
 }
 
 export function StatCard({ title, value, icon, trend, trendUp, color = 'primary' }: StatCardProps) {
-  const colorMap = {
+  const borderMap = {
     primary: "border-l-black",
     accent: "border-l-black",
     destructive: "border-l-red-600",
     success: "border-l-green-600",
   };
 
-  const textMap = {
+  const iconTextMap = {
     primary: "text-black",
     accent: "text-black",
     destructive: "text-red-600",
@@ -28,15 +28,15 @@ export function StatCard({ title, value, icon, trend, trendUp, color = 'primary'
 
   return (
     <div className={cn(
-      "bg-white border border-[#dddbda] border-l-4 p-5 rounded-sm relative overflow-hidden transition-all hover:shadow-lg hover:bg-black group",
-      colorMap[color]
+      "bg-white border border-[#dddbda] border-l-4 p-5 rounded-sm relative overflow-hidden transition-all hover:shadow-lg hover:bg-black group cursor-default",
+      borderMap[color]
     )}>
       <div className="relative z-10 flex flex-col gap-1">
         <div className="flex justify-between items-start">
           <p className="text-black/60 text-[10px] font-black uppercase tracking-[0.1em] group-hover:text-white/60 transition-colors">{title}</p>
           <div className="icon-3d-wrapper">
-             <div className="icon-3d-block w-8 h-8 rounded-sm group-hover:bg-white transition-colors">
-                <div className={cn("transition-colors", textMap[color], "group-hover:text-black")}>
+             <div className="icon-3d-block w-8 h-8 rounded-sm group-hover:bg-white transition-colors border-none shadow-sm">
+                <div className={cn("transition-colors", iconTextMap[color], "group-hover:text-black")}>
                   {icon}
                 </div>
              </div>

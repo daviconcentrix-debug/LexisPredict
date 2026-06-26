@@ -9,13 +9,11 @@ import {
   Bot, 
   User, 
   Copyright,
-  Clock,
-  MoreHorizontal,
   RefreshCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { perguntarIA } from '@/ai/flows/chat-ai-flow';
@@ -78,7 +76,7 @@ export default function ChatPage() {
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-16 bg-[#f8f9fb] border-b border-[#dddbda] px-6 flex items-center justify-between shrink-0 z-40">
+        <header className="h-16 bg-white border-b border-[#dddbda] px-6 flex items-center justify-between shrink-0 z-40">
           <div className="flex items-center gap-4">
             <div className="icon-3d-wrapper">
               <div className="icon-3d-block black w-10 h-10 rounded-sm">
@@ -86,7 +84,7 @@ export default function ChatPage() {
               </div>
             </div>
             <div>
-              <h1 className="text-lg font-black text-black uppercase tracking-tight">Consultoria de Gabinete</h1>
+              <h1 className="text-lg font-black text-black uppercase tracking-tight hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Consultoria de Gabinete</h1>
               <p className="text-[10px] font-black text-black/60 uppercase tracking-widest">Suporte Técnico Avançado</p>
             </div>
           </div>
@@ -105,11 +103,13 @@ export default function ChatPage() {
             <ScrollArea className="flex-1 p-6 bg-[#f3f2f2]" ref={scrollRef}>
               <div className="space-y-6">
                 {chatMessages.length === 0 && (
-                  <div className="py-20 text-center space-y-4">
-                    <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center mx-auto border-2 border-white shadow-xl">
-                      <Bot className="text-white" size={32} />
+                  <div className="py-20 text-center space-y-4 group cursor-default">
+                    <div className="icon-3d-wrapper w-fit mx-auto">
+                      <div className="icon-3d-block black w-16 h-16 rounded-sm">
+                        <Bot className="text-white" size={32} />
+                      </div>
                     </div>
-                    <h2 className="text-xl font-black text-black uppercase tracking-tighter">Como posso auxiliar sua análise técnica hoje?</h2>
+                    <h2 className="text-xl font-black text-black uppercase tracking-tighter hover:bg-black hover:text-white px-4 py-1 transition-all rounded-sm inline-block">Como posso auxiliar sua análise técnica hoje?</h2>
                     <p className="text-xs text-black/60 font-black uppercase max-w-sm mx-auto">Inicie uma conversa para extrair insights estratégicos ou resolver dúvidas procedurais.</p>
                   </div>
                 )}
@@ -161,7 +161,7 @@ export default function ChatPage() {
           </Card>
         </div>
 
-        <footer className="h-10 border-t border-black bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 hover:text-black transition-colors cursor-default">
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 hover:text-black transition-colors cursor-default">
           <div className="flex items-center gap-2">
             <Copyright size={10} /> 2026 W1 Capital. Todos os direitos reservados.
           </div>

@@ -13,7 +13,8 @@ import {
   Edit2,
   CheckCircle,
   Clock,
-  Lock
+  Lock,
+  Copyright
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -203,6 +204,10 @@ function CasesContent() {
                           <Input id="deadline" placeholder="30/12/2026" value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="border-black text-black" />
                         </div>
                       </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="return" className="font-black">ÚLTIMO RETORNO (DD/MM/AAAA)</Label>
+                        <Input id="return" placeholder="01/01/2026" value={formState.ultimoRetorno} onChange={(e) => setFormState({...formState, ultimoRetorno: e.target.value})} className="border-black text-black" />
+                      </div>
                     </div>
                     <DialogFooter>
                       <Button type="submit" className="w-full font-black text-white bg-black hover:bg-gray-800 uppercase">Sincronizar Dados</Button>
@@ -280,6 +285,7 @@ function CasesContent() {
                           {isAdmin && (
                             <>
                               <Button 
+                                title="Registrar Retorno Hoje"
                                 variant="ghost" 
                                 size="icon" 
                                 onClick={() => handleLogReturn(c.protocolo)} 
@@ -287,18 +293,18 @@ function CasesContent() {
                               >
                                 <CheckCircle size={16} />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleEditClick(c)} className="text-black group-hover:text-white hover:bg-black">
+                              <Button title="Editar Registro" variant="ghost" size="icon" onClick={() => handleEditClick(c)} className="text-black group-hover:text-white hover:bg-black">
                                 <Edit2 size={16} />
                               </Button>
                             </>
                           )}
-                          <Button variant="ghost" size="icon" asChild className="text-black group-hover:text-white hover:bg-black">
+                          <Button title="Consultar no Tribunal" variant="ghost" size="icon" asChild className="text-black group-hover:text-white hover:bg-black">
                             <a href={c.linkConsulta} target="_blank" rel="noopener noreferrer">
                               <ExternalLink size={16} />
                             </a>
                           </Button>
                           {isAdmin && (
-                            <Button variant="ghost" size="icon" onClick={() => deleteCase(c.id)} className="text-black group-hover:text-red-500 hover:bg-black">
+                            <Button title="Excluir Registro" variant="ghost" size="icon" onClick={() => deleteCase(c.id)} className="text-black group-hover:text-red-500 hover:bg-black">
                               <Trash2 size={16} />
                             </Button>
                           )}
@@ -323,6 +329,14 @@ function CasesContent() {
             </div>
           </div>
         </div>
+
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] shrink-0">
+          <div className="flex items-center gap-2">
+            <Copyright size={10} /> 2026 W1 Capital
+          </div>
+          <span className="w-1 h-1 bg-muted-foreground rounded-full opacity-30" />
+          <span className="text-black">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
+        </footer>
       </main>
     </div>
   );

@@ -1,6 +1,7 @@
+
 'use server';
 /**
- * @fileOverview Motor de Chat Consultivo LexisPredict v2.0 Elite
+ * @fileOverview Motor de Consultoria Estratégica LexisPredict v2.0 Elite
  * Memória de Contexto Ativa + Suporte a Respostas Longas.
  * Claude 3.5 Sonnet | Grok (Llama 3.3) | Gemini 1.5 Flash
  */
@@ -19,19 +20,19 @@ const ChatInputSchema = z.object({
 });
 
 const ChatOutputSchema = z.object({
-  resposta: z.string().describe('A resposta estratégica completa da IA.'),
+  resposta: z.string().describe('A resposta estratégica completa.'),
   engineUtilizada: z.string().optional()
 });
 
-const SYSTEM_PROMPT = `Você é o Consultor Jurídico Sênior de Elite da W1 Capital e Get Assessoria.
-Sua missão é fornecer orientações estratégicas, técnicas e resolutivas sobre processos judiciais.
+const SYSTEM_PROMPT = `Você é o Consultor Estratégico Sênior de Elite da W1 Capital.
+Sua missão é fornecer orientações técnicas e resolutivas sobre processos judiciais.
 
 DIRETRIZES DE OURO:
 1. MEMÓRIA: Utilize as mensagens anteriores para manter a continuidade do raciocínio.
 2. COMPLETUDE: Nunca corte a resposta pela metade. Entregue a análise completa, mesmo que seja extensa.
-3. TOM: Profissional, assertivo e focado em proteger o cliente e acelerar o processo.
+3. TOM: Profissional, assertivo e focado em proteger a operação e acelerar os resultados.
 4. FORMATO: Responda de forma estratégica, identificando riscos e brechas.
-5. ASSINATURA: Finalize sempre com "Setor Processual — Get Assessoria".
+5. ASSINATURA: Finalize sempre com "Gabinete Técnico — W1 Capital".
 
 RESTRIÇÃO TÉCNICA: Retorne estritamente um JSON plano: { "resposta": "todo_o_texto_aqui" }.
 O campo "resposta" deve conter apenas uma string de texto formatado (use \n para quebras de linha).`;
@@ -161,7 +162,7 @@ export const chatAIFlow = ai.defineFlow(
       return { resposta: result.resposta, engineUtilizada: engine };
     } catch (e: any) { 
       if (e.message.includes('RATE_LIMIT')) throw e;
-      throw new Error(e.message || "Erro no processamento do Chat.");
+      throw new Error(e.message || "Erro no processamento do Diálogo.");
     }
   }
 );

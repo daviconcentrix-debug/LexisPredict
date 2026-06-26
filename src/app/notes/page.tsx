@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw, Loader2, Image as ImageIcon, X, Maximize2 } from 'lucide-react';
+import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw, Loader2, Image as ImageIcon, X, Maximize2, Copyright } from 'lucide-react';
 import { CaseNote } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -157,38 +157,26 @@ export default function NotesPage() {
   }, [notes, search]);
 
   return (
-    <div className="flex h-screen bg-background font-body relative overflow-hidden">
-      {/* Dynamic Crystal Wallpaper Background */}
-      {fullscreenImage && (
-        <div 
-          className="absolute inset-0 z-0 opacity-20 pointer-events-none transition-all duration-1000 blur-3xl scale-110"
-          style={{ 
-            backgroundImage: `url(${fullscreenImage})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center'
-          }}
-        />
-      )}
-      
+    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden text-white relative z-10">
-        <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden text-black relative z-10">
+        <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
-            <h1 className="font-headline font-bold text-xl text-white">Notas & Atualizações</h1>
+            <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Evidências & Notas</h1>
             {!isAdmin && (
-              <Badge variant="secondary" className="bg-secondary/50 text-[10px] text-muted-foreground uppercase flex items-center gap-1.5">
-                <Lock size={10} /> Visitor Mode
+              <Badge variant="secondary" className="bg-[#e2e2e2] text-[10px] text-black font-black uppercase flex items-center gap-1.5 border border-black">
+                <Lock size={10} /> MODO VISITANTE
               </Badge>
             )}
           </div>
           <div className="flex items-center gap-3">
             <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
               <Input 
                 placeholder="Filtrar anotações..." 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 h-9 bg-secondary border-none text-xs rounded-full focus-visible:ring-primary text-white"
+                className="pl-10 h-9 bg-white border-black text-xs rounded-full focus-visible:ring-black text-black"
               />
             </div>
             {isAdmin && (
@@ -197,12 +185,12 @@ export default function NotesPage() {
                 size="sm" 
                 onClick={handleClearAll} 
                 disabled={isSaving}
-                className="h-9 font-bold text-white px-4 border-none shadow-lg shadow-destructive/20"
+                className="h-9 font-black text-white px-4 uppercase text-xs"
               >
                 <Trash2 className="w-4 h-4 mr-2" /> {isSaving ? "Sincronizando..." : "Limpar Tudo"}
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={() => loadData(true)} className="text-muted-foreground hover:text-white">
+            <Button variant="ghost" size="icon" onClick={() => loadData(true)} className="text-black hover:bg-black hover:text-white">
               <RefreshCcw className={cn("w-4 h-4", loading && "animate-spin")} />
             </Button>
           </div>
@@ -210,28 +198,28 @@ export default function NotesPage() {
 
         <div className="flex-1 overflow-auto p-8 space-y-8">
           {isAdmin && (
-            <section className="max-w-xl mx-auto bg-card/60 backdrop-blur-xl border border-border p-4 rounded-2xl shadow-2xl space-y-3">
+            <section className="max-w-xl mx-auto bg-white border border-black p-6 rounded-sm shadow-xl space-y-4">
               <Input 
-                placeholder="Título da Anotação (Opcional)" 
+                placeholder="TÍTULO DA ANOTAÇÃO (OPCIONAL)" 
                 value={newNote.title}
                 onChange={(e) => setNewNote({...newNote, title: e.target.value})}
-                className="bg-transparent border-none text-sm font-bold placeholder:text-muted-foreground focus-visible:ring-0 px-0 text-white"
+                className="bg-transparent border-none text-sm font-black placeholder:text-black/30 focus-visible:ring-0 px-0 text-black uppercase"
                 disabled={isSaving}
               />
               <Textarea 
-                placeholder="Escreva aqui a atualização estratégica..." 
+                placeholder="ESCREVA AQUI A ATUALIZAÇÃO ESTRATÉGICA..." 
                 value={newNote.content}
                 onChange={(e) => setNewNote({...newNote, content: e.target.value})}
-                className="bg-transparent border-none text-sm placeholder:text-muted-foreground focus-visible:ring-0 px-0 min-h-[60px] resize-none text-white"
+                className="bg-transparent border-none text-sm placeholder:text-black/30 focus-visible:ring-0 px-0 min-h-[80px] resize-none text-black font-black uppercase"
                 disabled={isSaving}
               />
               
               {imagePreview && (
-                <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-border">
+                <div className="relative w-32 h-32 rounded-sm overflow-hidden border border-black group">
                   <Image src={imagePreview} alt="Preview" fill className="object-cover" />
                   <button 
                     onClick={() => setImagePreview(null)}
-                    className="absolute top-1 right-1 bg-black/60 rounded-full p-1 hover:bg-black"
+                    className="absolute top-1 right-1 bg-black text-white rounded-full p-1 hover:bg-red-600 transition-colors"
                   >
                     <X size={12} />
                   </button>
@@ -251,7 +239,7 @@ export default function NotesPage() {
                     variant="ghost" 
                     size="icon" 
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-muted-foreground hover:text-primary"
+                    className="text-black hover:bg-black hover:text-white border border-black"
                     disabled={isSaving}
                   >
                     <ImageIcon size={18} />
@@ -261,7 +249,7 @@ export default function NotesPage() {
                   size="sm" 
                   onClick={handleAddNote} 
                   disabled={isSaving || !newNote.content.trim()}
-                  className="h-8 font-bold text-white px-6"
+                  className="h-9 font-black text-white bg-black hover:bg-gray-800 px-8 uppercase text-xs"
                 >
                   {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Plus className="w-3.5 h-3.5 mr-2" />}
                   {isSaving ? "Sincronizando..." : "Salvar Nota"}
@@ -270,10 +258,10 @@ export default function NotesPage() {
             </section>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-12">
             {filteredNotes.length > 0 ? filteredNotes.map((note) => (
               <div key={note.id} className={cn(
-                "p-5 rounded-xl border border-border/50 transition-all hover:shadow-lg group relative bg-card/40 backdrop-blur-md flex flex-col h-full hover:border-primary/50"
+                "p-5 bg-white border border-[#dddbda] rounded-sm transition-all hover:bg-black hover:border-black group relative flex flex-col h-full cursor-default"
               )}>
                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                    {note.imageUrl && (
@@ -281,8 +269,7 @@ export default function NotesPage() {
                       variant="ghost" 
                       size="icon" 
                       onClick={() => setFullscreenImage(note.imageUrl!)}
-                      className="h-7 w-7 bg-black/20 backdrop-blur hover:bg-primary text-white border-none"
-                      title="Visualizar em Tela Cheia"
+                      className="h-7 w-7 bg-white text-black hover:bg-white/90 border-none"
                     >
                       <Maximize2 size={14} />
                     </Button>
@@ -293,7 +280,7 @@ export default function NotesPage() {
                       size="icon" 
                       onClick={() => handleDeleteNote(note.id)}
                       disabled={isSaving}
-                      className="h-7 w-7 bg-black/20 backdrop-blur hover:bg-destructive text-white border-none"
+                      className="h-7 w-7 bg-white text-black hover:bg-red-600 hover:text-white border-none"
                     >
                       <Trash2 size={14} />
                     </Button>
@@ -301,52 +288,52 @@ export default function NotesPage() {
                 </div>
                 
                 {note.imageUrl && (
-                  <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden border border-border/50 cursor-pointer" onClick={() => setFullscreenImage(note.imageUrl!)}>
+                  <div className="relative w-full h-40 mb-4 rounded-sm overflow-hidden border border-[#dddbda] group-hover:border-white/20 transition-all cursor-pointer" onClick={() => setFullscreenImage(note.imageUrl!)}>
                     <Image src={note.imageUrl} alt="Note Attachment" fill className="object-cover transition-transform duration-500 group-hover:scale-105" unoptimized />
                   </div>
                 )}
 
-                <h3 className="font-bold text-sm mb-2 text-white">{note.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap flex-1">{note.content}</p>
+                <h3 className="font-black text-sm mb-2 text-black group-hover:text-white uppercase transition-colors">{note.title}</h3>
+                <p className="text-xs text-black/60 group-hover:text-white/80 leading-relaxed font-black uppercase whitespace-pre-wrap flex-1 transition-colors">{note.content}</p>
                 
-                <div className="mt-4 pt-4 border-t border-border/30 flex justify-between items-center">
-                  <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">{note.updatedAt}</span>
-                  <StickyNote size={12} className="text-muted-foreground/30" />
+                <div className="mt-4 pt-4 border-t border-[#dddbda] group-hover:border-white/20 flex justify-between items-center transition-all">
+                  <span className="text-[10px] text-black/40 group-hover:text-white/40 font-black uppercase tracking-tighter">{note.updatedAt}</span>
+                  <StickyNote size={12} className="text-black/20 group-hover:text-white/20" />
                 </div>
               </div>
             )) : (
-              <div className="col-span-full py-20 text-center border-2 border-dashed border-border rounded-2xl opacity-40 bg-card/20 backdrop-blur-sm">
-                <p className="text-sm font-medium text-white">{loading ? "Carregando inteligência cloud..." : "Nenhuma anotação estratégica encontrada."}</p>
+              <div className="col-span-full py-20 text-center border-2 border-dashed border-[#dddbda] rounded-sm opacity-40">
+                <p className="text-sm font-black text-black uppercase">{loading ? "Carregando inteligência cloud..." : "Nenhuma anotação estratégica encontrada."}</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Modal para Visualização em Tela Cheia com Upscaler Visual */}
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 hover:text-black transition-colors cursor-default">
+          <div className="flex items-center gap-2">
+            <Copyright size={10} /> 2026 W1 Capital. Todos os direitos reservados.
+          </div>
+          <span className="w-1 h-1 bg-black rounded-full opacity-30" />
+          <span className="text-black uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
+        </footer>
+
         <Dialog open={!!fullscreenImage} onOpenChange={(open) => !open && setFullscreenImage(null)}>
           <DialogContent className="max-w-[95vw] w-full h-[95vh] p-0 bg-black/95 border-none overflow-hidden flex flex-col items-center justify-center">
             <DialogHeader className="sr-only">
-              <DialogTitle>Visualização de Imagem Ouro</DialogTitle>
+              <DialogTitle>Visualização de Evidência</DialogTitle>
             </DialogHeader>
             {fullscreenImage && (
-              <div className="relative w-full h-full flex items-center justify-center p-0 md:p-8">
-                {/* O contêiner relativo deve ter dimensões explícitas para o Next.js Image fill funcionar */}
-                <div className="relative w-full h-full flex items-center justify-center">
-                   <img 
-                      src={fullscreenImage} 
-                      alt="Visualização Fullscreen" 
-                      className="max-w-full max-h-full object-contain shadow-2xl transition-all duration-300"
-                      style={{ 
-                        filter: 'contrast(1.1) brightness(1.05) saturate(1.1)',
-                        imageRendering: 'auto'
-                      }}
-                    />
-                </div>
+              <div className="relative w-full h-full flex items-center justify-center">
+                <img 
+                  src={fullscreenImage} 
+                  alt="Visualização Fullscreen" 
+                  className="max-w-full max-h-full object-contain shadow-2xl"
+                />
                 <Button 
                   variant="ghost" 
                   size="icon" 
                   onClick={() => setFullscreenImage(null)}
-                  className="absolute top-6 right-6 text-white bg-black/40 backdrop-blur-xl hover:bg-primary rounded-full h-12 w-12 z-50 transition-all border border-white/10"
+                  className="absolute top-6 right-6 text-white bg-black/40 hover:bg-black rounded-full h-12 w-12 z-50 border border-white/10"
                 >
                   <X size={28} />
                 </Button>

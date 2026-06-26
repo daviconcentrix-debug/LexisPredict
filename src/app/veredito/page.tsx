@@ -132,7 +132,7 @@ export default function VereditoPage() {
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-auto bg-[#f8f9fb] border-b border-[#dddbda] px-6 py-4 shrink-0 z-40">
+        <header className="h-auto bg-white border-b border-[#dddbda] px-6 py-4 shrink-0 z-40">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-6">
               <div className="icon-3d-wrapper">
@@ -141,7 +141,7 @@ export default function VereditoPage() {
                 </div>
               </div>
               <div className="group hover:bg-black p-2 transition-all rounded-sm cursor-default">
-                <p className="text-[11px] font-black text-black/60 group-hover:text-white/60 uppercase tracking-widest">Auditoria 3D Pro</p>
+                <p className="text-[11px] font-black text-black/60 group-hover:text-white/60 uppercase tracking-widest transition-colors">Auditoria 3D Pro</p>
                 <h1 className="text-xl font-black text-black group-hover:text-white tracking-tight uppercase transition-colors">
                   {result ? `Processo ${result.dataJudRaw?.numeroProcesso}` : "Inicie uma Nova Consulta"}
                 </h1>
@@ -166,19 +166,19 @@ export default function VereditoPage() {
             
             {!result && (
               <div className="max-w-2xl mx-auto py-20 text-center space-y-8">
-                <div className="space-y-2 group hover:bg-black p-4 transition-all rounded-xl cursor-default">
-                  <h2 className="text-3xl font-black text-black group-hover:text-white tracking-tighter uppercase">Unidade de Triagem de Gabinete</h2>
-                  <p className="text-black/70 group-hover:text-white/70 text-sm font-black uppercase">Consulte o número CNJ para extração de inteligência estratégica.</p>
+                <div className="space-y-2 group hover:bg-black p-4 transition-all rounded-sm cursor-default border border-transparent hover:border-black">
+                  <h2 className="text-3xl font-black text-black group-hover:text-white tracking-tighter uppercase transition-colors">Unidade de Triagem de Gabinete</h2>
+                  <p className="text-black/70 group-hover:text-white/70 text-sm font-black uppercase transition-colors">Consulte o número CNJ para extração de inteligência estratégica.</p>
                 </div>
-                <form onSubmit={handleSearch} className="flex gap-3 bg-white p-2 rounded-lg border border-black shadow-xl">
+                <form onSubmit={handleSearch} className="flex gap-3 bg-white p-2 rounded-sm border border-black shadow-xl">
                   <Input 
                     placeholder="0000000-00.2025.8.26.0000" 
                     value={cnj} 
                     onChange={(e) => setCnj(e.target.value)} 
-                    className="border-none h-14 text-lg focus-visible:ring-0 font-mono text-black placeholder:text-black/30" 
+                    className="border-none h-14 text-lg focus-visible:ring-0 font-mono text-black placeholder:text-black/20" 
                   />
                   <div className="icon-3d-wrapper">
-                    <Button type="submit" disabled={loading || retryAfter !== null} className="h-14 px-8 rounded bg-black hover:bg-gray-800 font-black text-white transition-all shadow-lg uppercase text-xs border-none">
+                    <Button type="submit" disabled={loading || retryAfter !== null} className="h-14 px-8 rounded-sm bg-black hover:bg-gray-800 font-black text-white transition-all shadow-lg uppercase text-xs border-none">
                       {loading ? (
                         <span className="flex items-center gap-2"><Clock className="animate-spin" size={18} /> Consolidando...</span>
                       ) : "Realizar Auditoria"}
@@ -189,38 +189,38 @@ export default function VereditoPage() {
             )}
 
             {result && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-12">
                 <div className="lg:col-span-2 space-y-6">
                   <Tabs defaultValue="details" className="w-full">
-                    <TabsList className="bg-[#e2e2e2] p-1 h-11 w-full justify-start rounded-t-md mb-0 border border-black border-b-0">
+                    <TabsList className="bg-[#e2e2e2] p-1 h-11 w-full justify-start rounded-t-sm mb-0 border border-black border-b-0">
                       <TabsTrigger value="details" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-xs px-6 h-9 uppercase transition-all">Parecer Técnico</TabsTrigger>
                       <TabsTrigger value="activity" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-xs px-6 h-9 uppercase transition-all">Linha do Tempo</TabsTrigger>
                       <TabsTrigger value="chatter" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-xs px-6 h-9 uppercase transition-all">Consultoria de Gabinete</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="details" className="mt-0">
-                      <Card className="bg-white border-black shadow-sm rounded-b-md rounded-t-none border-t-0">
+                      <Card className="bg-white border-black shadow-sm rounded-b-sm rounded-t-none border-t-0 overflow-hidden">
                         <CardHeader className="bg-[#f8f9fb] border-b border-black py-3">
                           <CardTitle className="text-xs font-black text-black uppercase tracking-widest flex items-center gap-2">
                             <FileText size={14} /> Diagnóstico Técnico Sênior
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="p-6 space-y-8">
-                          <div className="space-y-2 group hover:bg-black p-4 transition-all rounded-sm border border-transparent hover:border-black cursor-default">
-                            <Label className="text-[10px] font-black text-black/60 group-hover:text-white/60 uppercase tracking-widest">Andamento Atual Sincronizado</Label>
-                            <div className="bg-[#f3f2f2] p-4 border border-black rounded-sm group-hover:bg-gray-900 group-hover:border-white/20 transition-all">
-                              <p className="text-sm leading-relaxed text-black group-hover:text-white font-black whitespace-pre-wrap italic uppercase">{result.resumoTecnico}</p>
+                          <div className="space-y-2 group hover:bg-black p-4 transition-all rounded-sm border border-black hover:border-black cursor-default">
+                            <Label className="text-[10px] font-black text-black/60 group-hover:text-white/60 uppercase tracking-widest transition-colors">Andamento Atual Sincronizado</Label>
+                            <div className="bg-[#f3f2f2] p-4 border border-black/10 rounded-sm group-hover:bg-gray-900 group-hover:border-white/20 transition-all">
+                              <p className="text-sm leading-relaxed text-black group-hover:text-white font-black whitespace-pre-wrap italic uppercase transition-colors">{result.resumoTecnico}</p>
                             </div>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-2 hover:bg-black p-4 transition-all rounded-sm group cursor-default">
-                              <Label className="text-[10px] font-black text-black group-hover:text-white uppercase tracking-widest">Análise Preditiva de Risco</Label>
-                              <p className="text-xs text-black group-hover:text-white leading-relaxed border-l-4 border-black group-hover:border-white pl-4 whitespace-pre-wrap font-black uppercase">{result.analiseRisco}</p>
+                            <div className="space-y-2 hover:bg-black p-4 transition-all rounded-sm group cursor-default border border-transparent hover:border-black">
+                              <Label className="text-[10px] font-black text-black group-hover:text-white uppercase tracking-widest transition-colors">Análise Preditiva de Risco</Label>
+                              <p className="text-xs text-black group-hover:text-white leading-relaxed border-l-4 border-black group-hover:border-white pl-4 whitespace-pre-wrap font-black uppercase transition-colors">{result.analiseRisco}</p>
                             </div>
-                            <div className="space-y-2 hover:bg-black p-4 transition-all rounded-sm group cursor-default">
-                              <Label className="text-[10px] font-black text-black group-hover:text-white uppercase tracking-widest">Estratégia de Gabinete</Label>
-                              <p className="text-xs text-black group-hover:text-white leading-relaxed border-l-4 border-black group-hover:border-white pl-4 whitespace-pre-wrap font-black uppercase">{result.proximosPassos}</p>
+                            <div className="space-y-2 hover:bg-black p-4 transition-all rounded-sm group cursor-default border border-transparent hover:border-black">
+                              <Label className="text-[10px] font-black text-black group-hover:text-white uppercase tracking-widest transition-colors">Estratégia de Gabinete</Label>
+                              <p className="text-xs text-black group-hover:text-white leading-relaxed border-l-4 border-black group-hover:border-white pl-4 whitespace-pre-wrap font-black uppercase transition-colors">{result.proximosPassos}</p>
                             </div>
                           </div>
                         </CardContent>
@@ -228,17 +228,17 @@ export default function VereditoPage() {
                     </TabsContent>
 
                     <TabsContent value="activity" className="mt-0">
-                      <Card className="bg-white border-black shadow-sm rounded-b-md rounded-t-none border-t-0">
+                      <Card className="bg-white border-black shadow-sm rounded-b-sm rounded-t-none border-t-0 overflow-hidden">
                         <CardHeader className="bg-[#f8f9fb] border-b border-black py-3">
                           <CardTitle className="text-xs font-black text-black uppercase tracking-widest flex items-center gap-2">
                             <History size={14} /> Histórico Oficial DataJud
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
-                          <div className="divide-y divide-black">
+                          <div className="divide-y divide-black/10">
                             {result.historicoMovimentacoes && result.historicoMovimentacoes.length > 0 ? result.historicoMovimentacoes.map((mov: any, idx: number) => (
                               <div key={idx} className="p-4 hover:bg-black group transition-all flex gap-6 items-start cursor-default">
-                                <div className="text-[10px] font-black text-black bg-[#e2e2e2] px-2 py-1 rounded w-28 text-center shrink-0 border border-black group-hover:bg-white transition-all">{mov.data}</div>
+                                <div className="text-[10px] font-black text-black bg-[#e2e2e2] px-2 py-1 rounded-sm w-28 text-center shrink-0 border border-black group-hover:bg-white group-hover:text-black transition-all uppercase">{mov.data}</div>
                                 <div className="text-xs text-black group-hover:text-white font-black leading-tight uppercase transition-all">{mov.movimento}</div>
                               </div>
                             )) : (
@@ -250,7 +250,7 @@ export default function VereditoPage() {
                     </TabsContent>
 
                     <TabsContent value="chatter" className="mt-0">
-                      <Card className="bg-white border-black shadow-lg rounded-b-md rounded-t-none border-t-0 flex flex-col h-[500px]">
+                      <Card className="bg-white border-black shadow-lg rounded-b-sm rounded-t-none border-t-0 flex flex-col h-[500px] overflow-hidden">
                         <CardHeader className="bg-[#f8f9fb] border-b border-black py-3 flex flex-row items-center justify-between shrink-0">
                           <CardTitle className="text-xs font-black text-black uppercase tracking-widest flex items-center gap-2">
                             <MessageSquare size={14} /> Consultoria de Gabinete Ativa
@@ -268,18 +268,18 @@ export default function VereditoPage() {
                         <ScrollArea className="flex-1 p-4 bg-[#f3f2f2]" ref={scrollRef}>
                           <div className="space-y-4">
                             <div className="flex justify-start">
-                              <div className="bg-white border border-black p-4 rounded-lg max-w-[80%] shadow-sm hover:bg-black hover:text-white group transition-all cursor-default">
+                              <div className="bg-white border border-black p-4 rounded-sm max-w-[80%] shadow-sm hover:bg-black hover:text-white group transition-all cursor-default">
                                 <p className="text-[10px] font-black text-black group-hover:text-white/70 uppercase mb-1 flex items-center gap-1">
                                   <Bot size={10} /> Sugestão de Contato
                                 </p>
-                                <p className="text-xs italic text-black group-hover:text-white leading-relaxed font-black uppercase">{result.mensagemCliente}</p>
+                                <p className="text-xs italic text-black group-hover:text-white leading-relaxed font-black uppercase transition-colors">{result.mensagemCliente}</p>
                               </div>
                             </div>
 
                             {chatMessages.map((msg, i) => (
                               <div key={i} className={cn("flex", msg.role === 'user' ? "justify-end" : "justify-start")}>
                                 <div className={cn(
-                                  "p-3 rounded-lg max-w-[85%] shadow-sm text-xs font-black uppercase transition-all",
+                                  "p-3 rounded-sm max-w-[85%] shadow-sm text-xs font-black uppercase transition-all",
                                   msg.role === 'user' ? "bg-black text-white border border-white/20" : "bg-white border border-black text-black hover:bg-black hover:text-white"
                                 )}>
                                   <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -296,9 +296,9 @@ export default function VereditoPage() {
                               value={chatInput}
                               onChange={(e) => setChatInput(e.target.value)}
                               disabled={chatLoading}
-                              className="flex-1 bg-[#f3f2f2] border-black text-xs font-black text-black uppercase"
+                              className="flex-1 bg-[#f3f2f2] border-black text-xs font-black text-black uppercase focus-visible:ring-0"
                             />
-                            <Button type="submit" size="icon" disabled={chatLoading} className="bg-black text-white hover:bg-gray-800 border-none transition-all">
+                            <Button type="submit" size="icon" disabled={chatLoading} className="bg-black text-white hover:bg-gray-800 border-none transition-all shadow-md">
                               <Send size={16} />
                             </Button>
                           </form>
@@ -309,7 +309,7 @@ export default function VereditoPage() {
                 </div>
                 
                 <div className="space-y-6">
-                  <Card className="bg-white border-black shadow-sm rounded-sm">
+                  <Card className="bg-white border-black shadow-sm rounded-sm overflow-hidden">
                     <CardHeader className="bg-[#f8f9fb] py-3 px-6 border-b border-black">
                       <CardTitle className="text-[10px] font-black text-black uppercase tracking-[0.2em]">Metadados de Gabinete</CardTitle>
                     </CardHeader>
@@ -326,7 +326,7 @@ export default function VereditoPage() {
           </div>
         </div>
 
-        <footer className="h-10 border-t border-black bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 hover:text-black transition-colors cursor-default">
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 hover:text-black transition-colors cursor-default">
           <div className="flex items-center gap-2">
             <Copyright size={10} /> 2026 W1 Capital. Todos os direitos reservados.
           </div>
@@ -341,9 +341,9 @@ export default function VereditoPage() {
 function HighlightItem({ label, value, isBadge = false }: { label: string, value: string, isBadge?: boolean }) {
   return (
     <div className="space-y-1 group hover:bg-black p-1 transition-all rounded-sm cursor-default">
-      <p className="text-[10px] font-black text-black/60 group-hover:text-white/60 uppercase">{label}</p>
+      <p className="text-[10px] font-black text-black/60 group-hover:text-white/60 uppercase transition-colors">{label}</p>
       {isBadge ? (
-        <Badge variant="outline" className="bg-[#e2e2e2] text-black border-black font-black text-[9px] px-2 py-0 group-hover:bg-white group-hover:text-black">
+        <Badge variant="outline" className="bg-[#e2e2e2] text-black border-black font-black text-[9px] px-2 py-0 group-hover:bg-white group-hover:text-black transition-all">
           {value}
         </Badge>
       ) : (
@@ -356,7 +356,7 @@ function HighlightItem({ label, value, isBadge = false }: { label: string, value
 function RelatedItem({ label, value }: { label: string, value: string }) {
   return (
     <div className="space-y-1 border-b border-[#f3f2f2] pb-4 last:border-0 last:pb-0 hover:bg-black p-2 transition-all group rounded-sm cursor-default">
-      <p className="text-[9px] font-black text-black/50 group-hover:text-white/50 uppercase tracking-widest">{label}</p>
+      <p className="text-[9px] font-black text-black/40 group-hover:text-white/40 uppercase tracking-widest transition-colors">{label}</p>
       <p className="text-xs font-black text-black group-hover:text-white leading-tight uppercase transition-all">{value}</p>
     </div>
   );

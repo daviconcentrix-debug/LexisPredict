@@ -35,7 +35,7 @@ export default function Dashboard() {
       const caseData = await fetchRepoCases();
       if (Array.isArray(caseData)) setCases(caseData);
     } catch (error) {
-      console.error('Salesforce sync failure:', error);
+      console.error('Data sync failure:', error);
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export default function Dashboard() {
         <header className="h-14 border-b border-[#dddbda] bg-white flex items-center justify-between px-6 shrink-0 z-40 shadow-sm">
           <div className="flex items-center gap-6">
             <h1 className="font-black text-lg text-black tracking-tight uppercase hover:bg-black hover:text-white px-2 py-1 transition-colors rounded-sm cursor-default">
-              Painel de Gabinete (Get Assessoria)
+              Painel de Gabinete Elite
             </h1>
           </div>
           <div className="flex items-center gap-4">
