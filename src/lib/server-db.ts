@@ -27,8 +27,8 @@ export async function getStoredCases(): Promise<LegalCase[]> {
 export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: boolean; message: string }> {
   if (!isSupabaseConfigured) return { success: false, message: "Supabase não configurado." };
   try {
-    // Sincronização Atômica: Removemos o estado obsoleto
-    await supabase.from('processos').delete().neq('id', 0);
+    // Purga atômica para sincronização total
+    await supabase.from('processos').delete().filter('id', 'neq', 0);
     
     if (cases.length > 0) {
       const payload = cases.map(c => ({ dados: c }));
@@ -72,22 +72,37 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
 export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boolean }> {
   if (!isSupabaseConfigured) return { success: false };
   try {
-    // Bloqueio de exclusão em massa para evitar loops de re-renderização disparando múltiplos deletes
-    const { error: deleteError } = await supabase.from('notes').delete().neq('id', 0);
-    if (deleteError) throw deleteError;
+    // PURGA TOTAL DEFINITIVA (UUID Safe)
+    const { error: deleteError } = await supabase
+      .from('notes')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
     
-    if (notes.length > 0) {
-      const dbNotes = notes.map(n => ({
-        title: n.title || 'Sem Título',
-        content: n.content || ''
-      }));
-      
-      const { error: insertError } = await supabase.from('notes').insert(dbNotes);
-      if (insertError) throw insertError;
+    if (deleteError) {
+      console.error('Erro na purga de notas Supabase:', deleteError.message);
+      return { success: false };
     }
+    
+    // Se o objetivo for apenas limpar
+    if (!notes || notes.length === 0) {
+      return { success: true };
+    }
+
+    // Reinserção dos dados atuais
+    const dbNotes = notes.map(n => ({
+      title: n.title || 'Sem Título',
+      content: n.content || ''
+    }));
+    
+    const { error: insertError } = await supabase.from('notes').insert(dbNotes);
+    if (insertError) {
+      console.error('Erro na inserção de notas Supabase:', insertError.message);
+      return { success: false };
+    }
+    
     return { success: true };
-  } catch (error) {
-    console.error('Supabase save notes error:', error);
+  } catch (error: any) {
+    console.error('Supabase atomic sync failure:', error.message);
     return { success: false };
   }
 }

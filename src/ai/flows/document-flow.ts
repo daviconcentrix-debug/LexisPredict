@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Motor de Geração de Documentos Jurídicos v11.5 ELITE (DEFINITIVO)
+ * @fileOverview Motor de Geração de Documentos Jurídicos v16.0 ELITE (DEFINITIVO)
  * Extração de dados e preenchimento de Procuração Ad Judicia seguindo o modelo visual oficial.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
@@ -94,8 +94,8 @@ export const documentFlow = ai.defineFlow(
           body: JSON.stringify({
             model: 'anthropic/claude-3.5-sonnet',
             messages: [
-              { role: 'system', content: 'Você é Assistente Jurídico Sênior. Gere a procuração exclusivamente como TEXTO FORMATADO no campo "documento". NUNCA retorne objetos ou estruturas JSON dentro do texto. Siga o modelo definitivo da Get Assessoria.' },
-              { role: 'user', content: `Extraia dados e preencha a procuração exatamente conforme o modelo visual para: ${input.dadosBrutos}. Data: ${today}` }
+              { role: 'system', content: 'Você é Assistente Jurídico Sênior da Get Assessoria. Gere a procuração exclusivamente como TEXTO FORMATADO no campo "documento", seguindo o modelo definitivo com centralizações e negritos. Mantenha os dados do advogado DIEGO GOMES DIAS e o CNPJ do Banco Votorantim 59.588.111/0001-03 sempre.' },
+              { role: 'user', content: `Extraia dados e preencha a procuração exatamente conforme o modelo visual para: ${input.dadosBrutos}. Data de hoje: ${today}` }
             ],
             temperature: 0.1,
             response_format: { type: 'json_object' }
@@ -115,7 +115,7 @@ export const documentFlow = ai.defineFlow(
           body: JSON.stringify({
             model: 'llama-3.3-70b-versatile',
             messages: [
-              { role: 'system', content: 'Retorne apenas JSON com campo string "documento" contendo a procuração completa em texto puro formatado conforme o modelo oficial.' },
+              { role: 'system', content: 'Retorne apenas JSON com campo string "documento" contendo a procuração completa em texto puro formatado conforme o modelo oficial da Get Assessoria (W1 Capital). Use [CENTER] para centralizar.' },
               { role: 'user', content: `Gere a procuração conforme o script visual para os dados: ${input.dadosBrutos}` }
             ],
             temperature: 0.1,

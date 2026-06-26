@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw, Loader2 } from 'lucide-react';
 import { CaseNote } from '@/lib/case-logic';
@@ -19,25 +19,28 @@ export default function NotesPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const hasLoaded = useRef(false);
   const { isAdmin } = useAdmin();
   const { toast } = useToast();
 
   const [newNote, setNewNote] = useState({ title: '', content: '' });
 
-  const loadData = useCallback(async () => {
-    if (!loading && notes.length > 0) return; // Evita recargas desnecessárias
+  const loadData = useCallback(async (force = false) => {
+    if (!force && hasLoaded.current) return;
+    
     setLoading(true);
     try {
       const data = await fetchRepoNotes();
       if (Array.isArray(data)) {
         setNotes(data);
+        hasLoaded.current = true;
       }
     } catch (e) {
       console.error('Notes failed to load');
     } finally {
       setLoading(false);
     }
-  }, [loading, notes.length]);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -62,17 +65,15 @@ export default function NotesPage() {
     };
 
     try {
-      // Atualização otimista
-      setNotes(prev => [note, ...prev]);
-      setNewNote({ title: '', content: '' });
-      
       const updatedList = [note, ...notes];
       const result = await syncRepoNotes(updatedList);
       
       if (result.success) {
+        setNotes(updatedList);
+        setNewNote({ title: '', content: '' });
         toast({ title: "Atualização Salva", description: "Nota sincronizada com a nuvem W1 Capital." });
       } else {
-        toast({ title: "Erro de Sincronização", description: "Falha ao salvar na nuvem. Tente novamente.", variant: "destructive" });
+        toast({ title: "Erro de Sincronização", description: "Falha ao salvar na nuvem.", variant: "destructive" });
       }
     } catch (error) {
       toast({ title: "Erro Crítico", description: "Falha na comunicação com o banco de dados.", variant: "destructive" });
@@ -81,15 +82,47 @@ export default function NotesPage() {
     }
   };
 
-  const deleteNote = async (id: string) => {
+  const handleDeleteNote = async (id: string) => {
     if (!isAdmin || isSaving) return;
     
     const updated = notes.filter(n => n.id !== id);
-    setNotes(updated);
+    setIsSaving(true);
     
-    const result = await syncRepoNotes(updated);
-    if (result.success) {
-      toast({ title: "Nota Excluída", description: "Base de dados cloud atualizada." });
+    try {
+      const result = await syncRepoNotes(updated);
+      if (result.success) {
+        setNotes(updated);
+        toast({ title: "Nota Excluída", description: "Base de dados cloud atualizada." });
+      } else {
+        toast({ title: "Erro ao Excluir", description: "Falha na sincronização cloud.", variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Erro Crítico", description: "Falha na comunicação.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!isAdmin || isSaving) return;
+    
+    const confirmClear = window.confirm('ATENÇÃO: Deseja apagar TODAS as notas estratégicas da nuvem permanentemente? Esta ação não pode ser desfeita.');
+    if (!confirmClear) return;
+    
+    setIsSaving(true);
+    try {
+      const result = await syncRepoNotes([]);
+      if (result.success) {
+        setNotes([]);
+        toast({ title: "Base de Dados Limpa", description: "Todos os registros foram removidos com sucesso." });
+      } else {
+        toast({ title: "Erro ao Limpar", description: "Falha na purga de dados cloud.", variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Erro Crítico", description: "Falha na comunicação com o servidor.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+      loadData(true); // Força recarga para garantir sincronia visual
     }
   };
 
@@ -104,7 +137,7 @@ export default function NotesPage() {
     <div className="flex h-screen bg-background font-body">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden text-white">
-        <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8">
+        <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4">
             <h1 className="font-headline font-bold text-xl text-white">Notas & Atualizações</h1>
             {!isAdmin && (
@@ -123,7 +156,18 @@ export default function NotesPage() {
                 className="pl-10 h-9 bg-secondary border-none text-xs rounded-full focus-visible:ring-primary text-white"
               />
             </div>
-            <Button variant="ghost" size="icon" onClick={() => loadData()} className="text-muted-foreground hover:text-white">
+            {isAdmin && (
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={handleClearAll} 
+                disabled={isSaving}
+                className="h-9 font-bold text-white px-4 border-none shadow-lg shadow-destructive/20"
+              >
+                <Trash2 className="w-4 h-4 mr-2" /> {isSaving ? "Sincronizando..." : "Limpar Tudo"}
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={() => loadData(true)} className="text-muted-foreground hover:text-white">
               <RefreshCcw className={cn("w-4 h-4", loading && "animate-spin")} />
             </Button>
           </div>
@@ -169,7 +213,8 @@ export default function NotesPage() {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    onClick={() => deleteNote(note.id)}
+                    onClick={() => handleDeleteNote(note.id)}
+                    disabled={isSaving}
                     className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 size={14} />
