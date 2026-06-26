@@ -157,9 +157,21 @@ export default function NotesPage() {
   }, [notes, search]);
 
   return (
-    <div className="flex h-screen bg-background font-body">
+    <div className="flex h-screen bg-background font-body relative overflow-hidden">
+      {/* Dynamic Crystal Wallpaper Background */}
+      {fullscreenImage && (
+        <div 
+          className="absolute inset-0 z-0 opacity-20 pointer-events-none transition-all duration-1000 blur-3xl scale-110"
+          style={{ 
+            backgroundImage: `url(${fullscreenImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }}
+        />
+      )}
+      
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden text-white">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden text-white relative z-10">
         <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4">
             <h1 className="font-headline font-bold text-xl text-white">Notas & Atualizações</h1>
@@ -198,7 +210,7 @@ export default function NotesPage() {
 
         <div className="flex-1 overflow-auto p-8 space-y-8">
           {isAdmin && (
-            <section className="max-w-xl mx-auto bg-card border border-border p-4 rounded-2xl shadow-2xl space-y-3">
+            <section className="max-w-xl mx-auto bg-card/60 backdrop-blur-xl border border-border p-4 rounded-2xl shadow-2xl space-y-3">
               <Input 
                 placeholder="Título da Anotação (Opcional)" 
                 value={newNote.title}
@@ -261,7 +273,7 @@ export default function NotesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-8">
             {filteredNotes.length > 0 ? filteredNotes.map((note) => (
               <div key={note.id} className={cn(
-                "p-5 rounded-xl border border-border transition-all hover:shadow-lg group relative bg-sidebar/40 flex flex-col h-full"
+                "p-5 rounded-xl border border-border/50 transition-all hover:shadow-lg group relative bg-card/40 backdrop-blur-md flex flex-col h-full hover:border-primary/50"
               )}>
                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                    {note.imageUrl && (
@@ -290,7 +302,7 @@ export default function NotesPage() {
                 
                 {note.imageUrl && (
                   <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden border border-border/50 cursor-pointer" onClick={() => setFullscreenImage(note.imageUrl!)}>
-                    <Image src={note.imageUrl} alt="Note Attachment" fill className="object-cover" />
+                    <Image src={note.imageUrl} alt="Note Attachment" fill className="object-cover transition-transform duration-500 group-hover:scale-105" unoptimized />
                   </div>
                 )}
 
@@ -303,37 +315,40 @@ export default function NotesPage() {
                 </div>
               </div>
             )) : (
-              <div className="col-span-full py-20 text-center border-2 border-dashed border-border rounded-2xl opacity-40">
+              <div className="col-span-full py-20 text-center border-2 border-dashed border-border rounded-2xl opacity-40 bg-card/20 backdrop-blur-sm">
                 <p className="text-sm font-medium text-white">{loading ? "Carregando inteligência cloud..." : "Nenhuma anotação estratégica encontrada."}</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Modal para Visualização em Tela Cheia */}
+        {/* Modal para Visualização em Tela Cheia com Upscaler Visual */}
         <Dialog open={!!fullscreenImage} onOpenChange={(open) => !open && setFullscreenImage(null)}>
-          <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 bg-black/95 border-border overflow-hidden flex items-center justify-center">
+          <DialogContent className="max-w-[95vw] w-full h-[95vh] p-0 bg-black/95 border-none overflow-hidden flex flex-col items-center justify-center">
             <DialogHeader className="sr-only">
-              <DialogTitle>Visualização de Imagem</DialogTitle>
+              <DialogTitle>Visualização de Imagem Ouro</DialogTitle>
             </DialogHeader>
             {fullscreenImage && (
-              <div className="relative w-full h-full min-h-[500px] flex items-center justify-center p-4">
-                <div className="relative w-full h-full max-h-[80vh]">
-                  <Image 
-                    src={fullscreenImage} 
-                    alt="Fullscreen" 
-                    fill 
-                    className="object-contain" 
-                    unoptimized 
-                  />
+              <div className="relative w-full h-full flex items-center justify-center p-0 md:p-8">
+                {/* O contêiner relativo deve ter dimensões explícitas para o Next.js Image fill funcionar */}
+                <div className="relative w-full h-full flex items-center justify-center">
+                   <img 
+                      src={fullscreenImage} 
+                      alt="Visualização Fullscreen" 
+                      className="max-w-full max-h-full object-contain shadow-2xl transition-all duration-300"
+                      style={{ 
+                        filter: 'contrast(1.1) brightness(1.05) saturate(1.1)',
+                        imageRendering: 'auto'
+                      }}
+                    />
                 </div>
                 <Button 
                   variant="ghost" 
                   size="icon" 
                   onClick={() => setFullscreenImage(null)}
-                  className="absolute top-4 right-4 text-white hover:bg-white/10 rounded-full"
+                  className="absolute top-6 right-6 text-white bg-black/40 backdrop-blur-xl hover:bg-primary rounded-full h-12 w-12 z-50 transition-all border border-white/10"
                 >
-                  <X size={24} />
+                  <X size={28} />
                 </Button>
               </div>
             )}
