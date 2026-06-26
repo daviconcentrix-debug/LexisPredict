@@ -5,15 +5,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase";
 import { LegalCase, CaseNote } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
-import { Printer, ArrowLeft, ShieldCheck, Activity, FileText, MessageSquare, Copyright } from 'lucide-react';
+import { Printer, ArrowLeft, ShieldCheck, Activity, FileText, MessageSquare, Copyright, SearchCheck } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-
-/**
- * MASTER UNIFIED REPORT ENGINE — LEXISPREDICT
- * Propriedade de: W1 Capital
- * FUNDADOR DAVI ALVES FIGUEREDO
- */
 
 export default function UnifiedReport() {
   const [cases, setCases] = useState<LegalCase[]>([]);
@@ -70,7 +64,7 @@ export default function UnifiedReport() {
     return (
       <div className="p-8 text-center font-mono text-black bg-white min-h-screen flex flex-col items-center justify-center space-y-4">
         <Activity className="animate-spin text-blue-600" size={32} />
-        <p className="font-bold uppercase tracking-widest text-[10px] italic">Compilando Inteligência Unificada (W1 Capital)...</p>
+        <p className="font-bold uppercase tracking-widest text-[10px] italic">Consolidando Relatório Técnico (W1 Capital)...</p>
       </div>
     );
   }
@@ -91,10 +85,10 @@ export default function UnifiedReport() {
       
       <div className="flex justify-between items-center mb-10 print:hidden">
         <Button variant="outline" asChild size="sm" className="border-gray-300 text-gray-600">
-          <Link href="/"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao CRM</Link>
+          <Link href="/"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar à Gestão</Link>
         </Button>
         <Button onClick={() => window.print()} className="bg-blue-600 text-white font-bold px-8 shadow-lg hover:bg-blue-700">
-          <Printer className="mr-2 h-4 w-4" /> Gerar PDF Oficial
+          <Printer className="mr-2 h-4 w-4" /> Gerar PDF de Gabinete
         </Button>
       </div>
 
@@ -124,8 +118,8 @@ export default function UnifiedReport() {
 
       <section className="mb-12">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-1.5 bg-black text-white rounded"><Activity size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">1. Indicadores de Performance</h2>
+          <div className="p-1.5 bg-black text-white rounded"><SearchCheck size={18} /></div>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">1. Indicadores de Gestão</h2>
         </div>
         <div className="grid grid-cols-4 gap-6 text-center">
           <div className="p-5 bg-gray-50 border-2 border-gray-100 rounded-2xl">
@@ -133,7 +127,7 @@ export default function UnifiedReport() {
             <p className="text-3xl font-black">{stats.total}</p>
           </div>
           <div className="p-5 bg-red-50 border-2 border-red-100 rounded-2xl">
-            <p className="text-[9px] font-black text-red-400 uppercase">Vencidos</p>
+            <p className="text-[9px] font-black text-red-400 uppercase">Alertas</p>
             <p className="text-3xl font-black text-red-600">{stats.vencido}</p>
           </div>
           <div className="p-5 bg-amber-50 border-2 border-amber-100 rounded-2xl">
@@ -150,7 +144,7 @@ export default function UnifiedReport() {
       <section className="mb-12">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded"><FileText size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">2. Intelligence Unit — Casos Críticos</h2>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">2. Triagem de Casos Críticos</h2>
         </div>
         <div className="border-2 border-black rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-left text-[10px] border-collapse">
@@ -158,7 +152,7 @@ export default function UnifiedReport() {
               <tr className="uppercase font-extrabold text-gray-700">
                 <th className="px-5 py-3 border-r border-gray-300">Cliente</th>
                 <th className="px-5 py-3 border-r border-gray-300">Protocolo CNJ</th>
-                <th className="px-5 py-3 border-r border-gray-300">Próximo Prazo</th>
+                <th className="px-5 py-3 border-r border-gray-300">Data Limite</th>
                 <th className="px-5 py-3">Risco</th>
               </tr>
             </thead>
@@ -173,7 +167,7 @@ export default function UnifiedReport() {
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={4} className="px-5 py-10 text-center italic text-gray-400">Sem registros críticos.</td></tr>
+                <tr><td colSpan={4} className="px-5 py-10 text-center italic text-gray-400">Nenhum registro crítico identificado.</td></tr>
               )}
             </tbody>
           </table>
@@ -183,7 +177,7 @@ export default function UnifiedReport() {
       <section className="mb-12 break-inside-avoid">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded"><MessageSquare size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">3. Anotações Estratégicas & Evidências</h2>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">3. Anotações de Auditoria & Evidências</h2>
         </div>
         {notes.length > 0 ? (
           <div className="grid grid-cols-1 gap-8">
@@ -213,7 +207,7 @@ export default function UnifiedReport() {
             ))}
           </div>
         ) : (
-          <p className="text-center py-10 border-2 border-dashed rounded-2xl italic text-gray-400 font-bold">Sem anotações.</p>
+          <p className="text-center py-10 border-2 border-dashed rounded-2xl italic text-gray-400 font-bold">Sem registros anexados.</p>
         )}
       </section>
 

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { cn } from '@/lib/utils';
 
@@ -12,34 +13,44 @@ interface StatCardProps {
 
 export function StatCard({ title, value, icon, trend, trendUp, color = 'primary' }: StatCardProps) {
   const colorMap = {
-    primary: "from-primary/20 to-transparent text-primary border-primary/20",
-    accent: "from-accent/20 to-transparent text-accent border-accent/20",
-    destructive: "from-destructive/20 to-transparent text-destructive border-destructive/20",
-    success: "from-chart-3/20 to-transparent text-chart-3 border-chart-3/20",
+    primary: "border-l-black",
+    accent: "border-l-black",
+    destructive: "border-l-red-600",
+    success: "border-l-green-600",
+  };
+
+  const textMap = {
+    primary: "text-black",
+    accent: "text-black",
+    destructive: "text-red-600",
+    success: "text-green-600",
   };
 
   return (
     <div className={cn(
-      "bg-card border border-border p-6 rounded-2xl relative overflow-hidden group transition-all hover:border-primary/50",
-      "before:absolute before:inset-0 before:bg-gradient-to-br before:opacity-0 hover:before:opacity-100 before:transition-opacity",
+      "bg-white border border-[#dddbda] border-l-4 p-5 rounded-sm relative overflow-hidden transition-all hover:shadow-lg hover:bg-black group",
       colorMap[color]
     )}>
-      <div className="relative z-10 flex justify-between items-start">
-        <div className="space-y-1">
-          <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">{title}</p>
-          <h3 className="text-3xl font-headline font-bold text-white">{value}</h3>
-          {trend && (
-            <div className={cn(
-              "flex items-center gap-1 text-[10px] font-bold mt-2 px-2 py-0.5 rounded-full w-fit",
-              trendUp ? "bg-chart-3/10 text-chart-3" : "bg-destructive/10 text-destructive"
-            )}>
-              {trend}
-            </div>
-          )}
+      <div className="relative z-10 flex flex-col gap-1">
+        <div className="flex justify-between items-start">
+          <p className="text-black/60 text-[10px] font-black uppercase tracking-[0.1em] group-hover:text-white/60 transition-colors">{title}</p>
+          <div className="icon-3d-wrapper">
+             <div className="icon-3d-block w-8 h-8 rounded-sm group-hover:bg-white transition-colors">
+                <div className={cn("transition-colors", textMap[color], "group-hover:text-black")}>
+                  {icon}
+                </div>
+             </div>
+          </div>
         </div>
-        <div className="p-3 bg-secondary rounded-xl text-foreground/80 group-hover:text-primary transition-colors">
-          {icon}
-        </div>
+        <h3 className="text-2xl font-black text-black tracking-tighter mt-1 group-hover:text-white transition-colors uppercase">{value}</h3>
+        {trend && (
+          <div className={cn(
+            "flex items-center gap-1 text-[9px] font-black mt-2 uppercase tracking-tighter transition-colors",
+            trendUp ? "text-green-600 group-hover:text-green-400" : "text-red-600 group-hover:text-red-400"
+          )}>
+            {trendUp ? "↑" : "↓"} {trend}
+          </div>
+        )}
       </div>
     </div>
   );

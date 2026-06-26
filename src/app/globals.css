@@ -1,43 +1,96 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 222 47% 8%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 226 100% 59%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 217 32% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 32% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 195 100% 60%;
-    --accent-foreground: 222 47% 11%;
+    --background: 0 0% 98%; /* #f3f2f2 */
+    --foreground: 0 0% 0%; /* Preto Puro */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 0 0% 0%; /* Preto Puro para botões */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 90%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 0 0% 94%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 0 0% 10%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 32% 17%;
-    --input: 217 32% 17%;
-    --ring: 226 100% 59%;
-    --radius: 0.75rem;
-    --chart-1: 226 100% 59%;
-    --chart-2: 195 100% 60%;
-    --chart-3: 142 71% 45%;
-    --chart-4: 47 95% 55%;
-    --chart-5: 0 84% 60%;
-    --sidebar-background: 222 47% 5%;
-    --sidebar-foreground: 215 20% 65%;
-    --sidebar-primary: 226 100% 59%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 0 0% 0%;
+    --radius: 0.1rem;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 0%;
+    --sidebar-primary: 0 0% 0%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 32% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 32% 17%;
-    --sidebar-ring: 226 100% 59%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 0%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 0 0% 0%;
   }
+}
+
+@layer components {
+  /* Estilo de Ícone 3D Isométrico (W1 Capital Style) */
+  .icon-3d-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.5s;
+    cursor: pointer;
+  }
+
+  .icon-3d-block {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    transform: perspective(100px) rotate(-30deg) skew(25deg);
+    transition: all 0.5s;
+    box-shadow: -10px 10px 10px rgba(0, 0, 0, 0.2);
+    border: 1px solid #eee;
+  }
+
+  .icon-3d-block::before {
+    content: "";
+    position: absolute;
+    top: 5px;
+    left: -15px;
+    height: 100%;
+    width: 15px;
+    background: #b1b1b1;
+    transform: rotate(0deg) skewY(-45deg);
+    transition: 0.5s;
+  }
+
+  .icon-3d-block::after {
+    content: "";
+    position: absolute;
+    bottom: -15px;
+    left: -8px;
+    height: 15px;
+    width: 100%;
+    background: #dedede;
+    transform: rotate(0deg) skewX(-45deg);
+    transition: 0.5s;
+  }
+
+  .icon-3d-wrapper:hover .icon-3d-block {
+    transform: perspective(1000px) rotate(-30deg) skew(25deg) translate(10px, -10px);
+    box-shadow: -25px 25px 30px rgba(0, 0, 0, 0.3);
+  }
+
+  .icon-3d-block.black { background: #000000; }
+  .icon-3d-block.black::before { background: #1a1a1a; }
+  .icon-3d-block.black::after { background: #262626; }
 }
 
 @layer base {
@@ -46,7 +99,8 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: 'Inter', sans-serif;
+    color: #000000;
   }
 }
 
@@ -57,25 +111,5 @@
   body {
     background-color: white !important;
     color: black !important;
-    overflow: visible !important;
-  }
-  main {
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 100% !important;
-  }
-  .bg-card {
-    background-color: white !important;
-    border: 1px solid #e5e7eb !important;
-    box-shadow: none !important;
-  }
-  .text-white {
-    color: black !important;
-  }
-  .text-muted-foreground {
-    color: #4b5563 !important;
-  }
-  aside, header, .sidebar {
-    display: none !important;
   }
 }

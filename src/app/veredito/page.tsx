@@ -1,22 +1,23 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   Zap,
-  Bot,
-  BrainCircuit,
   MessageSquare,
-  Send,
   Copy,
   Clock,
   FileText,
-  FileSignature,
-  FileCheck,
-  FileUp,
-  ShieldCheck,
+  FileSearch,
   History,
-  AlertTriangle
+  AlertTriangle,
+  Search,
+  MoreHorizontal,
+  Copyright,
+  Send,
+  User,
+  Bot
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,35 +26,10 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { executarVereditoAI } from '@/ai/flows/veredito-ai-flow';
 import { perguntarIA } from '@/ai/flows/chat-ai-flow';
-import { gerarDocumentoIA } from '@/ai/flows/document-flow';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Textarea } from '@/components/ui/textarea';
-
-const RESPONSE_TEMPLATES = [
-  {
-    category: "Apresentação",
-    items: [
-      { title: "Início Setor Processual", text: "Me chamo {seu_nome} e faço parte do Setor Processual da Get Assessoria. Segue as informações do seu processo." },
-      { title: "Auxílio Andamento", text: "Muito prazer, me chamo {seu_nome}, faço parte do Setor Processual da Get Assessoria. Irei te auxiliar quanto ao andamento do seu processo." }
-    ]
-  },
-  {
-    category: "Alerta de Golpe",
-    items: [
-      { title: "Desconsiderar Informações", text: "Peço que desconsidere quaisquer informações repassadas por essa pessoa, ela não faz parte do nosso escritório." },
-      { title: "Contato Exclusivo", text: "Solicitamos que concentre o contato exclusivamente com o grupo do Setor Jurídico ou diretamente conosco." }
-    ]
-  }
-];
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  engine?: string;
-}
 
 export default function VereditoPage() {
   const [cnj, setCnj] = useState('');
@@ -64,16 +40,10 @@ export default function VereditoPage() {
   const [retryAfter, setRetryAfter] = useState<number | null>(null);
   
   const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const [docInput, setDocInput] = useState('');
-  const [docResult, setDocResult] = useState<string | null>(null);
-  const [docLoading, setDocLoading] = useState(false);
-  const [pdfExtracting, setPdfExtracting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  
   const { toast } = useToast();
 
   useEffect(() => {
@@ -95,206 +65,299 @@ export default function VereditoPage() {
     return () => clearInterval(timer);
   }, [retryAfter]);
 
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cnj || retryAfter !== null) return;
     setLoading(true);
     setResult(null);
+    setChatMessages([]);
     try {
       const data = await executarVereditoAI({ cnj, preferredModel: model, deepThinking });
       setResult(data);
-      toast({ title: "Análise Concluída", description: `Consulta Realizada com sucesso via ${data.engineUtilizada}.` });
+      toast({ title: "Consulta Concluída", description: "Auditória estratégica gerada com sucesso." });
     } catch (error: any) {
       if (error.message.includes('RATE_LIMIT')) {
         const s = parseInt(error.message.split(':')[1]) || 25;
         setRetryAfter(s);
-        toast({ title: "Limite do Motor", description: `Aguarde ${s}s para a próxima consulta.`, variant: "destructive" });
+        toast({ title: "Limite Excedido", description: `Aguarde ${s}s para nova auditoria.`, variant: "destructive" });
       } else {
-        toast({ title: "Erro na Análise", description: error.message, variant: "destructive" });
+        toast({ title: "Erro na Auditoria", description: error.message, variant: "destructive" });
       }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || chatLoading || !result) return;
+
+    const userMsg = { role: 'user', content: chatInput };
+    setChatMessages(prev => [...prev, userMsg]);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const context = `DADOS REAIS DO TRIBUNAL (DataJud): ${JSON.stringify(result.dataJudRaw)}. 
+      RESUMO TÉCNICO: ${result.resumoTecnico}. 
+      PERGUNTA DO USUÁRIO: ${chatInput}`;
+
+      const response = await perguntarIA({ 
+        pergunta: context, 
+        historico: chatMessages.slice(-6),
+        preferredModel: model,
+        deepThinking
+      });
+
+      setChatMessages(prev => [...prev, { role: 'assistant', content: response.resposta }]);
+    } catch (error: any) {
+      toast({ title: "Falha na Resposta", description: error.message, variant: "destructive" });
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: "Texto Copiado!" });
+    toast({ title: "Minuta Copiada!" });
   };
 
   return (
-    <div className="flex h-screen bg-background font-body">
+    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden text-white">
-        <header className="h-16 border-b border-border bg-sidebar/50 backdrop-blur-md flex items-center justify-between px-8 shrink-0">
-          <div className="flex items-center gap-4">
-            <h1 className="font-headline font-bold text-xl">Veredito AI v26.0 Elite</h1>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-[9px] uppercase tracking-widest bg-primary/10 border-primary/20 text-primary">
-                <Zap size={10} className="mr-1" /> {model.toUpperCase()} {deepThinking && "+ R1"}
-              </Badge>
-              <Badge variant="outline" className="text-[9px] uppercase tracking-widest border-chart-3/30 text-chart-3 flex items-center gap-1">
-                <ShieldCheck size={10} /> Live DataJud Sync
-              </Badge>
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        <header className="h-auto bg-[#f8f9fb] border-b border-[#dddbda] px-6 py-4 shrink-0 z-40">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-6">
+              <div className="icon-3d-wrapper">
+                <div className="icon-3d-block black w-14 h-14 rounded-md">
+                  <FileSearch size={32} className="text-white" />
+                </div>
+              </div>
+              <div className="group hover:bg-black p-2 transition-all rounded-sm cursor-default">
+                <p className="text-[11px] font-black text-black/60 group-hover:text-white/60 uppercase tracking-widest">Auditoria 3D Pro</p>
+                <h1 className="text-xl font-black text-black group-hover:text-white tracking-tight uppercase transition-colors">
+                  {result ? `Processo ${result.dataJudRaw?.numeroProcesso}` : "Inicie uma Nova Consulta"}
+                </h1>
+              </div>
             </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="border-black h-9 font-black text-xs hover:bg-black hover:text-white text-black uppercase transition-all">Histórico Global</Button>
+              <Button variant="outline" size="icon" className="h-9 w-9 border-black text-black hover:bg-black hover:text-white transition-all"><MoreHorizontal size={16} /></Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 pt-3 border-t border-[#dddbda]/50">
+             <HighlightItem label="Tribunal" value={result?.dataJudRaw?.tribunal || '---'} />
+             <HighlightItem label="Instância" value={result?.dataJudRaw?.grau || '---'} />
+             <HighlightItem label="Sincronizado" value={result ? new Date(result.dataJudRaw?.dataHoraUltimaAtualizacao).toLocaleDateString('pt-BR') : '---'} />
+             <HighlightItem label="Status" value={result ? "Auditoria Concluída" : "Aguardando"} isBadge />
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-8">
-          <Tabs defaultValue="analysis" className="w-full">
-            <TabsList className="bg-secondary/50 mb-8 p-1 rounded-xl">
-              <TabsTrigger value="analysis" className="rounded-lg data-[state=active]:bg-primary">Análise Estratégica</TabsTrigger>
-              <TabsTrigger value="chat" className="rounded-lg data-[state=active]:bg-primary">Chat Consultivo</TabsTrigger>
-              <TabsTrigger value="docs" className="rounded-lg data-[state=active]:bg-primary">Gerador de Docs</TabsTrigger>
-              <TabsTrigger value="templates" className="rounded-lg data-[state=active]:bg-primary">Biblioteca</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="analysis" className="space-y-8">
-              <div className="max-w-2xl mx-auto text-center space-y-6">
-                <div className="space-y-2">
-                  <h2 className="text-4xl font-headline font-bold tracking-tighter">Consultor Jurídico W1</h2>
-                  <p className="text-muted-foreground text-sm">Análise Real-Time via DataJud com Inteligência v26.0.</p>
+        <div className="flex-1 overflow-auto p-6">
+          <div className="max-w-7xl mx-auto space-y-6">
+            
+            {!result && (
+              <div className="max-w-2xl mx-auto py-20 text-center space-y-8">
+                <div className="space-y-2 group hover:bg-black p-4 transition-all rounded-xl cursor-default">
+                  <h2 className="text-3xl font-black text-black group-hover:text-white tracking-tighter uppercase">Unidade de Triagem de Gabinete</h2>
+                  <p className="text-black/70 group-hover:text-white/70 text-sm font-black uppercase">Consulte o número CNJ para extração de inteligência estratégica.</p>
                 </div>
-                <form onSubmit={handleSearch} className="flex gap-2">
+                <form onSubmit={handleSearch} className="flex gap-3 bg-white p-2 rounded-lg border border-black shadow-xl">
                   <Input 
                     placeholder="0000000-00.2025.8.26.0000" 
                     value={cnj} 
                     onChange={(e) => setCnj(e.target.value)} 
-                    className="bg-card border-border h-14 text-lg rounded-2xl focus-visible:ring-primary shadow-2xl" 
+                    className="border-none h-14 text-lg focus-visible:ring-0 font-mono text-black placeholder:text-black/30" 
                   />
-                  <button type="submit" disabled={loading || retryAfter !== null} className="h-14 px-10 rounded-2xl font-bold text-white shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 disabled:opacity-50 transition-all">
-                    {loading ? (
-                      <span className="flex items-center gap-2"><Clock className="animate-spin" size={18} /> Processando...</span>
-                    ) : "Gerar Veredito"}
-                  </button>
+                  <div className="icon-3d-wrapper">
+                    <Button type="submit" disabled={loading || retryAfter !== null} className="h-14 px-8 rounded bg-black hover:bg-gray-800 font-black text-white transition-all shadow-lg uppercase text-xs border-none">
+                      {loading ? (
+                        <span className="flex items-center gap-2"><Clock className="animate-spin" size={18} /> Consolidando...</span>
+                      ) : "Realizar Auditoria"}
+                    </Button>
+                  </div>
                 </form>
               </div>
+            )}
 
-              {result && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="lg:col-span-2 space-y-6">
-                    <Card className="bg-card border-border shadow-2xl rounded-3xl overflow-hidden border-t-4 border-t-primary">
-                      <CardHeader className="bg-secondary/20 border-b border-border/50 py-4 px-8">
-                        <CardTitle className="text-xs uppercase tracking-widest text-primary font-bold flex items-center gap-2">
-                          <FileText size={14} /> 📋 Análise Interna (Estratégia Equipe)
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-8 space-y-8">
-                        <div className="space-y-3">
-                          <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Resumo do Status Atual</Label>
-                          <div className="bg-secondary/30 p-6 rounded-2xl border border-border/50">
-                            <p className="text-sm leading-relaxed text-foreground/90 font-medium whitespace-pre-wrap">{result.resumoTecnico}</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-3">
-                            <Label className="text-[10px] font-black text-accent uppercase tracking-widest">Alertas e Riscos</Label>
-                            <p className="text-xs text-muted-foreground leading-relaxed italic border-l-2 border-accent pl-4 whitespace-pre-wrap">{result.analiseRisco}</p>
-                          </div>
-                          <div className="space-y-3">
-                            <Label className="text-[10px] font-black text-chart-3 uppercase tracking-widest">Estratégia Recomendada</Label>
-                            <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-chart-3 pl-4 whitespace-pre-wrap">{result.proximosPassos}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+            {result && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                  <Tabs defaultValue="details" className="w-full">
+                    <TabsList className="bg-[#e2e2e2] p-1 h-11 w-full justify-start rounded-t-md mb-0 border border-black border-b-0">
+                      <TabsTrigger value="details" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-xs px-6 h-9 uppercase transition-all">Parecer Técnico</TabsTrigger>
+                      <TabsTrigger value="activity" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-xs px-6 h-9 uppercase transition-all">Linha do Tempo</TabsTrigger>
+                      <TabsTrigger value="chatter" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-xs px-6 h-9 uppercase transition-all">Consultoria de Gabinete</TabsTrigger>
+                    </TabsList>
 
-                    <Card className="bg-card border-border shadow-2xl rounded-3xl overflow-hidden">
-                      <CardHeader className="bg-secondary/20 border-b border-border/50 py-4 px-8 flex items-center gap-2">
-                        <History size={14} className="text-primary" />
-                        <CardTitle className="text-xs uppercase tracking-widest font-bold">Histórico Recente do Tribunal</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <div className="divide-y divide-border/50">
-                          {result.historicoMovimentacoes && result.historicoMovimentacoes.length > 0 ? result.historicoMovimentacoes.map((mov: any, idx: number) => (
-                            <div key={idx} className="p-4 hover:bg-secondary/10 transition-colors flex gap-4">
-                              <div className="text-[10px] font-mono text-muted-foreground whitespace-nowrap pt-1">{mov.data}</div>
-                              <div className="text-xs text-foreground/80 font-medium">{mov.movimento}</div>
+                    <TabsContent value="details" className="mt-0">
+                      <Card className="bg-white border-black shadow-sm rounded-b-md rounded-t-none border-t-0">
+                        <CardHeader className="bg-[#f8f9fb] border-b border-black py-3">
+                          <CardTitle className="text-xs font-black text-black uppercase tracking-widest flex items-center gap-2">
+                            <FileText size={14} /> Diagnóstico Técnico Sênior
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-8">
+                          <div className="space-y-2 group hover:bg-black p-4 transition-all rounded-sm border border-transparent hover:border-black cursor-default">
+                            <Label className="text-[10px] font-black text-black/60 group-hover:text-white/60 uppercase tracking-widest">Andamento Atual Sincronizado</Label>
+                            <div className="bg-[#f3f2f2] p-4 border border-black rounded-sm group-hover:bg-gray-900 group-hover:border-white/20 transition-all">
+                              <p className="text-sm leading-relaxed text-black group-hover:text-white font-black whitespace-pre-wrap italic uppercase">{result.resumoTecnico}</p>
                             </div>
-                          )) : (
-                            <div className="p-8 text-center text-xs text-muted-foreground italic flex items-center justify-center gap-2">
-                              <AlertTriangle size={14} /> Nenhuma movimentação recente disponível.
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-2 hover:bg-black p-4 transition-all rounded-sm group cursor-default">
+                              <Label className="text-[10px] font-black text-black group-hover:text-white uppercase tracking-widest">Análise Preditiva de Risco</Label>
+                              <p className="text-xs text-black group-hover:text-white leading-relaxed border-l-4 border-black group-hover:border-white pl-4 whitespace-pre-wrap font-black uppercase">{result.analiseRisco}</p>
                             </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
+                            <div className="space-y-2 hover:bg-black p-4 transition-all rounded-sm group cursor-default">
+                              <Label className="text-[10px] font-black text-black group-hover:text-white uppercase tracking-widest">Estratégia de Gabinete</Label>
+                              <p className="text-xs text-black group-hover:text-white leading-relaxed border-l-4 border-black group-hover:border-white pl-4 whitespace-pre-wrap font-black uppercase">{result.proximosPassos}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
 
-                    <Card className="bg-primary/5 border-primary/20 shadow-2xl rounded-3xl border-l-8 border-l-primary overflow-hidden">
-                      <CardHeader className="bg-primary/10 border-b border-primary/10 py-4 px-8 flex flex-row items-center justify-between">
-                        <CardTitle className="text-xs uppercase tracking-widest text-primary font-bold flex items-center gap-2">
-                          <MessageSquare size={14} /> 💬 Mensagem WhatsApp (CRM)
-                        </CardTitle>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => copyToClipboard(result.mensagemCliente)} 
-                          className="h-8 text-[10px] font-bold uppercase hover:bg-primary hover:text-white"
-                        >
-                          <Copy size={12} className="mr-2" /> Copiar Texto
-                        </Button>
-                      </CardHeader>
-                      <CardContent className="p-8">
-                        <div className="bg-white/5 p-6 rounded-2xl italic text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap font-medium border border-white/5 shadow-inner">
-                          {result.mensagemCliente}
+                    <TabsContent value="activity" className="mt-0">
+                      <Card className="bg-white border-black shadow-sm rounded-b-md rounded-t-none border-t-0">
+                        <CardHeader className="bg-[#f8f9fb] border-b border-black py-3">
+                          <CardTitle className="text-xs font-black text-black uppercase tracking-widest flex items-center gap-2">
+                            <History size={14} /> Histórico Oficial DataJud
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <div className="divide-y divide-black">
+                            {result.historicoMovimentacoes && result.historicoMovimentacoes.length > 0 ? result.historicoMovimentacoes.map((mov: any, idx: number) => (
+                              <div key={idx} className="p-4 hover:bg-black group transition-all flex gap-6 items-start cursor-default">
+                                <div className="text-[10px] font-black text-black bg-[#e2e2e2] px-2 py-1 rounded w-28 text-center shrink-0 border border-black group-hover:bg-white transition-all">{mov.data}</div>
+                                <div className="text-xs text-black group-hover:text-white font-black leading-tight uppercase transition-all">{mov.movimento}</div>
+                              </div>
+                            )) : (
+                              <div className="p-12 text-center text-xs text-black font-black uppercase italic">Nenhuma movimentação processual capturada.</div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    <TabsContent value="chatter" className="mt-0">
+                      <Card className="bg-white border-black shadow-lg rounded-b-md rounded-t-none border-t-0 flex flex-col h-[500px]">
+                        <CardHeader className="bg-[#f8f9fb] border-b border-black py-3 flex flex-row items-center justify-between shrink-0">
+                          <CardTitle className="text-xs font-black text-black uppercase tracking-widest flex items-center gap-2">
+                            <MessageSquare size={14} /> Consultoria de Gabinete Ativa
+                          </CardTitle>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => copyToClipboard(result.mensagemCliente)} 
+                            className="h-7 text-[9px] font-black uppercase text-black hover:bg-black hover:text-white border border-black transition-all"
+                          >
+                            <Copy size={12} className="mr-2" /> Copiar Minuta WhatsApp
+                          </Button>
+                        </CardHeader>
+                        
+                        <ScrollArea className="flex-1 p-4 bg-[#f3f2f2]" ref={scrollRef}>
+                          <div className="space-y-4">
+                            <div className="flex justify-start">
+                              <div className="bg-white border border-black p-4 rounded-lg max-w-[80%] shadow-sm hover:bg-black hover:text-white group transition-all cursor-default">
+                                <p className="text-[10px] font-black text-black group-hover:text-white/70 uppercase mb-1 flex items-center gap-1">
+                                  <Bot size={10} /> Sugestão de Contato
+                                </p>
+                                <p className="text-xs italic text-black group-hover:text-white leading-relaxed font-black uppercase">{result.mensagemCliente}</p>
+                              </div>
+                            </div>
+
+                            {chatMessages.map((msg, i) => (
+                              <div key={i} className={cn("flex", msg.role === 'user' ? "justify-end" : "justify-start")}>
+                                <div className={cn(
+                                  "p-3 rounded-lg max-w-[85%] shadow-sm text-xs font-black uppercase transition-all",
+                                  msg.role === 'user' ? "bg-black text-white border border-white/20" : "bg-white border border-black text-black hover:bg-black hover:text-white"
+                                )}>
+                                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+
+                        <div className="p-4 border-t border-black bg-white shrink-0">
+                          <form onSubmit={handleChat} className="flex gap-2">
+                            <Input 
+                              placeholder="FAÇA UMA PERGUNTA TÉCNICA..." 
+                              value={chatInput}
+                              onChange={(e) => setChatInput(e.target.value)}
+                              disabled={chatLoading}
+                              className="flex-1 bg-[#f3f2f2] border-black text-xs font-black text-black uppercase"
+                            />
+                            <Button type="submit" size="icon" disabled={chatLoading} className="bg-black text-white hover:bg-gray-800 border-none transition-all">
+                              <Send size={16} />
+                            </Button>
+                          </form>
                         </div>
-                        <p className="text-[9px] text-muted-foreground uppercase font-bold mt-4 text-right">Gerado via {result.engineUtilizada}</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  
-                  <div className="space-y-6">
-                    <Card className="bg-card border-border shadow-xl rounded-3xl overflow-hidden">
-                      <CardHeader className="bg-secondary/20 py-4 px-6 border-b border-border/50">
-                        <CardTitle className="text-[10px] uppercase font-black tracking-tighter text-muted-foreground">Metadados DataJud</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-6 space-y-4">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Tribunal</span>
-                          <span className="text-sm font-bold text-white">{result.dataJudRaw?.tribunal || 'N/A'}</span>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Classe</span>
-                          <span className="text-sm font-bold text-white">{result.dataJudRaw?.classe?.nome || 'N/A'}</span>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Última Atualização</span>
-                          <span className="text-sm font-bold text-white">{new Date(result.dataJudRaw?.dataHoraUltimaAtualizacao).toLocaleDateString('pt-BR')}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                      </Card>
+                    </TabsContent>
+                  </Tabs>
                 </div>
-              )}
-            </TabsContent>
-            {/* Outros Tabs mantidos conforme v25.0 */}
-            <TabsContent value="chat" className="h-[650px]">
-              <div className="bg-card border border-border rounded-3xl h-full flex flex-col shadow-2xl overflow-hidden text-center opacity-40 py-40">
-                 <Bot size={48} className="mx-auto mb-4" />
-                 <p className="font-bold">Módulo de Chat v26.0 Ativo</p>
+                
+                <div className="space-y-6">
+                  <Card className="bg-white border-black shadow-sm rounded-sm">
+                    <CardHeader className="bg-[#f8f9fb] py-3 px-6 border-b border-black">
+                      <CardTitle className="text-[10px] font-black text-black uppercase tracking-[0.2em]">Metadados de Gabinete</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-6">
+                      <RelatedItem label="Natureza" value={result.dataJudRaw?.classe?.nome || 'Não informada'} />
+                      <RelatedItem label="Orgão Julgador" value={result.dataJudRaw?.orgaoJulgador?.nome || 'Gabinete Local'} />
+                      <RelatedItem label="Assunto" value={result.dataJudRaw?.assuntos?.[0]?.nome || 'Contratual'} />
+                      <RelatedItem label="Ajuizamento" value={result.dataJudRaw?.dataAjuizamento ? `${result.dataJudRaw.dataAjuizamento.substring(6,8)}/${result.dataJudRaw.dataAjuizamento.substring(4,6)}/${result.dataJudRaw.dataAjuizamento.substring(0,4)}` : '---'} />
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
-            </TabsContent>
-            <TabsContent value="docs" className="h-[650px]">
-               <div className="bg-card border border-border rounded-3xl h-full flex flex-col shadow-2xl overflow-hidden text-center opacity-40 py-40">
-                 <FileSignature size={48} className="mx-auto mb-4" />
-                 <p className="font-bold">Gerador de Docs v26.0 Ativo</p>
-              </div>
-            </TabsContent>
-            <TabsContent value="templates" className="h-[650px]">
-               <div className="bg-card border border-border rounded-3xl h-full flex flex-col shadow-2xl overflow-hidden text-center opacity-40 py-40">
-                 <Copy size={48} className="mx-auto mb-4" />
-                 <p className="font-bold">Biblioteca v26.0 Ativa</p>
-              </div>
-            </TabsContent>
-          </Tabs>
+            )}
+          </div>
         </div>
 
-        <footer className="h-10 border-t border-border/30 bg-sidebar/30 flex items-center justify-center gap-4 text-[10px] text-muted-foreground font-medium uppercase tracking-widest shrink-0">
-          <span>2026 W1 Capital. Todos os direitos reservados.</span>
-          <span className="w-1 h-1 bg-muted-foreground rounded-full opacity-30" />
-          <span className="text-primary/70">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
+        <footer className="h-10 border-t border-black bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 hover:text-black transition-colors cursor-default">
+          <div className="flex items-center gap-2">
+            <Copyright size={10} /> 2026 W1 Capital. Todos os direitos reservados.
+          </div>
+          <span className="w-1 h-1 bg-black rounded-full opacity-30" />
+          <span className="text-black uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
         </footer>
       </main>
+    </div>
+  );
+}
+
+function HighlightItem({ label, value, isBadge = false }: { label: string, value: string, isBadge?: boolean }) {
+  return (
+    <div className="space-y-1 group hover:bg-black p-1 transition-all rounded-sm cursor-default">
+      <p className="text-[10px] font-black text-black/60 group-hover:text-white/60 uppercase">{label}</p>
+      {isBadge ? (
+        <Badge variant="outline" className="bg-[#e2e2e2] text-black border-black font-black text-[9px] px-2 py-0 group-hover:bg-white group-hover:text-black">
+          {value}
+        </Badge>
+      ) : (
+        <p className="text-xs font-black text-black group-hover:text-white truncate max-w-[150px] uppercase transition-colors">{value}</p>
+      )}
+    </div>
+  );
+}
+
+function RelatedItem({ label, value }: { label: string, value: string }) {
+  return (
+    <div className="space-y-1 border-b border-[#f3f2f2] pb-4 last:border-0 last:pb-0 hover:bg-black p-2 transition-all group rounded-sm cursor-default">
+      <p className="text-[9px] font-black text-black/50 group-hover:text-white/50 uppercase tracking-widest">{label}</p>
+      <p className="text-xs font-black text-black group-hover:text-white leading-tight uppercase transition-all">{value}</p>
     </div>
   );
 }

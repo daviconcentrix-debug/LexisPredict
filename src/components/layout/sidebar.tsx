@@ -13,14 +13,14 @@ import {
   ShieldAlert, 
   Settings, 
   Scale, 
-  PanelLeftClose,
+  PanelLeftClose, 
   PanelLeft,
   Lock,
   Unlock,
   StickyNote,
-  Cpu,
+  FileSearch,
   Copyright,
-  Zap
+  MessageSquare
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -32,107 +32,114 @@ export function Sidebar() {
   const { isAdmin } = useAdmin();
 
   const primaryNav = [
-    { label: 'Intelligence Unit', href: '/', icon: LayoutDashboard },
-    { label: 'Case Management', href: '/cases', icon: Briefcase },
-    { label: 'Client Directory', href: '/clients', icon: Users },
+    { label: 'Painel de Controle', href: '/', icon: LayoutDashboard },
+    { label: 'Processos Judiciais', href: '/cases', icon: Briefcase },
+    { label: 'Contas & Clientes', href: '/clients', icon: Users },
   ];
 
   const omniNav = [
-    { label: 'Veredito AI (Busca 360)', href: '/veredito', icon: Cpu },
-    { label: 'Migration Tool', href: '/import', icon: Upload },
-    { label: 'Notes & Updates', href: '/notes', icon: StickyNote },
+    { label: 'Auditoria 3D', href: '/veredito', icon: FileSearch },
+    { label: 'Consultoria de Gabinete', href: '/chat', icon: MessageSquare },
+    { label: 'Importação de Dados', href: '/import', icon: Upload },
+    { label: 'Evidências & Notas', href: '/notes', icon: StickyNote },
   ];
 
   const adminNav = [
-    { label: 'Analytics Hub', href: '/analytics', icon: BarChart3 },
-    { label: 'Urgency Engine', href: '/urgency', icon: ShieldAlert },
-    { label: 'System Settings', href: '/settings', icon: Settings },
+    { label: 'Indicadores Analytics', href: '/analytics', icon: BarChart3 },
+    { label: 'Motor de Prioridade', href: '/urgency', icon: ShieldAlert },
+    { label: 'Configuração Sistema', href: '/settings', icon: Settings },
   ];
 
   return (
     <aside className={cn(
-      "h-screen bg-sidebar flex flex-col transition-all duration-300 border-r border-border shrink-0 print:hidden",
-      collapsed ? "w-20" : "w-64"
+      "h-screen bg-white flex flex-col transition-all duration-200 border-r border-[#dddbda] shrink-0 print:hidden z-50",
+      collapsed ? "w-[70px]" : "w-64"
     )}>
-      <div className="h-16 flex items-center justify-between px-6 border-b border-border">
-        {!collapsed && (
-          <div className="flex items-center gap-2">
-            <Scale className="text-primary w-6 h-6" />
-            <div className="flex flex-col">
-              <span className="font-headline font-bold text-lg text-white leading-none">LexisPredict</span>
-              <span className="text-[8px] uppercase tracking-widest text-muted-foreground font-bold mt-1">W1 CAPITAL</span>
+      <div className="h-14 flex items-center px-5 border-b border-[#dddbda] bg-[#f8f9fb]">
+        <div className="flex items-center gap-4">
+          <div className="icon-3d-wrapper">
+            <div className="icon-3d-block black w-8 h-8 rounded-sm">
+              <Scale size={16} className="text-white" />
             </div>
           </div>
-        )}
-        {collapsed && <Scale className="text-primary w-6 h-6 mx-auto" />}
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => setCollapsed(!collapsed)}
-          className="text-muted-foreground hover:text-white"
-        >
-          {collapsed ? <PanelLeft size={20} /> : <PanelLeftClose size={20} />}
-        </Button>
+          {!collapsed && (
+            <div className="flex flex-col">
+              <span className="font-black text-sm text-black tracking-tight uppercase">LexisPredict</span>
+              <span className="text-[9px] text-black/60 font-black tracking-widest uppercase italic">Elite Edition</span>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 py-6 px-3 space-y-8 overflow-y-auto">
+      <div className="flex-1 py-4 px-2 space-y-6 overflow-y-auto overflow-x-hidden scrollbar-hide">
         <section>
-          {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Estratégico</p>}
+          {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Gestão</p>}
           <div className="space-y-1">
             {primaryNav.map((item) => (
-              <NavLink key={item.href} item={item} collapsed={collapsed} active={pathname === item.href} />
+              <NavLink key={item.label} item={item} collapsed={collapsed} active={pathname === item.href} />
             ))}
           </div>
         </section>
 
         <section>
-          {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5"><Zap size={10} /> OmniReport</p>}
+          {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Auditoria</p>}
           <div className="space-y-1">
             {omniNav.map((item) => (
-              <NavLink key={item.href} item={item} collapsed={collapsed} active={pathname === item.href} />
+              <NavLink key={item.label} item={item} collapsed={collapsed} active={pathname === item.href} />
             ))}
           </div>
         </section>
 
         <section>
-          {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Governança</p>}
+          {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Administração</p>}
           <div className="space-y-1">
             {adminNav.map((item) => (
-              <NavLink key={item.href} item={item} collapsed={collapsed} active={pathname === item.href} />
+              <NavLink key={item.label} item={item} collapsed={collapsed} active={pathname === item.href} />
             ))}
           </div>
         </section>
       </div>
 
-      <div className="p-4 border-t border-border space-y-3 bg-sidebar-background">
-        {!collapsed && (
-          <div className={cn(
-            "flex items-center justify-between px-2 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-tighter",
-            isAdmin ? "border-primary/30 bg-primary/5 text-primary" : "border-muted bg-muted/5 text-muted-foreground"
-          )}>
-            <span className="flex items-center gap-1.5">
-              {isAdmin ? <Unlock size={10} /> : <Lock size={10} />}
-              {isAdmin ? "Admin Active" : "Visitor Mode"}
-            </span>
+      <div className="p-2 border-t border-[#dddbda] bg-[#f8f9fb]">
+        <div className={cn(
+          "flex items-center p-2 rounded-md transition-all group",
+          !collapsed ? "gap-3 bg-white border border-black shadow-sm hover:bg-black hover:text-white" : "justify-center"
+        )}>
+          <div className="w-8 h-8 rounded bg-black text-white flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-white group-hover:text-black transition-colors">
+            DA
           </div>
-        )}
-        
-        {!collapsed ? (
-          <div className="flex items-center gap-3 bg-secondary/50 p-2 rounded-xl border border-border/30 shadow-inner">
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-white shrink-0 shadow-lg shadow-primary/20">DA</div>
+          {!collapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-bold text-white truncate">Davi Alves Figueredo</span>
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold truncate">Fundador W1 Capital</span>
+              <span className="text-[11px] font-black text-black group-hover:text-white transition-colors truncate uppercase">Davi Alves Figueredo</span>
+              <span className="text-[9px] text-black/60 group-hover:text-white/60 transition-colors font-black uppercase truncate italic">Fundador & Gestor</span>
             </div>
-          </div>
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-white mx-auto shadow-lg shadow-primary/20">DA</div>
-        )}
+          )}
+        </div>
+
+        <div className="mt-2 flex items-center justify-between px-2">
+          {!collapsed && (
+            <span className="text-[9px] font-black text-black uppercase flex items-center gap-1 group cursor-default">
+              {isAdmin ? <Unlock size={10} className="text-green-600" /> : <Lock size={10} />}
+              <span className="group-hover:bg-black group-hover:text-white px-1 transition-all rounded-sm">{isAdmin ? "Admin Root" : "Visitante"}</span>
+            </span>
+          )}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setCollapsed(!collapsed)}
+            className="h-6 w-6 text-black/40 hover:bg-black hover:text-white transition-all"
+          >
+            {collapsed ? <PanelLeft size={14} /> : <PanelLeftClose size={14} />}
+          </Button>
+        </div>
 
         {!collapsed && (
-          <div className="px-2 pt-2 flex items-center justify-center gap-1.5 opacity-30 hover:opacity-100 transition-opacity cursor-default">
-            <Copyright size={8} className="text-white" />
-            <span className="text-[7px] uppercase font-black text-white tracking-widest">© 2026 W1 Capital. Todos os direitos reservados.</span>
+          <div className="mt-4 pb-2 text-center space-y-1">
+            <div className="flex items-center justify-center gap-1.5 opacity-40 hover:opacity-100 transition-opacity group cursor-default">
+              <Copyright size={8} className="text-black group-hover:text-black" />
+              <span className="text-[7px] uppercase font-black text-black tracking-widest">© 2026 W1 CAPITAL</span>
+            </div>
+            <p className="text-[6px] text-black/60 font-black uppercase tracking-tighter italic">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</p>
           </div>
         )}
       </div>
@@ -145,14 +152,18 @@ function NavLink({ item, collapsed, active }: { item: any, collapsed: boolean, a
     <Link 
       href={item.href}
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
+        "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative",
         active 
-          ? "bg-primary text-white shadow-lg shadow-primary/20" 
-          : "text-muted-foreground hover:bg-sidebar-accent hover:text-white"
+          ? "bg-black text-white" 
+          : "text-black hover:bg-black hover:text-white"
       )}
     >
-      <item.icon className={cn("w-5 h-5", active ? "text-white" : "text-muted-foreground group-hover:text-primary")} />
-      {!collapsed && <span className="font-medium text-sm">{item.label}</span>}
+      <div className="icon-3d-wrapper shrink-0 scale-75">
+        <div className={cn("icon-3d-block w-8 h-8 rounded-sm", active ? "bg-white" : "group-hover:bg-white")}>
+          <item.icon className={cn("w-4 h-4", active ? "text-black" : "text-black group-hover:text-black")} />
+        </div>
+      </div>
+      {!collapsed && <span className="font-black text-[13px] tracking-tight truncate uppercase transition-colors">{item.label}</span>}
     </Link>
   );
 }
