@@ -7,6 +7,7 @@ import { LegalCase, CaseNote } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
 import { Printer, ArrowLeft, ShieldCheck, Activity, FileText, MessageSquare, Copyright } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 /**
  * MASTER UNIFIED REPORT ENGINE — LEXISPREDICT
@@ -33,12 +34,26 @@ export default function UnifiedReport() {
         ]);
 
         const parsedCases = (casesRes.data || []).map(item => item.dados as LegalCase);
-        const parsedNotes = (notesRes.data || []).map(item => ({
-          id: item.id,
-          title: item.title,
-          content: item.content,
-          updatedAt: new Date(item.created_at).toLocaleDateString('pt-BR')
-        }));
+        const parsedNotes = (notesRes.data || []).map(item => {
+          let imageUrl;
+          let displayContent = item.content || '';
+          
+          try {
+            if (displayContent.startsWith('{')) {
+              const parsed = JSON.parse(displayContent);
+              displayContent = parsed.text;
+              imageUrl = parsed.imageUrl;
+            }
+          } catch (e) {}
+
+          return {
+            id: item.id.toString(),
+            title: item.title || 'Sem Título',
+            content: displayContent,
+            imageUrl: imageUrl,
+            updatedAt: new Date(item.created_at).toLocaleDateString('pt-BR')
+          } as CaseNote;
+        });
 
         setCases(parsedCases);
         setNotes(parsedNotes);
@@ -168,17 +183,32 @@ export default function UnifiedReport() {
       <section className="mb-12 break-inside-avoid">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded"><MessageSquare size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">3. Anotações Estratégicas</h2>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">3. Anotações Estratégicas & Evidências</h2>
         </div>
         {notes.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-8">
             {notes.map((n, i) => (
-              <div key={i} className="p-5 border-2 border-gray-100 rounded-2xl bg-gray-50/50 shadow-sm break-inside-avoid">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-extrabold text-[11px] uppercase tracking-tight border-l-4 border-black pl-2">{n.title}</h3>
-                  <span className="text-[8px] font-mono text-gray-400 font-bold">{n.updatedAt}</span>
+              <div key={i} className="p-6 border-2 border-gray-100 rounded-2xl bg-gray-50/50 shadow-sm break-inside-avoid">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-extrabold text-[12px] uppercase tracking-tight border-l-4 border-black pl-3">{n.title}</h3>
+                  <span className="text-[9px] font-mono text-gray-400 font-bold">{n.updatedAt}</span>
                 </div>
-                <p className="text-[10px] text-gray-700 leading-relaxed whitespace-pre-wrap">{n.content}</p>
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="flex-1">
+                    <p className="text-[11px] text-gray-700 leading-relaxed whitespace-pre-wrap">{n.content}</p>
+                  </div>
+                  {n.imageUrl && (
+                    <div className="w-full md:w-64 h-48 relative rounded-xl overflow-hidden border-2 border-white shadow-md bg-white">
+                      <Image 
+                        src={n.imageUrl} 
+                        alt="Evidence" 
+                        fill 
+                        className="object-cover"
+                        unoptimized
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
