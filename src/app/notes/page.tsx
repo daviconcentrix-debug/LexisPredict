@@ -1,8 +1,9 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw, Loader2, Image as ImageIcon, X } from 'lucide-react';
+import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw, Loader2, Image as ImageIcon, X, Maximize2 } from 'lucide-react';
 import { CaseNote } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,12 @@ import { useAdmin } from '@/hooks/use-admin';
 import { fetchRepoNotes, syncRepoNotes } from '@/app/actions/case-actions';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function NotesPage() {
   const [notes, setNotes] = useState<CaseNote[]>([]);
@@ -20,6 +27,7 @@ export default function NotesPage() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const hasLoaded = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isAdmin } = useAdmin();
@@ -255,20 +263,33 @@ export default function NotesPage() {
               <div key={note.id} className={cn(
                 "p-5 rounded-xl border border-border transition-all hover:shadow-lg group relative bg-sidebar/40 flex flex-col h-full"
               )}>
-                {isAdmin && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleDeleteNote(note.id)}
-                    disabled={isSaving}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                )}
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                   {note.imageUrl && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => setFullscreenImage(note.imageUrl!)}
+                      className="h-7 w-7 bg-black/20 backdrop-blur hover:bg-primary text-white border-none"
+                      title="Visualizar em Tela Cheia"
+                    >
+                      <Maximize2 size={14} />
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleDeleteNote(note.id)}
+                      disabled={isSaving}
+                      className="h-7 w-7 bg-black/20 backdrop-blur hover:bg-destructive text-white border-none"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
+                </div>
                 
                 {note.imageUrl && (
-                  <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden border border-border/50">
+                  <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden border border-border/50 cursor-pointer" onClick={() => setFullscreenImage(note.imageUrl!)}>
                     <Image src={note.imageUrl} alt="Note Attachment" fill className="object-cover" />
                   </div>
                 )}
@@ -288,6 +309,36 @@ export default function NotesPage() {
             )}
           </div>
         </div>
+
+        {/* Modal para Visualização em Tela Cheia */}
+        <Dialog open={!!fullscreenImage} onOpenChange={(open) => !open && setFullscreenImage(null)}>
+          <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 bg-black/95 border-border overflow-hidden flex items-center justify-center">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Visualização de Imagem</DialogTitle>
+            </DialogHeader>
+            {fullscreenImage && (
+              <div className="relative w-full h-full min-h-[500px] flex items-center justify-center p-4">
+                <div className="relative w-full h-full max-h-[80vh]">
+                  <Image 
+                    src={fullscreenImage} 
+                    alt="Fullscreen" 
+                    fill 
+                    className="object-contain" 
+                    unoptimized 
+                  />
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setFullscreenImage(null)}
+                  className="absolute top-4 right-4 text-white hover:bg-white/10 rounded-full"
+                >
+                  <X size={24} />
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
