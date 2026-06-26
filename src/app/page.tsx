@@ -156,9 +156,9 @@ export default function Dashboard() {
 
           <footer className="pt-8 border-t border-border/50 text-center space-y-2 opacity-50 hover:opacity-100 transition-opacity">
             <div className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              <Copyright size={10} /> 2024 W1 Capital. Todos os direitos reservados.
+              <Copyright size={10} /> 2026 W1 Capital. Todos os direitos reservados.
             </div>
-            <p className="text-[8px] uppercase tracking-tighter font-medium text-primary/80">FUNDADOR DAVI ALVES FIGUEREDO • LEXISPREDICT AI ENGINE</p>
+            <p className="text-[8px] uppercase tracking-tighter font-medium text-primary/80">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</p>
           </footer>
         </div>
       </main>
