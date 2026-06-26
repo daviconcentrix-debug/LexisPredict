@@ -219,7 +219,7 @@ export default function UnifiedReport() {
 
       <footer className="mt-20 pt-8 border-t text-center space-y-2">
         <div className="flex items-center justify-center gap-2 text-[10px] text-black font-black uppercase tracking-widest">
-          <Copyright size={10} /> 2024 W1 Capital. Todos os direitos reservados.
+          <Copyright size={10} /> 2026 W1 Capital. Todos os direitos reservados.
         </div>
         <p className="text-[8px] text-gray-400 uppercase font-bold tracking-widest">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</p>
       </footer>
