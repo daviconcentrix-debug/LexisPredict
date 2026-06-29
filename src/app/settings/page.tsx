@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   HardDrive, 
@@ -26,7 +26,8 @@ import {
   User as UserIcon,
   Skull,
   Video,
-  Monitor
+  Monitor,
+  Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -79,6 +80,9 @@ export default function SettingsPage() {
   const [sideWpType, setSideWpType] = useState<'image' | 'video'>('image');
   const [wpOpacity, setWpOpacity] = useState(1);
   const [bgColor, setBgColor] = useState('#f3f2f2');
+
+  const mainFileInputRef = useRef<HTMLInputElement>(null);
+  const sideFileInputRef = useRef<HTMLInputElement>(null);
 
   const [newUserForm, setNewUserForm] = useState({
     nome: '',
@@ -139,6 +143,27 @@ export default function SettingsPage() {
     setBgColor(val);
     localStorage.setItem('lexisPredict_bg_color', val);
     window.dispatchEvent(new Event('storage'));
+  };
+
+  const handleLocalFile = (e: React.ChangeEvent<HTMLInputElement>, target: 'main' | 'side') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 25 * 1024 * 1024) { // 25MB limit warning for performance
+        toast({ 
+          title: "Arquivo Volumoso", 
+          description: "Para melhor performance do gabinete, recomendamos vídeos menores que 25MB.",
+          variant: "destructive"
+        });
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (target === 'main') setMainWpUrl(result);
+        else setSideWpUrl(result);
+        toast({ title: "Arquivo Local Carregado", description: "A atmosfera foi atualizada com sucesso." });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const saveWpSettings = () => {
@@ -233,7 +258,7 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Configuração Sistema</h1>
-            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v90.0 SaaS Elite</Badge>
+            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v95.0 SaaS Elite</Badge>
           </div>
         </header>
 
@@ -287,7 +312,7 @@ export default function SettingsPage() {
                 <Card className="bg-white/90 backdrop-blur-md border-2 border-black shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
                     <CardTitle className="text-black font-black uppercase text-sm flex items-center gap-2">
-                      <Palette size={18} /> Atmosfera 3D de Gabinete
+                      <Palette size={18} /> Atmosfera Multimídia de Gabinete
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-6 space-y-8">
@@ -309,7 +334,11 @@ export default function SettingsPage() {
                              <Button size="sm" variant={mainWpType === 'image' ? 'default' : 'outline'} onClick={() => setMainWpType('image')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2"><ImageIcon size={12} className="mr-2"/> IMAGEM</Button>
                              <Button size="sm" variant={mainWpType === 'video' ? 'default' : 'outline'} onClick={() => setMainWpType('video')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2"><Video size={12} className="mr-2"/> VÍDEO</Button>
                           </div>
-                          <Input value={mainWpUrl} onChange={e => setMainWpUrl(e.target.value)} placeholder="URL do Arquivo..." className="border-black font-black text-[10px] rounded-none h-10 uppercase" />
+                          <div className="flex gap-2">
+                            <Input value={mainWpUrl.startsWith('data:') ? 'Arquivo Local Carregado' : mainWpUrl} onChange={e => setMainWpUrl(e.target.value)} placeholder="URL do Arquivo..." className="flex-1 border-black font-black text-[10px] rounded-none h-10 uppercase" />
+                            <Button size="icon" variant="outline" onClick={() => mainFileInputRef.current?.click()} className="border-black border-2 h-10 w-10 shrink-0 hover:bg-black hover:text-white transition-all"><Upload size={14}/></Button>
+                            <input type="file" ref={mainFileInputRef} onChange={e => handleLocalFile(e, 'main')} className="hidden" accept="video/*,image/*" />
+                          </div>
                         </div>
                       )}
 
@@ -320,7 +349,11 @@ export default function SettingsPage() {
                              <Button size="sm" variant={sideWpType === 'image' ? 'default' : 'outline'} onClick={() => setSideWpType('image')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2"><ImageIcon size={12} className="mr-2"/> IMAGEM</Button>
                              <Button size="sm" variant={sideWpType === 'video' ? 'default' : 'outline'} onClick={() => setSideWpType('video')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2"><Video size={12} className="mr-2"/> VÍDEO</Button>
                           </div>
-                          <Input value={sideWpUrl} onChange={e => setSideWpUrl(e.target.value)} placeholder="URL do Arquivo..." className="border-black font-black text-[10px] rounded-none h-10 uppercase" />
+                          <div className="flex gap-2">
+                            <Input value={sideWpUrl.startsWith('data:') ? 'Arquivo Local Carregado' : sideWpUrl} onChange={e => setSideWpUrl(e.target.value)} placeholder="URL do Arquivo..." className="flex-1 border-black font-black text-[10px] rounded-none h-10 uppercase" />
+                            <Button size="icon" variant="outline" onClick={() => sideFileInputRef.current?.click()} className="border-black border-2 h-10 w-10 shrink-0 hover:bg-black hover:text-white transition-all"><Upload size={14}/></Button>
+                            <input type="file" ref={sideFileInputRef} onChange={e => handleLocalFile(e, 'side')} className="hidden" accept="video/*,image/*" />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -345,7 +378,22 @@ export default function SettingsPage() {
                 </Card>
               )}
 
-              {/* ... Rest of tabs (Users, Master, Engine) stay exactly as they were ... */}
+              {activeTab === 'Engine' && (
+                <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
+                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
+                    <CardTitle className="text-black font-black uppercase text-sm">Configuração de IA</CardTitle>
+                    <CardDescription className="text-black font-bold uppercase text-[10px]">Selecione o motor neural padrão para auditorias e consultoria.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <RadioGroup value={iaModel} onValueChange={handleIaChange} className="grid grid-cols-1 gap-4">
+                      <IaOption id="gemini" value="gemini" title="Gemini 1.5 Flash" desc="Alta velocidade e precisão em processos longos." active={iaModel === 'gemini'} />
+                      <IaOption id="grok" value="grok" title="Grok (Llama 3.3)" desc="Raciocínio lógico avançado e assertividade técnica." active={iaModel === 'grok'} />
+                      <IaOption id="openrouter" value="openrouter" title="Claude 3.5 Sonnet" desc="Elite jurídica com análise profunda de nuances." active={iaModel === 'openrouter'} />
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
+              )}
+
               {activeTab === 'Users' && (
                 <Card className="bg-white/90 backdrop-blur-md border-2 border-black shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black flex flex-row items-center justify-between">
@@ -429,6 +477,37 @@ export default function SettingsPage() {
                         </div>
                       ))}
                     </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {isDevAccount && activeTab === 'Master' && (
+                <Card className="bg-white border-2 border-red-600 shadow-none rounded-none overflow-hidden">
+                  <CardHeader className="bg-red-50 border-b-2 border-red-600">
+                    <CardTitle className="text-red-600 font-black uppercase text-sm flex items-center gap-2">
+                       <Skull size={18} /> Protocolo Master Davi
+                    </CardTitle>
+                    <CardDescription className="text-red-600 font-bold uppercase text-[10px]">Acesso de Auditoria Geral para 100% da Base de Dados.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                     {!isMasterActive ? (
+                        <form onSubmit={handleUnlockMaster} className="space-y-4">
+                           <div className="space-y-2">
+                              <Label className="text-red-600 font-black uppercase text-[10px]">Chave de Desbloqueio Global</Label>
+                              <Input type="password" value={masterPasswordInput} onChange={e => setMasterPasswordInput(e.target.value)} className="border-2 border-red-600 h-12 text-red-600 font-black rounded-none bg-white uppercase text-center tracking-widest text-lg" placeholder="TOKEN..." />
+                           </div>
+                           <Button type="submit" className="w-full bg-red-600 text-white font-black uppercase h-12 rounded-none hover:bg-black transition-all">Liberar Bypass de Auditoria</Button>
+                        </form>
+                     ) : (
+                        <div className="space-y-6">
+                           <div className="p-6 bg-red-600 text-white text-center rounded-none font-black uppercase animate-pulse">
+                              <ShieldAlert size={48} className="mx-auto mb-4" />
+                              <p className="text-lg">Bypass de Auditoria Global Ativado</p>
+                              <p className="text-[10px] opacity-70 mt-2">Os filtros de empresa (tenant) foram suspensos.</p>
+                           </div>
+                           <Button onClick={handleLockMaster} className="w-full bg-white text-red-600 border-2 border-red-600 font-black uppercase h-12 rounded-none hover:bg-red-50 transition-all">Revogar Privilégios Master</Button>
+                        </div>
+                     )}
                   </CardContent>
                 </Card>
               )}
