@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -31,36 +32,110 @@ export function Sidebar() {
   const router = useRouter();
   const [collapsed, setCollapsed] = React.useState(false);
   const { profile, signOut } = useAuth();
+  const [sidebarBg, setSidebarBg] = useState<string | null>(null);
+  const [sidebarType, setSidebarType] = useState<'image' | 'video'>('image');
+  const [opacity, setOpacity] = useState(1);
 
   const isAdmin = profile?.cargo === 'Administrador';
 
-  // Engine de Personalização de Fundo Dinâmico
   useEffect(() => {
     const applyAppearance = () => {
-      const color = localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2';
-      const wp = localStorage.getItem('lexisPredict_wallpaper');
+      const mode = localStorage.getItem('lexis_wp_mode') || 'global';
+      const mainUrl = localStorage.getItem('lexis_wp_main_url');
+      const sidebarUrl = localStorage.getItem('lexis_wp_sidebar_url');
+      const mainType = localStorage.getItem('lexis_wp_main_type') || 'image';
+      const sidebarTypeStored = localStorage.getItem('lexis_wp_sidebar_type') || 'image';
+      const opacityStored = parseFloat(localStorage.getItem('lexis_wp_opacity') || '1');
+      const bgColor = localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2';
+
+      setOpacity(opacityStored);
+
       const main = document.querySelector('main');
+      const sidebarElement = document.querySelector('aside');
+
       if (main) {
-        main.style.backgroundColor = color;
-        if (wp) {
-          main.style.backgroundImage = `url(${wp})`;
-          main.style.backgroundSize = 'cover';
-          main.style.backgroundPosition = 'center';
-          main.style.backgroundAttachment = 'fixed';
-          main.style.backgroundBlendMode = 'overlay'; 
+        main.style.backgroundColor = bgColor;
+        main.style.position = 'relative';
+        
+        // Remove existing backgrounds
+        const oldMainBg = main.querySelector('.lexis-bg-layer');
+        if (oldMainBg) oldMainBg.remove();
+
+        const activeMainUrl = (mode === 'global' || mode === 'main_only' || mode === 'separate') ? mainUrl : null;
+        
+        if (activeMainUrl) {
+          const bgLayer = document.createElement('div');
+          bgLayer.className = 'lexis-bg-layer';
+          bgLayer.style.position = 'absolute';
+          bgLayer.style.top = '0';
+          bgLayer.style.left = '0';
+          bgLayer.style.width = '100%';
+          bgLayer.style.height = '100%';
+          bgLayer.style.zIndex = '-1';
+          bgLayer.style.opacity = opacityStored.toString();
+          bgLayer.style.pointerEvents = 'none';
+          bgLayer.style.overflow = 'hidden';
+
+          if (mainType === 'video') {
+            bgLayer.innerHTML = `<video autoplay muted loop playsinline style="width:100%; height:100%; object-fit:cover;"><source src="${activeMainUrl}" type="video/mp4"></video>`;
+          } else {
+            bgLayer.style.backgroundImage = `url(${activeMainUrl})`;
+            bgLayer.style.backgroundSize = 'cover';
+            bgLayer.style.backgroundPosition = 'center';
+            bgLayer.style.backgroundAttachment = 'fixed';
+          }
+          main.appendChild(bgLayer);
+        }
+      }
+
+      if (sidebarElement) {
+        // Remove existing backgrounds
+        const oldSideBg = sidebarElement.querySelector('.lexis-side-bg-layer');
+        if (oldSideBg) oldSideBg.remove();
+
+        const activeSidebarUrl = (mode === 'global') ? mainUrl : (mode === 'sidebar_only' || mode === 'separate') ? sidebarUrl : null;
+        
+        if (activeSidebarUrl) {
+          const sideBgLayer = document.createElement('div');
+          sideBgLayer.className = 'lexis-side-bg-layer';
+          sideBgLayer.style.position = 'absolute';
+          sideBgLayer.style.top = '0';
+          sideBgLayer.style.left = '0';
+          sideBgLayer.style.width = '100%';
+          sideBgLayer.style.height = '100%';
+          sideBgLayer.style.zIndex = '-1';
+          sideBgLayer.style.opacity = opacityStored.toString();
+          sideBgLayer.style.pointerEvents = 'none';
+          sideBgLayer.style.overflow = 'hidden';
+
+          const activeSideType = mode === 'global' ? mainType : sidebarTypeStored;
+
+          if (activeSideType === 'video') {
+            sideBgLayer.innerHTML = `<video autoplay muted loop playsinline style="width:100%; height:100%; object-fit:cover;"><source src="${activeSidebarUrl}" type="video/mp4"></video>`;
+          } else {
+            sideBgLayer.style.backgroundImage = `url(${activeSidebarUrl})`;
+            sideBgLayer.style.backgroundSize = 'cover';
+            sideBgLayer.style.backgroundPosition = 'center';
+          }
+          sidebarElement.style.position = 'relative';
+          sidebarElement.style.backgroundColor = 'transparent';
+          sidebarElement.prepend(sideBgLayer);
         } else {
-          main.style.backgroundImage = 'none';
+          sidebarElement.style.backgroundColor = 'white';
         }
       }
     };
 
     applyAppearance();
     window.addEventListener('storage', applyAppearance);
-    return () => window.removeEventListener('storage', applyAppearance);
+    const interval = setInterval(applyAppearance, 2000); // Polling as backup for storage event
+    return () => {
+      window.removeEventListener('storage', applyAppearance);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleLogout = async () => {
-    // Revogar Desbloqueio Master ao Sair (Cookies e Identidade)
     document.cookie = "lexis_master_unlock=; path=/; max-age=0";
     document.cookie = "lexis_master_email=; path=/; max-age=0";
     await signOut();
@@ -88,10 +163,10 @@ export function Sidebar() {
 
   return (
     <aside className={cn(
-      "h-screen bg-white flex flex-col transition-all duration-200 border-r border-[#dddbda] shrink-0 print:hidden z-50",
+      "h-screen bg-white/90 backdrop-blur-sm flex flex-col transition-all duration-200 border-r border-[#dddbda] shrink-0 print:hidden z-50 overflow-hidden",
       collapsed ? "w-[70px]" : "w-64"
     )}>
-      <div className="h-14 flex items-center px-5 border-b border-[#dddbda] bg-[#f8f9fb]">
+      <div className="h-14 flex items-center px-5 border-b border-[#dddbda] bg-[#f8f9fb]/50">
         <div className="flex items-center gap-4">
           <div className="icon-3d-wrapper">
             <div className="icon-3d-block black w-8 h-8 rounded-sm">
@@ -107,7 +182,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <div className="flex-1 py-4 px-2 space-y-6 overflow-y-auto overflow-x-hidden scrollbar-hide">
+      <div className="flex-1 py-4 px-2 space-y-6 overflow-y-auto overflow-x-hidden scrollbar-hide relative z-10">
         <section>
           {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Gestão</p>}
           <div className="space-y-1">
@@ -136,7 +211,7 @@ export function Sidebar() {
         </section>
       </div>
 
-      <div className="p-2 border-t border-[#dddbda] bg-[#f8f9fb] space-y-2">
+      <div className="p-2 border-t border-[#dddbda] bg-[#f8f9fb]/50 space-y-2 relative z-10">
         <div className={cn(
           "flex items-center p-2 rounded-sm transition-all group",
           !collapsed ? "gap-3 bg-white border border-black shadow-sm hover:bg-black hover:text-white" : "justify-center"
@@ -200,7 +275,7 @@ function NavLink({ item, collapsed, active }: { item: any, collapsed: boolean, a
       className={cn(
         "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative border-2 border-transparent",
         active 
-          ? "bg-black text-white border-black" 
+          ? "bg-black text-white border-black shadow-md" 
           : "text-black hover:bg-black hover:text-white hover:border-black"
       )}
     >
