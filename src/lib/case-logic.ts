@@ -17,6 +17,8 @@ export type LegalCase = {
   parecerIA?: string;
   origemPlanilha?: string;
   ultimoRetorno?: string;
+  observacao?: string;
+  statusManual?: 'Caso Crítico' | 'Atenção' | 'Encerrado' | 'Arquivado';
 };
 
 export type CaseNote = {
@@ -129,6 +131,8 @@ export function processarCaso(linha: Record<string, string>): LegalCase {
     scoreIA: linha.RISCO ? parseInt(linha.RISCO, 10) : undefined,
     riscoIA: linha.ALERTA || '',
     parecerIA: linha.OBSERVAÇÕES || linha.OBSERVAÇÃO || '',
-    ultimoRetorno: linha.ULTIMO_RETORNO || linha['ÚLTIMO RETORNO'] || undefined
+    ultimoRetorno: linha.ULTIMO_RETORNO || linha['ÚLTIMO RETORNO'] || undefined,
+    observacao: linha.OBSERVACAO || linha.OBSERVAÇÃO || '',
+    statusManual: linha.STATUS_MANUAL as any
   };
 }
