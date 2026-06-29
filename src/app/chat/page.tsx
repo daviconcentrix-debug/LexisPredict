@@ -1,16 +1,8 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { 
-  MessageSquare, 
-  Send, 
-  Bot, 
-  User, 
-  Copyright,
-  RefreshCcw
-} from 'lucide-react';
+import { MessageSquare, Send, Bot, User, Copyright, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -25,15 +17,15 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [model, setModel] = useState<'gemini' | 'grok' | 'openrouter'>('gemini');
-  const [deepThinking, setDeepThinking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isMounted = useRef(true);
   const { toast } = useToast();
 
   useEffect(() => {
+    isMounted.current = true;
     const savedIA = localStorage.getItem('lexisPredict_preferred_ia');
     if (savedIA === 'grok' || savedIA === 'gemini' || savedIA === 'openrouter') setModel(savedIA as any);
-    const savedThinking = localStorage.getItem('lexisPredict_deep_thinking');
-    if (savedThinking === 'true') setDeepThinking(true);
+    return () => { isMounted.current = false; };
   }, []);
 
   useEffect(() => {
@@ -56,14 +48,18 @@ export default function ChatPage() {
         pergunta: chatInput, 
         historico: chatMessages.slice(-10),
         preferredModel: model,
-        deepThinking
+        deepThinking: localStorage.getItem('lexisPredict_deep_thinking') === 'true'
       });
 
-      setChatMessages(prev => [...prev, { role: 'assistant', content: response.resposta }]);
+      if (isMounted.current) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: response.resposta }]);
+      }
     } catch (error: any) {
-      toast({ title: "Falha na Resposta", description: error.message, variant: "destructive" });
+      if (isMounted.current) {
+        toast({ title: "Falha na Resposta", description: error.message, variant: "destructive" });
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) setLoading(false);
     }
   };
 
@@ -85,42 +81,38 @@ export default function ChatPage() {
             </div>
             <div>
               <h1 className="text-lg font-black text-black uppercase tracking-tight hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Consultoria de Gabinete</h1>
-              <p className="text-[10px] font-black text-black/60 uppercase tracking-widest">Suporte Técnico Avançado</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="border-black font-black text-[10px] text-black uppercase px-3 py-1">
-              Engine: {model.toUpperCase()}
+              {model.toUpperCase()}
             </Badge>
             <Button variant="outline" size="sm" onClick={clearChat} className="border-black h-8 text-[10px] font-black uppercase hover:bg-black hover:text-white transition-all">
-              <RefreshCcw size={12} className="mr-2" /> Reiniciar Diálogo
+              <RefreshCcw size={12} className="mr-2" /> Reiniciar
             </Button>
           </div>
         </header>
 
         <div className="flex-1 overflow-hidden p-6">
-          <Card className="max-w-4xl mx-auto bg-white border-black shadow-lg h-full flex flex-col rounded-sm overflow-hidden">
+          <Card className="max-w-4xl mx-auto bg-white border-black shadow-lg h-full flex flex-col rounded-sm overflow-hidden border-2">
             <ScrollArea className="flex-1 p-6 bg-[#f3f2f2]" ref={scrollRef}>
               <div className="space-y-6">
                 {chatMessages.length === 0 && (
-                  <div className="py-20 text-center space-y-4 group cursor-default">
+                  <div className="py-20 text-center space-y-4">
                     <div className="icon-3d-wrapper w-fit mx-auto">
                       <div className="icon-3d-block black w-16 h-16 rounded-sm">
                         <Bot className="text-white" size={32} />
                       </div>
                     </div>
-                    <h2 className="text-xl font-black text-black uppercase tracking-tighter hover:bg-black hover:text-white px-4 py-1 transition-all rounded-sm inline-block">Como posso auxiliar sua análise técnica hoje?</h2>
-                    <p className="text-xs text-black/60 font-black uppercase max-w-sm mx-auto">Inicie uma conversa para extrair insights estratégicos ou resolver dúvidas procedurais.</p>
+                    <h2 className="text-xl font-black text-black uppercase">Como posso auxiliar hoje?</h2>
                   </div>
                 )}
 
                 {chatMessages.map((msg, i) => (
                   <div key={i} className={cn("flex group", msg.role === 'user' ? "justify-end" : "justify-start")}>
                     <div className={cn(
-                      "p-4 rounded-lg max-w-[85%] shadow-sm text-sm font-black uppercase transition-all border",
-                      msg.role === 'user' 
-                        ? "bg-black text-white border-white/20" 
-                        : "bg-white border-black text-black hover:bg-black hover:text-white"
+                      "p-4 rounded-none max-w-[85%] shadow-sm text-sm font-black uppercase transition-all border-2",
+                      msg.role === 'user' ? "bg-black text-white border-black" : "bg-white border-black text-black"
                     )}>
                       <div className="flex items-center gap-2 mb-2 opacity-50">
                         {msg.role === 'user' ? <User size={12} /> : <Bot size={12} />}
@@ -132,7 +124,7 @@ export default function ChatPage() {
                 ))}
                 {loading && (
                   <div className="flex justify-start">
-                    <div className="bg-white border border-black p-4 rounded-lg shadow-sm">
+                    <div className="bg-white border-2 border-black p-4 rounded-none shadow-sm">
                       <div className="flex gap-1">
                         <span className="w-2 h-2 bg-black rounded-full animate-bounce" />
                         <span className="w-2 h-2 bg-black rounded-full animate-bounce [animation-delay:0.2s]" />
@@ -144,16 +136,16 @@ export default function ChatPage() {
               </div>
             </ScrollArea>
 
-            <div className="p-4 border-t border-black bg-white shrink-0">
+            <div className="p-4 border-t-2 border-black bg-white shrink-0">
               <form onSubmit={handleChat} className="flex gap-3">
                 <Input 
                   placeholder="DIGITE SUA DÚVIDA TÉCNICA..." 
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   disabled={loading}
-                  className="flex-1 bg-[#f3f2f2] border-black h-12 text-sm font-black text-black uppercase focus-visible:ring-0"
+                  className="flex-1 border-2 border-black h-12 text-sm font-black text-black uppercase focus-visible:ring-0 rounded-none bg-white"
                 />
-                <Button type="submit" size="icon" disabled={loading || !chatInput.trim()} className="h-12 w-12 bg-black text-white hover:bg-gray-800 border-none transition-all shadow-lg">
+                <Button type="submit" size="icon" disabled={loading || !chatInput.trim()} className="h-12 w-12 bg-black text-white hover:bg-gray-800 rounded-none transition-all shadow-lg border-2 border-black">
                   <Send size={20} />
                 </Button>
               </form>
@@ -161,12 +153,11 @@ export default function ChatPage() {
           </Card>
         </div>
 
-        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 hover:text-black transition-colors cursor-default">
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0">
           <div className="flex items-center gap-2">
-            <Copyright size={10} /> 2026 W1 Capital. Todos os direitos reservados.
+            <Copyright size={10} /> 2026 W1 Capital.
           </div>
-          <span className="w-1 h-1 bg-black rounded-full opacity-30" />
-          <span className="text-black uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
+          <span className="uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
         </footer>
       </main>
     </div>

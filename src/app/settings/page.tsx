@@ -1,49 +1,35 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   HardDrive, 
-  Settings2, 
-  Lock, 
-  Unlock, 
-  CheckCircle2, 
-  Zap, 
-  KeyRound,
-  Code2,
-  Copy,
-  ShieldAlert,
   Cpu,
   Palette,
   Image as ImageIcon,
-  Copyright,
   Users,
   UserPlus,
   Trash2,
-  ShieldCheck,
-  Mail,
-  User as UserIcon,
-  Skull,
   Video,
-  Monitor,
-  Upload
+  Upload,
+  Skull,
+  ShieldAlert,
+  CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useAdmin } from '@/hooks/use-admin';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { getEmpresaUsers, removeEmpresaUser } from '@/lib/server-db';
 import { UserProfile, supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { Slider } from '@/components/ui/slider';
+import { browserStorage } from '@/lib/browser-storage';
 import {
   Dialog,
   DialogContent,
@@ -63,8 +49,6 @@ import {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('Sync');
-  const [codePasswordInput, setCodePasswordInput] = useState('');
-  const [isCodeAuthorized, setIsCodeAuthorized] = useState(false);
   const [masterPasswordInput, setMasterPasswordInput] = useState('');
   const [isMasterActive, setIsMasterActive] = useState(false);
   const [iaModel, setIaModel] = useState<'gemini' | 'grok' | 'openrouter'>('gemini');
@@ -72,7 +56,6 @@ export default function SettingsPage() {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isAddingUser, setIsAddUser] = useState(false);
   
-  // Wallpaper Engine States
   const [wpMode, setWpMode] = useState<'global' | 'separate' | 'main_only' | 'sidebar_only'>('global');
   const [mainWpUrl, setMainWpUrl] = useState('');
   const [sideWpUrl, setSideWpUrl] = useState('');
@@ -83,6 +66,7 @@ export default function SettingsPage() {
 
   const mainFileInputRef = useRef<HTMLInputElement>(null);
   const sideFileInputRef = useRef<HTMLInputElement>(null);
+  const isMounted = useRef(true);
 
   const [newUserForm, setNewUserForm] = useState({
     nome: '',
@@ -97,13 +81,10 @@ export default function SettingsPage() {
   const isDevAccount = profile?.email?.toLowerCase() === 'daviconcentrix@gmail.com';
 
   useEffect(() => {
-    // Load existing settings
-    const savedIA = localStorage.getItem('lexisPredict_preferred_ia');
-    if (savedIA === 'gemini' || savedIA === 'grok' || savedIA === 'openrouter') setIaModel(savedIA as any);
+    isMounted.current = true;
     
-    const savedColor = localStorage.getItem('lexisPredict_bg_color');
-    if (savedColor) setBgColor(savedColor);
-
+    setIaModel((localStorage.getItem('lexisPredict_preferred_ia') as any) || 'gemini');
+    setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2');
     setWpMode((localStorage.getItem('lexis_wp_mode') as any) || 'global');
     setMainWpUrl(localStorage.getItem('lexis_wp_main_url') || '');
     setSideWpUrl(localStorage.getItem('lexis_wp_sidebar_url') || '');
@@ -111,25 +92,19 @@ export default function SettingsPage() {
     setSideWpType((localStorage.getItem('lexis_wp_sidebar_type') as any) || 'image');
     setWpOpacity(parseFloat(localStorage.getItem('lexis_wp_opacity') || '1'));
 
-    const checkMaster = () => {
-      const cookies = document.cookie.split('; ');
-      const masterUnlock = cookies.find(row => row.startsWith('lexis_master_unlock='))?.split('=')[1];
-      const masterEmail = cookies.find(row => row.startsWith('lexis_master_email='))?.split('=')[1];
-      
-      if (masterUnlock === '40028922' && masterEmail === 'daviconcentrix@gmail.com') {
-        setIsMasterActive(true);
-      } else {
-        setIsMasterActive(false);
-      }
-    };
+    const cookies = document.cookie.split('; ');
+    const masterUnlock = cookies.find(row => row.startsWith('lexis_master_unlock='))?.split('=')[1];
+    if (masterUnlock === '40028922' && isDevAccount) {
+      setIsMasterActive(true);
+    }
 
-    checkMaster();
     loadUsers();
+    return () => { isMounted.current = false; };
   }, [profile?.empresa_id]);
 
   const loadUsers = async () => {
     const users = await getEmpresaUsers();
-    setEmpresaUsers(users);
+    if (isMounted.current) setEmpresaUsers(users);
   };
 
   const handleIaChange = (value: 'gemini' | 'grok' | 'openrouter') => {
@@ -145,24 +120,21 @@ export default function SettingsPage() {
     window.dispatchEvent(new Event('storage'));
   };
 
-  const handleLocalFile = (e: React.ChangeEvent<HTMLInputElement>, target: 'main' | 'side') => {
+  const handleLocalFile = async (e: React.ChangeEvent<HTMLInputElement>, target: 'main' | 'side') => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 25 * 1024 * 1024) { // 25MB limit warning for performance
-        toast({ 
-          title: "Arquivo Volumoso", 
-          description: "Para melhor performance do gabinete, recomendamos vídeos menores que 25MB.",
-          variant: "destructive"
-        });
+    if (!file) return;
+
+    try {
+      const storageKey = target === 'main' ? 'main_wallpaper_blob' : 'side_wallpaper_blob';
+      const success = await browserStorage.saveAsset(storageKey, file);
+      
+      if (success) {
+        if (target === 'main') setMainWpUrl('LOCAL_ASSET');
+        else setSideWpUrl('LOCAL_ASSET');
+        toast({ title: "Arquivo Local Carregado", description: "O wallpaper foi salvo no banco local." });
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (target === 'main') setMainWpUrl(result);
-        else setSideWpUrl(result);
-        toast({ title: "Arquivo Local Carregado", description: "A atmosfera foi atualizada com sucesso." });
-      };
-      reader.readAsDataURL(file);
+    } catch (err) {
+      toast({ title: "Erro de Armazenamento", description: "Não foi possível processar o arquivo.", variant: "destructive" });
     }
   };
 
@@ -174,7 +146,7 @@ export default function SettingsPage() {
     localStorage.setItem('lexis_wp_sidebar_type', sideWpType);
     localStorage.setItem('lexis_wp_opacity', wpOpacity.toString());
     window.dispatchEvent(new Event('storage'));
-    toast({ title: "Atmosfera Atualizada", description: "Configurações de visual salvas no gabinete." });
+    toast({ title: "Configurações Salvas", description: "Atmosfera de gabinete atualizada." });
   };
 
   const handleUnlockMaster = (e: React.FormEvent) => {
@@ -207,9 +179,7 @@ export default function SettingsPage() {
       const cleanEmail = newUserForm.email.trim().toLowerCase();
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-      const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: { persistSession: false }
-      });
+      const tempClient = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } });
 
       const { data: authData, error: authError } = await tempClient.auth.signUp({
         email: cleanEmail,
@@ -228,13 +198,12 @@ export default function SettingsPage() {
       };
 
       await supabase.from('usuarios').insert(profilePayload);
-
-      toast({ title: "Operador Adicionado", description: "Conta provisionada no silo da empresa." });
+      toast({ title: "Operador Adicionado" });
       setIsAddUserModalOpen(false);
       setNewUserForm({ nome: '', email: '', password: '', cargo: 'Operador' });
       loadUsers();
     } catch (error: any) {
-      toast({ title: "Falha ao Adicionar", description: error.message, variant: "destructive" });
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
     } finally {
       setIsAddUser(false);
     }
@@ -258,7 +227,7 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Configuração Sistema</h1>
-            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v95.0 SaaS Elite</Badge>
+            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v98.0 Elite Local</Badge>
           </div>
         </header>
 
@@ -272,7 +241,7 @@ export default function SettingsPage() {
                 <Cpu size={18} className="mr-2" /> Núcleo Técnico
               </Button>
               <Button variant={activeTab === 'Style' ? 'default' : 'ghost'} onClick={() => setActiveTab('Style')} className={cn("w-full justify-start rounded-none font-black uppercase text-xs h-10 border-2 border-transparent", activeTab === 'Style' ? "bg-black text-white border-black" : "text-black hover:bg-black hover:text-white")}>
-                <Palette size={18} className="mr-2" /> Personalização
+                <Palette size={18} className="mr-2" /> Atmosfera Multimídia
               </Button>
               <Button variant={activeTab === 'Users' ? 'default' : 'ghost'} onClick={() => setActiveTab('Users')} className={cn("w-full justify-start rounded-none font-black uppercase text-xs h-10 border-2 border-transparent", activeTab === 'Users' ? "bg-black text-white border-black" : "text-black hover:bg-black hover:text-white")}>
                 <Users size={18} className="mr-2" /> Gestão de Equipe
@@ -285,57 +254,39 @@ export default function SettingsPage() {
             </aside>
 
             <div className="md:col-span-3 space-y-6 pb-20">
-              {activeTab === 'Sync' && (
-                <Card className="bg-white/90 backdrop-blur-md border-2 border-black shadow-none rounded-none overflow-hidden">
-                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
-                    <CardTitle className="text-black font-black uppercase text-sm">Silo Multi-Tenant Ativo</CardTitle>
-                    <CardDescription className="text-black font-bold uppercase text-[10px]">Identidade corporativa vinculada ao seu gabinete.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="p-6 bg-[#f3f2f2] rounded-none border-2 border-black group hover:bg-black transition-all cursor-default">
-                      <div className="flex items-center justify-between mb-4">
-                         <div className="text-sm font-black text-black group-hover:text-white uppercase flex items-center gap-2 transition-colors">
-                          <div className="w-2 h-2 rounded-full bg-green-600" />
-                          Ambiente Blindado Online
-                        </div>
-                        <Badge className="bg-green-600 text-white border-none font-black uppercase text-[9px] px-3 rounded-none">SaaS Ativo</Badge>
-                      </div>
-                      <div className="text-[10px] text-black/40 group-hover:text-white/40 uppercase font-black tracking-widest bg-white/10 px-3 py-2 rounded-none border border-black group-hover:border-white/20 transition-all">
-                        Tenant ID: {profile?.empresa_id || 'MASTER_TENANT'}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
               {activeTab === 'Style' && (
-                <Card className="bg-white/90 backdrop-blur-md border-2 border-black shadow-none rounded-none overflow-hidden">
+                <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
                     <CardTitle className="text-black font-black uppercase text-sm flex items-center gap-2">
-                      <Palette size={18} /> Atmosfera Multimídia de Gabinete
+                      <Palette size={18} /> Atmosfera de Gabinete (IndexedDB)
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-6 space-y-8">
                     <div className="space-y-4">
                       <Label className="font-black text-black text-xs uppercase">Modo de Aplicação</Label>
                       <RadioGroup value={wpMode} onValueChange={(v: any) => setWpMode(v)} className="grid grid-cols-2 gap-4">
-                        <WpModeOption id="global" value="global" label="Mesmo WP (Tudo)" />
+                        <WpModeOption id="global" value="global" label="Mesmo WP (Conteúdo + Menu)" />
                         <WpModeOption id="separate" value="separate" label="Diferentes (Main/Side)" />
                         <WpModeOption id="main_only" value="main_only" label="Apenas Conteúdo" />
                         <WpModeOption id="sidebar_only" value="sidebar_only" label="Apenas Sidebar" />
                       </RadioGroup>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 gap-8">
                       {(wpMode === 'global' || wpMode === 'main_only' || wpMode === 'separate') && (
                         <div className="space-y-4 p-4 border-2 border-black bg-gray-50">
-                          <Label className="font-black uppercase text-[10px]">Wallpaper Conteúdo (Main)</Label>
+                          <Label className="font-black uppercase text-[10px]">Wallpaper Principal</Label>
                           <div className="flex gap-2">
-                             <Button size="sm" variant={mainWpType === 'image' ? 'default' : 'outline'} onClick={() => setMainWpType('image')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2"><ImageIcon size={12} className="mr-2"/> IMAGEM</Button>
-                             <Button size="sm" variant={mainWpType === 'video' ? 'default' : 'outline'} onClick={() => setMainWpType('video')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2"><Video size={12} className="mr-2"/> VÍDEO</Button>
+                             <Button size="sm" variant={mainWpType === 'image' ? 'default' : 'outline'} onClick={() => setMainWpType('image')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2">IMAGEM</Button>
+                             <Button size="sm" variant={mainWpType === 'video' ? 'default' : 'outline'} onClick={() => setMainWpType('video')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2">VÍDEO</Button>
                           </div>
                           <div className="flex gap-2">
-                            <Input value={mainWpUrl.startsWith('data:') ? 'Arquivo Local Carregado' : mainWpUrl} onChange={e => setMainWpUrl(e.target.value)} placeholder="URL do Arquivo..." className="flex-1 border-black font-black text-[10px] rounded-none h-10 uppercase" />
+                            <Input 
+                              value={mainWpUrl === 'LOCAL_ASSET' ? 'Arquivo Local Selecionado' : mainWpUrl} 
+                              onChange={e => setMainWpUrl(e.target.value)} 
+                              placeholder="URL Externa..." 
+                              className="flex-1 border-black font-black text-[10px] rounded-none h-10 uppercase" 
+                            />
                             <Button size="icon" variant="outline" onClick={() => mainFileInputRef.current?.click()} className="border-black border-2 h-10 w-10 shrink-0 hover:bg-black hover:text-white transition-all"><Upload size={14}/></Button>
                             <input type="file" ref={mainFileInputRef} onChange={e => handleLocalFile(e, 'main')} className="hidden" accept="video/*,image/*" />
                           </div>
@@ -344,13 +295,18 @@ export default function SettingsPage() {
 
                       {(wpMode === 'sidebar_only' || wpMode === 'separate') && (
                         <div className="space-y-4 p-4 border-2 border-black bg-gray-50">
-                          <Label className="font-black uppercase text-[10px]">Wallpaper Sidebar (Menu)</Label>
+                          <Label className="font-black uppercase text-[10px]">Wallpaper Sidebar</Label>
                           <div className="flex gap-2">
-                             <Button size="sm" variant={sideWpType === 'image' ? 'default' : 'outline'} onClick={() => setSideWpType('image')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2"><ImageIcon size={12} className="mr-2"/> IMAGEM</Button>
-                             <Button size="sm" variant={sideWpType === 'video' ? 'default' : 'outline'} onClick={() => setSideWpType('video')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2"><Video size={12} className="mr-2"/> VÍDEO</Button>
+                             <Button size="sm" variant={sideWpType === 'image' ? 'default' : 'outline'} onClick={() => setSideWpType('image')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2">IMAGEM</Button>
+                             <Button size="sm" variant={sideWpType === 'video' ? 'default' : 'outline'} onClick={() => setSideWpType('video')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2">VÍDEO</Button>
                           </div>
                           <div className="flex gap-2">
-                            <Input value={sideWpUrl.startsWith('data:') ? 'Arquivo Local Carregado' : sideWpUrl} onChange={e => setSideWpUrl(e.target.value)} placeholder="URL do Arquivo..." className="flex-1 border-black font-black text-[10px] rounded-none h-10 uppercase" />
+                            <Input 
+                              value={sideWpUrl === 'LOCAL_ASSET' ? 'Arquivo Local Selecionado' : sideWpUrl} 
+                              onChange={e => setSideWpUrl(e.target.value)} 
+                              placeholder="URL Externa..." 
+                              className="flex-1 border-black font-black text-[10px] rounded-none h-10 uppercase" 
+                            />
                             <Button size="icon" variant="outline" onClick={() => sideFileInputRef.current?.click()} className="border-black border-2 h-10 w-10 shrink-0 hover:bg-black hover:text-white transition-all"><Upload size={14}/></Button>
                             <input type="file" ref={sideFileInputRef} onChange={e => handleLocalFile(e, 'side')} className="hidden" accept="video/*,image/*" />
                           </div>
@@ -359,21 +315,42 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="space-y-6">
-                      <div className="flex justify-between items-center">
-                        <Label className="font-black text-black text-xs uppercase">Opacidade da Atmosfera ({Math.round(wpOpacity * 100)}%)</Label>
-                      </div>
+                      <Label className="font-black text-black text-xs uppercase">Opacidade ({Math.round(wpOpacity * 100)}%)</Label>
                       <Slider value={[wpOpacity]} onValueChange={([v]) => setWpOpacity(v)} max={1} step={0.01} className="[&_[role=slider]]:bg-black" />
                     </div>
 
                     <div className="space-y-4 pt-4 border-t-2 border-black">
-                      <Label className="font-black text-black text-xs uppercase">Cor Base Sólida</Label>
+                      <Label className="font-black text-black text-xs uppercase">Cor de Fundo Base</Label>
                       <div className="flex gap-4 items-center">
                         <input type="color" value={bgColor} onChange={handleBgColorChange} className="h-12 w-20 border-2 border-black cursor-pointer bg-white" />
                         <Input value={bgColor} readOnly className="font-mono border-2 border-black text-black font-black rounded-none h-12 uppercase" />
                       </div>
                     </div>
 
-                    <Button onClick={saveWpSettings} className="w-full h-12 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#000] hover:shadow-none">Sincronizar Atmosfera de Gabinete</Button>
+                    <Button onClick={saveWpSettings} className="w-full h-12 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#000] hover:shadow-none">Sincronizar Gabinete</Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {activeTab === 'Sync' && (
+                 <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
+                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
+                    <CardTitle className="text-black font-black uppercase text-sm">Silo SaaS Multi-Tenant</CardTitle>
+                    <CardDescription className="text-black font-bold uppercase text-[10px]">Identidade corporativa vinculada ao seu gabinete.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="p-6 bg-[#f3f2f2] rounded-none border-2 border-black">
+                      <div className="flex items-center justify-between mb-4">
+                         <div className="text-sm font-black text-black uppercase flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-green-600" />
+                          Sistema Online e Blindado
+                        </div>
+                        <Badge className="bg-green-600 text-white border-none font-black uppercase text-[9px] px-3 rounded-none">Cloud Active</Badge>
+                      </div>
+                      <div className="text-[10px] text-black/40 uppercase font-black tracking-widest bg-white/10 px-3 py-2 border border-black">
+                        Tenant ID: {profile?.empresa_id || 'MASTER_TENANT'}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -381,61 +358,57 @@ export default function SettingsPage() {
               {activeTab === 'Engine' && (
                 <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
-                    <CardTitle className="text-black font-black uppercase text-sm">Configuração de IA</CardTitle>
-                    <CardDescription className="text-black font-bold uppercase text-[10px]">Selecione o motor neural padrão para auditorias e consultoria.</CardDescription>
+                    <CardTitle className="text-black font-black uppercase text-sm">Núcleo Neural</CardTitle>
                   </CardHeader>
                   <CardContent className="p-6">
                     <RadioGroup value={iaModel} onValueChange={handleIaChange} className="grid grid-cols-1 gap-4">
-                      <IaOption id="gemini" value="gemini" title="Gemini 1.5 Flash" desc="Alta velocidade e precisão em processos longos." active={iaModel === 'gemini'} />
-                      <IaOption id="grok" value="grok" title="Grok (Llama 3.3)" desc="Raciocínio lógico avançado e assertividade técnica." active={iaModel === 'grok'} />
-                      <IaOption id="openrouter" value="openrouter" title="Claude 3.5 Sonnet" desc="Elite jurídica com análise profunda de nuances." active={iaModel === 'openrouter'} />
+                      <IaOption id="gemini" value="gemini" title="Gemini 1.5 Flash" desc="Alta performance em auditorias de longo prazo." active={iaModel === 'gemini'} />
+                      <IaOption id="grok" value="grok" title="Grok (Llama 3.3)" desc="Raciocínio lógico militar e assertividade." active={iaModel === 'grok'} />
+                      <IaOption id="openrouter" value="openrouter" title="Claude 3.5 Sonnet" desc="Elite em nuances jurídicas e redação." active={iaModel === 'openrouter'} />
                     </RadioGroup>
                   </CardContent>
                 </Card>
               )}
 
               {activeTab === 'Users' && (
-                <Card className="bg-white/90 backdrop-blur-md border-2 border-black shadow-none rounded-none overflow-hidden">
+                <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black flex flex-row items-center justify-between">
                     <div>
-                      <CardTitle className="text-black font-black uppercase text-sm">Membros do Gabinete</CardTitle>
-                      <CardDescription className="text-black font-bold uppercase text-[10px]">Usuários com acesso a esta instância.</CardDescription>
+                      <CardTitle className="text-black font-black uppercase text-sm">Corpo Técnico</CardTitle>
                     </div>
                     {isAdmin && (
                        <Dialog open={isAddUserModalOpen} onOpenChange={setIsAddUserModalOpen}>
                          <DialogTrigger asChild>
-                           <Button size="sm" className="bg-white text-black border-2 border-black h-9 uppercase text-[10px] font-black hover:bg-black hover:text-white transition-all rounded-none px-6 shadow-[4px_4px_0px_#000] hover:shadow-none">
+                           <Button size="sm" className="bg-white text-black border-2 border-black h-9 uppercase text-[10px] font-black hover:bg-black transition-all rounded-none px-6 shadow-[4px_4px_0px_#000] hover:shadow-none">
                               <UserPlus size={12} className="mr-2" /> Novo Operador
                            </Button>
                          </DialogTrigger>
                          <DialogContent className="bg-white border-2 border-black text-black rounded-none">
                            <form onSubmit={handleCreateOperator}>
                              <DialogHeader>
-                               <DialogTitle className="text-black font-black uppercase">Provisionar Colaborador</DialogTitle>
-                               <DialogDescription className="text-black/60 font-bold uppercase text-[10px]">Novo acesso DIRETO via Supabase Auth.</DialogDescription>
+                               <DialogTitle className="text-black font-black uppercase">Provisionar Acesso</DialogTitle>
                              </DialogHeader>
                              <div className="grid gap-4 py-4">
-                               <div className="grid gap-2">
-                                 <Label className="text-black font-black uppercase text-[10px]">Nome Completo</Label>
+                               <div className="grid gap-1">
+                                 <Label className="text-[10px] font-black uppercase">Nome</Label>
                                  <Input value={newUserForm.nome} onChange={e => setNewUserForm({...newUserForm, nome: e.target.value})} className="border-2 border-black text-black font-black uppercase rounded-none" required />
                                </div>
-                               <div className="grid gap-2">
-                                 <Label className="text-black font-black uppercase text-[10px]">E-mail Corporativo</Label>
+                               <div className="grid gap-1">
+                                 <Label className="text-[10px] font-black uppercase">E-mail</Label>
                                  <Input type="email" value={newUserForm.email} onChange={e => setNewUserForm({...newUserForm, email: e.target.value})} className="border-2 border-black text-black font-black uppercase rounded-none" required />
                                </div>
-                               <div className="grid gap-2">
-                                 <Label className="text-black font-black uppercase text-[10px]">Senha Inicial</Label>
+                               <div className="grid gap-1">
+                                 <Label className="text-[10px] font-black uppercase">Senha</Label>
                                  <Input type="password" value={newUserForm.password} onChange={e => setNewUserForm({...newUserForm, password: e.target.value})} className="border-2 border-black text-black rounded-none" required />
                                </div>
-                               <div className="grid gap-2">
-                                 <Label className="text-black font-black uppercase text-[10px]">Cargo</Label>
+                               <div className="grid gap-1">
+                                 <Label className="text-[10px] font-black uppercase">Cargo</Label>
                                  <Select value={newUserForm.cargo} onValueChange={val => setNewUserForm({...newUserForm, cargo: val as any})}>
                                    <SelectTrigger className="border-2 border-black text-black font-black uppercase rounded-none">
-                                     <SelectValue placeholder="Selecione..." />
+                                     <SelectValue />
                                    </SelectTrigger>
                                    <SelectContent className="bg-white border-2 border-black rounded-none">
                                      <SelectItem value="Operador" className="text-black font-black uppercase">Operador</SelectItem>
-                                     <SelectItem value="Visualizador" className="text-black font-black uppercase">Visualizador</SelectItem>
                                      <SelectItem value="Administrador" className="text-black font-black uppercase">Administrador</SelectItem>
                                    </SelectContent>
                                  </Select>
@@ -443,7 +416,7 @@ export default function SettingsPage() {
                              </div>
                              <DialogFooter>
                                <Button type="submit" disabled={isAddingUser} className="w-full bg-black text-white font-black uppercase h-12 rounded-none hover:bg-white hover:text-black border-2 border-black transition-all">
-                                 {isAddingUser ? "Provisionando..." : "Criar Conta Supabase"}
+                                 {isAddingUser ? "Provisionando..." : "Criar Acesso Supabase"}
                                </Button>
                              </DialogFooter>
                            </form>
@@ -456,12 +429,12 @@ export default function SettingsPage() {
                       {empresaUsers.map((u) => (
                         <div key={u.id} className="p-4 flex items-center justify-between hover:bg-black group transition-all cursor-default">
                            <div className="flex items-center gap-4">
-                              <div className="w-9 h-9 rounded-none bg-[#f3f2f2] group-hover:bg-white flex items-center justify-center font-black text-xs text-black transition-colors border-2 border-black">
-                                 {u.nome?.substring(0, 2).toUpperCase() || '??'}
+                              <div className="w-9 h-9 rounded-none bg-[#f3f2f2] group-hover:bg-white flex items-center justify-center font-black text-xs text-black border-2 border-black uppercase">
+                                 {u.nome?.substring(0, 2) || '??'}
                               </div>
                               <div>
-                                 <p className="text-xs font-black text-black group-hover:text-white uppercase transition-colors">{u.nome}</p>
-                                 <p className="text-[9px] font-bold text-black/40 group-hover:text-white/40 transition-colors">{u.email}</p>
+                                 <p className="text-xs font-black text-black group-hover:text-white uppercase">{u.nome}</p>
+                                 <p className="text-[9px] font-bold text-black/40 group-hover:text-white/40">{u.email}</p>
                               </div>
                            </div>
                            <div className="flex items-center gap-3">
@@ -469,7 +442,7 @@ export default function SettingsPage() {
                                  {u.cargo}
                               </Badge>
                               {isAdmin && u.id !== profile?.id && (
-                                 <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u.id)} className="text-black/20 group-hover:text-red-500 hover:bg-transparent h-8 w-8 transition-colors">
+                                 <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u.id)} className="text-black/20 group-hover:text-red-500 hover:bg-transparent h-8 w-8">
                                     <Trash2 size={14} />
                                  </Button>
                               )}
@@ -485,27 +458,25 @@ export default function SettingsPage() {
                 <Card className="bg-white border-2 border-red-600 shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-red-50 border-b-2 border-red-600">
                     <CardTitle className="text-red-600 font-black uppercase text-sm flex items-center gap-2">
-                       <Skull size={18} /> Protocolo Master Davi
+                       <Skull size={18} /> Protocolo Master
                     </CardTitle>
-                    <CardDescription className="text-red-600 font-bold uppercase text-[10px]">Acesso de Auditoria Geral para 100% da Base de Dados.</CardDescription>
                   </CardHeader>
                   <CardContent className="p-6">
                      {!isMasterActive ? (
                         <form onSubmit={handleUnlockMaster} className="space-y-4">
                            <div className="space-y-2">
-                              <Label className="text-red-600 font-black uppercase text-[10px]">Chave de Desbloqueio Global</Label>
+                              <Label className="text-red-600 font-black uppercase text-[10px]">Chave Global</Label>
                               <Input type="password" value={masterPasswordInput} onChange={e => setMasterPasswordInput(e.target.value)} className="border-2 border-red-600 h-12 text-red-600 font-black rounded-none bg-white uppercase text-center tracking-widest text-lg" placeholder="TOKEN..." />
                            </div>
-                           <Button type="submit" className="w-full bg-red-600 text-white font-black uppercase h-12 rounded-none hover:bg-black transition-all">Liberar Bypass de Auditoria</Button>
+                           <Button type="submit" className="w-full bg-red-600 text-white font-black uppercase h-12 rounded-none hover:bg-black transition-all">Liberar Bypass</Button>
                         </form>
                      ) : (
                         <div className="space-y-6">
                            <div className="p-6 bg-red-600 text-white text-center rounded-none font-black uppercase animate-pulse">
                               <ShieldAlert size={48} className="mx-auto mb-4" />
-                              <p className="text-lg">Bypass de Auditoria Global Ativado</p>
-                              <p className="text-[10px] opacity-70 mt-2">Os filtros de empresa (tenant) foram suspensos.</p>
+                              <p className="text-lg">Bypass Global Ativado</p>
                            </div>
-                           <Button onClick={handleLockMaster} className="w-full bg-white text-red-600 border-2 border-red-600 font-black uppercase h-12 rounded-none hover:bg-red-50 transition-all">Revogar Privilégios Master</Button>
+                           <Button onClick={handleLockMaster} className="w-full bg-white text-red-600 border-2 border-red-600 font-black uppercase h-12 rounded-none hover:bg-red-50 transition-all">Revogar Privilégios</Button>
                         </div>
                      )}
                   </CardContent>
@@ -514,14 +485,6 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
-
-        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black font-black uppercase tracking-[0.2em] shrink-0">
-          <div className="flex items-center gap-2">
-            <Copyright size={10} /> 2026 W1 Capital. Todos os direitos reservados.
-          </div>
-          <span className="w-1 h-1 bg-black rounded-full opacity-30" />
-          <span className="text-black uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
-        </footer>
       </main>
     </div>
   );

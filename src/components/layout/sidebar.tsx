@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -19,140 +19,139 @@ import {
   Unlock,
   StickyNote,
   FileSearch,
-  Copyright,
   MessageSquare,
-  LogOut
+  LogOut,
+  Copyright
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth/auth-provider';
+import { browserStorage } from '@/lib/browser-storage';
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = React.useState(false);
   const { profile, signOut } = useAuth();
-  const [opacity, setOpacity] = useState(1);
+  
+  const isMounted = useRef(true);
+  const lastAppliedSettings = useRef<string>('');
+  const activeBlobUrls = useRef<{ main?: string; side?: string }>({});
 
   const isAdmin = profile?.cargo === 'Administrador';
 
   useEffect(() => {
-    const applyAppearance = () => {
-      if (typeof window === 'undefined') return;
+    isMounted.current = true;
+    
+    const applyAppearance = async () => {
+      if (typeof window === 'undefined' || !isMounted.current) return;
 
-      const mode = localStorage.getItem('lexis_wp_mode') || 'global';
-      const mainUrl = localStorage.getItem('lexis_wp_main_url');
-      const sidebarUrl = localStorage.getItem('lexis_wp_sidebar_url');
-      const mainType = localStorage.getItem('lexis_wp_main_type') || 'image';
-      const sidebarTypeStored = localStorage.getItem('lexis_wp_sidebar_type') || 'image';
-      const opacityStored = parseFloat(localStorage.getItem('lexis_wp_opacity') || '1');
-      const bgColor = localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2';
+      const settings = {
+        mode: localStorage.getItem('lexis_wp_mode') || 'global',
+        mainUrl: localStorage.getItem('lexis_wp_main_url'),
+        sideUrl: localStorage.getItem('lexis_wp_sidebar_url'),
+        mainType: localStorage.getItem('lexis_wp_main_type') || 'image',
+        sideType: localStorage.getItem('lexis_wp_sidebar_type') || 'image',
+        opacity: localStorage.getItem('lexis_wp_opacity') || '1',
+        bgColor: localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2'
+      };
 
-      setOpacity(opacityStored);
+      const settingsKey = JSON.stringify(settings);
+      if (settingsKey === lastAppliedSettings.current) return;
+      lastAppliedSettings.current = settingsKey;
+
+      const resolveSrc = async (key: string, storedValue: string | null, target: 'main' | 'side') => {
+        if (storedValue === 'LOCAL_ASSET') {
+          const blob = await browserStorage.getAsset(key);
+          if (blob instanceof Blob) {
+            // Revoga o anterior se existir
+            if (activeBlobUrls.current[target]) URL.revokeObjectURL(activeBlobUrls.current[target]!);
+            const newUrl = URL.createObjectURL(blob);
+            activeBlobUrls.current[target] = newUrl;
+            return newUrl;
+          }
+        }
+        return storedValue;
+      };
+
+      const mainSrc = await resolveSrc('main_wallpaper_blob', settings.mainUrl, 'main');
+      const sideSrc = await resolveSrc('side_wallpaper_blob', settings.sideUrl, 'side');
 
       const mainElement = document.querySelector('main');
       const sidebarElement = document.querySelector('aside');
+      const rootContainer = mainElement?.parentElement;
 
-      // 1. APLICAÇÃO NO CONTEÚDO (MAIN)
-      if (mainElement) {
-        mainElement.style.backgroundColor = bgColor;
-        mainElement.style.position = 'relative';
+      // Limpeza de Cores de Fundo fixas para permitir o wallpaper brilhar
+      if (rootContainer) rootContainer.style.backgroundColor = settings.bgColor;
+      if (mainElement) mainElement.style.backgroundColor = 'transparent';
+
+      const updateLayer = (el: HTMLElement | null, className: string, url: string | null, type: string, opacity: string) => {
+        if (!el) return;
+        el.style.position = 'relative';
         
-        let bgLayer = mainElement.querySelector('.lexis-bg-layer') as HTMLElement;
-        if (!bgLayer) {
-          bgLayer = document.createElement('div');
-          bgLayer.className = 'lexis-bg-layer';
-          bgLayer.style.position = 'absolute';
-          bgLayer.style.top = '0';
-          bgLayer.style.left = '0';
-          bgLayer.style.width = '100%';
-          bgLayer.style.height = '100%';
-          bgLayer.style.zIndex = '-1';
-          bgLayer.style.pointerEvents = 'none';
-          bgLayer.style.overflow = 'hidden';
-          mainElement.appendChild(bgLayer);
+        let layer = el.querySelector(`.${className}`) as HTMLElement;
+        if (!layer) {
+          layer = document.createElement('div');
+          layer.className = className;
+          Object.assign(layer.style, {
+            position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
+            zIndex: '-1', pointerEvents: 'none', overflow: 'hidden'
+          });
+          el.appendChild(layer);
         }
 
-        const activeMainUrl = (mode === 'global' || mode === 'main_only' || mode === 'separate') ? mainUrl : null;
-        bgLayer.style.opacity = opacityStored.toString();
+        layer.style.opacity = opacity;
 
-        if (activeMainUrl) {
-          if (mainType === 'video') {
-            const currentVideo = bgLayer.querySelector('video');
-            if (!currentVideo || currentVideo.src !== activeMainUrl) {
-              bgLayer.innerHTML = `
-                <video autoplay muted loop playsinline preload="auto" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0;">
-                  <source src="${activeMainUrl}">
-                </video>
-              `;
+        if (url) {
+          if (type === 'video') {
+            const videoHtml = `
+              <video autoplay muted loop playsinline preload="auto" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0;">
+                <source src="${url}">
+              </video>
+            `;
+            // Só reinicia o HTML se o src mudou (para não travar o vídeo)
+            const currentVideo = layer.querySelector('video');
+            const currentSrc = currentVideo?.querySelector('source')?.getAttribute('src');
+            if (currentSrc !== url) {
+              layer.innerHTML = videoHtml;
             }
           } else {
-            bgLayer.innerHTML = '';
-            bgLayer.style.backgroundImage = `url(${activeMainUrl})`;
-            bgLayer.style.backgroundSize = 'cover';
-            bgLayer.style.backgroundPosition = 'center';
-            bgLayer.style.backgroundAttachment = 'fixed';
+            layer.innerHTML = '';
+            layer.style.background = `url(${url}) center/cover no-repeat fixed`;
           }
         } else {
-          bgLayer.innerHTML = '';
-          bgLayer.style.backgroundImage = 'none';
+          layer.innerHTML = '';
+          layer.style.background = 'none';
         }
-      }
+      };
+
+      // 1. APLICAÇÃO NO CONTEÚDO
+      const activeMainUrl = (settings.mode === 'global' || settings.mode === 'main_only' || settings.mode === 'separate') ? mainSrc : null;
+      updateLayer(mainElement, 'lexis-bg-layer', activeMainUrl, settings.mainType, settings.opacity);
 
       // 2. APLICAÇÃO NA SIDEBAR
+      const activeSideUrl = (settings.mode === 'global') ? mainSrc : (settings.mode === 'sidebar_only' || settings.mode === 'separate') ? sideSrc : null;
+      const activeSideType = settings.mode === 'global' ? settings.mainType : settings.sideType;
+      
       if (sidebarElement) {
-        let sideBgLayer = sidebarElement.querySelector('.lexis-side-bg-layer') as HTMLElement;
-        if (!sideBgLayer) {
-          sideBgLayer = document.createElement('div');
-          sideBgLayer.className = 'lexis-side-bg-layer';
-          sideBgLayer.style.position = 'absolute';
-          sideBgLayer.style.top = '0';
-          sideBgLayer.style.left = '0';
-          sideBgLayer.style.width = '100%';
-          sideBgLayer.style.height = '100%';
-          sideBgLayer.style.zIndex = '-1';
-          sideBgLayer.style.pointerEvents = 'none';
-          sideBgLayer.style.overflow = 'hidden';
-          sidebarElement.style.position = 'relative';
-          sidebarElement.prepend(sideBgLayer);
-        }
-
-        const activeSidebarUrl = (mode === 'global') ? mainUrl : (mode === 'sidebar_only' || mode === 'separate') ? sidebarUrl : null;
-        sideBgLayer.style.opacity = opacityStored.toString();
-
-        if (activeSidebarUrl) {
-          const activeSideType = mode === 'global' ? mainType : sidebarTypeStored;
-          sidebarElement.style.backgroundColor = 'transparent';
-
-          if (activeSideType === 'video') {
-            const currentSideVideo = sideBgLayer.querySelector('video');
-            if (!currentSideVideo || currentSideVideo.src !== activeSidebarUrl) {
-              sideBgLayer.innerHTML = `
-                <video autoplay muted loop playsinline preload="auto" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0;">
-                  <source src="${activeSidebarUrl}">
-                </video>
-              `;
-            }
-          } else {
-            sideBgLayer.innerHTML = '';
-            sideBgLayer.style.backgroundImage = `url(${activeSidebarUrl})`;
-            sideBgLayer.style.backgroundSize = 'cover';
-            sideBgLayer.style.backgroundPosition = 'center';
-          }
-        } else {
-          sideBgLayer.innerHTML = '';
-          sideBgLayer.style.backgroundImage = 'none';
-          sidebarElement.style.backgroundColor = 'white';
-        }
+        sidebarElement.style.backgroundColor = activeSideUrl ? 'transparent' : 'white';
+        updateLayer(sidebarElement, 'lexis-side-bg-layer', activeSideUrl, activeSideType, settings.opacity);
       }
     };
 
     applyAppearance();
     window.addEventListener('storage', applyAppearance);
-    const interval = setInterval(applyAppearance, 2000);
+    
+    // Intervalo reduzido apenas para detecção de mudanças de DOM (NextJS hydration)
+    const interval = setInterval(applyAppearance, 1000);
+    
     return () => {
+      isMounted.current = false;
       window.removeEventListener('storage', applyAppearance);
       clearInterval(interval);
+      // Limpeza de blobs
+      if (activeBlobUrls.current.main) URL.revokeObjectURL(activeBlobUrls.current.main);
+      if (activeBlobUrls.current.side) URL.revokeObjectURL(activeBlobUrls.current.side);
     };
   }, []);
 
@@ -184,10 +183,10 @@ export function Sidebar() {
 
   return (
     <aside className={cn(
-      "h-screen bg-white/90 backdrop-blur-sm flex flex-col transition-all duration-200 border-r border-[#dddbda] shrink-0 print:hidden z-50 overflow-hidden",
+      "h-screen bg-white/90 backdrop-blur-sm flex flex-col transition-all duration-200 border-r border-black shrink-0 print:hidden z-50 overflow-hidden",
       collapsed ? "w-[70px]" : "w-64"
     )}>
-      <div className="h-14 flex items-center px-5 border-b border-[#dddbda] bg-[#f8f9fb]/50">
+      <div className="h-14 flex items-center px-5 border-b border-black bg-white/50">
         <div className="flex items-center gap-4">
           <div className="icon-3d-wrapper">
             <div className="icon-3d-block black w-8 h-8 rounded-sm">
@@ -203,7 +202,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <div className="flex-1 py-4 px-2 space-y-6 overflow-y-auto overflow-x-hidden scrollbar-hide relative z-10">
+      <div className="flex-1 py-4 px-2 space-y-6 overflow-y-auto overflow-x-hidden relative z-10">
         <section>
           {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Gestão</p>}
           <div className="space-y-1">
@@ -232,17 +231,17 @@ export function Sidebar() {
         </section>
       </div>
 
-      <div className="p-2 border-t border-[#dddbda] bg-[#f8f9fb]/50 space-y-2 relative z-10">
+      <div className="p-2 border-t border-black bg-white/50 space-y-2 relative z-10">
         <div className={cn(
           "flex items-center p-2 rounded-sm transition-all group",
           !collapsed ? "gap-3 bg-white border border-black shadow-sm hover:bg-black hover:text-white" : "justify-center"
         )}>
-          <div className="w-8 h-8 rounded-sm bg-black text-white flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-white group-hover:text-black transition-colors border border-black">
+          <div className="w-8 h-8 rounded-sm bg-black text-white flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-white group-hover:text-black border border-black">
             {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="text-[11px] font-black text-black group-hover:text-white transition-colors truncate uppercase">{profile?.nome || 'Usuário Gabinete'}</span>
+              <span className="text-[11px] font-black text-black group-hover:text-white transition-colors truncate uppercase">{profile?.nome || 'Gabinete'}</span>
               <span className="text-[9px] text-black/60 transition-colors font-black uppercase truncate italic">{profile?.cargo || 'Operador'}</span>
             </div>
           )}
@@ -252,7 +251,7 @@ export function Sidebar() {
           <Button 
             variant="ghost" 
             onClick={handleLogout}
-            className="w-full justify-start text-[10px] font-black text-black uppercase h-8 hover:bg-black hover:text-white transition-all rounded-sm border border-transparent hover:border-black"
+            className="w-full justify-start text-[10px] font-black text-black uppercase h-8 hover:bg-black hover:text-white rounded-sm border border-transparent hover:border-black"
           >
             <LogOut size={14} className="mr-2" /> Encerrar Sessão
           </Button>
@@ -260,30 +259,20 @@ export function Sidebar() {
 
         <div className="flex items-center justify-between px-2">
           {!collapsed && (
-            <span className="text-[9px] font-black text-black uppercase flex items-center gap-1 group cursor-default">
+            <span className="text-[9px] font-black text-black uppercase flex items-center gap-1">
               {isAdmin ? <Unlock size={10} className="text-green-600" /> : <Lock size={10} />}
-              <span className="group-hover:bg-black group-hover:text-white px-1 transition-all rounded-sm">{isAdmin ? "Gabinete Admin" : "Operador Ativo"}</span>
+              <span>{isAdmin ? "Admin" : "Operador"}</span>
             </span>
           )}
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => setCollapsed(!collapsed)}
-            className="h-6 w-6 text-black/40 hover:bg-black hover:text-white transition-all"
+            className="h-6 w-6 text-black/40 hover:bg-black hover:text-white"
           >
             {collapsed ? <PanelLeft size={14} /> : <PanelLeftClose size={14} />}
           </Button>
         </div>
-
-        {!collapsed && (
-          <div className="mt-4 pb-2 text-center space-y-1">
-            <div className="flex items-center justify-center gap-1.5 opacity-40 hover:opacity-100 transition-opacity group cursor-default">
-              <Copyright size={8} className="text-black group-hover:text-black" />
-              <span className="text-[7px] uppercase font-black text-black tracking-widest">© 2026 W1 CAPITAL</span>
-            </div>
-            <p className="text-[6px] text-black/60 font-black uppercase tracking-tighter italic">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</p>
-          </div>
-        )}
       </div>
     </aside>
   );
