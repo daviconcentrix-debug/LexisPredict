@@ -14,7 +14,8 @@ import {
   CheckCircle,
   Clock,
   Copyright,
-  ShieldCheck
+  ShieldCheck,
+  FileText
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,8 @@ import { Label } from '@/components/ui/label';
 import { fetchRepoCases, syncRepoCases } from '@/app/actions/case-actions';
 import { format } from 'date-fns';
 import { useAdmin } from '@/hooks/use-admin';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from '@/components/ui/textarea';
 
 function CasesContent() {
   const [cases, setCases] = useState<LegalCase[]>([]);
@@ -54,7 +57,9 @@ function CasesContent() {
     advogado: '',
     proximoPrazo: '',
     situacao: 'EM ANDAMENTO',
-    ultimoRetorno: ''
+    ultimoRetorno: '',
+    statusManual: 'Atenção' as any,
+    observacao: ''
   });
 
   const loadData = useCallback(async () => {
@@ -90,7 +95,9 @@ function CasesContent() {
       ADVOGADO: formState.advogado,
       'PRÓXIMO PRAZO': formState.proximoPrazo,
       SITUAÇÃO: formState.situacao,
-      ULTIMO_RETORNO: formState.ultimoRetorno
+      ULTIMO_RETORNO: formState.ultimoRetorno,
+      STATUS_MANUAL: formState.statusManual,
+      OBSERVACAO: formState.observacao
     });
 
     const updated = cases.map(c => c.protocolo === processed.protocolo ? processed : c);
@@ -103,7 +110,16 @@ function CasesContent() {
       setCases(updated);
       setIsModalOpen(false);
       setEditingCase(null);
-      setFormState({ cliente: '', protocolo: '', advogado: '', proximoPrazo: '', situacao: 'EM ANDAMENTO', ultimoRetorno: '' });
+      setFormState({ 
+        cliente: '', 
+        protocolo: '', 
+        advogado: '', 
+        proximoPrazo: '', 
+        situacao: 'EM ANDAMENTO', 
+        ultimoRetorno: '',
+        statusManual: 'Atenção',
+        observacao: ''
+      });
       toast({ title: editingCase ? "Caso Atualizado" : "Caso Adicionado", description: "Sincronizado com sucesso." });
     }
   };
@@ -134,7 +150,9 @@ function CasesContent() {
       advogado: c.advogado,
       proximoPrazo: c.proximoPrazo,
       situacao: c.situacao,
-      ultimoRetorno: c.ultimoRetorno || ''
+      ultimoRetorno: c.ultimoRetorno || '',
+      statusManual: c.statusManual || 'Atenção',
+      observacao: c.observacao || ''
     });
     setIsModalOpen(true);
   };
@@ -158,10 +176,10 @@ function CasesContent() {
   }, [cases, search]);
 
   return (
-    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black">
+    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
+        <header className="h-16 border-b border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default tracking-tighter">
               {isAdmin ? "Visão Global de Processos" : "Meus Processos Ativos"}
@@ -195,13 +213,27 @@ function CasesContent() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                          <Label htmlFor="attorney" className="font-black text-black text-[10px] uppercase">ADVOGADO</Label>
-                          <Input id="attorney" value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="border-black text-black font-black uppercase" />
+                          <Label htmlFor="status_manual" className="font-black text-black text-[10px] uppercase">STATUS DO CASO</Label>
+                          <Select value={formState.statusManual} onValueChange={(val) => setFormState({...formState, statusManual: val as any})}>
+                            <SelectTrigger className="border-black font-black uppercase h-10 text-[10px]">
+                              <SelectValue placeholder="Selecione..." />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white border-2 border-black">
+                              <SelectItem value="Caso Crítico" className="font-black uppercase text-[10px]">Caso Crítico</SelectItem>
+                              <SelectItem value="Atenção" className="font-black uppercase text-[10px]">Atenção</SelectItem>
+                              <SelectItem value="Encerrado" className="font-black uppercase text-[10px]">Encerrado</SelectItem>
+                              <SelectItem value="Arquivado" className="font-black uppercase text-[10px]">Arquivado</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="deadline" className="font-black text-black text-[10px] uppercase">PRAZO (DD/MM/AAAA)</Label>
                           <Input id="deadline" placeholder="30/12/2026" value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="border-black text-black font-black" />
                         </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="obs" className="font-black text-black text-[10px] uppercase">OBSERVAÇÕES ESTRATÉGICAS</Label>
+                        <Textarea id="obs" value={formState.observacao} onChange={(e) => setFormState({...formState, observacao: e.target.value})} className="border-black text-black font-black uppercase text-[10px] min-h-[80px]" placeholder="NOTAS ADICIONAIS..." />
                       </div>
                     </div>
                     <DialogFooter>
@@ -212,14 +244,14 @@ function CasesContent() {
               </Dialog>
             )}
             
-            <Button variant="ghost" size="sm" onClick={loadData} className="h-9 text-black font-black hover:bg-black hover:text-white border-2 border-black transition-all uppercase text-[10px] px-6">
+            <Button variant="ghost" size="sm" onClick={loadData} className="h-9 text-black font-black hover:bg-black hover:text-white border-2 border-black transition-all uppercase text-[10px] px-6 bg-white">
               <RefreshCcw className={cn("w-3.5 h-3.5 mr-2", loading && "animate-spin")} /> Sincronizar
             </Button>
           </div>
         </header>
 
         <div className="flex-1 flex flex-col p-8 overflow-hidden">
-          <div className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] flex-1 flex flex-col overflow-hidden">
+          <div className="bg-white/90 backdrop-blur-md border-2 border-black rounded-none shadow-[8px_8px_0px_#000] flex-1 flex flex-col overflow-hidden">
             <div className="p-4 border-b-2 border-black bg-[#f8f9fb] flex items-center gap-4">
               <div className="relative w-full sm:w-80">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
@@ -266,7 +298,7 @@ function CasesContent() {
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex flex-col gap-1.5">
-                          <StatusBadge status={c.status} />
+                          <StatusBadge status={c.statusManual || c.status} />
                           <p className="text-[10px] text-black/60 group-hover:text-white/60 font-black uppercase">{c.proximoPrazo || 'Sem Prazo'}</p>
                         </div>
                       </td>
@@ -280,6 +312,11 @@ function CasesContent() {
                       </td>
                       <td className="px-6 py-5 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {c.observacao && (
+                            <Button variant="ghost" size="icon" className="text-black group-hover:text-white" title={c.observacao}>
+                              <FileText size={16} />
+                            </Button>
+                          )}
                           {isOperador && (
                             <>
                               <Button 
@@ -328,7 +365,7 @@ function CasesContent() {
           </div>
         </div>
 
-        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] shrink-0">
+        <footer className="h-10 border-t border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-center gap-6 text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] shrink-0">
           <div className="flex items-center gap-2">
             <Copyright size={10} /> 2026 W1 Capital
           </div>
@@ -340,17 +377,19 @@ function CasesContent() {
   );
 }
 
-function StatusBadge({ status }: { status: LegalCase['status'] }) {
-  const styles = {
+function StatusBadge({ status }: { status: any }) {
+  const styles: Record<string, string> = {
     'Vencido': "bg-red-600 text-white",
+    'Caso Crítico': "bg-red-600 text-white",
     'Atenção': "bg-orange-500 text-white",
     'No Prazo': "bg-green-600 text-white",
     'Arquivado': "bg-black text-white",
+    'Encerrado': "bg-gray-800 text-white",
     'Sem Prazo': "bg-gray-400 text-white",
   };
 
   return (
-    <Badge className={cn("px-2 py-0.5 font-black text-[9px] uppercase border-none shadow-sm transition-all group-hover:scale-110 rounded-none", styles[status])}>
+    <Badge className={cn("px-2 py-0.5 font-black text-[9px] uppercase border-none shadow-sm transition-all group-hover:scale-110 rounded-none", styles[status] || "bg-gray-400 text-white")}>
       {status}
     </Badge>
   );
