@@ -91,6 +91,25 @@
   .icon-3d-block.black { background: #000000; }
   .icon-3d-block.black::before { background: #000; }
   .icon-3d-block.black::after { background: #111; }
+
+  /* PERFORMANCE: Aceleração de Hardware para Wallpapers */
+  .lexis-bg-layer, .lexis-side-bg-layer {
+    backface-visibility: hidden;
+    perspective: 1000px;
+    transform: translate3d(0, 0, 0);
+    will-change: opacity, transform;
+    pointer-events: none;
+    overflow: hidden;
+    transition: opacity 0.5s ease-in-out;
+  }
+
+  .lexis-bg-layer video, .lexis-side-bg-layer video {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 @layer base {
