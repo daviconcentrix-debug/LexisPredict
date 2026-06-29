@@ -32,14 +32,14 @@ export function Sidebar() {
   const router = useRouter();
   const [collapsed, setCollapsed] = React.useState(false);
   const { profile, signOut } = useAuth();
-  const [sidebarBg, setSidebarBg] = useState<string | null>(null);
-  const [sidebarType, setSidebarType] = useState<'image' | 'video'>('image');
   const [opacity, setOpacity] = useState(1);
 
   const isAdmin = profile?.cargo === 'Administrador';
 
   useEffect(() => {
     const applyAppearance = () => {
+      if (typeof window === 'undefined') return;
+
       const mode = localStorage.getItem('lexis_wp_mode') || 'global';
       const mainUrl = localStorage.getItem('lexis_wp_main_url');
       const sidebarUrl = localStorage.getItem('lexis_wp_sidebar_url');
@@ -50,21 +50,17 @@ export function Sidebar() {
 
       setOpacity(opacityStored);
 
-      const main = document.querySelector('main');
+      const mainElement = document.querySelector('main');
       const sidebarElement = document.querySelector('aside');
 
-      if (main) {
-        main.style.backgroundColor = bgColor;
-        main.style.position = 'relative';
+      // 1. APLICAÇÃO NO CONTEÚDO (MAIN)
+      if (mainElement) {
+        mainElement.style.backgroundColor = bgColor;
+        mainElement.style.position = 'relative';
         
-        // Remove existing backgrounds
-        const oldMainBg = main.querySelector('.lexis-bg-layer');
-        if (oldMainBg) oldMainBg.remove();
-
-        const activeMainUrl = (mode === 'global' || mode === 'main_only' || mode === 'separate') ? mainUrl : null;
-        
-        if (activeMainUrl) {
-          const bgLayer = document.createElement('div');
+        let bgLayer = mainElement.querySelector('.lexis-bg-layer') as HTMLElement;
+        if (!bgLayer) {
+          bgLayer = document.createElement('div');
           bgLayer.className = 'lexis-bg-layer';
           bgLayer.style.position = 'absolute';
           bgLayer.style.top = '0';
@@ -72,31 +68,42 @@ export function Sidebar() {
           bgLayer.style.width = '100%';
           bgLayer.style.height = '100%';
           bgLayer.style.zIndex = '-1';
-          bgLayer.style.opacity = opacityStored.toString();
           bgLayer.style.pointerEvents = 'none';
           bgLayer.style.overflow = 'hidden';
+          mainElement.appendChild(bgLayer);
+        }
 
+        const activeMainUrl = (mode === 'global' || mode === 'main_only' || mode === 'separate') ? mainUrl : null;
+        bgLayer.style.opacity = opacityStored.toString();
+
+        if (activeMainUrl) {
           if (mainType === 'video') {
-            bgLayer.innerHTML = `<video autoplay muted loop playsinline style="width:100%; height:100%; object-fit:cover;"><source src="${activeMainUrl}" type="video/mp4"></video>`;
+            const currentVideo = bgLayer.querySelector('video');
+            if (!currentVideo || currentVideo.src !== activeMainUrl) {
+              bgLayer.innerHTML = `
+                <video autoplay muted loop playsinline preload="auto" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0;">
+                  <source src="${activeMainUrl}">
+                </video>
+              `;
+            }
           } else {
+            bgLayer.innerHTML = '';
             bgLayer.style.backgroundImage = `url(${activeMainUrl})`;
             bgLayer.style.backgroundSize = 'cover';
             bgLayer.style.backgroundPosition = 'center';
             bgLayer.style.backgroundAttachment = 'fixed';
           }
-          main.appendChild(bgLayer);
+        } else {
+          bgLayer.innerHTML = '';
+          bgLayer.style.backgroundImage = 'none';
         }
       }
 
+      // 2. APLICAÇÃO NA SIDEBAR
       if (sidebarElement) {
-        // Remove existing backgrounds
-        const oldSideBg = sidebarElement.querySelector('.lexis-side-bg-layer');
-        if (oldSideBg) oldSideBg.remove();
-
-        const activeSidebarUrl = (mode === 'global') ? mainUrl : (mode === 'sidebar_only' || mode === 'separate') ? sidebarUrl : null;
-        
-        if (activeSidebarUrl) {
-          const sideBgLayer = document.createElement('div');
+        let sideBgLayer = sidebarElement.querySelector('.lexis-side-bg-layer') as HTMLElement;
+        if (!sideBgLayer) {
+          sideBgLayer = document.createElement('div');
           sideBgLayer.className = 'lexis-side-bg-layer';
           sideBgLayer.style.position = 'absolute';
           sideBgLayer.style.top = '0';
@@ -104,23 +111,37 @@ export function Sidebar() {
           sideBgLayer.style.width = '100%';
           sideBgLayer.style.height = '100%';
           sideBgLayer.style.zIndex = '-1';
-          sideBgLayer.style.opacity = opacityStored.toString();
           sideBgLayer.style.pointerEvents = 'none';
           sideBgLayer.style.overflow = 'hidden';
+          sidebarElement.style.position = 'relative';
+          sidebarElement.prepend(sideBgLayer);
+        }
 
+        const activeSidebarUrl = (mode === 'global') ? mainUrl : (mode === 'sidebar_only' || mode === 'separate') ? sidebarUrl : null;
+        sideBgLayer.style.opacity = opacityStored.toString();
+
+        if (activeSidebarUrl) {
           const activeSideType = mode === 'global' ? mainType : sidebarTypeStored;
+          sidebarElement.style.backgroundColor = 'transparent';
 
           if (activeSideType === 'video') {
-            sideBgLayer.innerHTML = `<video autoplay muted loop playsinline style="width:100%; height:100%; object-fit:cover;"><source src="${activeSidebarUrl}" type="video/mp4"></video>`;
+            const currentSideVideo = sideBgLayer.querySelector('video');
+            if (!currentSideVideo || currentSideVideo.src !== activeSidebarUrl) {
+              sideBgLayer.innerHTML = `
+                <video autoplay muted loop playsinline preload="auto" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0;">
+                  <source src="${activeSidebarUrl}">
+                </video>
+              `;
+            }
           } else {
+            sideBgLayer.innerHTML = '';
             sideBgLayer.style.backgroundImage = `url(${activeSidebarUrl})`;
             sideBgLayer.style.backgroundSize = 'cover';
             sideBgLayer.style.backgroundPosition = 'center';
           }
-          sidebarElement.style.position = 'relative';
-          sidebarElement.style.backgroundColor = 'transparent';
-          sidebarElement.prepend(sideBgLayer);
         } else {
+          sideBgLayer.innerHTML = '';
+          sideBgLayer.style.backgroundImage = 'none';
           sidebarElement.style.backgroundColor = 'white';
         }
       }
@@ -128,7 +149,7 @@ export function Sidebar() {
 
     applyAppearance();
     window.addEventListener('storage', applyAppearance);
-    const interval = setInterval(applyAppearance, 2000); // Polling as backup for storage event
+    const interval = setInterval(applyAppearance, 2000);
     return () => {
       window.removeEventListener('storage', applyAppearance);
       clearInterval(interval);
