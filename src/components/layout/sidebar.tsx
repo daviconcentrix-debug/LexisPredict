@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -20,8 +20,7 @@ import {
   StickyNote,
   FileSearch,
   MessageSquare,
-  LogOut,
-  Copyright
+  LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -56,6 +55,7 @@ export function Sidebar() {
         bgColor: localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2'
       };
 
+      // PERFORMANCE: Evita re-processamento se as configurações não mudaram
       const settingsKey = JSON.stringify(settings);
       if (settingsKey === lastAppliedSettings.current) return;
       lastAppliedSettings.current = settingsKey;
@@ -64,7 +64,6 @@ export function Sidebar() {
         if (storedValue === 'LOCAL_ASSET') {
           const blob = await browserStorage.getAsset(key);
           if (blob instanceof Blob) {
-            // Revoga o anterior se existir
             if (activeBlobUrls.current[target]) URL.revokeObjectURL(activeBlobUrls.current[target]!);
             const newUrl = URL.createObjectURL(blob);
             activeBlobUrls.current[target] = newUrl;
@@ -81,13 +80,11 @@ export function Sidebar() {
       const sidebarElement = document.querySelector('aside');
       const rootContainer = mainElement?.parentElement;
 
-      // Limpeza de Cores de Fundo fixas para permitir o wallpaper brilhar
       if (rootContainer) rootContainer.style.backgroundColor = settings.bgColor;
       if (mainElement) mainElement.style.backgroundColor = 'transparent';
 
       const updateLayer = (el: HTMLElement | null, className: string, url: string | null, type: string, opacity: string) => {
         if (!el) return;
-        el.style.position = 'relative';
         
         let layer = el.querySelector(`.${className}`) as HTMLElement;
         if (!layer) {
@@ -95,7 +92,7 @@ export function Sidebar() {
           layer.className = className;
           Object.assign(layer.style, {
             position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
-            zIndex: '-1', pointerEvents: 'none', overflow: 'hidden'
+            zIndex: '-1', pointerEvents: 'none'
           });
           el.appendChild(layer);
         }
@@ -104,16 +101,16 @@ export function Sidebar() {
 
         if (url) {
           if (type === 'video') {
-            const videoHtml = `
-              <video autoplay muted loop playsinline preload="auto" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0;">
-                <source src="${url}">
-              </video>
-            `;
-            // Só reinicia o HTML se o src mudou (para não travar o vídeo)
             const currentVideo = layer.querySelector('video');
             const currentSrc = currentVideo?.querySelector('source')?.getAttribute('src');
+            
+            // PERFORMANCE: Só atualiza o vídeo se a URL mudou de fato
             if (currentSrc !== url) {
-              layer.innerHTML = videoHtml;
+              layer.innerHTML = `
+                <video autoplay muted loop playsinline preload="auto">
+                  <source src="${url}">
+                </video>
+              `;
             }
           } else {
             layer.innerHTML = '';
@@ -125,11 +122,9 @@ export function Sidebar() {
         }
       };
 
-      // 1. APLICAÇÃO NO CONTEÚDO
       const activeMainUrl = (settings.mode === 'global' || settings.mode === 'main_only' || settings.mode === 'separate') ? mainSrc : null;
       updateLayer(mainElement, 'lexis-bg-layer', activeMainUrl, settings.mainType, settings.opacity);
 
-      // 2. APLICAÇÃO NA SIDEBAR
       const activeSideUrl = (settings.mode === 'global') ? mainSrc : (settings.mode === 'sidebar_only' || settings.mode === 'separate') ? sideSrc : null;
       const activeSideType = settings.mode === 'global' ? settings.mainType : settings.sideType;
       
@@ -139,17 +134,19 @@ export function Sidebar() {
       }
     };
 
-    applyAppearance();
-    window.addEventListener('storage', applyAppearance);
+    // PERFORMANCE: Usa RequestAnimationFrame para evitar bloqueio da main thread
+    const debouncedApply = () => requestAnimationFrame(applyAppearance);
     
-    // Intervalo reduzido apenas para detecção de mudanças de DOM (NextJS hydration)
-    const interval = setInterval(applyAppearance, 1000);
+    applyAppearance();
+    window.addEventListener('storage', debouncedApply);
+    
+    // Polling de segurança reduzido para evitar lag, apenas para garantir NextJS Sync
+    const interval = setInterval(debouncedApply, 2000);
     
     return () => {
       isMounted.current = false;
-      window.removeEventListener('storage', applyAppearance);
+      window.removeEventListener('storage', debouncedApply);
       clearInterval(interval);
-      // Limpeza de blobs
       if (activeBlobUrls.current.main) URL.revokeObjectURL(activeBlobUrls.current.main);
       if (activeBlobUrls.current.side) URL.revokeObjectURL(activeBlobUrls.current.side);
     };
