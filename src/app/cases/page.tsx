@@ -58,7 +58,7 @@ function CasesContent() {
     proximoPrazo: '',
     situacao: 'EM ANDAMENTO',
     ultimoRetorno: '',
-    statusManual: 'Atenção' as any,
+    statusManual: 'Automatico' as any,
     observacao: ''
   });
 
@@ -117,7 +117,7 @@ function CasesContent() {
         proximoPrazo: '', 
         situacao: 'EM ANDAMENTO', 
         ultimoRetorno: '',
-        statusManual: 'Atenção',
+        statusManual: 'Automatico',
         observacao: ''
       });
       toast({ title: editingCase ? "Caso Atualizado" : "Caso Adicionado", description: "Sincronizado com sucesso." });
@@ -151,7 +151,7 @@ function CasesContent() {
       proximoPrazo: c.proximoPrazo,
       situacao: c.situacao,
       ultimoRetorno: c.ultimoRetorno || '',
-      statusManual: c.statusManual || 'Atenção',
+      statusManual: c.statusManual || 'Automatico',
       observacao: c.observacao || ''
     });
     setIsModalOpen(true);
@@ -211,6 +211,10 @@ function CasesContent() {
                         <Label htmlFor="protocol" className="font-black text-black text-[10px] uppercase">PROTOCOLO CNJ</Label>
                         <Input id="protocol" placeholder="0000000-00.2025.8.00.0000" value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="border-black text-black font-black" disabled={!!editingCase} />
                       </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="lawyer" className="font-black text-black text-[10px] uppercase">ADVOGADO RESPONSÁVEL</Label>
+                        <Input id="lawyer" value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="border-black text-black font-black uppercase" />
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                           <Label htmlFor="status_manual" className="font-black text-black text-[10px] uppercase">STATUS DO CASO</Label>
@@ -219,6 +223,7 @@ function CasesContent() {
                               <SelectValue placeholder="Selecione..." />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-2 border-black">
+                              <SelectItem value="Automatico" className="font-black uppercase text-[10px]">Automático</SelectItem>
                               <SelectItem value="Caso Crítico" className="font-black uppercase text-[10px]">Caso Crítico</SelectItem>
                               <SelectItem value="Atenção" className="font-black uppercase text-[10px]">Atenção</SelectItem>
                               <SelectItem value="Encerrado" className="font-black uppercase text-[10px]">Encerrado</SelectItem>
@@ -298,7 +303,7 @@ function CasesContent() {
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex flex-col gap-1.5">
-                          <StatusBadge status={c.statusManual || c.status} />
+                          <StatusBadge status={c.status} />
                           <p className="text-[10px] text-black/60 group-hover:text-white/60 font-black uppercase">{c.proximoPrazo || 'Sem Prazo'}</p>
                         </div>
                       </td>
@@ -313,7 +318,12 @@ function CasesContent() {
                       <td className="px-6 py-5 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {c.observacao && (
-                            <Button variant="ghost" size="icon" className="text-black group-hover:text-white" title={c.observacao}>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-black group-hover:text-white" 
+                              onClick={() => toast({ title: "Nota Estratégica", description: c.observacao })}
+                            >
                               <FileText size={16} />
                             </Button>
                           )}
@@ -380,6 +390,7 @@ function CasesContent() {
 function StatusBadge({ status }: { status: any }) {
   const styles: Record<string, string> = {
     'Vencido': "bg-red-600 text-white",
+    'É Hoje': "bg-blue-600 text-white font-black animate-pulse",
     'Caso Crítico': "bg-red-600 text-white",
     'Atenção': "bg-orange-500 text-white",
     'No Prazo': "bg-green-600 text-white",
