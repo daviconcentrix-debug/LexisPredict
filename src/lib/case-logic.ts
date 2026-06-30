@@ -6,7 +6,7 @@ export type LegalCase = {
   situacao: string;
   proximoPrazo: string;
   tribunal: string;
-  status: 'Vencido' | 'Atenção' | 'No Prazo' | 'Arquivado' | 'Sem Prazo';
+  status: 'Vencido' | 'Atenção' | 'No Prazo' | 'Arquivado' | 'Sem Prazo' | 'É Hoje' | 'Caso Crítico' | 'Encerrado';
   diasFaltando: number | null;
   linkConsulta: string;
   tipo?: string;
@@ -18,7 +18,7 @@ export type LegalCase = {
   origemPlanilha?: string;
   ultimoRetorno?: string;
   observacao?: string;
-  statusManual?: 'Caso Crítico' | 'Atenção' | 'Encerrado' | 'Arquivado';
+  statusManual?: 'Caso Crítico' | 'Atenção' | 'Encerrado' | 'Arquivado' | 'Automatico';
 };
 
 export type CaseNote = {
@@ -71,10 +71,7 @@ export function processarCaso(linha: Record<string, string>): LegalCase {
   let diasFaltando: number | null = null;
   const dataPrazoOriginal = linha['PRÓXIMO PRAZO'] || linha['PRAZO'] || linha.RETORNO || '';
 
-  if (['ENCERRADO', 'SUSPENSO', 'ARQUIVADO'].some(s => situacao.includes(s))) {
-    status = 'Arquivado';
-  } 
-  else if (dataPrazoOriginal) {
+  if (dataPrazoOriginal) {
     const parts = dataPrazoOriginal.split('/');
     if (parts.length === 3) {
       const day = parseInt(parts[0], 10);
@@ -91,12 +88,24 @@ export function processarCaso(linha: Record<string, string>): LegalCase {
 
       if (diasFaltando < 0) {
         status = 'Vencido';
+      } else if (diasFaltando === 0) {
+        status = 'É Hoje';
       } else if (diasFaltando <= 7) {
         status = 'Atenção';
       } else {
         status = 'No Prazo';
       }
     }
+  }
+
+  if (['ENCERRADO', 'SUSPENSO', 'ARQUIVADO'].some(s => situacao.includes(s))) {
+    status = 'Arquivado';
+  } 
+
+  // Prioridade de Status Manual se existir e não for Automático
+  const statusManual = linha.STATUS_MANUAL;
+  if (statusManual && statusManual !== 'Automatico' && statusManual !== '') {
+    status = statusManual as any;
   }
 
   let tribunal = 'Outros';
