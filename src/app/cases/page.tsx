@@ -96,7 +96,8 @@ function CasesContent() {
     const processed = processarCaso({
       CLIENTE: formState.cliente,
       PROTOCOLO: formState.protocolo,
-      ADVOGADO: formState.advogado,
+      ADVOCADO: formState.advogado,
+      'ADVOGADO RESPONSÁVEL': formState.advogado,
       'PRÓXIMO PRAZO': formState.proximoPrazo,
       SITUAÇÃO: formState.situacao,
       ULTIMO_RETORNO: formState.ultimoRetorno,
@@ -107,7 +108,7 @@ function CasesContent() {
 
     const updated = editingCase 
       ? cases.map(c => c.id === editingCase.id ? { ...processed, id: editingCase.id } : c)
-      : [...cases, processed];
+      : [processed, ...cases];
     
     const result = await syncRepoCases(updated);
     if (result.success) {
@@ -286,7 +287,7 @@ function CasesContent() {
               </Badge>
             </div>
 
-            <div className="flex-1 overflow-auto min-h-0 min-w-0">
+            <div className="flex-1 overflow-auto min-h-0 min-w-0 bg-white" style={{ maxHeight: 'calc(100vh - 280px)' }}>
               <table className="w-full text-left border-collapse min-w-[1200px]">
                 <thead className="sticky top-0 bg-[#f3f2f2] z-20 border-b-2 border-black shadow-sm">
                   <tr className="text-[10px] uppercase font-black text-black/40 tracking-widest">
@@ -385,7 +386,7 @@ function CasesContent() {
                             <Briefcase className="text-black" size={32} />
                           </div>
                           <h3 className="text-black font-black uppercase tracking-tight">Nenhum Registro Localizado</h3>
-                          <p className="text-[10px] text-black/60 font-black uppercase leading-relaxed tracking-widest">Base de dados vazia ou filtro de visão ativo para sua conta.</p>
+                          <p className="text-[10px] text-black/60 font-black uppercase leading-relaxed tracking-widest">Aguardando sincronização com a base Cloud ou filtro ativo.</p>
                         </div>
                       </td>
                     </tr>
