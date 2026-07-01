@@ -15,10 +15,11 @@ import {
   Clock,
   Copyright,
   ShieldCheck,
-  FileText
+  FileText,
+  MessageCircle
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
-import { cn } from '@/lib/utils';
+import { cn, formatWhatsAppLink } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -59,7 +60,8 @@ function CasesContent() {
     situacao: 'EM ANDAMENTO',
     ultimoRetorno: '',
     statusManual: 'Automatico' as any,
-    observacao: ''
+    observacao: '',
+    telefone: ''
   });
 
   const loadData = useCallback(async () => {
@@ -97,13 +99,13 @@ function CasesContent() {
       SITUAÇÃO: formState.situacao,
       ULTIMO_RETORNO: formState.ultimoRetorno,
       STATUS_MANUAL: formState.statusManual,
-      OBSERVACAO: formState.observacao
+      OBSERVACAO: formState.observacao,
+      TELEFONE: formState.telefone
     });
 
-    const updated = cases.map(c => c.protocolo === processed.protocolo ? processed : c);
-    if (!cases.find(c => c.protocolo === processed.protocolo)) {
-      updated.push(processed);
-    }
+    const updated = editingCase 
+      ? cases.map(c => c.id === editingCase.id ? { ...processed, id: editingCase.id } : c)
+      : [...cases, processed];
     
     const result = await syncRepoCases(updated);
     if (result.success) {
@@ -118,9 +120,12 @@ function CasesContent() {
         situacao: 'EM ANDAMENTO', 
         ultimoRetorno: '',
         statusManual: 'Automatico',
-        observacao: ''
+        observacao: '',
+        telefone: ''
       });
-      toast({ title: editingCase ? "Caso Atualizado" : "Caso Adicionado", description: "Sincronizado com sucesso." });
+      toast({ title: editingCase ? "Caso Atualizado" : "Caso Adicionado", description: "Sincronizado com a nuvem W1 Capital." });
+    } else {
+      toast({ title: "Falha na Sincronia", description: result.message, variant: "destructive" });
     }
   };
 
@@ -152,14 +157,15 @@ function CasesContent() {
       situacao: c.situacao,
       ultimoRetorno: c.ultimoRetorno || '',
       statusManual: c.statusManual || 'Automatico',
-      observacao: c.observacao || ''
+      observacao: c.observacao || '',
+      telefone: c.telefone || ''
     });
     setIsModalOpen(true);
   };
 
   const deleteCase = async (id: string) => {
     if (!isOperador) return;
-    if (confirm('Tem certeza que deseja excluir este caso?')) {
+    if (confirm('Tem certeza que deseja excluir este caso da base de dados?')) {
       const updated = cases.filter(c => c.id !== id);
       setCases(updated);
       await syncRepoCases(updated);
@@ -190,17 +196,17 @@ function CasesContent() {
           </div>
           <div className="flex items-center gap-3">
             {isOperador && (
-              <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+              <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCase(null); }}>
                 <DialogTrigger asChild>
-                  <Button className="bg-white text-black border-2 border-black hover:bg-black hover:text-white font-black h-9 uppercase text-[10px] px-6 transition-all shadow-[4px_4px_0px_#000] hover:shadow-none">
+                  <Button onClick={() => setEditingCase(null)} className="bg-white text-black border-2 border-black hover:bg-black hover:text-white font-black h-9 uppercase text-[10px] px-6 transition-all shadow-[4px_4px_0px_#000] hover:shadow-none">
                     <Plus className="w-3.5 h-3.5 mr-2" /> Novo Processo
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="bg-white border-2 border-black text-black sm:max-w-[425px]">
                   <form onSubmit={handleSaveCase}>
                     <DialogHeader>
-                      <DialogTitle className="font-black uppercase text-black">Registro de Caso</DialogTitle>
-                      <DialogDescription className="font-bold text-black/60 uppercase text-[9px]">Insira os detalhes procedurais no seu silo.</DialogDescription>
+                      <DialogTitle className="font-black uppercase text-black">{editingCase ? "Editar Processo" : "Registro de Caso"}</DialogTitle>
+                      <DialogDescription className="font-bold text-black/60 uppercase text-[9px]">Sincronização imediata com silo de gabinete.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
@@ -209,21 +215,27 @@ function CasesContent() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="protocol" className="font-black text-black text-[10px] uppercase">PROTOCOLO CNJ</Label>
-                        <Input id="protocol" placeholder="0000000-00.2025.8.00.0000" value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="border-black text-black font-black" disabled={!!editingCase} />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="lawyer" className="font-black text-black text-[10px] uppercase">ADVOGADO RESPONSÁVEL</Label>
-                        <Input id="lawyer" value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="border-black text-black font-black uppercase" />
+                        <Input id="protocol" placeholder="0000000-00.2025.8.00.0000" value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="border-black text-black font-black" />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                          <Label htmlFor="status_manual" className="font-black text-black text-[10px] uppercase">STATUS DO CASO</Label>
+                           <Label htmlFor="lawyer" className="font-black text-black text-[10px] uppercase">ADVOGADO</Label>
+                           <Input id="lawyer" value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="border-black text-black font-black uppercase" />
+                        </div>
+                        <div className="grid gap-2">
+                           <Label htmlFor="phone" className="font-black text-black text-[10px] uppercase">WHATSAPP / FONE</Label>
+                           <Input id="phone" value={formState.telefone} onChange={(e) => setFormState({...formState, telefone: e.target.value})} className="border-black text-black font-black uppercase" placeholder="(00) 00000-0000" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="status_manual" className="font-black text-black text-[10px] uppercase">STATUS ESTRATÉGICO</Label>
                           <Select value={formState.statusManual} onValueChange={(val) => setFormState({...formState, statusManual: val as any})}>
                             <SelectTrigger className="border-black font-black uppercase h-10 text-[10px]">
                               <SelectValue placeholder="Selecione..." />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-2 border-black">
-                              <SelectItem value="Automatico" className="font-black uppercase text-[10px]">Automático</SelectItem>
+                              <SelectItem value="Automatico" className="font-black uppercase text-[10px]">Automático (Prazo)</SelectItem>
                               <SelectItem value="Caso Crítico" className="font-black uppercase text-[10px]">Caso Crítico</SelectItem>
                               <SelectItem value="Atenção" className="font-black uppercase text-[10px]">Atenção</SelectItem>
                               <SelectItem value="Encerrado" className="font-black uppercase text-[10px]">Encerrado</SelectItem>
@@ -255,7 +267,7 @@ function CasesContent() {
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col p-8 overflow-hidden">
+        <div className="flex-1 flex-col p-8 overflow-hidden">
           <div className="bg-white/90 backdrop-blur-md border-2 border-black rounded-none shadow-[8px_8px_0px_#000] flex-1 flex flex-col overflow-hidden">
             <div className="p-4 border-b-2 border-black bg-[#f8f9fb] flex items-center gap-4">
               <div className="relative w-full sm:w-80">
@@ -273,7 +285,7 @@ function CasesContent() {
             </div>
 
             <div className="flex-1 overflow-auto">
-              <table className="w-full text-left border-collapse min-w-[900px]">
+              <table className="w-full text-left border-collapse min-w-[1000px]">
                 <thead className="sticky top-0 bg-[#f3f2f2] z-10 border-b-2 border-black">
                   <tr className="text-[10px] uppercase font-black text-black/40 tracking-widest">
                     <th className="px-6 py-4">Conta / Cliente / Protocolo</th>
@@ -317,6 +329,13 @@ function CasesContent() {
                       </td>
                       <td className="px-6 py-5 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {c.telefone && (
+                             <Button title="WhatsApp" variant="ghost" size="icon" asChild className="text-green-600 group-hover:text-green-400 hover:bg-black transition-all">
+                               <a href={formatWhatsAppLink(c.telefone)} target="_blank" rel="noopener noreferrer">
+                                 <MessageCircle size={16} />
+                               </a>
+                             </Button>
+                          )}
                           {c.observacao && (
                             <Button 
                               variant="ghost" 

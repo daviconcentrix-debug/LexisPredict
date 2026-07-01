@@ -20,7 +20,8 @@ import {
   StickyNote,
   FileSearch,
   MessageSquare,
-  LogOut
+  LogOut,
+  MessageCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -55,7 +56,6 @@ export function Sidebar() {
         bgColor: localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2'
       };
 
-      // PERFORMANCE: Evita re-processamento se as configurações não mudaram
       const settingsKey = JSON.stringify(settings);
       if (settingsKey === lastAppliedSettings.current) return;
       lastAppliedSettings.current = settingsKey;
@@ -104,10 +104,9 @@ export function Sidebar() {
             const currentVideo = layer.querySelector('video');
             const currentSrc = currentVideo?.querySelector('source')?.getAttribute('src');
             
-            // PERFORMANCE: Só atualiza o vídeo se a URL mudou de fato
             if (currentSrc !== url) {
               layer.innerHTML = `
-                <video autoplay muted loop playsinline preload="auto">
+                <video autoplay muted loop playsinline preload="auto" style="width:100%; height:100%; object-fit:cover; will-change:transform;">
                   <source src="${url}">
                 </video>
               `;
@@ -134,13 +133,10 @@ export function Sidebar() {
       }
     };
 
-    // PERFORMANCE: Usa RequestAnimationFrame para evitar bloqueio da main thread
     const debouncedApply = () => requestAnimationFrame(applyAppearance);
     
     applyAppearance();
     window.addEventListener('storage', debouncedApply);
-    
-    // Polling de segurança reduzido para evitar lag, apenas para garantir NextJS Sync
     const interval = setInterval(debouncedApply, 2000);
     
     return () => {
@@ -168,6 +164,7 @@ export function Sidebar() {
   const omniNav = [
     { label: 'Auditoria 3D', href: '/veredito', icon: FileSearch },
     { label: 'Consultoria de Gabinete', href: '/chat', icon: MessageSquare },
+    { label: 'Mensagens WhatsApp', href: '/whatsapp', icon: MessageCircle },
     { label: 'Importação de Dados', href: '/import', icon: Upload },
     { label: 'Evidências & Notas', href: '/notes', icon: StickyNote },
   ];
@@ -180,10 +177,10 @@ export function Sidebar() {
 
   return (
     <aside className={cn(
-      "h-screen bg-white/90 backdrop-blur-sm flex flex-col transition-all duration-200 border-r border-black shrink-0 print:hidden z-50 overflow-hidden",
+      "h-screen bg-white/90 backdrop-blur-sm flex flex-col transition-all duration-200 border-r border-black shrink-0 print:hidden z-50 overflow-hidden relative",
       collapsed ? "w-[70px]" : "w-64"
     )}>
-      <div className="h-14 flex items-center px-5 border-b border-black bg-white/50">
+      <div className="h-14 flex items-center px-5 border-b border-black bg-white/50 relative z-10">
         <div className="flex items-center gap-4">
           <div className="icon-3d-wrapper">
             <div className="icon-3d-block black w-8 h-8 rounded-sm">

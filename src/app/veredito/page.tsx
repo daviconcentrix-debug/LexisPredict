@@ -1,8 +1,9 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { FileText, FileSearch, History, Search, MoreHorizontal, Copyright, Send, Bot, User, Clock, Copy, MessageSquare } from 'lucide-react';
+import { FileText, FileSearch, History, Search, Copyright, Send, Bot, User, Clock, Copy, MessageCircle, Zap, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -10,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { executarVereditoAI } from '@/ai/flows/veredito-ai-flow';
 import { perguntarIA } from '@/ai/flows/chat-ai-flow';
-import { cn } from '@/lib/utils';
+import { sendYCloudWhatsApp } from '@/app/actions/whatsapp-actions';
+import { cn, formatWhatsAppLink } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,6 +22,7 @@ export default function VereditoPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [model, setModel] = useState<'gemini' | 'grok' | 'openrouter'>('openrouter');
+  const [sendingApi, setSendingApi] = useState(false);
   const isMounted = useRef(true);
   
   const [chatInput, setChatInput] = useState('');
@@ -88,6 +91,37 @@ export default function VereditoPage() {
     }
   };
 
+  const handleApiSend = async () => {
+    if (!result || !result.mensagemCliente || sendingApi) return;
+    
+    // Tenta encontrar o telefone no objeto dataJudRaw ou nos metadados
+    const phone = result.dataJudRaw?.contatoTelefone || ""; // Fallback caso o DataJud retorne telefone futuramente
+    
+    if (!phone) {
+      toast({ 
+        title: "Telefone Ausente", 
+        description: "Não localizamos o telefone deste cliente nos dados do tribunal. Utilize a Central WhatsApp para disparos manuais.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    setSendingApi(true);
+    const res = await sendYCloudWhatsApp(phone, result.mensagemCliente);
+    setSendingApi(false);
+
+    if (res.success) {
+      toast({ title: "Mensagem Enviada via API", description: "O parecer foi entregue ao cliente via YCloud." });
+    } else {
+      toast({ title: "Falha no Envio API", description: res.message, variant: "destructive" });
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copiado", description: "Mensagem copiada para a área de transferência." });
+  };
+
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black">
       <Sidebar />
@@ -107,6 +141,16 @@ export default function VereditoPage() {
                 </h1>
               </div>
             </div>
+            {result && (
+               <div className="flex items-center gap-2">
+                 <Badge variant="outline" className="border-black font-black uppercase text-[10px] px-3 py-1">
+                   Engine: {result.engineUtilizada}
+                 </Badge>
+                 <Badge className="bg-black text-white font-black uppercase text-[10px] px-3 py-1 border-none flex items-center gap-1">
+                   <Zap size={10} className="text-yellow-500 fill-yellow-500" /> API Active
+                 </Badge>
+               </div>
+            )}
           </div>
         </header>
 
@@ -122,7 +166,7 @@ export default function VereditoPage() {
                     onChange={(e) => setCnj(e.target.value)} 
                     className="border-none h-14 text-lg focus-visible:ring-0 font-mono text-black bg-white rounded-none" 
                   />
-                  <Button type="submit" disabled={loading} className="h-14 px-8 rounded-none bg-black text-white font-black hover:bg-gray-800 transition-all shadow-lg uppercase text-xs border-2 border-black">
+                  <Button type="submit" disabled={loading} className="h-14 px-8 rounded-none bg-black text-white font-black hover:bg-gray-800 transition-all shadow-lg uppercase text-[10px] border-2 border-black">
                     {loading ? "Processando..." : "Realizar Auditoria"}
                   </Button>
                 </form>
@@ -135,6 +179,7 @@ export default function VereditoPage() {
                   <Tabs defaultValue="details" className="w-full">
                     <TabsList className="bg-[#e2e2e2] p-1 h-11 w-full justify-start rounded-none mb-0 border-2 border-black border-b-0">
                       <TabsTrigger value="details" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-xs px-6 h-9 uppercase rounded-none">Parecer Técnico</TabsTrigger>
+                      <TabsTrigger value="whatsapp" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-xs px-6 h-9 uppercase rounded-none">Comunicação</TabsTrigger>
                       <TabsTrigger value="chatter" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-xs px-6 h-9 uppercase rounded-none">Consultoria</TabsTrigger>
                     </TabsList>
 
@@ -165,10 +210,60 @@ export default function VereditoPage() {
                       </Card>
                     </TabsContent>
 
+                    <TabsContent value="whatsapp" className="mt-0">
+                       <Card className="bg-white border-2 border-black shadow-none rounded-none border-t-0 overflow-hidden">
+                        <CardHeader className="bg-green-50 border-b-2 border-black py-3">
+                          <CardTitle className="text-[10px] font-black text-green-800 uppercase flex items-center gap-2">
+                            <MessageCircle size={14} /> Redação para Cliente (WhatsApp)
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-8 space-y-6">
+                           <div className="bg-[#f9f9f9] border-2 border-dashed border-black/10 p-6 rounded-none relative">
+                              <p className="text-sm text-black font-black uppercase leading-relaxed italic">{result.mensagemCliente}</p>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => copyToClipboard(result.mensagemCliente)}
+                                className="absolute top-2 right-2 text-black hover:bg-black hover:text-white"
+                              >
+                                <Copy size={14} />
+                              </Button>
+                           </div>
+                           <div className="flex gap-4">
+                              <Button 
+                                disabled={sendingApi}
+                                onClick={handleApiSend}
+                                className="flex-1 h-12 bg-black text-white border-2 border-black font-black uppercase text-[10px] hover:bg-white hover:text-black transition-all shadow-[4px_4px_0px_#000] hover:shadow-none rounded-none"
+                              >
+                                {sendingApi ? <Loader2 size={16} className="animate-spin mr-2" /> : <Zap size={16} className="mr-2 text-yellow-500 fill-yellow-500" />}
+                                Disparo API Elite
+                              </Button>
+                              <Button 
+                                asChild
+                                className="flex-1 h-12 bg-white text-black border-2 border-black font-black uppercase text-[10px] hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none rounded-none"
+                              >
+                                <a href={formatWhatsAppLink('', result.mensagemCliente)} target="_blank" rel="noopener noreferrer">
+                                  <MessageCircle size={16} className="mr-2" /> Link Manual
+                                </a>
+                              </Button>
+                           </div>
+                           <p className="text-[9px] text-black/40 font-black uppercase text-center tracking-widest">
+                             O disparo via API exige que o número do cliente esteja cadastrado na base de dados.
+                           </p>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
                     <TabsContent value="chatter" className="mt-0">
                       <Card className="bg-white border-2 border-black shadow-lg rounded-none border-t-0 flex flex-col h-[500px] overflow-hidden">
                         <ScrollArea className="flex-1 p-4 bg-[#f3f2f2]" ref={scrollRef}>
                           <div className="space-y-4">
+                            {chatMessages.length === 0 && (
+                               <div className="py-20 text-center opacity-30">
+                                  <Bot size={48} className="mx-auto mb-4" />
+                                  <p className="text-[10px] font-black uppercase tracking-tighter">Inicie uma consultoria técnica sobre este processo.</p>
+                               </div>
+                            )}
                             {chatMessages.map((msg, i) => (
                               <div key={i} className={cn("flex", msg.role === 'user' ? "justify-end" : "justify-start")}>
                                 <div className={cn(
@@ -179,6 +274,17 @@ export default function VereditoPage() {
                                 </div>
                               </div>
                             ))}
+                            {chatLoading && (
+                               <div className="flex justify-start">
+                                  <div className="bg-white border-2 border-black p-2 animate-pulse">
+                                     <div className="flex gap-1">
+                                        <div className="w-1 h-1 bg-black rounded-full" />
+                                        <div className="w-1 h-1 bg-black rounded-full" />
+                                        <div className="w-1 h-1 bg-black rounded-full" />
+                                     </div>
+                                  </div>
+                               </div>
+                            )}
                           </div>
                         </ScrollArea>
                         <div className="p-4 border-t-2 border-black bg-white">
@@ -193,6 +299,29 @@ export default function VereditoPage() {
                     </TabsContent>
                   </Tabs>
                 </div>
+
+                <div className="space-y-6">
+                   <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
+                      <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
+                         <CardTitle className="text-[10px] font-black text-black uppercase flex items-center gap-2">
+                            <History size={14} /> Cronologia DataJud
+                         </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                         <div className="divide-y-2 divide-black/5 max-h-[600px] overflow-auto">
+                            {result.dataJudRaw?.movimentos?.slice(0, 10).map((m: any, i: number) => (
+                               <div key={i} className="p-4 hover:bg-black group transition-all">
+                                  <div className="flex items-center gap-2 mb-1">
+                                     <Clock size={10} className="text-black/40 group-hover:text-white/40" />
+                                     <span className="text-[9px] font-black text-black/60 group-hover:text-white/60 uppercase">{new Date(m.dataHora).toLocaleDateString('pt-BR')}</span>
+                                  </div>
+                                  <p className="text-[10px] font-black text-black group-hover:text-white uppercase leading-tight">{m.nome}</p>
+                               </div>
+                            ))}
+                         </div>
+                      </CardContent>
+                   </Card>
+                </div>
               </div>
             )}
           </div>
@@ -202,7 +331,7 @@ export default function VereditoPage() {
           <div className="flex items-center gap-2">
             <Copyright size={10} /> 2026 W1 Capital.
           </div>
-          <span className="uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
+          <span className="uppercase font-black">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
         </footer>
       </main>
     </div>
