@@ -21,6 +21,7 @@ import {
   Sparkles,
   MessageSquare,
   ChevronRight,
+  ChevronLeft,
   Info
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
@@ -34,7 +35,6 @@ import { fetchRepoCases } from '@/app/actions/case-actions';
 import { sendYCloudWhatsApp } from '@/app/actions/whatsapp-actions';
 import { perguntarIA } from '@/ai/flows/chat-ai-flow';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from '@/components/ui/label';
 
 export default function WhatsAppHub() {
@@ -131,29 +131,32 @@ export default function WhatsAppHub() {
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-16 border-b border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-between px-8 shrink-0 z-40">
-          <div className="flex items-center gap-4">
-            <div className="icon-3d-wrapper">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <header className="h-16 lg:h-16 border-b border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-between px-6 lg:px-8 shrink-0 z-40">
+          <div className="flex items-center gap-4 pl-10 lg:pl-0">
+            <div className="icon-3d-wrapper scale-75 lg:scale-100">
               <div className="icon-3d-block black w-10 h-10 rounded-sm">
                 <MessageCircle size={20} className="text-white" />
               </div>
             </div>
-            <h1 className="font-black text-xl text-black uppercase tracking-tighter">Terminal WhatsApp AI Elite</h1>
+            <h1 className="font-black text-sm lg:text-xl text-black uppercase tracking-tighter truncate max-w-[150px] lg:max-w-none">Terminal WhatsApp</h1>
           </div>
           <div className="flex items-center gap-3">
-             <Button variant="ghost" size="sm" onClick={loadData} className="h-9 text-black font-black hover:bg-black hover:text-white border-2 border-black transition-all uppercase text-[10px] px-6 bg-white">
-              <RefreshCcw className={cn("w-3.5 h-3.5 mr-2", loading && "animate-spin")} /> Sincronizar CRM
+             <Button variant="ghost" size="sm" onClick={loadData} className="hidden sm:flex h-9 text-black font-black hover:bg-black hover:text-white border-2 border-black transition-all uppercase text-[10px] px-6 bg-white">
+              <RefreshCcw className={cn("w-3.5 h-3.5 mr-2", loading && "animate-spin")} /> Sincronizar
             </Button>
-            <Badge variant="outline" className="text-black font-black border-black border-2 px-3 py-1 uppercase text-[10px]">
-              <Zap size={10} className="mr-1.5 text-yellow-500 fill-yellow-500" /> Cloud API Ativa
+            <Badge variant="outline" className="text-black font-black border-black border-2 px-2 lg:px-3 py-1 uppercase text-[8px] lg:text-[10px]">
+              <Zap size={10} className="mr-1.5 text-yellow-500 fill-yellow-500" /> API Ativa
             </Badge>
           </div>
         </header>
 
-        <div className="flex-1 flex overflow-hidden">
-          {/* PAINEL ESQUERDO: CONTATOS */}
-          <aside className="w-80 border-r-2 border-black bg-white flex flex-col shrink-0 overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+          {/* PAINEL ESQUERDO: CONTATOS (OCULTO NO MOBILE SE CONTATO SELECIONADO) */}
+          <aside className={cn(
+            "w-full lg:w-80 border-r-2 border-black bg-white flex flex-col shrink-0 overflow-hidden transition-all",
+            selectedContact ? "hidden lg:flex" : "flex"
+          )}>
             <div className="p-4 border-b-2 border-black bg-[#f8f9fb]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
@@ -190,7 +193,7 @@ export default function WhatsAppHub() {
                   </button>
                 )) : (
                   <div className="p-8 text-center opacity-40">
-                    <p className="text-[10px] font-black uppercase italic">Nenhum contato com telefone localizado.</p>
+                    <p className="text-[10px] font-black uppercase italic">Nenhum contato localizado.</p>
                   </div>
                 )}
               </div>
@@ -198,49 +201,57 @@ export default function WhatsAppHub() {
           </aside>
 
           {/* PAINEL CENTRAL: CONSOLE DE IA */}
-          <section className="flex-1 bg-[#f3f2f2] flex flex-col overflow-hidden relative">
+          <section className={cn(
+            "flex-1 bg-[#f3f2f2] flex flex-col overflow-hidden relative",
+            !selectedContact ? "hidden lg:flex" : "flex"
+          )}>
              {selectedContact ? (
                <>
-                 <div className="flex-1 flex flex-col p-6 overflow-hidden">
+                 <div className="flex-1 flex flex-col p-4 lg:p-6 overflow-hidden">
+                    {/* MOBILE BACK BUTTON */}
+                    <Button variant="ghost" onClick={() => setSelectedContact(null)} className="lg:hidden mb-4 self-start text-black font-black uppercase text-[10px]">
+                      <ChevronLeft size={16} className="mr-1" /> Voltar para Agenda
+                    </Button>
+
                     <Card className="flex-1 border-2 border-black rounded-none shadow-[8px_8px_0px_#000] flex flex-col overflow-hidden bg-white">
-                       <CardHeader className="bg-black text-white py-3 px-6 flex flex-row items-center justify-between">
+                       <CardHeader className="bg-black text-white py-3 px-6 flex flex-row items-center justify-between shrink-0">
                           <div className="flex items-center gap-3">
                              <Sparkles size={16} className="text-yellow-400" />
-                             <CardTitle className="text-[10px] font-black uppercase tracking-widest">Console de Resposta AI</CardTitle>
+                             <CardTitle className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest">Atendimento IA</CardTitle>
                           </div>
-                          <Badge variant="outline" className="border-white/20 text-white text-[8px] font-black uppercase">Agente Autônomo Ativo</Badge>
+                          <Badge variant="outline" className="hidden sm:block border-white/20 text-white text-[8px] font-black uppercase">Agente Ativo</Badge>
                        </CardHeader>
                        
-                       <CardContent className="flex-1 flex flex-col p-6 space-y-6">
-                          <div className="grid grid-cols-3 gap-3">
+                       <CardContent className="flex-1 flex flex-col p-4 lg:p-6 space-y-4 lg:space-y-6 min-h-0">
+                          <div className="grid grid-cols-3 gap-2 lg:gap-3 shrink-0">
                              <Button 
                                 variant="outline" 
                                 onClick={() => handleGenerateAI('legal')} 
-                                className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white transition-all rounded-none"
+                                className="h-9 lg:h-10 border-2 border-black font-black uppercase text-[8px] lg:text-[9px] hover:bg-black hover:text-white transition-all rounded-none px-1"
                              >
-                                <Scale size={12} className="mr-2" /> Jurídico
+                                <Scale size={12} className="mr-1 lg:mr-2" /> Jurídico
                              </Button>
                              <Button 
                                 variant="outline" 
                                 onClick={() => handleGenerateAI('comercial')} 
-                                className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white transition-all rounded-none"
+                                className="h-9 lg:h-10 border-2 border-black font-black uppercase text-[8px] lg:text-[9px] hover:bg-black hover:text-white transition-all rounded-none px-1"
                              >
-                                <Sparkles size={12} className="mr-2" /> Comercial
+                                <Sparkles size={12} className="mr-1 lg:mr-2" /> Comercial
                              </Button>
                              <Button 
                                 variant="outline" 
                                 onClick={() => handleGenerateAI('financeiro')} 
-                                className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white transition-all rounded-none"
+                                className="h-9 lg:h-10 border-2 border-black font-black uppercase text-[8px] lg:text-[9px] hover:bg-black hover:text-white transition-all rounded-none px-1"
                              >
-                                <Zap size={12} className="mr-2" /> Financeiro
+                                <Zap size={12} className="mr-1 lg:mr-2" /> Financeiro
                              </Button>
                           </div>
 
-                          <div className="flex-1 bg-[#f8f9fb] border-2 border-dashed border-black/20 p-6 flex flex-col relative">
+                          <div className="flex-1 bg-[#f8f9fb] border-2 border-dashed border-black/20 p-4 flex flex-col relative min-h-0">
                              {isGenerating ? (
                                <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center space-y-3 z-10">
                                   <Loader2 className="animate-spin text-black" size={32} />
-                                  <p className="text-[10px] font-black uppercase tracking-[0.2em]">Consultando IAs de Gabinete...</p>
+                                  <p className="text-[10px] font-black uppercase tracking-[0.2em]">Redigindo...</p>
                                </div>
                              ) : null}
                              
@@ -248,19 +259,19 @@ export default function WhatsAppHub() {
                                 value={aiResponse}
                                 onChange={(e) => setAiResponse(e.target.value)}
                                 placeholder="A IA IRÁ REDIGIR A RESPOSTA AQUI..."
-                                className="w-full h-full bg-transparent border-none resize-none text-sm font-black uppercase leading-relaxed text-black focus:ring-0 placeholder:text-black/10"
+                                className="w-full h-full bg-transparent border-none resize-none text-[11px] lg:text-sm font-black uppercase leading-relaxed text-black focus:ring-0 placeholder:text-black/10"
                              />
                           </div>
 
-                          <div className="flex flex-col gap-4">
-                             <div className="flex gap-4">
+                          <div className="flex flex-col gap-3 lg:gap-4 shrink-0">
+                             <div className="flex flex-col sm:flex-row gap-3">
                                <Button 
                                   disabled={!aiResponse || isSending}
                                   onClick={handleSendAPI}
                                   className="flex-1 h-12 bg-black text-white border-2 border-black font-black uppercase text-[10px] hover:bg-white hover:text-black transition-all shadow-[4px_4px_0px_#000] hover:shadow-none rounded-none"
                                >
                                   {isSending ? <Loader2 className="animate-spin mr-2" /> : <Send size={16} className="mr-2" />}
-                                  Disparar via API Elite
+                                  Enviar API
                                </Button>
                                <Button 
                                   asChild
@@ -268,18 +279,18 @@ export default function WhatsAppHub() {
                                   className="flex-1 h-12 border-2 border-black font-black uppercase text-[10px] hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none rounded-none bg-white"
                                >
                                   <a href={formatWhatsAppLink(selectedContact.telefone, aiResponse)} target="_blank" rel="noopener noreferrer">
-                                     <MessageCircle size={16} className="mr-2" /> Chat Manual (Pessoal)
+                                     <MessageCircle size={16} className="mr-2" /> Chat Pessoal
                                   </a>
                                </Button>
                              </div>
                              
-                             <div className="bg-blue-50 border border-blue-200 p-3 flex gap-3 items-start">
+                             <div className="hidden sm:flex bg-blue-50 border border-blue-200 p-3 gap-3 items-start">
                                 <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
                                 <div className="space-y-1">
-                                  <p className="text-[9px] font-black text-blue-900 uppercase">Nota de Conectividade:</p>
+                                  <p className="text-[9px] font-black text-blue-900 uppercase">Aviso:</p>
                                   <p className="text-[8px] font-bold text-blue-700 uppercase leading-tight">
-                                    O <b>Disparo API</b> usa sua chave YCloud vinculada a um número comercial Meta. 
-                                    Para usar o seu <b>WhatsApp pessoal</b>, utilize o botão <b>Chat Manual</b>.
+                                    O <b>Disparo API</b> usa chave YCloud Profissional. 
+                                    Para <b>WhatsApp pessoal</b>, use <b>Chat Manual</b>.
                                   </p>
                                 </div>
                              </div>
@@ -291,21 +302,21 @@ export default function WhatsAppHub() {
              ) : (
                <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-6 opacity-30">
                   <div className="icon-3d-wrapper">
-                    <div className="icon-3d-block black w-24 h-24 rounded-none">
+                    <div className="icon-3d-block black w-20 h-20 lg:w-24 lg:h-24 rounded-none">
                       <Bot size={48} className="text-white" />
                     </div>
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black uppercase tracking-widest">Aguardando Seleção</h2>
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] mt-2">Escolha um contato para iniciar o atendimento IA.</p>
+                    <h2 className="text-lg lg:text-2xl font-black uppercase tracking-widest">Aguardando Seleção</h2>
+                    <p className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.3em] mt-2">Escolha um contato para iniciar.</p>
                   </div>
                </div>
              )}
           </section>
 
-          {/* PAINEL DIREITO: DOSSIÊ DO CLIENTE */}
+          {/* PAINEL DIREITO: DOSSIÊ (OCULTO NO MOBILE POR PADRÃO) */}
           {selectedContact && (
-            <aside className="w-96 border-l-2 border-black bg-white flex flex-col shrink-0 overflow-hidden shadow-2xl">
+            <aside className="hidden xl:flex w-96 border-l-2 border-black bg-white flex-col shrink-0 overflow-hidden shadow-2xl">
                <div className="p-6 bg-[#f8f9fb] border-b-2 border-black">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 mb-1">Dossiê de Atendimento</h3>
                   <h2 className="text-lg font-black uppercase leading-tight">{selectedContact.nome}</h2>
@@ -327,20 +338,7 @@ export default function WhatsAppHub() {
                         <Label className="text-[9px] font-black uppercase tracking-widest bg-black text-white px-2 py-0.5">Notas Estratégicas</Label>
                         <div className="p-4 bg-[#f3f2f2] border-2 border-black rounded-none">
                            <p className="text-[10px] font-black uppercase leading-relaxed text-black/60 italic">
-                             {selectedContact.observacao || 'SEM NOTAS ADICIONAIS NESTE CASO.'}
-                           </p>
-                        </div>
-                     </section>
-
-                     <section className="space-y-4">
-                        <Label className="text-[9px] font-black uppercase tracking-widest bg-black text-white px-2 py-0.5">Última Movimentação</Label>
-                        <div className="p-4 border-2 border-black rounded-none space-y-2">
-                           <div className="flex justify-between items-center text-[9px] font-black uppercase text-black/40">
-                              <span>Sincronizado via DataJud</span>
-                              <span>{selectedContact.ultimoRetorno || '--/--/----'}</span>
-                           </div>
-                           <p className="text-[11px] font-black uppercase leading-tight">
-                              {selectedContact.parecerIA || 'AGUARDANDO NOVA ATUALIZAÇÃO DO TRIBUNAL.'}
+                             {selectedContact.observacao || 'SEM NOTAS ADICIONAIS.'}
                            </p>
                         </div>
                      </section>
@@ -349,18 +347,18 @@ export default function WhatsAppHub() {
 
                <footer className="p-6 border-t-2 border-black bg-[#f8f9fb]">
                   <p className="text-[8px] font-black uppercase text-center text-black/40">
-                    Sincronizado com CRM W1 Capital v135.0
+                    Sincronizado v160.0 Elite
                   </p>
                </footer>
             </aside>
           )}
         </div>
 
-        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0">
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-4 lg:gap-6 text-[8px] lg:text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0">
           <div className="flex items-center gap-2">
             <Copyright size={10} /> 2026 W1 Capital.
           </div>
-          <span className="uppercase font-black">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
+          <span className="hidden sm:inline uppercase font-black">Relatório Consolidado • DAVI ALVES FIGUEREDO</span>
         </footer>
       </main>
     </div>

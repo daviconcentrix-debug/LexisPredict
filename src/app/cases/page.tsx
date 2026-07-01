@@ -126,7 +126,7 @@ function CasesContent() {
         observacao: '',
         telefone: ''
       });
-      toast({ title: editingCase ? "Caso Atualizado" : "Caso Adicionado", description: "Sincronizado com a nuvem W1 Capital." });
+      toast({ title: editingCase ? "Caso Atualizado" : "Caso Adicionado" });
     } else {
       toast({ title: "Falha na Sincronia", description: result.message, variant: "destructive" });
     }
@@ -172,7 +172,7 @@ function CasesContent() {
       const updated = cases.filter(c => c.id !== id);
       setCases(updated);
       await syncRepoCases(updated);
-      toast({ title: "Caso Excluído", description: "Base cloud atualizada." });
+      toast({ title: "Caso Excluído" });
     }
   };
 
@@ -187,54 +187,53 @@ function CasesContent() {
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        <header className="h-16 border-b border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-between px-8 shrink-0 z-40">
-          <div className="flex items-center gap-4">
-            <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default tracking-tighter">
-              {isAdmin ? "Visão Global de Processos" : "Meus Processos Ativos"}
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative">
+        <header className="h-16 lg:h-16 border-b border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-between px-6 lg:px-8 shrink-0 z-40">
+          <div className="flex items-center gap-4 pl-10 lg:pl-0">
+            <h1 className="font-black text-lg lg:text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default tracking-tighter truncate max-w-[150px] lg:max-w-none">
+              Processos
             </h1>
-            <Badge variant="outline" className="text-black font-black border-black border-2 px-3 py-1 flex items-center gap-1.5 uppercase text-[10px]">
-              <ShieldCheck size={10} /> {isAdmin ? 'Nível Administrador' : 'Nível Operador'}
+            <Badge variant="outline" className="hidden sm:flex text-black font-black border-black border-2 px-3 py-1 items-center gap-1.5 uppercase text-[9px] lg:text-[10px]">
+              <ShieldCheck size={10} /> {isAdmin ? 'Admin' : 'Operador'}
             </Badge>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 lg:gap-3">
             {isOperador && (
               <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCase(null); }}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => setEditingCase(null)} className="bg-white text-black border-2 border-black hover:bg-black hover:text-white font-black h-9 uppercase text-[10px] px-6 transition-all shadow-[4px_4px_0px_#000] hover:shadow-none">
-                    <Plus className="w-3.5 h-3.5 mr-2" /> Novo Processo
+                  <Button onClick={() => setEditingCase(null)} className="bg-white text-black border-2 border-black hover:bg-black hover:text-white font-black h-9 lg:h-10 uppercase text-[9px] lg:text-[10px] px-3 lg:px-6 transition-all shadow-[4px_4px_0px_#000] hover:shadow-none rounded-none whitespace-nowrap">
+                    <Plus className="w-3.5 h-3.5 mr-2" /> Novo
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-white border-2 border-black text-black sm:max-w-[425px] rounded-none">
+                <DialogContent className="bg-white border-2 border-black text-black sm:max-w-[425px] rounded-none max-h-[90vh] overflow-y-auto">
                   <form onSubmit={handleSaveCase}>
                     <DialogHeader>
                       <DialogTitle className="font-black uppercase text-black">Registro de Caso</DialogTitle>
-                      <DialogDescription className="font-bold text-black/60 uppercase text-[9px]">Sincronização imediata com silo de gabinete.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="name" className="font-black text-black text-[10px] uppercase">NOME DO CLIENTE</Label>
-                        <Input id="name" value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="border-black text-black font-black uppercase rounded-none" />
+                      <div className="grid gap-1">
+                        <Label className="uppercase text-[9px] font-black">Cliente</Label>
+                        <Input value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="border-black font-black uppercase rounded-none h-11" />
                       </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="protocol" className="font-black text-black text-[10px] uppercase">PROTOCOLO CNJ</Label>
-                        <Input id="protocol" placeholder="0000000-00.2025.8.00.0000" value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="border-black text-black font-black rounded-none" />
+                      <div className="grid gap-1">
+                        <Label className="uppercase text-[9px] font-black">Protocolo CNJ</Label>
+                        <Input value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="border-black font-black rounded-none h-11" />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                           <Label htmlFor="lawyer" className="font-black text-black text-[10px] uppercase">ADVOGADO RESPONSÁVEL</Label>
-                           <Input id="lawyer" value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="border-black text-black font-black uppercase rounded-none" />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid gap-1">
+                           <Label className="uppercase text-[9px] font-black">Advogado</Label>
+                           <Input value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="border-black font-black uppercase rounded-none h-11" />
                         </div>
-                        <div className="grid gap-2">
-                           <Label htmlFor="phone" className="font-black text-black text-[10px] uppercase">WHATSAPP / FONE</Label>
-                           <Input id="phone" value={formState.telefone} onChange={(e) => setFormState({...formState, telefone: e.target.value})} className="border-black text-black font-black uppercase rounded-none" placeholder="(00) 00000-0000" />
+                        <div className="grid gap-1">
+                           <Label className="uppercase text-[9px] font-black">WhatsApp</Label>
+                           <Input value={formState.telefone} onChange={(e) => setFormState({...formState, telefone: e.target.value})} className="border-black font-black uppercase rounded-none h-11" />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="status_manual" className="font-black text-black text-[10px] uppercase">STATUS ESTRATÉGICO</Label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid gap-1">
+                          <Label className="uppercase text-[9px] font-black">Status Estratégico</Label>
                           <Select value={formState.statusManual} onValueChange={(val) => setFormState({...formState, statusManual: val as any})}>
-                            <SelectTrigger className="border-black font-black uppercase h-10 text-[10px] rounded-none">
+                            <SelectTrigger className="border-black font-black uppercase h-11 text-[10px] rounded-none">
                               <SelectValue placeholder="Selecione..." />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-2 border-black rounded-none">
@@ -246,57 +245,56 @@ function CasesContent() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="deadline" className="font-black text-black text-[10px] uppercase">PRAZO (DD/MM/AAAA)</Label>
-                          <Input id="deadline" placeholder="30/12/2026" value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="border-black text-black font-black rounded-none" />
+                        <div className="grid gap-1">
+                          <Label className="uppercase text-[9px] font-black">Prazo (DD/MM/AAAA)</Label>
+                          <Input value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="border-black font-black rounded-none h-11" />
                         </div>
                       </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="obs" className="font-black text-black text-[10px] uppercase">OBSERVAÇÕES ESTRATÉGICAS</Label>
-                        <Textarea id="obs" value={formState.observacao} onChange={(e) => setFormState({...formState, observacao: e.target.value})} className="border-black text-black font-black uppercase text-[10px] min-h-[80px] rounded-none" placeholder="NOTAS ADICIONAIS..." />
+                      <div className="grid gap-1">
+                        <Label className="uppercase text-[9px] font-black">Notas Estratégicas</Label>
+                        <Textarea value={formState.observacao} onChange={(e) => setFormState({...formState, observacao: e.target.value})} className="border-black font-black uppercase text-[10px] min-h-[80px] rounded-none" />
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button type="submit" className="w-full font-black text-white bg-black hover:bg-white hover:text-black border-2 border-black uppercase h-11 transition-all rounded-none">Sincronizar Dados</Button>
+                      <Button type="submit" className="w-full font-black text-white bg-black hover:bg-white hover:text-black border-2 border-black uppercase h-12 transition-all rounded-none">Sincronizar</Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
               </Dialog>
             )}
-            
-            <Button variant="ghost" size="sm" onClick={loadData} className="h-9 text-black font-black hover:bg-black hover:text-white border-2 border-black transition-all uppercase text-[10px] px-6 bg-white rounded-none">
-              <RefreshCcw className={cn("w-3.5 h-3.5 mr-2", loading && "animate-spin")} /> Sincronizar
+            <Button variant="ghost" size="icon" onClick={loadData} className="h-9 w-9 lg:h-10 lg:w-10 text-black border-2 border-black rounded-none bg-white">
+              <RefreshCcw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
             </Button>
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col p-8 overflow-hidden min-h-0">
+        <div className="flex-1 flex flex-col p-4 lg:p-8 overflow-hidden min-h-0">
           <div className="bg-white/90 backdrop-blur-md border-2 border-black rounded-none shadow-[8px_8px_0px_#000] flex-1 flex flex-col overflow-hidden min-h-0">
-            <div className="p-4 border-b-2 border-black bg-[#f8f9fb] flex items-center gap-4 shrink-0">
-              <div className="relative w-full sm:w-80">
+            <div className="p-3 lg:p-4 border-b-2 border-black bg-[#f8f9fb] flex flex-col sm:flex-row items-stretch sm:items-center gap-3 lg:gap-4 shrink-0">
+              <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
                 <Input 
-                  placeholder="BUSCAR CLIENTE, PROTOCOLO OU ADVOGADO..." 
+                  placeholder="BUSCAR CLIENTE..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10 border-black h-10 text-[11px] font-black focus-visible:ring-0 text-black uppercase bg-white rounded-none"
+                  className="pl-10 border-black h-10 text-[10px] lg:text-[11px] font-black focus-visible:ring-0 text-black uppercase bg-white rounded-none"
                 />
               </div>
-              <Badge className="bg-black text-white border-none font-black text-[10px] uppercase px-3 h-10 flex items-center rounded-none tracking-widest">
+              <Badge className="bg-black text-white border-none font-black text-[9px] lg:text-[10px] uppercase px-3 h-10 flex items-center justify-center rounded-none tracking-widest shrink-0">
                 {filtered.length} REGISTROS
               </Badge>
             </div>
 
-            <div className="flex-1 overflow-auto min-h-0 min-w-0 bg-white" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+            <div className="flex-1 overflow-auto min-h-0 min-w-0 bg-white" style={{ maxHeight: 'calc(100vh - 200px)' }}>
               <table className="w-full text-left border-collapse min-w-[1200px]">
                 <thead className="sticky top-0 bg-[#f3f2f2] z-20 border-b-2 border-black shadow-sm">
-                  <tr className="text-[10px] uppercase font-black text-black/40 tracking-widest">
-                    <th className="px-6 py-4 bg-[#f3f2f2]">Conta / Cliente / Protocolo</th>
-                    <th className="px-6 py-4 bg-[#f3f2f2]">Tribunal Público</th>
-                    <th className="px-6 py-4 bg-[#f3f2f2]">Responsável Técnico</th>
+                  <tr className="text-[9px] lg:text-[10px] uppercase font-black text-black/40 tracking-widest">
+                    <th className="px-6 py-4 bg-[#f3f2f2]">Conta / Protocolo</th>
+                    <th className="px-6 py-4 bg-[#f3f2f2]">Tribunal</th>
+                    <th className="px-6 py-4 bg-[#f3f2f2]">Advogado</th>
                     <th className="px-6 py-4 bg-[#f3f2f2]">Status / Prazo</th>
                     <th className="px-6 py-4 bg-[#f3f2f2]">Último Contato</th>
-                    <th className="px-6 py-4 text-right bg-[#f3f2f2]">Ações de Gabinete</th>
+                    <th className="px-6 py-4 text-right bg-[#f3f2f2]">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y-2 divide-black/5">
@@ -304,28 +302,28 @@ function CasesContent() {
                     <tr key={c.id} className="hover:bg-black group transition-all cursor-default">
                       <td className="px-6 py-5">
                         <div className="flex flex-col">
-                          <span className="text-black font-black text-sm group-hover:text-white transition-colors uppercase leading-none">{c.cliente}</span>
-                          <span className="text-[10px] font-mono text-black/60 group-hover:text-white/60 mt-1 uppercase">{c.protocolo}</span>
+                          <span className="text-black font-black text-xs lg:text-sm group-hover:text-white transition-colors uppercase leading-none">{c.cliente}</span>
+                          <span className="text-[9px] lg:text-[10px] font-mono text-black/60 group-hover:text-white/60 mt-1 uppercase">{c.protocolo}</span>
                         </div>
                       </td>
                       <td className="px-6 py-5">
-                        <Badge variant="outline" className="bg-white border-black border-2 font-black text-[9px] text-black group-hover:bg-white group-hover:text-black uppercase rounded-none">
+                        <Badge variant="outline" className="bg-white border-black border-2 font-black text-[8px] lg:text-[9px] text-black group-hover:bg-white group-hover:text-black uppercase rounded-none">
                           {c.tribunal}
                         </Badge>
                       </td>
-                      <td className="px-6 py-5 text-[11px] text-black font-black uppercase group-hover:text-white transition-colors">
+                      <td className="px-6 py-5 text-[10px] lg:text-[11px] text-black font-black uppercase group-hover:text-white transition-colors">
                         {c.advogado}
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex flex-col gap-1.5">
                           <StatusBadge status={c.status} />
-                          <p className="text-[10px] text-black/60 group-hover:text-white/60 font-black uppercase">{c.proximoPrazo || 'Sem Prazo'}</p>
+                          <p className="text-[9px] lg:text-[10px] text-black/60 group-hover:text-white/60 font-black uppercase">{c.proximoPrazo || 'Sem Prazo'}</p>
                         </div>
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-2">
                           <Clock className="w-3.5 h-3.5 text-black/40 group-hover:text-white/40" />
-                          <span className="text-[11px] text-black group-hover:text-white font-black uppercase">
+                          <span className="text-[10px] lg:text-[11px] text-black group-hover:text-white font-black uppercase whitespace-nowrap">
                             {c.ultimoRetorno || 'S/ Registro'}
                           </span>
                         </div>
@@ -333,7 +331,7 @@ function CasesContent() {
                       <td className="px-6 py-5 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {c.telefone && (
-                             <Button title="WhatsApp" variant="ghost" size="icon" asChild className="text-green-600 group-hover:text-green-400 hover:bg-black transition-all">
+                             <Button title="WhatsApp" variant="ghost" size="icon" asChild className="text-green-600 group-hover:text-green-400 hover:bg-black transition-all h-8 w-8">
                                <a href={formatWhatsAppLink(c.telefone)} target="_blank" rel="noopener noreferrer">
                                  <MessageCircle size={16} />
                                </a>
@@ -343,7 +341,7 @@ function CasesContent() {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="text-black group-hover:text-white" 
+                              className="text-black group-hover:text-white h-8 w-8" 
                               onClick={() => setObsDialogOpen(c.observacao || null)}
                             >
                               <FileText size={16} />
@@ -352,26 +350,26 @@ function CasesContent() {
                           {isOperador && (
                             <>
                               <Button 
-                                title="Registrar Retorno Hoje"
+                                title="Retorno"
                                 variant="ghost" 
                                 size="icon" 
                                 onClick={() => handleLogReturn(c.protocolo)} 
-                                className="text-black group-hover:text-white hover:bg-black transition-all"
+                                className="text-black group-hover:text-white hover:bg-black transition-all h-8 w-8"
                               >
                                 <CheckCircle size={16} />
                               </Button>
-                              <Button title="Editar Registro" variant="ghost" size="icon" onClick={() => handleEditClick(c)} className="text-black group-hover:text-white hover:bg-black transition-all">
+                              <Button title="Editar" variant="ghost" size="icon" onClick={() => handleEditClick(c)} className="text-black group-hover:text-white hover:bg-black transition-all h-8 w-8">
                                 <Edit2 size={16} />
                               </Button>
                             </>
                           )}
-                          <Button title="Consultar no Tribunal" variant="ghost" size="icon" asChild className="text-black group-hover:text-white hover:bg-black transition-all">
+                          <Button title="Tribunal" variant="ghost" size="icon" asChild className="text-black group-hover:text-white hover:bg-black transition-all h-8 w-8">
                             <a href={c.linkConsulta} target="_blank" rel="noopener noreferrer">
                               <ExternalLink size={16} />
                             </a>
                           </Button>
                           {isOperador && (
-                            <Button title="Excluir Registro" variant="ghost" size="icon" onClick={() => deleteCase(c.id)} className="text-black group-hover:text-red-500 hover:bg-black transition-all">
+                            <Button title="Excluir" variant="ghost" size="icon" onClick={() => deleteCase(c.id)} className="text-black group-hover:text-red-500 hover:bg-black transition-all h-8 w-8">
                               <Trash2 size={16} />
                             </Button>
                           )}
@@ -380,13 +378,12 @@ function CasesContent() {
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan={6} className="py-32 text-center">
+                      <td colSpan={6} className="py-24 lg:py-32 text-center">
                         <div className="max-w-xs mx-auto space-y-4">
                           <div className="w-16 h-16 bg-[#f3f2f2] rounded-none flex items-center justify-center mx-auto border-2 border-black shadow-[4px_4px_0px_#000]">
                             <Briefcase className="text-black" size={32} />
                           </div>
-                          <h3 className="text-black font-black uppercase tracking-tight">Nenhum Registro Localizado</h3>
-                          <p className="text-[10px] text-black/60 font-black uppercase leading-relaxed tracking-widest">Aguardando sincronização com a base Cloud ou filtro ativo.</p>
+                          <h3 className="text-black font-black uppercase tracking-tight">Vazio</h3>
                         </div>
                       </td>
                     </tr>
@@ -397,12 +394,11 @@ function CasesContent() {
           </div>
         </div>
 
-        <footer className="h-10 border-t border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-center gap-6 text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] shrink-0">
+        <footer className="h-10 border-t border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-center gap-4 lg:gap-6 text-[8px] lg:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] shrink-0">
           <div className="flex items-center gap-2">
             <Copyright size={10} /> 2026 W1 Capital
           </div>
-          <span className="w-1 h-1 bg-muted-foreground rounded-full opacity-30" />
-          <span className="text-black font-black uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
+          <span className="hidden sm:inline uppercase">Relatório Consolidado • DAVI ALVES FIGUEREDO</span>
         </footer>
 
         <Dialog open={!!obsDialogOpen} onOpenChange={(open) => !open && setObsDialogOpen(null)}>
@@ -413,12 +409,12 @@ function CasesContent() {
               </DialogTitle>
             </DialogHeader>
             <div className="py-6">
-              <p className="text-sm font-black uppercase leading-relaxed text-black whitespace-pre-wrap italic bg-gray-50 p-4 border-2 border-dashed border-black/20">
+              <p className="text-xs lg:text-sm font-black uppercase leading-relaxed text-black whitespace-pre-wrap italic bg-gray-50 p-4 border-2 border-dashed border-black/20">
                 {obsDialogOpen}
               </p>
             </div>
             <DialogFooter>
-              <Button onClick={() => setObsDialogOpen(null)} className="w-full font-black text-white bg-black hover:bg-white hover:text-black border-2 border-black uppercase h-11 transition-all rounded-none">Fechar Nota</Button>
+              <Button onClick={() => setObsDialogOpen(null)} className="w-full font-black text-white bg-black hover:bg-white hover:text-black border-2 border-black uppercase h-11 transition-all rounded-none">Fechar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -440,7 +436,7 @@ function StatusBadge({ status }: { status: any }) {
   };
 
   return (
-    <Badge className={cn("px-2 py-0.5 font-black text-[9px] uppercase border-none shadow-sm transition-all group-hover:scale-110 rounded-none", styles[status] || "bg-gray-400 text-white")}>
+    <Badge className={cn("px-2 py-0.5 font-black text-[8px] lg:text-[9px] uppercase border-none shadow-sm transition-all group-hover:scale-110 rounded-none", styles[status] || "bg-gray-400 text-white")}>
       {status}
     </Badge>
   );
@@ -448,7 +444,7 @@ function StatusBadge({ status }: { status: any }) {
 
 export default function CasesPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-black font-black uppercase">Sincronizando Gabinete...</div>}>
+    <Suspense fallback={<div className="p-8 text-black font-black uppercase">Carregando...</div>}>
       <CasesContent />
     </Suspense>
   );

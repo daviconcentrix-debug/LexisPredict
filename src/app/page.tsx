@@ -72,30 +72,33 @@ export default function Dashboard() {
   if (!mounted) return null;
 
   return (
-    <div className="flex h-screen bg-white font-sans text-black">
+    <div className="flex h-screen bg-white font-sans text-black overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-16 border-b border-black bg-white flex items-center justify-between px-8 shrink-0 z-40">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <header className="h-16 lg:h-16 border-b border-black bg-white flex items-center justify-between px-6 lg:px-8 shrink-0 z-40">
           <div className="flex items-center gap-6">
-            <h1 className="font-black text-xl text-black tracking-tighter uppercase hover:bg-black hover:text-white px-3 py-1 transition-all rounded-sm cursor-default">
-              Painel de Gabinete Elite
+            <h1 className="font-black text-lg lg:text-xl text-black tracking-tighter uppercase hover:bg-black hover:text-white px-3 py-1 transition-all rounded-sm cursor-default pl-12 lg:pl-3">
+              Painel Elite
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" asChild className="border-black border-2 hover:bg-black hover:text-white text-black font-black h-10 px-8 rounded-none uppercase text-xs transition-all shadow-[4px_4px_0px_#000]">
+            <Button variant="outline" size="sm" asChild className="hidden sm:flex border-black border-2 hover:bg-black hover:text-white text-black font-black h-10 px-8 rounded-none uppercase text-xs transition-all shadow-[4px_4px_0px_#000]">
               <Link href="/report">
-                <FileDown size={14} className="mr-2" /> Extrair Relatório Mestre
+                <FileDown size={14} className="mr-2" /> Relatório Mestre
               </Link>
+            </Button>
+            <Button variant="outline" size="icon" asChild className="sm:hidden border-black border-2 text-black shadow-[2px_2px_0px_#000]">
+               <Link href="/report"><FileDown size={16} /></Link>
             </Button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto bg-[#f3f2f2] p-8 space-y-8">
-          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard title="Volume de Processos" value={loading ? "..." : metrics.total} icon={<Briefcase size={20} />} color="primary" />
-            <StatCard title="Alertas de Crise" value={loading ? "..." : metrics.critical} icon={<ShieldAlert size={20} />} color="destructive" />
-            <StatCard title="Health Score (Risk)" value={loading ? "..." : `${metrics.riskScore}%`} icon={<BarChart3 size={20} />} color="destructive" />
-            <StatCard title="Auditorias Ativas" value={loading ? "..." : metrics.active} icon={<FileCheck size={20} />} color="success" />
+        <div className="flex-1 overflow-auto bg-[#f3f2f2] p-4 lg:p-8 space-y-8">
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            <StatCard title="Processos" value={loading ? "..." : metrics.total} icon={<Briefcase size={20} />} color="primary" />
+            <StatCard title="Alertas" value={loading ? "..." : metrics.critical} icon={<ShieldAlert size={20} />} color="destructive" />
+            <StatCard title="Health Score" value={loading ? "..." : `${metrics.riskScore}%`} icon={<BarChart3 size={20} />} color="destructive" />
+            <StatCard title="Ativas" value={loading ? "..." : metrics.active} icon={<FileCheck size={20} />} color="success" />
           </section>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -103,21 +106,21 @@ export default function Dashboard() {
               <div className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] overflow-hidden">
                 <div className="px-6 py-5 border-b-2 border-black bg-white flex items-center justify-between">
                   <div>
-                    <h2 className="font-black text-sm text-black uppercase tracking-widest hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm inline-block cursor-default">Fila de Prioridade Crítica</h2>
-                    <p className="text-[10px] text-black font-black uppercase opacity-60 mt-1">Triagem consolidada via Unidade de Auditoria.</p>
+                    <h2 className="font-black text-sm text-black uppercase tracking-widest hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm inline-block cursor-default">Fila de Prioridade</h2>
+                    <p className="hidden sm:block text-[10px] text-black font-black uppercase opacity-60 mt-1">Triagem consolidada via Unidade de Auditoria.</p>
                   </div>
                   <Button variant="outline" size="sm" asChild className="text-[10px] font-black h-8 border-black border-2 hover:bg-black hover:text-white text-black uppercase transition-all rounded-none px-4">
-                    <Link href="/cases">Ver Registros</Link>
+                    <Link href="/cases">Ver Todos</Link>
                   </Button>
                 </div>
 
                 <div className="p-0 overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
                     <thead className="bg-[#f8f9fb] text-[10px] font-black text-black uppercase tracking-widest border-b-2 border-black">
                       <tr>
                         <th className="px-6 py-4">Tribunal</th>
-                        <th className="px-6 py-4">Conta / Cliente</th>
-                        <th className="px-6 py-4">Protocolo CNJ</th>
+                        <th className="px-6 py-4">Cliente</th>
+                        <th className="px-6 py-4">Protocolo</th>
                         <th className="px-6 py-4 text-right">Status</th>
                       </tr>
                     </thead>
@@ -155,7 +158,7 @@ export default function Dashboard() {
               </div>
             </section>
 
-            <aside className="space-y-8">
+            <aside className="space-y-8 pb-10 lg:pb-0">
               <div className="bg-white border-2 border-black rounded-none p-8 text-black flex flex-col justify-center relative overflow-hidden group transition-all hover:bg-black cursor-default shadow-[8px_8px_0px_#000]">
                 <div className="relative z-10 space-y-6">
                   <div className="icon-3d-wrapper w-fit">
@@ -164,29 +167,29 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div>
-                    <h2 className="text-xl font-black uppercase tracking-tight group-hover:text-white transition-colors leading-none">Dossiê de Gabinete</h2>
-                    <p className="text-[10px] text-black group-hover:text-white/60 mt-3 leading-relaxed font-black uppercase">Relatório Oficial auditado e selado por Davi Alves Figueredo.</p>
+                    <h2 className="text-xl font-black uppercase tracking-tight group-hover:text-white transition-colors leading-none">Dossiê Oficial</h2>
+                    <p className="text-[10px] text-black group-hover:text-white/60 mt-3 leading-relaxed font-black uppercase">Relatório auditado por Davi Alves Figueredo.</p>
                   </div>
                   <Button variant="default" asChild className="bg-white text-black border-2 border-black hover:bg-black hover:text-white w-full font-black h-12 rounded-none mt-4 uppercase text-xs transition-all shadow-[4px_4px_0px_#000] group-hover:shadow-none">
-                    <Link href="/report">Acessar PDF Oficial</Link>
+                    <Link href="/report">Acessar PDF</Link>
                   </Button>
                 </div>
               </div>
 
               <div className="bg-white border-2 border-black rounded-none p-6 space-y-5 hover:bg-black group transition-all cursor-default shadow-[8px_8px_0px_#000]">
-                <h3 className="text-[11px] font-black text-black uppercase tracking-widest group-hover:text-white transition-colors">Sincronia Recente</h3>
+                <h3 className="text-[11px] font-black text-black uppercase tracking-widest group-hover:text-white transition-colors">Sincronia Gabinete</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black text-black group-hover:text-white uppercase transition-colors">DataJud Pública</span>
                     <Badge className="text-[9px] text-white bg-green-600 border-none font-black rounded-none px-2 py-0.5">ONLINE</Badge>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-black group-hover:text-white uppercase transition-colors">Servidor de Dados</span>
+                    <span className="text-[10px] font-black text-black group-hover:text-white uppercase transition-colors">Cloud Sync</span>
                     <Badge className="text-[9px] text-white bg-green-600 border-none font-black rounded-none px-2 py-0.5">ATIVO</Badge>
                   </div>
                 </div>
                 <Button variant="outline" onClick={loadData} className="w-full text-[10px] font-black h-9 border-black border-2 text-black hover:bg-black hover:text-white group-hover:bg-white group-hover:text-black uppercase transition-all rounded-none mt-2">
-                  <RefreshCcw className={cn("w-3.5 h-3.5 mr-2", loading && "animate-spin")} /> Forçar Sincronização
+                  <RefreshCcw className={cn("w-3.5 h-3.5 mr-2", loading && "animate-spin")} /> Sincronizar
                 </Button>
               </div>
             </aside>
@@ -194,7 +197,7 @@ export default function Dashboard() {
 
           <footer className="pt-12 pb-10 border-t-2 border-black flex flex-col items-center justify-center gap-4">
             <div className="flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.25em] text-black hover:text-black transition-colors cursor-default">
-              <Copyright size={12} /> 2026 W1 Capital. Todos os direitos reservados.
+              <Copyright size={12} /> 2026 W1 Capital.
             </div>
             <div className="px-6 py-2 bg-white border-2 border-black rounded-none shadow-[4px_4px_0px_#000] hover:bg-black hover:text-white transition-all cursor-default group">
               <p className="text-[10px] uppercase tracking-tighter font-black text-black group-hover:text-white">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</p>

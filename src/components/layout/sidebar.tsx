@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -21,17 +21,21 @@ import {
   FileSearch,
   MessageSquare,
   LogOut,
-  MessageCircle
+  MessageCircle,
+  Menu,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth/auth-provider';
 import { browserStorage } from '@/lib/browser-storage';
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = React.useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { profile, signOut } = useAuth();
   
   const isMounted = useRef(true);
@@ -175,107 +179,191 @@ export function Sidebar() {
     { label: 'Configuração Sistema', href: '/settings', icon: Settings },
   ];
 
-  return (
-    <aside className={cn(
-      "h-screen bg-white/90 backdrop-blur-sm flex flex-col transition-all duration-200 border-r border-black shrink-0 print:hidden z-50 overflow-hidden relative",
-      collapsed ? "w-[70px]" : "w-64"
-    )}>
-      <div className="h-14 flex items-center px-5 border-b border-black bg-white/50 relative z-10">
+  const SidebarContentComponent = () => (
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="h-14 flex items-center px-5 border-b border-black bg-white/50 relative z-10 shrink-0">
         <div className="flex items-center gap-4">
           <div className="icon-3d-wrapper">
             <div className="icon-3d-block black w-8 h-8 rounded-sm">
               <Scale size={16} className="text-white" />
             </div>
           </div>
-          {!collapsed && (
-            <div className="flex flex-col">
-              <span className="font-black text-sm text-black tracking-tight uppercase">LexisPredict</span>
-              <span className="text-[9px] text-black/60 font-black tracking-widest uppercase italic">Elite Edition</span>
-            </div>
-          )}
+          <div className="flex flex-col">
+            <span className="font-black text-sm text-black tracking-tight uppercase">LexisPredict</span>
+            <span className="text-[9px] text-black/60 font-black tracking-widest uppercase italic">Elite Edition</span>
+          </div>
         </div>
       </div>
 
       <div className="flex-1 py-4 px-2 space-y-6 overflow-y-auto overflow-x-hidden relative z-10">
         <section>
-          {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Gestão</p>}
+          <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Gestão</p>
           <div className="space-y-1">
             {primaryNav.map((item) => (
-              <NavLink key={item.label} item={item} collapsed={collapsed} active={pathname === item.href} />
+              <NavLink key={item.label} item={item} collapsed={false} active={pathname === item.href} onClick={() => setIsMobileOpen(false)} />
             ))}
           </div>
         </section>
 
         <section>
-          {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Auditoria</p>}
+          <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Auditoria</p>
           <div className="space-y-1">
             {omniNav.map((item) => (
-              <NavLink key={item.label} item={item} collapsed={collapsed} active={pathname === item.href} />
+              <NavLink key={item.label} item={item} collapsed={false} active={pathname === item.href} onClick={() => setIsMobileOpen(false)} />
             ))}
           </div>
         </section>
 
         <section>
-          {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Administração</p>}
+          <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Administração</p>
           <div className="space-y-1">
             {adminNav.map((item) => (
-              <NavLink key={item.label} item={item} collapsed={collapsed} active={pathname === item.href} />
+              <NavLink key={item.label} item={item} collapsed={false} active={pathname === item.href} onClick={() => setIsMobileOpen(false)} />
             ))}
           </div>
         </section>
       </div>
 
-      <div className="p-2 border-t border-black bg-white/50 space-y-2 relative z-10">
-        <div className={cn(
-          "flex items-center p-2 rounded-sm transition-all group",
-          !collapsed ? "gap-3 bg-white border border-black shadow-sm hover:bg-black hover:text-white" : "justify-center"
-        )}>
-          <div className="w-8 h-8 rounded-sm bg-black text-white flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-white group-hover:text-black border border-black">
+      <div className="p-2 border-t border-black bg-white/50 space-y-2 relative z-10 shrink-0">
+        <div className="flex items-center p-2 rounded-sm bg-white border border-black shadow-sm gap-3">
+          <div className="w-8 h-8 rounded-sm bg-black text-white flex items-center justify-center font-black text-xs shrink-0 border border-black">
             {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
           </div>
-          {!collapsed && (
-            <div className="flex flex-col min-w-0">
-              <span className="text-[11px] font-black text-black group-hover:text-white transition-colors truncate uppercase">{profile?.nome || 'Gabinete'}</span>
-              <span className="text-[9px] text-black/60 transition-colors font-black uppercase truncate italic">{profile?.cargo || 'Operador'}</span>
-            </div>
-          )}
+          <div className="flex flex-col min-w-0">
+            <span className="text-[11px] font-black text-black transition-colors truncate uppercase">{profile?.nome || 'Gabinete'}</span>
+            <span className="text-[9px] text-black/60 transition-colors font-black uppercase truncate italic">{profile?.cargo || 'Operador'}</span>
+          </div>
         </div>
-
-        {!collapsed && (
-          <Button 
-            variant="ghost" 
-            onClick={handleLogout}
-            className="w-full justify-start text-[10px] font-black text-black uppercase h-8 hover:bg-black hover:text-white rounded-sm border border-transparent hover:border-black"
-          >
-            <LogOut size={14} className="mr-2" /> Encerrar Sessão
-          </Button>
-        )}
-
-        <div className="flex items-center justify-between px-2">
-          {!collapsed && (
-            <span className="text-[9px] font-black text-black uppercase flex items-center gap-1">
-              {isAdmin ? <Unlock size={10} className="text-green-600" /> : <Lock size={10} />}
-              <span>{isAdmin ? "Admin" : "Operador"}</span>
-            </span>
-          )}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setCollapsed(!collapsed)}
-            className="h-6 w-6 text-black/40 hover:bg-black hover:text-white"
-          >
-            {collapsed ? <PanelLeft size={14} /> : <PanelLeftClose size={14} />}
-          </Button>
-        </div>
+        <Button 
+          variant="ghost" 
+          onClick={handleLogout}
+          className="w-full justify-start text-[10px] font-black text-black uppercase h-8 hover:bg-black hover:text-white rounded-sm border border-transparent hover:border-black"
+        >
+          <LogOut size={14} className="mr-2" /> Encerrar Sessão
+        </Button>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* MOBILE TRIGGER */}
+      <div className="lg:hidden fixed top-4 left-4 z-[100]">
+        <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="icon" className="bg-white border-2 border-black shadow-[4px_4px_0px_#000] rounded-none h-10 w-10">
+              <Menu size={20} className="text-black" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 border-r-2 border-black w-72 bg-white">
+            <SidebarContentComponent />
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* DESKTOP SIDEBAR */}
+      <aside className={cn(
+        "hidden lg:flex h-screen bg-white/90 backdrop-blur-sm flex-col transition-all duration-200 border-r border-black shrink-0 print:hidden z-50 overflow-hidden relative",
+        collapsed ? "w-[70px]" : "w-64"
+      )}>
+        <div className="h-14 flex items-center px-5 border-b border-black bg-white/50 relative z-10 shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="icon-3d-wrapper">
+              <div className="icon-3d-block black w-8 h-8 rounded-sm">
+                <Scale size={16} className="text-white" />
+              </div>
+            </div>
+            {!collapsed && (
+              <div className="flex flex-col">
+                <span className="font-black text-sm text-black tracking-tight uppercase">LexisPredict</span>
+                <span className="text-[9px] text-black/60 font-black tracking-widest uppercase italic">Elite Edition</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1 py-4 px-2 space-y-6 overflow-y-auto overflow-x-hidden relative z-10">
+          <section>
+            {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Gestão</p>}
+            <div className="space-y-1">
+              {primaryNav.map((item) => (
+                <NavLink key={item.label} item={item} collapsed={collapsed} active={pathname === item.href} />
+              ))}
+            </div>
+          </section>
+
+          <section>
+            {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Auditoria</p>}
+            <div className="space-y-1">
+              {omniNav.map((item) => (
+                <NavLink key={item.label} item={item} collapsed={collapsed} active={pathname === item.href} />
+              ))}
+            </div>
+          </section>
+
+          <section>
+            {!collapsed && <p className="px-3 mb-2 text-[10px] font-black text-black/40 uppercase tracking-widest">Administração</p>}
+            <div className="space-y-1">
+              {adminNav.map((item) => (
+                <NavLink key={item.label} item={item} collapsed={collapsed} active={pathname === item.href} />
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <div className="p-2 border-t border-black bg-white/50 space-y-2 relative z-10 shrink-0">
+          <div className={cn(
+            "flex items-center p-2 rounded-sm transition-all group",
+            !collapsed ? "gap-3 bg-white border border-black shadow-sm hover:bg-black hover:text-white" : "justify-center"
+          )}>
+            <div className="w-8 h-8 rounded-sm bg-black text-white flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-white group-hover:text-black border border-black">
+              {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
+            </div>
+            {!collapsed && (
+              <div className="flex flex-col min-w-0">
+                <span className="text-[11px] font-black text-black group-hover:text-white transition-colors truncate uppercase">{profile?.nome || 'Gabinete'}</span>
+                <span className="text-[9px] text-black/60 transition-colors font-black uppercase truncate italic">{profile?.cargo || 'Operador'}</span>
+              </div>
+            )}
+          </div>
+
+          {!collapsed && (
+            <Button 
+              variant="ghost" 
+              onClick={handleLogout}
+              className="w-full justify-start text-[10px] font-black text-black uppercase h-8 hover:bg-black hover:text-white rounded-sm border border-transparent hover:border-black"
+            >
+              <LogOut size={14} className="mr-2" /> Encerrar Sessão
+            </Button>
+          )}
+
+          <div className="flex items-center justify-between px-2">
+            {!collapsed && (
+              <span className="text-[9px] font-black text-black uppercase flex items-center gap-1">
+                {isAdmin ? <Unlock size={10} className="text-green-600" /> : <Lock size={10} />}
+                <span>{isAdmin ? "Admin" : "Operador"}</span>
+              </span>
+            )}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setCollapsed(!collapsed)}
+              className="h-6 w-6 text-black/40 hover:bg-black hover:text-white"
+            >
+              {collapsed ? <PanelLeft size={14} /> : <PanelLeftClose size={14} />}
+            </Button>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }
 
-function NavLink({ item, collapsed, active }: { item: any, collapsed: boolean, active: boolean }) {
+function NavLink({ item, collapsed, active, onClick }: { item: any, collapsed: boolean, active: boolean, onClick?: () => void }) {
   return (
     <Link 
       href={item.href}
+      onClick={onClick}
       className={cn(
         "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative border-2 border-transparent",
         active 
