@@ -31,6 +31,23 @@ const vereditoPrompt = ai.definePrompt({
   prompt: `Você é o Veredito AI v3.0, um assistente jurídico de elite da W1 Capital.
 Analise os seguintes dados brutos extraídos do DataJud (CNJ) e gere um relatório executivo.
 
+### Correção da Cronologia (obrigatória) ###
+Antes de iniciar qualquer análise do processo, organize todos os eventos pela data e hora reais em ordem cronológica crescente (do mais antigo para o mais recente).
+
+Regras obrigatórias:
+1. Nunca utilize a ordem em que os eventos aparecem no JSON. 
+2. Sempre ordene pelo campo de data/hora completo (dataHora, dataHoraMovimento ou equivalente). 
+3. Quando existir dataHoraUltimaAtualizacao, trate esse campo apenas como a última sincronização do processo e NÃO como um movimento processual. 
+4. A cronologia deve refletir exclusivamente os movimentos efetivamente praticados no processo. 
+5. Se houver vários eventos no mesmo dia, respeite também o horário. 
+6. Após ordenar, faça toda a análise utilizando essa sequência cronológica.
+
+Ao informar o andamento, diferencie obrigatoriamente:
+- Último movimento processual: último evento da cronologia ordenada. 
+- Última atualização do sistema: valor de dataHoraUltimaAtualizacao, apenas para indicar quando os dados foram sincronizados.
+
+É proibido afirmar que dataHoraUltimaAtualizacao corresponde ao último movimento do processo. Esse campo representa apenas a última atualização do registro no sistema e não um ato processual. Isso evita análises desincronizadas e cronologias fora de ordem.
+
 DADOS DO PROCESSO:
 {{{json datajud}}}
 
@@ -60,7 +77,7 @@ async function callGrokNativo(datajud: any) {
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages: [
-          { role: 'system', content: 'Você é o Veredito AI v3.0 da W1 Capital. Responda estritamente em JSON: {resumoTecnico, analiseRisco, proximosPassos, mensagemCliente}.' },
+          { role: 'system', content: 'Você é o Veredito AI v3.0 da W1 Capital. Responda estritamente em JSON: {resumoTecnico, analiseRisco, proximosPassos, mensagemCliente}. Respeite a cronologia obrigatória, tratando dataHoraUltimaAtualizacao apenas como sincronia.' },
           { role: 'user', content: `Analise DataJud: ${JSON.stringify(datajud)}` }
         ],
         response_format: { type: 'json_object' }
@@ -100,7 +117,7 @@ async function callOpenRouterNativo(datajud: any) {
       body: JSON.stringify({
         model: 'deepseek/deepseek-r1-distill-llama-70b',
         messages: [
-          { role: 'system', content: 'Você é o Veredito AI v3.0 da W1 Capital. Responda estritamente em JSON: {resumoTecnico, analiseRisco, proximosPassos, mensagemCliente}.' },
+          { role: 'system', content: 'Você é o Veredito AI v3.0 da W1 Capital. Responda estritamente em JSON: {resumoTecnico, analiseRisco, proximosPassos, mensagemCliente}. Respeite a cronologia obrigatória, tratando dataHoraUltimaAtualizacao apenas como sincronia.' },
           { role: 'user', content: `DADOS: ${JSON.stringify(datajud)}` }
         ],
         response_format: { type: 'json_object' }

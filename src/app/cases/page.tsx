@@ -7,17 +7,17 @@ import {
   Search, 
   Trash2, 
   ExternalLink, 
-  RefreshCcw,
-  Plus,
-  Briefcase,
-  Edit2,
-  CheckCircle,
-  Clock,
-  Copyright,
-  ShieldCheck,
-  FileText,
-  MessageCircle,
-  Info
+  RefreshCcw, 
+  Plus, 
+  Briefcase, 
+  Edit2, 
+  CheckCircle, 
+  Clock, 
+  Copyright, 
+  ShieldCheck, 
+  FileText, 
+  MessageCircle, 
+  Info 
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -96,7 +96,8 @@ function CasesContent() {
     const processed = processarCaso({
       CLIENTE: formState.cliente,
       PROTOCOLO: formState.protocolo,
-      ADVOGADO: formState.advogado,
+      ADVOCADO: formState.advogado,
+      'ADVOGADO RESPONSÁVEL': formState.advogado,
       'PRÓXIMO PRAZO': formState.proximoPrazo,
       SITUAÇÃO: formState.situacao,
       ULTIMO_RETORNO: formState.ultimoRetorno,
@@ -107,7 +108,7 @@ function CasesContent() {
 
     const updated = editingCase 
       ? cases.map(c => c.id === editingCase.id ? { ...processed, id: editingCase.id } : c)
-      : [...cases, processed];
+      : [processed, ...cases];
     
     const result = await syncRepoCases(updated);
     if (result.success) {
@@ -184,9 +185,9 @@ function CasesContent() {
   }, [cases, search]);
 
   return (
-    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10">
+    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <header className="h-16 border-b border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default tracking-tighter">
@@ -221,7 +222,7 @@ function CasesContent() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                           <Label htmlFor="lawyer" className="font-black text-black text-[10px] uppercase">ADVOGADO</Label>
+                           <Label htmlFor="lawyer" className="font-black text-black text-[10px] uppercase">ADVOGADO RESPONSÁVEL</Label>
                            <Input id="lawyer" value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="border-black text-black font-black uppercase rounded-none" />
                         </div>
                         <div className="grid gap-2">
@@ -269,8 +270,8 @@ function CasesContent() {
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col p-8 overflow-hidden">
-          <div className="bg-white/90 backdrop-blur-md border-2 border-black rounded-none shadow-[8px_8px_0px_#000] flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col p-8 overflow-hidden min-h-0">
+          <div className="bg-white/90 backdrop-blur-md border-2 border-black rounded-none shadow-[8px_8px_0px_#000] flex-1 flex flex-col overflow-hidden min-h-0">
             <div className="p-4 border-b-2 border-black bg-[#f8f9fb] flex items-center gap-4 shrink-0">
               <div className="relative w-full sm:w-80">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
@@ -286,9 +287,9 @@ function CasesContent() {
               </Badge>
             </div>
 
-            <div className="flex-1 overflow-auto">
-              <table className="w-full text-left border-collapse min-w-[1000px]">
-                <thead className="sticky top-0 bg-[#f3f2f2] z-10 border-b-2 border-black shadow-sm">
+            <div className="flex-1 overflow-auto min-h-0 min-w-0 bg-white" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+              <table className="w-full text-left border-collapse min-w-[1200px]">
+                <thead className="sticky top-0 bg-[#f3f2f2] z-20 border-b-2 border-black shadow-sm">
                   <tr className="text-[10px] uppercase font-black text-black/40 tracking-widest">
                     <th className="px-6 py-4 bg-[#f3f2f2]">Conta / Cliente / Protocolo</th>
                     <th className="px-6 py-4 bg-[#f3f2f2]">Tribunal Público</th>
@@ -385,7 +386,7 @@ function CasesContent() {
                             <Briefcase className="text-black" size={32} />
                           </div>
                           <h3 className="text-black font-black uppercase tracking-tight">Nenhum Registro Localizado</h3>
-                          <p className="text-[10px] text-black/60 font-black uppercase leading-relaxed tracking-widest">Base de dados vazia ou filtro de visão ativo para sua conta.</p>
+                          <p className="text-[10px] text-black/60 font-black uppercase leading-relaxed tracking-widest">Aguardando sincronização com a base Cloud ou filtro ativo.</p>
                         </div>
                       </td>
                     </tr>
@@ -404,7 +405,6 @@ function CasesContent() {
           <span className="text-black font-black uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
         </footer>
 
-        {/* DIALOG DE OBSERVAÇÃO ESTRATÉGICA */}
         <Dialog open={!!obsDialogOpen} onOpenChange={(open) => !open && setObsDialogOpen(null)}>
           <DialogContent className="bg-white border-2 border-black text-black rounded-none sm:max-w-lg">
             <DialogHeader>

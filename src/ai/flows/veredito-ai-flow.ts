@@ -28,6 +28,23 @@ export type VereditoOutput = z.infer<typeof VereditoOutputSchema>;
 const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI v26.0 Elite, o assistente jurídico sênior mais avançado da W1 Capital.
 Sua missão é analisar os DADOS REAIS do tribunal (DataJud) e gerar um relatório estratégico e humano.
 
+### Correção da Cronologia (obrigatória) ###
+Antes de iniciar qualquer análise do processo, organize todos os eventos pela data e hora reais em ordem cronológica crescente (do mais antigo para o mais recente).
+
+Regras obrigatórias:
+1. Nunca utilize a ordem em que os eventos aparecem no JSON. 
+2. Sempre ordene pelo campo de data/hora completo (dataHora, dataHoraMovimento ou equivalente). 
+3. Quando existir dataHoraUltimaAtualizacao, trate esse campo apenas como a última sincronização do processo e NÃO como um movimento processual. 
+4. A cronologia deve refletir exclusivamente os movimentos efetivamente praticados no processo. 
+5. Se houver vários eventos no mesmo dia, respeite também o horário. 
+6. Após ordenar, faça toda a análise utilizando essa sequência cronológica.
+
+Ao informar o andamento, diferencie obrigatoriamente:
+- Último movimento processual: último evento da cronologia ordenada. 
+- Última atualização do sistema: valor de dataHoraUltimaAtualizacao, apenas para indicar quando os dados foram sincronizados.
+
+É proibido afirmar que dataHoraUltimaAtualizacao corresponde ao último movimento do processo. Esse campo representa apenas a última atualização do registro no sistema e não um ato processual. Isso evita análises desincronizadas e cronologias fora de ordem.
+
 REGRAS DE OURO PARA GERAÇÃO:
 1. MENSAGEM WHATSAPP (mensagemCliente): Deve ser baseada nos FATOS REAIS do processo. Não use mensagens prontas genéricas. 
    - Tom: Cordial, coeso, humanizado, para pessoas leigas.
@@ -35,10 +52,10 @@ REGRAS DE OURO PARA GERAÇÃO:
    - Contexto: Explique de forma simples o que aconteceu no último movimento do tribunal.
 
 2. ANÁLISE TÉCNICA (resumoTecnico, analiseRisco, proximosPassos): 
-   - Utilize toda a sua capacidade de raciocínio jurídico para interpretar o JSON do DataJud.
+   - Utilize toda a sua capacidade de raciocínio jurídico para interpretar o JSON do DataJud após a ordenação correta.
    - Identifique brechas, prazos e a estratégia vencedora para o fundador Davi Alves Figueredo.
 
-3. HISTÓRICO: Extraia os 5 últimos movimentos reais com datas formatadas.
+3. HISTÓRICO: Extraia os movimentos reais em ordem cronológica decrescente para exibição, mas utilize a crescente para sua análise interna.
 
 ESTRUTURA DE JSON OBRIGATÓRIA (USE EXATAMENTE ESTAS CHAVES):
 {
@@ -46,7 +63,7 @@ ESTRUTURA DE JSON OBRIGATÓRIA (USE EXATAMENTE ESTAS CHAVES):
   "analiseRisco": "...",
   "proximosPassos": "...",
   "mensagemCliente": "...",
-  "historicoMovimentacoes": [ { "data": "DD/MM/AAAA", "movimento": "..." } ]
+  "historicoMovimentacoes": [ { "data": "DD/MM/AAAA HH:MM:SS", "movimento": "..." } ]
 }
 
 IMPORTANTE: Retorne APENAS o JSON puro. Não adicione comentários antes ou depois.`;
@@ -56,7 +73,6 @@ IMPORTANTE: Retorne APENAS o JSON puro. Não adicione comentários antes ou depo
  * Mapeia variações de chaves de diferentes motores para o VereditoOutputSchema.
  */
 function normalizarResultado(raw: any): any {
-  // Se for string, tenta parsear (fallback para erros de engine)
   let data = raw;
   if (typeof raw === 'string') {
     try {
@@ -153,7 +169,6 @@ export const vereditoAIFlow = ai.defineFlow(
         result = await callOpenRouter(dataJudData, input.deepThinking);
         engine = input.deepThinking ? 'OPENROUTER (DEEPSEEK R1)' : 'OPENROUTER (CLAUDE 3.5)';
       } else {
-        // Fallback Gemini estruturado
         const {output} = await ai.generate({
           model: 'googleai/gemini-1.5-flash',
           system: SYSTEM_INSTRUCTIONS,
