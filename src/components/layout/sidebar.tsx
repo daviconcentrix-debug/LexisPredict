@@ -2,8 +2,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   LayoutDashboard, 
   Briefcase, 
@@ -57,13 +57,50 @@ export function Sidebar() {
         mainType: localStorage.getItem('lexis_wp_main_type') || 'image',
         sideType: localStorage.getItem('lexis_wp_sidebar_type') || 'image',
         opacity: localStorage.getItem('lexis_wp_opacity') || '1',
-        bgColor: localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2'
+        bgColor: localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2',
+        fontColor: localStorage.getItem('lexisPredict_font_color') || '#000000'
       };
 
       const settingsKey = JSON.stringify(settings);
       if (settingsKey === lastAppliedSettings.current) return;
       lastAppliedSettings.current = settingsKey;
 
+      // 1. Aplicação de Cores de Fonte e Detalhes via Injeção de Estilo
+      let fontStyle = document.getElementById('lexis-font-style') as HTMLStyleElement;
+      if (!fontStyle) {
+        fontStyle = document.createElement('style');
+        fontStyle.id = 'lexis-font-style';
+        document.head.appendChild(fontStyle);
+      }
+      fontStyle.innerHTML = `
+        body, .text-black, .text-muted-foreground, h1, h2, h3, h4, h5, h6, p, span, label, input, textarea, select, .font-black {
+          color: ${settings.fontColor} !important;
+        }
+        .border-black, .border-2, .border-r, .border-b, .border-t, .border-l {
+          border-color: ${settings.fontColor} !important;
+        }
+        input::placeholder, textarea::placeholder {
+          color: ${settings.fontColor}44 !important;
+        }
+        svg {
+          stroke: ${settings.fontColor} !important;
+        }
+        .icon-3d-block {
+          border-color: ${settings.fontColor} !important;
+        }
+        .icon-3d-block::before, .icon-3d-block::after {
+          background-color: ${settings.fontColor} !important;
+          opacity: 0.8;
+        }
+        .bg-black {
+          background-color: ${settings.fontColor} !important;
+        }
+        .hover\\:bg-black:hover {
+          background-color: ${settings.fontColor} !important;
+        }
+      `;
+
+      // 2. Resolução de Assets Locais
       const resolveSrc = async (key: string, storedValue: string | null, target: 'main' | 'side') => {
         if (storedValue === 'LOCAL_ASSET') {
           const blob = await browserStorage.getAsset(key);
@@ -87,6 +124,7 @@ export function Sidebar() {
       if (rootContainer) rootContainer.style.backgroundColor = settings.bgColor;
       if (mainElement) mainElement.style.backgroundColor = 'transparent';
 
+      // 3. Gerenciamento de Camadas Multimídia
       const updateLayer = (el: HTMLElement | null, className: string, url: string | null, type: string, opacity: string) => {
         if (!el) return;
         
@@ -96,7 +134,7 @@ export function Sidebar() {
           layer.className = className;
           Object.assign(layer.style, {
             position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
-            zIndex: '-1', pointerEvents: 'none'
+            zIndex: '-1', pointerEvents: 'none', transition: 'opacity 0.5s ease'
           });
           el.appendChild(layer);
         }
@@ -110,7 +148,7 @@ export function Sidebar() {
             
             if (currentSrc !== url) {
               layer.innerHTML = `
-                <video autoplay muted loop playsinline preload="auto" style="width:100%; height:100%; object-fit:cover; will-change:transform;">
+                <video autoplay muted loop playsinline preload="auto" style="width:100%; height:100%; object-fit:cover; will-change:transform; transform: translate3d(0,0,0);">
                   <source src="${url}">
                 </video>
               `;
@@ -137,15 +175,13 @@ export function Sidebar() {
       }
     };
 
-    const debouncedApply = () => requestAnimationFrame(applyAppearance);
-    
     applyAppearance();
-    window.addEventListener('storage', debouncedApply);
-    const interval = setInterval(debouncedApply, 2000);
+    window.addEventListener('storage', applyAppearance);
+    const interval = setInterval(applyAppearance, 3000);
     
     return () => {
       isMounted.current = false;
-      window.removeEventListener('storage', debouncedApply);
+      window.removeEventListener('storage', applyAppearance);
       clearInterval(interval);
       if (activeBlobUrls.current.main) URL.revokeObjectURL(activeBlobUrls.current.main);
       if (activeBlobUrls.current.side) URL.revokeObjectURL(activeBlobUrls.current.side);
@@ -181,7 +217,7 @@ export function Sidebar() {
 
   const SidebarContentComponent = () => (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="h-14 flex items-center px-5 border-b border-black bg-white/50 relative z-10 shrink-0">
+      <div className="h-14 flex items-center px-5 border-b border-black bg-white/5 relative z-10 shrink-0">
         <div className="flex items-center gap-4">
           <div className="icon-3d-wrapper">
             <div className="icon-3d-block black w-8 h-8 rounded-sm">
@@ -224,8 +260,8 @@ export function Sidebar() {
         </section>
       </div>
 
-      <div className="p-2 border-t border-black bg-white/50 space-y-2 relative z-10 shrink-0">
-        <div className="flex items-center p-2 rounded-sm bg-white border border-black shadow-sm gap-3">
+      <div className="p-2 border-t border-black bg-white/5 space-y-2 relative z-10 shrink-0">
+        <div className="flex items-center p-2 rounded-sm bg-white/10 border border-black shadow-sm gap-3">
           <div className="w-8 h-8 rounded-sm bg-black text-white flex items-center justify-center font-black text-xs shrink-0 border border-black">
             {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
           </div>
@@ -266,7 +302,7 @@ export function Sidebar() {
         "hidden lg:flex h-screen bg-white/90 backdrop-blur-sm flex-col transition-all duration-200 border-r border-black shrink-0 print:hidden z-50 overflow-hidden relative",
         collapsed ? "w-[70px]" : "w-64"
       )}>
-        <div className="h-14 flex items-center px-5 border-b border-black bg-white/50 relative z-10 shrink-0">
+        <div className="h-14 flex items-center px-5 border-b border-black bg-white/5 relative z-10 shrink-0">
           <div className="flex items-center gap-4">
             <div className="icon-3d-wrapper">
               <div className="icon-3d-block black w-8 h-8 rounded-sm">
@@ -311,10 +347,10 @@ export function Sidebar() {
           </section>
         </div>
 
-        <div className="p-2 border-t border-black bg-white/50 space-y-2 relative z-10 shrink-0">
+        <div className="p-2 border-t border-black bg-white/5 space-y-2 relative z-10 shrink-0">
           <div className={cn(
             "flex items-center p-2 rounded-sm transition-all group",
-            !collapsed ? "gap-3 bg-white border border-black shadow-sm hover:bg-black hover:text-white" : "justify-center"
+            !collapsed ? "gap-3 bg-white/10 border border-black shadow-sm hover:bg-black hover:text-white" : "justify-center"
           )}>
             <div className="w-8 h-8 rounded-sm bg-black text-white flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-white group-hover:text-black border border-black">
               {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
