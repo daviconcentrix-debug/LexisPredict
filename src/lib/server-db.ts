@@ -112,8 +112,8 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
       const payload = uniqueCases.map(c => ({ 
         dados: c, 
         empresa_id: empresa_id, 
-        created_by: id,
-        updated_at: new Date().toISOString()
+        created_by: id
+        // REMOVIDO updated_at para evitar erro de schema no Supabase
       }));
       const { error: insertError } = await supabase.from('processos').insert(payload);
       if (insertError) throw insertError;
