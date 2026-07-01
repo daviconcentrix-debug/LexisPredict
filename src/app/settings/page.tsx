@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -14,7 +15,8 @@ import {
   Upload,
   Skull,
   ShieldAlert,
-  CheckCircle2
+  CheckCircle2,
+  Type
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -63,6 +65,7 @@ export default function SettingsPage() {
   const [sideWpType, setSideWpType] = useState<'image' | 'video'>('image');
   const [wpOpacity, setWpOpacity] = useState(1);
   const [bgColor, setBgColor] = useState('#f3f2f2');
+  const [fontColor, setFontColor] = useState('#000000');
 
   const mainFileInputRef = useRef<HTMLInputElement>(null);
   const sideFileInputRef = useRef<HTMLInputElement>(null);
@@ -85,6 +88,7 @@ export default function SettingsPage() {
     
     setIaModel((localStorage.getItem('lexisPredict_preferred_ia') as any) || 'gemini');
     setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2');
+    setFontColor(localStorage.getItem('lexisPredict_font_color') || '#000000');
     setWpMode((localStorage.getItem('lexis_wp_mode') as any) || 'global');
     setMainWpUrl(localStorage.getItem('lexis_wp_main_url') || '');
     setSideWpUrl(localStorage.getItem('lexis_wp_sidebar_url') || '');
@@ -120,6 +124,13 @@ export default function SettingsPage() {
     window.dispatchEvent(new Event('storage'));
   };
 
+  const handleFontColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setFontColor(val);
+    localStorage.setItem('lexisPredict_font_color', val);
+    window.dispatchEvent(new Event('storage'));
+  };
+
   const handleLocalFile = async (e: React.ChangeEvent<HTMLInputElement>, target: 'main' | 'side') => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -145,6 +156,7 @@ export default function SettingsPage() {
     localStorage.setItem('lexis_wp_main_type', mainWpType);
     localStorage.setItem('lexis_wp_sidebar_type', sideWpType);
     localStorage.setItem('lexis_wp_opacity', wpOpacity.toString());
+    localStorage.setItem('lexisPredict_font_color', fontColor);
     window.dispatchEvent(new Event('storage'));
     toast({ title: "Configurações Salvas", description: "Atmosfera de gabinete atualizada." });
   };
@@ -227,7 +239,7 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Configuração Sistema</h1>
-            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v98.0 Elite Local</Badge>
+            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v170.0 Elite Local</Badge>
           </div>
         </header>
 
@@ -264,7 +276,7 @@ export default function SettingsPage() {
                   <CardContent className="p-6 space-y-8">
                     <div className="space-y-4">
                       <Label className="font-black text-black text-xs uppercase">Modo de Aplicação</Label>
-                      <RadioGroup value={wpMode} onValueChange={(v: any) => setWpMode(v)} className="grid grid-cols-2 gap-4">
+                      <RadioGroup value={wpMode} onValueChange={(v: any) => setWpMode(v)} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <WpModeOption id="global" value="global" label="Mesmo WP (Conteúdo + Menu)" />
                         <WpModeOption id="separate" value="separate" label="Diferentes (Main/Side)" />
                         <WpModeOption id="main_only" value="main_only" label="Apenas Conteúdo" />
@@ -315,15 +327,29 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="space-y-6">
-                      <Label className="font-black text-black text-xs uppercase">Opacidade ({Math.round(wpOpacity * 100)}%)</Label>
+                      <Label className="font-black text-black text-xs uppercase">Opacidade do Wallpaper ({Math.round(wpOpacity * 100)}%)</Label>
                       <Slider value={[wpOpacity]} onValueChange={([v]) => setWpOpacity(v)} max={1} step={0.01} className="[&_[role=slider]]:bg-black" />
                     </div>
 
-                    <div className="space-y-4 pt-4 border-t-2 border-black">
-                      <Label className="font-black text-black text-xs uppercase">Cor de Fundo Base</Label>
-                      <div className="flex gap-4 items-center">
-                        <input type="color" value={bgColor} onChange={handleBgColorChange} className="h-12 w-20 border-2 border-black cursor-pointer bg-white" />
-                        <Input value={bgColor} readOnly className="font-mono border-2 border-black text-black font-black rounded-none h-12 uppercase" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-4 border-t-2 border-black">
+                      <div className="space-y-4">
+                        <Label className="font-black text-black text-xs uppercase flex items-center gap-2">
+                          <Palette size={14} /> Cor de Fundo Base
+                        </Label>
+                        <div className="flex gap-2 items-center">
+                          <input type="color" value={bgColor} onChange={handleBgColorChange} className="h-10 w-16 border-2 border-black cursor-pointer bg-white" />
+                          <Input value={bgColor} readOnly className="font-mono border-2 border-black text-black font-black rounded-none h-10 uppercase text-[10px]" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <Label className="font-black text-black text-xs uppercase flex items-center gap-2">
+                          <Type size={14} /> Cor das Letras e Detalhes
+                        </Label>
+                        <div className="flex gap-2 items-center">
+                          <input type="color" value={fontColor} onChange={handleFontColorChange} className="h-10 w-16 border-2 border-black cursor-pointer bg-white" />
+                          <Input value={fontColor} readOnly className="font-mono border-2 border-black text-black font-black rounded-none h-10 uppercase text-[10px]" />
+                        </div>
                       </div>
                     </div>
 
@@ -442,7 +468,7 @@ export default function SettingsPage() {
                                  {u.cargo}
                               </Badge>
                               {isAdmin && u.id !== profile?.id && (
-                                 <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u.id)} className="text-black/20 group-hover:text-red-500 hover:bg-transparent h-8 w-8">
+                                 <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u.id)} className="text-black/20 group-hover:text-red-50 hover:bg-transparent h-8 w-8">
                                     <Trash2 size={14} />
                                  </Button>
                               )}
