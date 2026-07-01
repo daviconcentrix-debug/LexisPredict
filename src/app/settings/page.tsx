@@ -16,7 +16,9 @@ import {
   Skull,
   ShieldAlert,
   CheckCircle2,
-  Type
+  Type,
+  MousePointer2,
+  Square
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -64,8 +66,14 @@ export default function SettingsPage() {
   const [mainWpType, setMainWpType] = useState<'image' | 'video'>('image');
   const [sideWpType, setSideWpType] = useState<'image' | 'video'>('image');
   const [wpOpacity, setWpOpacity] = useState(1);
+  
+  // Cores Customizadas
   const [bgColor, setBgColor] = useState('#f3f2f2');
   const [fontColor, setFontColor] = useState('#000000');
+  const [btnBgColor, setBtnBgColor] = useState('#000000');
+  const [btnTextColor, setBtnTextColor] = useState('#ffffff');
+  const [iconColor, setIconColor] = useState('#000000');
+  const [borderColor, setBorderColor] = useState('#000000');
 
   const mainFileInputRef = useRef<HTMLInputElement>(null);
   const sideFileInputRef = useRef<HTMLInputElement>(null);
@@ -89,6 +97,11 @@ export default function SettingsPage() {
     setIaModel((localStorage.getItem('lexisPredict_preferred_ia') as any) || 'gemini');
     setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2');
     setFontColor(localStorage.getItem('lexisPredict_font_color') || '#000000');
+    setBtnBgColor(localStorage.getItem('lexisPredict_btn_bg_color') || '#000000');
+    setBtnTextColor(localStorage.getItem('lexisPredict_btn_text_color') || '#ffffff');
+    setIconColor(localStorage.getItem('lexisPredict_icon_color') || '#000000');
+    setBorderColor(localStorage.getItem('lexisPredict_border_color') || '#000000');
+
     setWpMode((localStorage.getItem('lexis_wp_mode') as any) || 'global');
     setMainWpUrl(localStorage.getItem('lexis_wp_main_url') || '');
     setSideWpUrl(localStorage.getItem('lexis_wp_sidebar_url') || '');
@@ -117,17 +130,9 @@ export default function SettingsPage() {
     toast({ title: "Núcleo Técnico Alterado", description: `Motor ${value.toUpperCase()} ativado.` });
   };
 
-  const handleBgColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setBgColor(val);
-    localStorage.setItem('lexisPredict_bg_color', val);
-    window.dispatchEvent(new Event('storage'));
-  };
-
-  const handleFontColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setFontColor(val);
-    localStorage.setItem('lexisPredict_font_color', val);
+  const handleColorChange = (key: string, value: string, setter: (v: string) => void) => {
+    setter(value);
+    localStorage.setItem(key, value);
     window.dispatchEvent(new Event('storage'));
   };
 
@@ -156,7 +161,6 @@ export default function SettingsPage() {
     localStorage.setItem('lexis_wp_main_type', mainWpType);
     localStorage.setItem('lexis_wp_sidebar_type', sideWpType);
     localStorage.setItem('lexis_wp_opacity', wpOpacity.toString());
-    localStorage.setItem('lexisPredict_font_color', fontColor);
     window.dispatchEvent(new Event('storage'));
     toast({ title: "Configurações Salvas", description: "Atmosfera de gabinete atualizada." });
   };
@@ -239,7 +243,7 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Configuração Sistema</h1>
-            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v170.0 Elite Local</Badge>
+            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v180.0 Elite Local</Badge>
           </div>
         </header>
 
@@ -275,7 +279,7 @@ export default function SettingsPage() {
                   </CardHeader>
                   <CardContent className="p-6 space-y-8">
                     <div className="space-y-4">
-                      <Label className="font-black text-black text-xs uppercase">Modo de Aplicação</Label>
+                      <Label className="font-black text-black text-xs uppercase">Modo de Aplicação de Fundo</Label>
                       <RadioGroup value={wpMode} onValueChange={(v: any) => setWpMode(v)} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <WpModeOption id="global" value="global" label="Mesmo WP (Conteúdo + Menu)" />
                         <WpModeOption id="separate" value="separate" label="Diferentes (Main/Side)" />
@@ -331,26 +335,19 @@ export default function SettingsPage() {
                       <Slider value={[wpOpacity]} onValueChange={([v]) => setWpOpacity(v)} max={1} step={0.01} className="[&_[role=slider]]:bg-black" />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-4 border-t-2 border-black">
-                      <div className="space-y-4">
-                        <Label className="font-black text-black text-xs uppercase flex items-center gap-2">
-                          <Palette size={14} /> Cor de Fundo Base
-                        </Label>
-                        <div className="flex gap-2 items-center">
-                          <input type="color" value={bgColor} onChange={handleBgColorChange} className="h-10 w-16 border-2 border-black cursor-pointer bg-white" />
-                          <Input value={bgColor} readOnly className="font-mono border-2 border-black text-black font-black rounded-none h-10 uppercase text-[10px]" />
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <Label className="font-black text-black text-xs uppercase flex items-center gap-2">
-                          <Type size={14} /> Cor das Letras e Detalhes
-                        </Label>
-                        <div className="flex gap-2 items-center">
-                          <input type="color" value={fontColor} onChange={handleFontColorChange} className="h-10 w-16 border-2 border-black cursor-pointer bg-white" />
-                          <Input value={fontColor} readOnly className="font-mono border-2 border-black text-black font-black rounded-none h-10 uppercase text-[10px]" />
-                        </div>
-                      </div>
+                    <div className="pt-4 border-t-2 border-black space-y-8">
+                       <h3 className="font-black text-xs uppercase flex items-center gap-2">
+                         <Palette size={16} /> Paleta de Identidade do Gabinete
+                       </h3>
+                       
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+                          <ColorPicker label="Cor de Fundo Base" value={bgColor} onChange={(v) => handleColorChange('lexisPredict_bg_color', v, setBgColor)} />
+                          <ColorPicker label="Cor das Fontes (Letras)" icon={<Type size={12}/>} value={fontColor} onChange={(v) => handleColorChange('lexisPredict_font_color', v, setFontColor)} />
+                          <ColorPicker label="Fundo dos Botões" icon={<Square size={12}/>} value={btnBgColor} onChange={(v) => handleColorChange('lexisPredict_btn_bg_color', v, setBtnBgColor)} />
+                          <ColorPicker label="Texto dos Botões" icon={<Type size={12}/>} value={btnTextColor} onChange={(v) => handleColorChange('lexisPredict_btn_text_color', v, setBtnTextColor)} />
+                          <ColorPicker label="Cor dos Ícones" icon={<MousePointer2 size={12}/>} value={iconColor} onChange={(v) => handleColorChange('lexisPredict_icon_color', v, setIconColor)} />
+                          <ColorPicker label="Cor das Bordas e Detalhes" icon={<Square size={12}/>} value={borderColor} onChange={(v) => handleColorChange('lexisPredict_border_color', v, setBorderColor)} />
+                       </div>
                     </div>
 
                     <Button onClick={saveWpSettings} className="w-full h-12 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#000] hover:shadow-none">Sincronizar Gabinete</Button>
@@ -522,6 +519,20 @@ function WpModeOption({ id, value, label }: { id: string, value: string, label: 
       <RadioGroupItem value={value} id={id} className="border-black group-hover:border-white" />
       <span className="text-[10px] font-black uppercase group-hover:text-white transition-colors">{label}</span>
     </label>
+  );
+}
+
+function ColorPicker({ label, icon, value, onChange }: { label: string, icon?: React.ReactNode, value: string, onChange: (v: string) => void }) {
+  return (
+    <div className="space-y-2">
+      <Label className="font-black text-black text-[10px] uppercase flex items-center gap-2">
+        {icon} {label}
+      </Label>
+      <div className="flex gap-2 items-center">
+        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-10 w-16 border-2 border-black cursor-pointer bg-white" />
+        <Input value={value} readOnly className="font-mono border-2 border-black text-black font-black rounded-none h-10 uppercase text-[10px]" />
+      </div>
+    </div>
   );
 }
 

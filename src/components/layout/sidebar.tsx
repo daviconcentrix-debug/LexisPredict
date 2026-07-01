@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth/auth-provider';
 import { browserStorage } from '@/lib/browser-storage';
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -58,49 +58,86 @@ export function Sidebar() {
         sideType: localStorage.getItem('lexis_wp_sidebar_type') || 'image',
         opacity: localStorage.getItem('lexis_wp_opacity') || '1',
         bgColor: localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2',
-        fontColor: localStorage.getItem('lexisPredict_font_color') || '#000000'
+        fontColor: localStorage.getItem('lexisPredict_font_color') || '#000000',
+        btnBgColor: localStorage.getItem('lexisPredict_btn_bg_color') || '#000000',
+        btnTextColor: localStorage.getItem('lexisPredict_btn_text_color') || '#ffffff',
+        iconColor: localStorage.getItem('lexisPredict_icon_color') || '#000000',
+        borderColor: localStorage.getItem('lexisPredict_border_color') || '#000000',
       };
 
       const settingsKey = JSON.stringify(settings);
       if (settingsKey === lastAppliedSettings.current) return;
       lastAppliedSettings.current = settingsKey;
 
-      // 1. Aplicação de Cores de Fonte e Detalhes via Injeção de Estilo
-      let fontStyle = document.getElementById('lexis-font-style') as HTMLStyleElement;
+      // 1. Injeção Dinâmica de Estilo (Override de Identidade Visual)
+      let fontStyle = document.getElementById('lexis-custom-theme') as HTMLStyleElement;
       if (!fontStyle) {
         fontStyle = document.createElement('style');
-        fontStyle.id = 'lexis-font-style';
+        fontStyle.id = 'lexis-custom-theme';
         document.head.appendChild(fontStyle);
       }
+      
       fontStyle.innerHTML = `
-        body, .text-black, .text-muted-foreground, h1, h2, h3, h4, h5, h6, p, span, label, input, textarea, select, .font-black {
+        /* Fontes e Textos */
+        body, .text-black, h1, h2, h3, h4, h5, h6, p, span, label, input, textarea, select, .font-black {
           color: ${settings.fontColor} !important;
         }
-        .border-black, .border-2, .border-r, .border-b, .border-t, .border-l {
-          border-color: ${settings.fontColor} !important;
+        .text-muted-foreground {
+          color: ${settings.fontColor}99 !important;
         }
         input::placeholder, textarea::placeholder {
           color: ${settings.fontColor}44 !important;
         }
+
+        /* Bordas e Divisores */
+        .border-black, .border-2, .border-r, .border-b, .border-t, .border-l, border-collapse, hr {
+          border-color: ${settings.borderColor} !important;
+        }
+        .divide-black\\/5 > * + *, .divide-black\\/10 > * + * {
+          border-color: ${settings.borderColor}22 !important;
+        }
+
+        /* Ícones */
         svg {
-          stroke: ${settings.fontColor} !important;
+          stroke: ${settings.iconColor} !important;
         }
-        .icon-3d-block {
-          border-color: ${settings.fontColor} !important;
-        }
-        .icon-3d-block::before, .icon-3d-block::after {
-          background-color: ${settings.fontColor} !important;
-          opacity: 0.8;
-        }
+        
+        /* Botões e Elementos Ativos */
         .bg-black {
-          background-color: ${settings.fontColor} !important;
+          background-color: ${settings.btnBgColor} !important;
+          color: ${settings.btnTextColor} !important;
+        }
+        button.bg-black, a.bg-black {
+          color: ${settings.btnTextColor} !important;
+        }
+        button.bg-black svg, a.bg-black svg {
+          stroke: ${settings.btnTextColor} !important;
         }
         .hover\\:bg-black:hover {
-          background-color: ${settings.fontColor} !important;
+          background-color: ${settings.btnBgColor} !important;
+          color: ${settings.btnTextColor} !important;
+        }
+        .hover\\:bg-black:hover svg {
+          stroke: ${settings.btnTextColor} !important;
+        }
+
+        /* Ícones 3D Isométricos */
+        .icon-3d-block {
+          border-color: ${settings.borderColor} !important;
+        }
+        .icon-3d-block::before, .icon-3d-block::after {
+          background-color: ${settings.borderColor} !important;
+          opacity: 0.8;
+        }
+        .icon-3d-block.black {
+          background-color: ${settings.btnBgColor} !important;
+        }
+        .icon-3d-block.black svg {
+          stroke: ${settings.btnTextColor} !important;
         }
       `;
 
-      // 2. Resolução de Assets Locais
+      // 2. Resolução de Assets Locais (IndexedDB)
       const resolveSrc = async (key: string, storedValue: string | null, target: 'main' | 'side') => {
         if (storedValue === 'LOCAL_ASSET') {
           const blob = await browserStorage.getAsset(key);
@@ -283,7 +320,6 @@ export function Sidebar() {
 
   return (
     <>
-      {/* MOBILE TRIGGER */}
       <div className="lg:hidden fixed top-4 left-4 z-[100]">
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>
@@ -292,12 +328,15 @@ export function Sidebar() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="p-0 border-r-2 border-black w-72 bg-white">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Menu de Navegação</SheetTitle>
+              <SheetDescription>Navegação lateral do LexisPredict Elite</SheetDescription>
+            </SheetHeader>
             <SidebarContentComponent />
           </SheetContent>
         </Sheet>
       </div>
 
-      {/* DESKTOP SIDEBAR */}
       <aside className={cn(
         "hidden lg:flex h-screen bg-white/90 backdrop-blur-sm flex-col transition-all duration-200 border-r border-black shrink-0 print:hidden z-50 overflow-hidden relative",
         collapsed ? "w-[70px]" : "w-64"
