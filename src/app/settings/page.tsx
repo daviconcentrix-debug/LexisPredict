@@ -18,7 +18,9 @@ import {
   CheckCircle2,
   Type,
   MousePointer2,
-  Square
+  Square,
+  Zap,
+  Bot
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -34,6 +36,7 @@ import { UserProfile, supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { Slider } from '@/components/ui/slider';
 import { browserStorage } from '@/lib/browser-storage';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -52,7 +55,7 @@ import {
 } from "@/components/ui/select";
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('Sync');
+  const [activeTab, setActiveTab] = useState('Style');
   const [masterPasswordInput, setMasterPasswordInput] = useState('');
   const [isMasterActive, setIsMasterActive] = useState(false);
   const [iaModel, setIaModel] = useState<'gemini' | 'grok' | 'openrouter'>('gemini');
@@ -67,6 +70,9 @@ export default function SettingsPage() {
   const [sideWpType, setSideWpType] = useState<'image' | 'video'>('image');
   const [wpOpacity, setWpOpacity] = useState(1);
   
+  // Customização Automática
+  const [autoTheme, setAutoTheme] = useState(false);
+
   // Cores Customizadas
   const [bgColor, setBgColor] = useState('#f3f2f2');
   const [fontColor, setFontColor] = useState('#000000');
@@ -94,20 +100,26 @@ export default function SettingsPage() {
   useEffect(() => {
     isMounted.current = true;
     
-    setIaModel((localStorage.getItem('lexisPredict_preferred_ia') as any) || 'gemini');
-    setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2');
-    setFontColor(localStorage.getItem('lexisPredict_font_color') || '#000000');
-    setBtnBgColor(localStorage.getItem('lexisPredict_btn_bg_color') || '#000000');
-    setBtnTextColor(localStorage.getItem('lexisPredict_btn_text_color') || '#ffffff');
-    setIconColor(localStorage.getItem('lexisPredict_icon_color') || '#000000');
-    setBorderColor(localStorage.getItem('lexisPredict_border_color') || '#000000');
+    const loadSettings = () => {
+      setIaModel((localStorage.getItem('lexisPredict_preferred_ia') as any) || 'gemini');
+      setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2');
+      setFontColor(localStorage.getItem('lexisPredict_font_color') || '#000000');
+      setBtnBgColor(localStorage.getItem('lexisPredict_btn_bg_color') || '#000000');
+      setBtnTextColor(localStorage.getItem('lexisPredict_btn_text_color') || '#ffffff');
+      setIconColor(localStorage.getItem('lexisPredict_icon_color') || '#000000');
+      setBorderColor(localStorage.getItem('lexisPredict_border_color') || '#000000');
+      setAutoTheme(localStorage.getItem('lexis_auto_theme') === 'true');
 
-    setWpMode((localStorage.getItem('lexis_wp_mode') as any) || 'global');
-    setMainWpUrl(localStorage.getItem('lexis_wp_main_url') || '');
-    setSideWpUrl(localStorage.getItem('lexis_wp_sidebar_url') || '');
-    setMainWpType((localStorage.getItem('lexis_wp_main_type') as any) || 'image');
-    setSideWpType((localStorage.getItem('lexis_wp_sidebar_type') as any) || 'image');
-    setWpOpacity(parseFloat(localStorage.getItem('lexis_wp_opacity') || '1'));
+      setWpMode((localStorage.getItem('lexis_wp_mode') as any) || 'global');
+      setMainWpUrl(localStorage.getItem('lexis_wp_main_url') || '');
+      setSideWpUrl(localStorage.getItem('lexis_wp_sidebar_url') || '');
+      setMainWpType((localStorage.getItem('lexis_wp_main_type') as any) || 'image');
+      setSideWpType((localStorage.getItem('lexis_wp_sidebar_type') as any) || 'image');
+      setWpOpacity(parseFloat(localStorage.getItem('lexis_wp_opacity') || '1'));
+    };
+
+    loadSettings();
+    window.addEventListener('storage', loadSettings);
 
     const cookies = document.cookie.split('; ');
     const masterUnlock = cookies.find(row => row.startsWith('lexis_master_unlock='))?.split('=')[1];
@@ -116,7 +128,10 @@ export default function SettingsPage() {
     }
 
     loadUsers();
-    return () => { isMounted.current = false; };
+    return () => { 
+      isMounted.current = false;
+      window.removeEventListener('storage', loadSettings);
+    };
   }, [profile?.empresa_id]);
 
   const loadUsers = async () => {
@@ -134,6 +149,16 @@ export default function SettingsPage() {
     setter(value);
     localStorage.setItem(key, value);
     window.dispatchEvent(new Event('storage'));
+  };
+
+  const handleAutoThemeToggle = (checked: boolean) => {
+    setAutoTheme(checked);
+    localStorage.setItem('lexis_auto_theme', checked ? 'true' : 'false');
+    window.dispatchEvent(new Event('storage'));
+    toast({ 
+      title: checked ? "Sincronização Ativa" : "Sincronização Desligada",
+      description: checked ? "A IA agora ajusta o tema em tempo real com base no fundo." : "Você retomou o controle manual total."
+    });
   };
 
   const handleLocalFile = async (e: React.ChangeEvent<HTMLInputElement>, target: 'main' | 'side') => {
@@ -243,7 +268,7 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Configuração Sistema</h1>
-            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v180.0 Elite Local</Badge>
+            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v210.0 Elite Adaptativa</Badge>
           </div>
         </header>
 
@@ -278,6 +303,21 @@ export default function SettingsPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-6 space-y-8">
+                    
+                    {/* BOTÃO DE SINCRONIZAÇÃO AUTOMÁTICA (O QUE O USUÁRIO ESTAVA PROCURANDO) */}
+                    <div className="p-5 bg-black border-2 border-black flex items-center justify-between group transition-all cursor-default shadow-[8px_8px_0px_#facc15]">
+                       <div className="flex items-center gap-4">
+                          <div className="bg-white p-2 border-2 border-black">
+                            <Zap size={24} className="text-black animate-pulse" />
+                          </div>
+                          <div>
+                            <p className="font-black text-xs uppercase text-white tracking-widest">Sincronização Cromática IA (On/Off)</p>
+                            <p className="text-[9px] font-black uppercase text-white/60">Atualiza cores quadro a quadro com base no fundo.</p>
+                          </div>
+                       </div>
+                       <Switch checked={autoTheme} onCheckedChange={handleAutoThemeToggle} className="data-[state=checked]:bg-yellow-400 border-2 border-white" />
+                    </div>
+
                     <div className="space-y-4">
                       <Label className="font-black text-black text-xs uppercase">Modo de Aplicação de Fundo</Label>
                       <RadioGroup value={wpMode} onValueChange={(v: any) => setWpMode(v)} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -335,9 +375,20 @@ export default function SettingsPage() {
                       <Slider value={[wpOpacity]} onValueChange={([v]) => setWpOpacity(v)} max={1} step={0.01} className="[&_[role=slider]]:bg-black" />
                     </div>
 
-                    <div className="pt-4 border-t-2 border-black space-y-8">
+                    <div className="pt-4 border-t-2 border-black space-y-8 relative">
+                       {/* AVISO DE MODO AUTOMÁTICO IA */}
+                       {autoTheme && (
+                         <div className="absolute inset-0 bg-white/60 backdrop-blur-[4px] z-20 flex flex-col items-center justify-center p-8 text-center border-2 border-black m-[-2px]">
+                            <div className="bg-black text-white p-8 border-2 border-black shadow-[15px_15px_0px_#facc15] flex flex-col items-center gap-4 max-w-[300px]">
+                               <Bot size={48} className="animate-bounce text-yellow-400" />
+                               <p className="text-sm font-black uppercase tracking-tighter">IA NO COMANDO</p>
+                               <p className="text-[10px] font-black uppercase text-white/60 leading-relaxed">As cores de fontes, botões e ícones estão sendo adaptadas automaticamente quadro a quadro.</p>
+                               <Button size="sm" onClick={() => handleAutoThemeToggle(false)} className="bg-yellow-400 text-black font-black uppercase text-[10px] rounded-none border-2 border-black hover:bg-white transition-all w-full h-10">Retomar Controle Manual</Button>
+                            </div>
+                         </div>
+                       )}
                        <h3 className="font-black text-xs uppercase flex items-center gap-2">
-                         <Palette size={16} /> Paleta de Identidade do Gabinete
+                         <Palette size={16} /> Personalização Individual de Elementos
                        </h3>
                        
                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
@@ -410,6 +461,7 @@ export default function SettingsPage() {
                            <form onSubmit={handleCreateOperator}>
                              <DialogHeader>
                                <DialogTitle className="text-black font-black uppercase">Provisionar Acesso</DialogTitle>
+                               <DialogDescription className="sr-only">Formulário para criar novo acesso de operador no sistema.</DialogDescription>
                              </DialogHeader>
                              <div className="grid gap-4 py-4">
                                <div className="grid gap-1">

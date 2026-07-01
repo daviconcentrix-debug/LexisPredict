@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -41,8 +41,94 @@ export function Sidebar() {
   const isMounted = useRef(true);
   const lastAppliedSettings = useRef<string>('');
   const activeBlobUrls = useRef<{ main?: string; side?: string }>({});
+  const samplingCanvas = useRef<HTMLCanvasElement | null>(null);
 
   const isAdmin = profile?.cargo === 'Administrador';
+
+  const extractColorsFromElement = useCallback((element: HTMLImageElement | HTMLVideoElement) => {
+    if (!samplingCanvas.current) {
+      samplingCanvas.current = document.createElement('canvas');
+    }
+    const canvas = samplingCanvas.current;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+
+    canvas.width = 50;
+    canvas.height = 50;
+
+    try {
+      ctx.drawImage(element, 0, 0, 50, 50);
+      const data = ctx.getImageData(0, 0, 50, 50).data;
+      
+      let r = 0, g = 0, b = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        r += data[i];
+        r += data[i+1];
+        r += data[i+2];
+      }
+      
+      const count = data.length / 4;
+      const avgR = Math.round(r / count);
+      const avgG = Math.round(g / count);
+      const avgB = Math.round(b / count);
+
+      // Luminância (ITU-R BT.709)
+      const lum = (0.2126 * avgR + 0.7152 * avgG + 0.0722 * avgB) / 255;
+      
+      const toHex = (c: number) => c.toString(16).padStart(2, '0');
+      const dominant = `#${toHex(avgR)}${toHex(avgG)}${toHex(avgB)}`;
+      
+      // Regras de Contraste Automático
+      const isLight = lum > 0.5;
+      const font = isLight ? '#000000' : '#ffffff';
+      const border = isLight ? '#000000' : '#ffffff';
+      const btnBg = isLight ? '#000000' : '#ffffff';
+      const btnText = isLight ? '#ffffff' : '#000000';
+      const icon = isLight ? '#000000' : '#ffffff';
+
+      return { dominant, font, border, btnBg, btnText, icon, lum };
+    } catch (e) {
+      return null;
+    }
+  }, []);
+
+  // MOTOR DE SINCRONIZAÇÃO NEURAL (QUADRO A QUADRO - Frequência de 1Hz)
+  useEffect(() => {
+    if (!isMounted.current) return;
+
+    const sampleFrame = () => {
+      const isAuto = localStorage.getItem('lexis_auto_theme') === 'true';
+      if (!isAuto) return;
+
+      const mainLayer = document.querySelector('.lexis-bg-layer');
+      const video = mainLayer?.querySelector('video');
+      const img = mainLayer?.querySelector('img');
+
+      let target: HTMLVideoElement | HTMLImageElement | null = null;
+      if (video && video.readyState >= 2) target = video;
+      else if (img && img.complete) target = img;
+
+      if (target) {
+        const colors = extractColorsFromElement(target);
+        if (colors) {
+          const lastDominant = localStorage.getItem('lexisPredict_last_sampled');
+          if (colors.dominant !== lastDominant) {
+            localStorage.setItem('lexisPredict_bg_color', colors.dominant);
+            localStorage.setItem('lexisPredict_font_color', colors.font);
+            localStorage.setItem('lexisPredict_btn_bg_color', colors.btnBg);
+            localStorage.setItem('lexisPredict_btn_text_color', colors.btnText);
+            localStorage.setItem('lexisPredict_icon_color', colors.icon);
+            localStorage.setItem('lexisPredict_border_color', colors.border);
+            localStorage.setItem('lexisPredict_last_sampled', colors.dominant);
+            window.dispatchEvent(new Event('storage'));
+          }
+        }
+      }
+    };
+
+    const interval = setInterval(sampleFrame, 1000); // 1 segundo garante fluidez total
+    return () => clearInterval(interval);
+  }, [extractColorsFromElement]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -57,6 +143,7 @@ export function Sidebar() {
         mainType: localStorage.getItem('lexis_wp_main_type') || 'image',
         sideType: localStorage.getItem('lexis_wp_sidebar_type') || 'image',
         opacity: localStorage.getItem('lexis_wp_opacity') || '1',
+        autoTheme: localStorage.getItem('lexis_auto_theme') === 'true',
         bgColor: localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2',
         fontColor: localStorage.getItem('lexisPredict_font_color') || '#000000',
         btnBgColor: localStorage.getItem('lexisPredict_btn_bg_color') || '#000000',
@@ -67,77 +154,71 @@ export function Sidebar() {
 
       const settingsKey = JSON.stringify(settings);
       if (settingsKey === lastAppliedSettings.current) return;
-      lastAppliedSettings.current = settingsKey;
-
-      // 1. Injeção Dinâmica de Estilo (Override de Identidade Visual)
-      let fontStyle = document.getElementById('lexis-custom-theme') as HTMLStyleElement;
-      if (!fontStyle) {
-        fontStyle = document.createElement('style');
-        fontStyle.id = 'lexis-custom-theme';
-        document.head.appendChild(fontStyle);
-      }
       
-      fontStyle.innerHTML = `
-        /* Fontes e Textos */
-        body, .text-black, h1, h2, h3, h4, h5, h6, p, span, label, input, textarea, select, .font-black {
-          color: ${settings.fontColor} !important;
-        }
-        .text-muted-foreground {
-          color: ${settings.fontColor}99 !important;
-        }
-        input::placeholder, textarea::placeholder {
-          color: ${settings.fontColor}44 !important;
+      // Injeção de Estilo
+      const injectStyle = (overrides: Partial<typeof settings>) => {
+        let fontStyle = document.getElementById('lexis-custom-theme') as HTMLStyleElement;
+        if (!fontStyle) {
+          fontStyle = document.createElement('style');
+          fontStyle.id = 'lexis-custom-theme';
+          document.head.appendChild(fontStyle);
         }
 
-        /* Bordas e Divisores */
-        .border-black, .border-2, .border-r, .border-b, .border-t, .border-l, border-collapse, hr {
-          border-color: ${settings.borderColor} !important;
-        }
-        .divide-black\\/5 > * + *, .divide-black\\/10 > * + * {
-          border-color: ${settings.borderColor}22 !important;
-        }
-
-        /* Ícones */
-        svg {
-          stroke: ${settings.iconColor} !important;
-        }
+        const activeColors = { ...settings, ...overrides };
         
-        /* Botões e Elementos Ativos */
-        .bg-black {
-          background-color: ${settings.btnBgColor} !important;
-          color: ${settings.btnTextColor} !important;
-        }
-        button.bg-black, a.bg-black {
-          color: ${settings.btnTextColor} !important;
-        }
-        button.bg-black svg, a.bg-black svg {
-          stroke: ${settings.btnTextColor} !important;
-        }
-        .hover\\:bg-black:hover {
-          background-color: ${settings.btnBgColor} !important;
-          color: ${settings.btnTextColor} !important;
-        }
-        .hover\\:bg-black:hover svg {
-          stroke: ${settings.btnTextColor} !important;
-        }
+        fontStyle.innerHTML = `
+          body, .text-black, h1, h2, h3, h4, h5, h6, p, span, label, input, textarea, select, .font-black {
+            color: ${activeColors.fontColor} !important;
+          }
+          .text-muted-foreground {
+            color: ${activeColors.fontColor}99 !important;
+          }
+          input::placeholder, textarea::placeholder {
+            color: ${activeColors.fontColor}44 !important;
+          }
+          .border-black, .border-2, .border-r, .border-b, .border-t, .border-l, border-collapse, hr {
+            border-color: ${activeColors.borderColor} !important;
+          }
+          .divide-black\\/5 > * + *, .divide-black\\/10 > * + * {
+            border-color: ${activeColors.borderColor}22 !important;
+          }
+          svg {
+            stroke: ${activeColors.iconColor} !important;
+          }
+          .bg-black {
+            background-color: ${activeColors.btnBgColor} !important;
+            color: ${activeColors.btnTextColor} !important;
+          }
+          button.bg-black, a.bg-black {
+            color: ${activeColors.btnTextColor} !important;
+          }
+          button.bg-black svg, a.bg-black svg {
+            stroke: ${activeColors.btnTextColor} !important;
+          }
+          .hover\\:bg-black:hover {
+            background-color: ${activeColors.btnBgColor} !important;
+            color: ${activeColors.btnTextColor} !important;
+          }
+          .hover\\:bg-black:hover svg {
+            stroke: ${activeColors.btnTextColor} !important;
+          }
+          .icon-3d-block {
+            border-color: ${activeColors.borderColor} !important;
+          }
+          .icon-3d-block::before, .icon-3d-block::after {
+            background-color: ${activeColors.borderColor} !important;
+            opacity: 0.8;
+          }
+          .icon-3d-block.black {
+            background-color: ${activeColors.btnBgColor} !important;
+          }
+          .icon-3d-block.black svg {
+            stroke: ${activeColors.btnTextColor} !important;
+          }
+        `;
+      };
 
-        /* Ícones 3D Isométricos */
-        .icon-3d-block {
-          border-color: ${settings.borderColor} !important;
-        }
-        .icon-3d-block::before, .icon-3d-block::after {
-          background-color: ${settings.borderColor} !important;
-          opacity: 0.8;
-        }
-        .icon-3d-block.black {
-          background-color: ${settings.btnBgColor} !important;
-        }
-        .icon-3d-block.black svg {
-          stroke: ${settings.btnTextColor} !important;
-        }
-      `;
-
-      // 2. Resolução de Assets Locais (IndexedDB)
+      // Resolução de Assets
       const resolveSrc = async (key: string, storedValue: string | null, target: 'main' | 'side') => {
         if (storedValue === 'LOCAL_ASSET') {
           const blob = await browserStorage.getAsset(key);
@@ -156,15 +237,12 @@ export function Sidebar() {
 
       const mainElement = document.querySelector('main');
       const sidebarElement = document.querySelector('aside');
-      const rootContainer = mainElement?.parentElement;
-
-      if (rootContainer) rootContainer.style.backgroundColor = settings.bgColor;
+      
+      if (mainElement?.parentElement) mainElement.parentElement.style.backgroundColor = settings.bgColor;
       if (mainElement) mainElement.style.backgroundColor = 'transparent';
 
-      // 3. Gerenciamento de Camadas Multimídia
       const updateLayer = (el: HTMLElement | null, className: string, url: string | null, type: string, opacity: string) => {
         if (!el) return;
-        
         let layer = el.querySelector(`.${className}`) as HTMLElement;
         if (!layer) {
           layer = document.createElement('div');
@@ -175,15 +253,12 @@ export function Sidebar() {
           });
           el.appendChild(layer);
         }
-
         layer.style.opacity = opacity;
 
         if (url) {
           if (type === 'video') {
             const currentVideo = layer.querySelector('video');
-            const currentSrc = currentVideo?.querySelector('source')?.getAttribute('src');
-            
-            if (currentSrc !== url) {
+            if (currentVideo?.querySelector('source')?.getAttribute('src') !== url) {
               layer.innerHTML = `
                 <video autoplay muted loop playsinline preload="auto" style="width:100%; height:100%; object-fit:cover; will-change:transform; transform: translate3d(0,0,0);">
                   <source src="${url}">
@@ -191,8 +266,7 @@ export function Sidebar() {
               `;
             }
           } else {
-            layer.innerHTML = '';
-            layer.style.background = `url(${url}) center/cover no-repeat fixed`;
+            layer.innerHTML = `<img src="${url}" style="width:100%; height:100%; object-fit:cover; position:fixed; top:0; left:0; z-index:-1;" />`;
           }
         } else {
           layer.innerHTML = '';
@@ -210,20 +284,21 @@ export function Sidebar() {
         sidebarElement.style.backgroundColor = activeSideUrl ? 'transparent' : 'white';
         updateLayer(sidebarElement, 'lexis-side-bg-layer', activeSideUrl, activeSideType, settings.opacity);
       }
+
+      if (!settings.autoTheme) injectStyle({});
+      lastAppliedSettings.current = settingsKey;
     };
 
     applyAppearance();
     window.addEventListener('storage', applyAppearance);
-    const interval = setInterval(applyAppearance, 3000);
+    const interval = setInterval(applyAppearance, 2000);
     
     return () => {
       isMounted.current = false;
       window.removeEventListener('storage', applyAppearance);
       clearInterval(interval);
-      if (activeBlobUrls.current.main) URL.revokeObjectURL(activeBlobUrls.current.main);
-      if (activeBlobUrls.current.side) URL.revokeObjectURL(activeBlobUrls.current.side);
     };
-  }, []);
+  }, [extractColorsFromElement]);
 
   const handleLogout = async () => {
     document.cookie = "lexis_master_unlock=; path=/; max-age=0";
@@ -423,7 +498,7 @@ export function Sidebar() {
               variant="ghost" 
               size="icon" 
               onClick={() => setCollapsed(!collapsed)}
-              className="h-6 w-6 text-black/40 hover:bg-black hover:text-white"
+              className="h-6 v-6 text-black/40 hover:bg-black hover:text-white"
             >
               {collapsed ? <PanelLeft size={14} /> : <PanelLeftClose size={14} />}
             </Button>
