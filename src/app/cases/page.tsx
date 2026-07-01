@@ -7,16 +7,17 @@ import {
   Search, 
   Trash2, 
   ExternalLink, 
-  RefreshCcw,
-  Plus,
-  Briefcase,
-  Edit2,
-  CheckCircle,
-  Clock,
-  Copyright,
-  ShieldCheck,
-  FileText,
-  MessageCircle
+  RefreshCcw, 
+  Plus, 
+  Briefcase, 
+  Edit2, 
+  CheckCircle, 
+  Clock, 
+  Copyright, 
+  ShieldCheck, 
+  FileText, 
+  MessageCircle, 
+  Info 
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -48,6 +49,7 @@ function CasesContent() {
   const [search, setSearch] = useState(initialSearch);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [obsDialogOpen, setObsDialogOpen] = useState<string | null>(null);
   const [editingCase, setEditingCase] = useState<LegalCase | null>(null);
   const { isAdmin, isOperador } = useAdmin();
   const { toast } = useToast();
@@ -182,9 +184,9 @@ function CasesContent() {
   }, [cases, search]);
 
   return (
-    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10">
+    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <header className="h-16 border-b border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default tracking-tighter">
@@ -202,39 +204,39 @@ function CasesContent() {
                     <Plus className="w-3.5 h-3.5 mr-2" /> Novo Processo
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-white border-2 border-black text-black sm:max-w-[425px]">
+                <DialogContent className="bg-white border-2 border-black text-black sm:max-w-[425px] rounded-none">
                   <form onSubmit={handleSaveCase}>
                     <DialogHeader>
-                      <DialogTitle className="font-black uppercase text-black">{editingCase ? "Editar Processo" : "Registro de Caso"}</DialogTitle>
+                      <DialogTitle className="font-black uppercase text-black">Registro de Caso</DialogTitle>
                       <DialogDescription className="font-bold text-black/60 uppercase text-[9px]">Sincronização imediata com silo de gabinete.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
                         <Label htmlFor="name" className="font-black text-black text-[10px] uppercase">NOME DO CLIENTE</Label>
-                        <Input id="name" value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="border-black text-black font-black uppercase" />
+                        <Input id="name" value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="border-black text-black font-black uppercase rounded-none" />
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="protocol" className="font-black text-black text-[10px] uppercase">PROTOCOLO CNJ</Label>
-                        <Input id="protocol" placeholder="0000000-00.2025.8.00.0000" value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="border-black text-black font-black" />
+                        <Input id="protocol" placeholder="0000000-00.2025.8.00.0000" value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="border-black text-black font-black rounded-none" />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                           <Label htmlFor="lawyer" className="font-black text-black text-[10px] uppercase">ADVOGADO</Label>
-                           <Input id="lawyer" value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="border-black text-black font-black uppercase" />
+                           <Label htmlFor="lawyer" className="font-black text-black text-[10px] uppercase">ADVOGADO RESPONSÁVEL</Label>
+                           <Input id="lawyer" value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="border-black text-black font-black uppercase rounded-none" />
                         </div>
                         <div className="grid gap-2">
                            <Label htmlFor="phone" className="font-black text-black text-[10px] uppercase">WHATSAPP / FONE</Label>
-                           <Input id="phone" value={formState.telefone} onChange={(e) => setFormState({...formState, telefone: e.target.value})} className="border-black text-black font-black uppercase" placeholder="(00) 00000-0000" />
+                           <Input id="phone" value={formState.telefone} onChange={(e) => setFormState({...formState, telefone: e.target.value})} className="border-black text-black font-black uppercase rounded-none" placeholder="(00) 00000-0000" />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                           <Label htmlFor="status_manual" className="font-black text-black text-[10px] uppercase">STATUS ESTRATÉGICO</Label>
                           <Select value={formState.statusManual} onValueChange={(val) => setFormState({...formState, statusManual: val as any})}>
-                            <SelectTrigger className="border-black font-black uppercase h-10 text-[10px]">
+                            <SelectTrigger className="border-black font-black uppercase h-10 text-[10px] rounded-none">
                               <SelectValue placeholder="Selecione..." />
                             </SelectTrigger>
-                            <SelectContent className="bg-white border-2 border-black">
+                            <SelectContent className="bg-white border-2 border-black rounded-none">
                               <SelectItem value="Automatico" className="font-black uppercase text-[10px]">Automático (Prazo)</SelectItem>
                               <SelectItem value="Caso Crítico" className="font-black uppercase text-[10px]">Caso Crítico</SelectItem>
                               <SelectItem value="Atenção" className="font-black uppercase text-[10px]">Atenção</SelectItem>
@@ -245,38 +247,38 @@ function CasesContent() {
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="deadline" className="font-black text-black text-[10px] uppercase">PRAZO (DD/MM/AAAA)</Label>
-                          <Input id="deadline" placeholder="30/12/2026" value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="border-black text-black font-black" />
+                          <Input id="deadline" placeholder="30/12/2026" value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="border-black text-black font-black rounded-none" />
                         </div>
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="obs" className="font-black text-black text-[10px] uppercase">OBSERVAÇÕES ESTRATÉGICAS</Label>
-                        <Textarea id="obs" value={formState.observacao} onChange={(e) => setFormState({...formState, observacao: e.target.value})} className="border-black text-black font-black uppercase text-[10px] min-h-[80px]" placeholder="NOTAS ADICIONAIS..." />
+                        <Textarea id="obs" value={formState.observacao} onChange={(e) => setFormState({...formState, observacao: e.target.value})} className="border-black text-black font-black uppercase text-[10px] min-h-[80px] rounded-none" placeholder="NOTAS ADICIONAIS..." />
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button type="submit" className="w-full font-black text-white bg-black hover:bg-white hover:text-black border-2 border-black uppercase h-11 transition-all">Sincronizar Dados</Button>
+                      <Button type="submit" className="w-full font-black text-white bg-black hover:bg-white hover:text-black border-2 border-black uppercase h-11 transition-all rounded-none">Sincronizar Dados</Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
               </Dialog>
             )}
             
-            <Button variant="ghost" size="sm" onClick={loadData} className="h-9 text-black font-black hover:bg-black hover:text-white border-2 border-black transition-all uppercase text-[10px] px-6 bg-white">
+            <Button variant="ghost" size="sm" onClick={loadData} className="h-9 text-black font-black hover:bg-black hover:text-white border-2 border-black transition-all uppercase text-[10px] px-6 bg-white rounded-none">
               <RefreshCcw className={cn("w-3.5 h-3.5 mr-2", loading && "animate-spin")} /> Sincronizar
             </Button>
           </div>
         </header>
 
-        <div className="flex-1 flex-col p-8 overflow-hidden">
-          <div className="bg-white/90 backdrop-blur-md border-2 border-black rounded-none shadow-[8px_8px_0px_#000] flex-1 flex flex-col overflow-hidden">
-            <div className="p-4 border-b-2 border-black bg-[#f8f9fb] flex items-center gap-4">
+        <div className="flex-1 flex flex-col p-8 overflow-hidden min-h-0">
+          <div className="bg-white/90 backdrop-blur-md border-2 border-black rounded-none shadow-[8px_8px_0px_#000] flex-1 flex flex-col overflow-hidden min-h-0">
+            <div className="p-4 border-b-2 border-black bg-[#f8f9fb] flex items-center gap-4 shrink-0">
               <div className="relative w-full sm:w-80">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
                 <Input 
                   placeholder="BUSCAR CLIENTE, PROTOCOLO OU ADVOGADO..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10 border-black h-10 text-[11px] font-black focus-visible:ring-0 text-black uppercase bg-white"
+                  className="pl-10 border-black h-10 text-[11px] font-black focus-visible:ring-0 text-black uppercase bg-white rounded-none"
                 />
               </div>
               <Badge className="bg-black text-white border-none font-black text-[10px] uppercase px-3 h-10 flex items-center rounded-none tracking-widest">
@@ -284,16 +286,16 @@ function CasesContent() {
               </Badge>
             </div>
 
-            <div className="flex-1 overflow-auto">
-              <table className="w-full text-left border-collapse min-w-[1000px]">
-                <thead className="sticky top-0 bg-[#f3f2f2] z-10 border-b-2 border-black">
+            <div className="flex-1 overflow-auto min-h-0 min-w-0">
+              <table className="w-full text-left border-collapse min-w-[1200px]">
+                <thead className="sticky top-0 bg-[#f3f2f2] z-20 border-b-2 border-black shadow-sm">
                   <tr className="text-[10px] uppercase font-black text-black/40 tracking-widest">
-                    <th className="px-6 py-4">Conta / Cliente / Protocolo</th>
-                    <th className="px-6 py-4">Tribunal Público</th>
-                    <th className="px-6 py-4">Responsável Técnico</th>
-                    <th className="px-6 py-4">Status / Prazo</th>
-                    <th className="px-6 py-4">Último Contato</th>
-                    <th className="px-6 py-4 text-right">Ações de Gabinete</th>
+                    <th className="px-6 py-4 bg-[#f3f2f2]">Conta / Cliente / Protocolo</th>
+                    <th className="px-6 py-4 bg-[#f3f2f2]">Tribunal Público</th>
+                    <th className="px-6 py-4 bg-[#f3f2f2]">Responsável Técnico</th>
+                    <th className="px-6 py-4 bg-[#f3f2f2]">Status / Prazo</th>
+                    <th className="px-6 py-4 bg-[#f3f2f2]">Último Contato</th>
+                    <th className="px-6 py-4 text-right bg-[#f3f2f2]">Ações de Gabinete</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y-2 divide-black/5">
@@ -306,7 +308,7 @@ function CasesContent() {
                         </div>
                       </td>
                       <td className="px-6 py-5">
-                        <Badge variant="outline" className="bg-white border-black border-2 font-black text-[9px] text-black group-hover:bg-white group-hover:text-black uppercase">
+                        <Badge variant="outline" className="bg-white border-black border-2 font-black text-[9px] text-black group-hover:bg-white group-hover:text-black uppercase rounded-none">
                           {c.tribunal}
                         </Badge>
                       </td>
@@ -341,7 +343,7 @@ function CasesContent() {
                               variant="ghost" 
                               size="icon" 
                               className="text-black group-hover:text-white" 
-                              onClick={() => toast({ title: "Nota Estratégica", description: c.observacao })}
+                              onClick={() => setObsDialogOpen(c.observacao || null)}
                             >
                               <FileText size={16} />
                             </Button>
@@ -401,6 +403,24 @@ function CasesContent() {
           <span className="w-1 h-1 bg-muted-foreground rounded-full opacity-30" />
           <span className="text-black font-black uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
         </footer>
+
+        <Dialog open={!!obsDialogOpen} onOpenChange={(open) => !open && setObsDialogOpen(null)}>
+          <DialogContent className="bg-white border-2 border-black text-black rounded-none sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="font-black uppercase flex items-center gap-2">
+                <Info size={18} className="text-black" /> Nota de Gabinete
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-6">
+              <p className="text-sm font-black uppercase leading-relaxed text-black whitespace-pre-wrap italic bg-gray-50 p-4 border-2 border-dashed border-black/20">
+                {obsDialogOpen}
+              </p>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setObsDialogOpen(null)} className="w-full font-black text-white bg-black hover:bg-white hover:text-black border-2 border-black uppercase h-11 transition-all rounded-none">Fechar Nota</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
