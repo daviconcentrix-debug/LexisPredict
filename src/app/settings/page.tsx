@@ -20,7 +20,8 @@ import {
   MousePointer2,
   Square,
   Zap,
-  Bot
+  Bot,
+  Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -76,10 +77,13 @@ export default function SettingsPage() {
   // Cores Customizadas
   const [bgColor, setBgColor] = useState('#f3f2f2');
   const [fontColor, setFontColor] = useState('#000000');
+  const [unselectedFontColor, setUnselectedFontColor] = useState('#000000');
   const [btnBgColor, setBtnBgColor] = useState('#000000');
+  const [unselectedBtnBgColor, setUnselectedBtnBgColor] = useState('#ffffff');
   const [btnTextColor, setBtnTextColor] = useState('#ffffff');
   const [iconColor, setIconColor] = useState('#000000');
   const [borderColor, setBorderColor] = useState('#000000');
+  const [containerOpacity, setContainerOpacity] = useState(1);
 
   const mainFileInputRef = useRef<HTMLInputElement>(null);
   const sideFileInputRef = useRef<HTMLInputElement>(null);
@@ -104,10 +108,13 @@ export default function SettingsPage() {
       setIaModel((localStorage.getItem('lexisPredict_preferred_ia') as any) || 'gemini');
       setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2');
       setFontColor(localStorage.getItem('lexisPredict_font_color') || '#000000');
+      setUnselectedFontColor(localStorage.getItem('lexisPredict_unselected_font_color') || '#000000');
       setBtnBgColor(localStorage.getItem('lexisPredict_btn_bg_color') || '#000000');
+      setUnselectedBtnBgColor(localStorage.getItem('lexisPredict_unselected_btn_bg_color') || '#ffffff');
       setBtnTextColor(localStorage.getItem('lexisPredict_btn_text_color') || '#ffffff');
       setIconColor(localStorage.getItem('lexisPredict_icon_color') || '#000000');
       setBorderColor(localStorage.getItem('lexisPredict_border_color') || '#000000');
+      setContainerOpacity(parseFloat(localStorage.getItem('lexisPredict_container_opacity') || '1'));
       setAutoTheme(localStorage.getItem('lexis_auto_theme') === 'true');
 
       setWpMode((localStorage.getItem('lexis_wp_mode') as any) || 'global');
@@ -132,7 +139,7 @@ export default function SettingsPage() {
       isMounted.current = false;
       window.removeEventListener('storage', loadSettings);
     };
-  }, [profile?.empresa_id]);
+  }, [profile?.empresa_id, isDevAccount]);
 
   const loadUsers = async () => {
     const users = await getEmpresaUsers();
@@ -148,6 +155,12 @@ export default function SettingsPage() {
   const handleColorChange = (key: string, value: string, setter: (v: string) => void) => {
     setter(value);
     localStorage.setItem(key, value);
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  const handleOpacityChange = (value: number) => {
+    setContainerOpacity(value);
+    localStorage.setItem('lexisPredict_container_opacity', value.toString());
     window.dispatchEvent(new Event('storage'));
   };
 
@@ -268,7 +281,7 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Configuração Sistema</h1>
-            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v210.0 Elite Adaptativa</Badge>
+            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v220.0 Elite Bi-Estável</Badge>
           </div>
         </header>
 
@@ -304,7 +317,6 @@ export default function SettingsPage() {
                   </CardHeader>
                   <CardContent className="p-6 space-y-8">
                     
-                    {/* BOTÃO DE SINCRONIZAÇÃO AUTOMÁTICA (O QUE O USUÁRIO ESTAVA PROCURANDO) */}
                     <div className="p-5 bg-black border-2 border-black flex items-center justify-between group transition-all cursor-default shadow-[8px_8px_0px_#facc15]">
                        <div className="flex items-center gap-4">
                           <div className="bg-white p-2 border-2 border-black">
@@ -326,6 +338,11 @@ export default function SettingsPage() {
                         <WpModeOption id="main_only" value="main_only" label="Apenas Conteúdo" />
                         <WpModeOption id="sidebar_only" value="sidebar_only" label="Apenas Sidebar" />
                       </RadioGroup>
+                    </div>
+
+                    <div className="space-y-6">
+                      <Label className="font-black text-black text-xs uppercase flex items-center gap-2"><Layers size={14}/> Opacidade dos Containers ({Math.round(containerOpacity * 100)}%)</Label>
+                      <Slider value={[containerOpacity]} onValueChange={([v]) => handleOpacityChange(v)} max={1} step={0.01} className="[&_[role=slider]]:bg-black" />
                     </div>
 
                     <div className="grid grid-cols-1 gap-8">
@@ -371,12 +388,11 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="space-y-6">
-                      <Label className="font-black text-black text-xs uppercase">Opacidade do Wallpaper ({Math.round(wpOpacity * 100)}%)</Label>
+                      <Label className="font-black text-black text-xs uppercase">Visibilidade do Wallpaper ({Math.round(wpOpacity * 100)}%)</Label>
                       <Slider value={[wpOpacity]} onValueChange={([v]) => setWpOpacity(v)} max={1} step={0.01} className="[&_[role=slider]]:bg-black" />
                     </div>
 
                     <div className="pt-4 border-t-2 border-black space-y-8 relative">
-                       {/* AVISO DE MODO AUTOMÁTICO IA */}
                        {autoTheme && (
                          <div className="absolute inset-0 bg-white/60 backdrop-blur-[4px] z-20 flex flex-col items-center justify-center p-8 text-center border-2 border-black m-[-2px]">
                             <div className="bg-black text-white p-8 border-2 border-black shadow-[15px_15px_0px_#facc15] flex flex-col items-center gap-4 max-w-[300px]">
@@ -393,11 +409,13 @@ export default function SettingsPage() {
                        
                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
                           <ColorPicker label="Cor de Fundo Base" value={bgColor} onChange={(v) => handleColorChange('lexisPredict_bg_color', v, setBgColor)} />
-                          <ColorPicker label="Cor das Fontes (Letras)" icon={<Type size={12}/>} value={fontColor} onChange={(v) => handleColorChange('lexisPredict_font_color', v, setFontColor)} />
-                          <ColorPicker label="Fundo dos Botões" icon={<Square size={12}/>} value={btnBgColor} onChange={(v) => handleColorChange('lexisPredict_btn_bg_color', v, setBtnBgColor)} />
+                          <ColorPicker label="Letras (Selecionadas)" icon={<Type size={12}/>} value={fontColor} onChange={(v) => handleColorChange('lexisPredict_font_color', v, setFontColor)} />
+                          <ColorPicker label="Letras (Não Selecionadas)" icon={<Type size={12}/>} value={unselectedFontColor} onChange={(v) => handleColorChange('lexisPredict_unselected_font_color', v, setUnselectedFontColor)} />
+                          <ColorPicker label="Botões (Selecionados)" icon={<Square size={12}/>} value={btnBgColor} onChange={(v) => handleColorChange('lexisPredict_btn_bg_color', v, setBtnBgColor)} />
+                          <ColorPicker label="Botões (Não Selecionados)" icon={<Square size={12}/>} value={unselectedBtnBgColor} onChange={(v) => handleColorChange('lexisPredict_unselected_btn_bg_color', v, setUnselectedBtnBgColor)} />
                           <ColorPicker label="Texto dos Botões" icon={<Type size={12}/>} value={btnTextColor} onChange={(v) => handleColorChange('lexisPredict_btn_text_color', v, setBtnTextColor)} />
                           <ColorPicker label="Cor dos Ícones" icon={<MousePointer2 size={12}/>} value={iconColor} onChange={(v) => handleColorChange('lexisPredict_icon_color', v, setIconColor)} />
-                          <ColorPicker label="Cor das Bordas e Detalhes" icon={<Square size={12}/>} value={borderColor} onChange={(v) => handleColorChange('lexisPredict_border_color', v, setBorderColor)} />
+                          <ColorPicker label="Bordas e Detalhes" icon={<Square size={12}/>} value={borderColor} onChange={(v) => handleColorChange('lexisPredict_border_color', v, setBorderColor)} />
                        </div>
                     </div>
 

@@ -92,7 +92,6 @@ export function Sidebar() {
     }
   }, []);
 
-  // MOTOR DE SINCRONIZAÇÃO NEURAL (QUADRO A QUADRO - Frequência de 1Hz)
   useEffect(() => {
     if (!isMounted.current) return;
 
@@ -126,13 +125,20 @@ export function Sidebar() {
       }
     };
 
-    const interval = setInterval(sampleFrame, 1000); // 1 segundo garante fluidez total
+    const interval = setInterval(sampleFrame, 1000);
     return () => clearInterval(interval);
   }, [extractColorsFromElement]);
 
   useEffect(() => {
     isMounted.current = true;
     
+    const hexToRgba = (hex: string, opacity: number) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    };
+
     const applyAppearance = async () => {
       if (typeof window === 'undefined' || !isMounted.current) return;
 
@@ -146,17 +152,19 @@ export function Sidebar() {
         autoTheme: localStorage.getItem('lexis_auto_theme') === 'true',
         bgColor: localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2',
         fontColor: localStorage.getItem('lexisPredict_font_color') || '#000000',
+        unselectedFontColor: localStorage.getItem('lexisPredict_unselected_font_color') || '#000000',
         btnBgColor: localStorage.getItem('lexisPredict_btn_bg_color') || '#000000',
+        unselectedBtnBgColor: localStorage.getItem('lexisPredict_unselected_btn_bg_color') || '#ffffff',
         btnTextColor: localStorage.getItem('lexisPredict_btn_text_color') || '#ffffff',
         iconColor: localStorage.getItem('lexisPredict_icon_color') || '#000000',
         borderColor: localStorage.getItem('lexisPredict_border_color') || '#000000',
+        containerOpacity: parseFloat(localStorage.getItem('lexisPredict_container_opacity') || '1'),
       };
 
       const settingsKey = JSON.stringify(settings);
       if (settingsKey === lastAppliedSettings.current) return;
       
-      // Injeção de Estilo
-      const injectStyle = (overrides: Partial<typeof settings>) => {
+      const injectStyle = () => {
         let fontStyle = document.getElementById('lexis-custom-theme') as HTMLStyleElement;
         if (!fontStyle) {
           fontStyle = document.createElement('style');
@@ -164,61 +172,70 @@ export function Sidebar() {
           document.head.appendChild(fontStyle);
         }
 
-        const activeColors = { ...settings, ...overrides };
+        const btnBgRgba = hexToRgba(settings.btnBgColor, settings.containerOpacity);
+        const unselectedBtnBgRgba = hexToRgba(settings.unselectedBtnBgColor, settings.containerOpacity);
+        const borderRgba = hexToRgba(settings.borderColor, settings.containerOpacity);
         
         fontStyle.innerHTML = `
           body, .text-black, h1, h2, h3, h4, h5, h6, p, span, label, input, textarea, select, .font-black {
-            color: ${activeColors.fontColor} !important;
+            color: ${settings.fontColor} !important;
           }
-          .text-muted-foreground {
-            color: ${activeColors.fontColor}99 !important;
+          .text-muted-foreground, .unselected-text {
+            color: ${settings.unselectedFontColor} !important;
+            opacity: 0.8;
           }
           input::placeholder, textarea::placeholder {
-            color: ${activeColors.fontColor}44 !important;
+            color: ${settings.fontColor}44 !important;
           }
           .border-black, .border-2, .border-r, .border-b, .border-t, .border-l, border-collapse, hr {
-            border-color: ${activeColors.borderColor} !important;
+            border-color: ${borderRgba} !important;
           }
           .divide-black\\/5 > * + *, .divide-black\\/10 > * + * {
-            border-color: ${activeColors.borderColor}22 !important;
+            border-color: ${settings.borderColor}22 !important;
           }
           svg {
-            stroke: ${activeColors.iconColor} !important;
+            stroke: ${settings.iconColor} !important;
           }
-          .bg-black {
-            background-color: ${activeColors.btnBgColor} !important;
-            color: ${activeColors.btnTextColor} !important;
+          /* Estado Ativo/Selecionado */
+          .bg-black, [data-active="true"], .active-item {
+            background-color: ${btnBgRgba} !important;
+            color: ${settings.btnTextColor} !important;
           }
-          button.bg-black, a.bg-black {
-            color: ${activeColors.btnTextColor} !important;
+          .bg-black svg, [data-active="true"] svg {
+            stroke: ${settings.btnTextColor} !important;
           }
-          button.bg-black svg, a.bg-black svg {
-            stroke: ${activeColors.btnTextColor} !important;
+          /* Estado Inativo/Não Selecionado */
+          .bg-white, .bg-sidebar, .bg-card, [data-active="false"], .inactive-item {
+            background-color: ${unselectedBtnBgRgba} !important;
+            color: ${settings.unselectedFontColor} !important;
           }
+          .bg-white svg, .inactive-item svg {
+            stroke: ${settings.iconColor} !important;
+          }
+          /* Hover */
           .hover\\:bg-black:hover {
-            background-color: ${activeColors.btnBgColor} !important;
-            color: ${activeColors.btnTextColor} !important;
+            background-color: ${btnBgRgba} !important;
+            color: ${settings.btnTextColor} !important;
           }
           .hover\\:bg-black:hover svg {
-            stroke: ${activeColors.btnTextColor} !important;
+            stroke: ${settings.btnTextColor} !important;
           }
           .icon-3d-block {
-            border-color: ${activeColors.borderColor} !important;
+            border-color: ${borderRgba} !important;
           }
           .icon-3d-block::before, .icon-3d-block::after {
-            background-color: ${activeColors.borderColor} !important;
+            background-color: ${settings.borderColor} !important;
             opacity: 0.8;
           }
           .icon-3d-block.black {
-            background-color: ${activeColors.btnBgColor} !important;
+            background-color: ${btnBgRgba} !important;
           }
           .icon-3d-block.black svg {
-            stroke: ${activeColors.btnTextColor} !important;
+            stroke: ${settings.btnTextColor} !important;
           }
         `;
       };
 
-      // Resolução de Assets
       const resolveSrc = async (key: string, storedValue: string | null, target: 'main' | 'side') => {
         if (storedValue === 'LOCAL_ASSET') {
           const blob = await browserStorage.getAsset(key);
@@ -285,7 +302,7 @@ export function Sidebar() {
         updateLayer(sidebarElement, 'lexis-side-bg-layer', activeSideUrl, activeSideType, settings.opacity);
       }
 
-      if (!settings.autoTheme) injectStyle({});
+      if (!settings.autoTheme) injectStyle();
       lastAppliedSettings.current = settingsKey;
     };
 
@@ -378,8 +395,8 @@ export function Sidebar() {
             {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[11px] font-black text-black transition-colors truncate uppercase">{profile?.nome || 'Gabinete'}</span>
-            <span className="text-[9px] text-black/60 transition-colors font-black uppercase truncate italic">{profile?.cargo || 'Operador'}</span>
+            <span className="text-[11px] font-black text-black transition-colors uppercase">{profile?.nome || 'Gabinete'}</span>
+            <span className="text-[9px] text-black/60 transition-colors font-black uppercase italic">{profile?.cargo || 'Operador'}</span>
           </div>
         </div>
         <Button 
@@ -514,6 +531,7 @@ function NavLink({ item, collapsed, active, onClick }: { item: any, collapsed: b
     <Link 
       href={item.href}
       onClick={onClick}
+      data-active={active ? "true" : "false"}
       className={cn(
         "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative border-2 border-transparent",
         active 
