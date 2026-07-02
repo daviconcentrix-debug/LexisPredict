@@ -72,9 +72,9 @@ export default function Dashboard() {
   if (!mounted) return null;
 
   return (
-    <div className="flex h-screen bg-white font-sans text-black overflow-hidden">
+    <div className="flex h-screen bg-transparent font-sans text-black overflow-hidden relative">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative bg-transparent">
         <header className="h-16 lg:h-16 border-b border-black bg-white flex items-center justify-between px-6 lg:px-8 shrink-0 z-40">
           <div className="flex items-center gap-6">
             <h1 className="font-black text-lg lg:text-xl text-black tracking-tighter uppercase hover:bg-black hover:text-white px-3 py-1 transition-all rounded-sm cursor-default pl-12 lg:pl-3">
@@ -93,7 +93,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto bg-[#f3f2f2] p-4 lg:p-8 space-y-8">
+        <div className="flex-1 overflow-auto bg-transparent p-4 lg:p-8 space-y-8 relative z-10">
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
             <StatCard title="Processos" value={loading ? "..." : metrics.total} icon={<Briefcase size={20} />} color="primary" />
             <StatCard title="Alertas" value={loading ? "..." : metrics.critical} icon={<ShieldAlert size={20} />} color="destructive" />

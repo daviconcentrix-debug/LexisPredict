@@ -175,10 +175,11 @@ export function Sidebar() {
         const btnBgRgba = hexToRgba(settings.btnBgColor, settings.containerOpacity);
         const unselectedBtnBgRgba = hexToRgba(settings.unselectedBtnBgColor, settings.containerOpacity);
         const borderRgba = hexToRgba(settings.borderColor, settings.containerOpacity);
+        const fontRgba = settings.fontColor;
         
         fontStyle.innerHTML = `
           body, .text-black, h1, h2, h3, h4, h5, h6, p, span, label, input, textarea, select, .font-black {
-            color: ${settings.fontColor} !important;
+            color: ${fontRgba} !important;
           }
           .text-muted-foreground, .unselected-text {
             color: ${settings.unselectedFontColor} !important;
@@ -204,13 +205,18 @@ export function Sidebar() {
           .bg-black svg, [data-active="true"] svg {
             stroke: ${settings.btnTextColor} !important;
           }
-          /* Estado Inativo/Não Selecionado */
-          .bg-white, .bg-sidebar, .bg-card, [data-active="false"], .inactive-item {
+          /* Estado Inativo/Não Selecionado e Containers de Conteúdo */
+          .bg-white, .bg-sidebar, .bg-card, .bg-\\[\\#f3f2f2\\], .bg-[#f3f2f2], [data-active="false"], .inactive-item {
             background-color: ${unselectedBtnBgRgba} !important;
             color: ${settings.unselectedFontColor} !important;
           }
-          .bg-white svg, .inactive-item svg {
+          .bg-white svg, .bg-sidebar svg, .inactive-item svg {
             stroke: ${settings.iconColor} !important;
+          }
+          /* Header e Headers de Cards */
+          header, .bg-\\[\\#f8f9fb\\], .bg-[#f8f9fb] {
+            background-color: ${unselectedBtnBgRgba} !important;
+            border-color: ${borderRgba} !important;
           }
           /* Hover */
           .hover\\:bg-black:hover {
@@ -255,7 +261,11 @@ export function Sidebar() {
       const mainElement = document.querySelector('main');
       const sidebarElement = document.querySelector('aside');
       
-      if (mainElement?.parentElement) mainElement.parentElement.style.backgroundColor = settings.bgColor;
+      if (mainElement?.parentElement) {
+        mainElement.parentElement.style.backgroundColor = settings.bgColor;
+        mainElement.parentElement.style.transition = 'background-color 0.5s ease';
+      }
+      
       if (mainElement) mainElement.style.backgroundColor = 'transparent';
 
       const updateLayer = (el: HTMLElement | null, className: string, url: string | null, type: string, opacity: string) => {
@@ -265,7 +275,7 @@ export function Sidebar() {
           layer = document.createElement('div');
           layer.className = className;
           Object.assign(layer.style, {
-            position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
+            position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
             zIndex: '-1', pointerEvents: 'none', transition: 'opacity 0.5s ease'
           });
           el.appendChild(layer);
