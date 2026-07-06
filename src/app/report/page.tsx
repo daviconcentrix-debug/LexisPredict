@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from "@/lib/supabase";
 import { LegalCase, CaseNote } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
 import { 
@@ -14,55 +13,36 @@ import {
   MessageSquare, 
   Copyright, 
   SearchCheck, 
-  BarChart4, 
   Scale, 
   Users 
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { fetchRepoCases, fetchRepoNotes } from '@/app/actions/case-actions';
+import { useAuth } from '@/components/auth/auth-provider';
 
 export default function UnifiedReport() {
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [notes, setNotes] = useState<CaseNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const { profile } = useAuth();
 
-  const userName = "Davi Alves Figueredo";
-  const userRole = "Fundador & Gestor — W1 Capital";
+  const userName = profile?.nome || "Gabinete Técnico";
+  const userRole = profile?.cargo || "Operador";
 
   useEffect(() => {
     setMounted(true);
     async function load() {
       try {
-        const [casesRes, notesRes] = await Promise.all([
-          supabase.from("processos").select("dados"),
-          supabase.from("notes").select("*").order("created_at", { ascending: false })
+        // O perfil logado é garantido pelas Server Actions que verificam cookies de empresa_id
+        const [casesData, notesData] = await Promise.all([
+          fetchRepoCases(),
+          fetchRepoNotes()
         ]);
 
-        const parsedCases = (casesRes.data || []).map(item => item.dados as LegalCase);
-        const parsedNotes = (notesRes.data || []).map(item => {
-          let imageUrl;
-          let displayContent = item.content || '';
-          
-          try {
-            if (displayContent.startsWith('{')) {
-              const parsed = JSON.parse(displayContent);
-              displayContent = parsed.text;
-              imageUrl = parsed.imageUrl;
-            }
-          } catch (e) {}
-
-          return {
-            id: item.id.toString(),
-            title: item.title || 'Sem Título',
-            content: displayContent,
-            imageUrl: imageUrl,
-            updatedAt: new Date(item.created_at).toLocaleDateString('pt-BR')
-          } as CaseNote;
-        });
-
-        setCases(parsedCases);
-        setNotes(parsedNotes);
+        setCases(casesData || []);
+        setNotes(notesData || []);
       } catch (e) {
         console.error("Report extraction failure:", e);
       } finally {
@@ -74,7 +54,7 @@ export default function UnifiedReport() {
 
   const metrics = useMemo(() => {
     const total = cases.length;
-    const statusCounts = { Vencido: 0, Atenção: 0, 'No Prazo': 0, Arquivado: 0, 'Sem Prazo': 0, 'É Hoje': 0 };
+    const statusCounts = { Vencido: 0, Atenção: 0, 'No Prazo': 0, Arquivado: 0, 'Sem Prazo': 0, 'É Hoje': 0, 'Caso Crítico': 0, 'Encerrado': 0 };
     const tribunalCounts: Record<string, number> = {};
     const attorneyCounts: Record<string, number> = {};
 
@@ -119,14 +99,14 @@ export default function UnifiedReport() {
     return (
       <div className="p-8 text-center font-mono text-black bg-white min-h-screen flex flex-col items-center justify-center space-y-4">
         <Activity className="animate-spin text-black" size={32} />
-        <p className="font-bold uppercase tracking-widest text-[10px] italic">Consolidando Relatório Mestre Analytics (W1 Capital)...</p>
+        <p className="font-bold uppercase tracking-widest text-[10px] italic">Consolidando Relatório Mestre por Perfil (W1 Capital)...</p>
       </div>
     );
   }
 
   const highRiskCases = cases
-    .filter(c => c.status === 'Vencido' || c.status === 'Atenção' || c.status === 'É Hoje' || c.status === 'Caso Crítico')
-    .slice(0, 50);
+    .filter(c => ['Vencido', 'É Hoje', 'Caso Crítico', 'Atenção'].includes(c.status))
+    .slice(0, 100);
 
   return (
     <div className="min-h-screen bg-white text-black p-8 md:p-12 max-w-5xl mx-auto print:p-0">
@@ -144,7 +124,7 @@ export default function UnifiedReport() {
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-extrabold uppercase tracking-tighter leading-none">Relatório Jurídico Consolidado</h1>
-            <p className="text-sm font-bold text-gray-700 mt-2 uppercase tracking-wide italic">W1 Capital — FUNDADOR DAVI ALVES FIGUEREDO</p>
+            <p className="text-sm font-bold text-gray-700 mt-2 uppercase tracking-wide italic">SaaS Multi-Tenant • {profile?.empresa_id || "W1 CAPITAL"}</p>
           </div>
           <div className="text-right">
             <p className="text-sm font-black uppercase">{userName}</p>
@@ -153,7 +133,7 @@ export default function UnifiedReport() {
         </div>
         <div className="flex justify-between items-end mt-10">
           <div className="flex gap-2">
-            <span className="text-[10px] bg-black text-white px-3 py-1 font-bold uppercase">Ofício Executivo Analytics</span>
+            <span className="text-[10px] bg-black text-white px-3 py-1 font-bold uppercase">Ofício Executivo de Gabinete</span>
             <span className="text-[10px] border-2 border-black px-3 py-1 font-bold uppercase flex items-center gap-1.5">
               <ShieldCheck size={10} /> Documento Auditado
             </span>
@@ -177,7 +157,7 @@ export default function UnifiedReport() {
           </div>
           <div className="p-5 bg-red-50 border-2 border-red-600 rounded-none shadow-[4px_4px_0px_#dc2626]">
             <p className="text-[9px] font-black text-red-400 uppercase">Alertas Críticos</p>
-            <p className="text-3xl font-black text-red-600">{metrics.statusCounts.Vencido + metrics.statusCounts['É Hoje']}</p>
+            <p className="text-3xl font-black text-red-600">{metrics.statusCounts.Vencido + metrics.statusCounts['É Hoje'] + metrics.statusCounts['Caso Crítico']}</p>
           </div>
           <div className="p-5 bg-amber-50 border-2 border-orange-500 rounded-none shadow-[4px_4px_0px_#f97316]">
             <p className="text-[9px] font-black text-amber-400 uppercase">Em Atenção</p>
@@ -191,7 +171,7 @@ export default function UnifiedReport() {
       </section>
 
       {/* 2. TRIAGEM DE CASOS CRÍTICOS */}
-      <section className="mb-12 page-break-before">
+      <section className="mb-12">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded-none border border-black"><FileText size={18} /></div>
           <h2 className="text-lg font-extrabold uppercase tracking-tight">2. Triagem de Casos Críticos</h2>
@@ -202,7 +182,7 @@ export default function UnifiedReport() {
               <tr className="uppercase font-extrabold text-gray-700">
                 <th className="px-5 py-3 border-r border-gray-300">Cliente</th>
                 <th className="px-5 py-3 border-r border-gray-300">Protocolo CNJ</th>
-                <th className="px-5 py-3 border-r border-gray-300">Data Limite</th>
+                <th className="px-5 py-3 border-r border-gray-300">Prazo</th>
                 <th className="px-5 py-3">Risco</th>
               </tr>
             </thead>
@@ -219,7 +199,7 @@ export default function UnifiedReport() {
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={4} className="px-5 py-10 text-center italic text-gray-400">Nenhum registro crítico identificado na base de dados.</td></tr>
+                <tr><td colSpan={4} className="px-5 py-10 text-center italic text-gray-400">Nenhum registro crítico identificado para o perfil atual.</td></tr>
               )}
             </tbody>
           </table>
@@ -247,9 +227,9 @@ export default function UnifiedReport() {
               ))}
            </div>
            <div className="bg-gray-50 p-6 border-2 border-dashed border-black/20 flex flex-col justify-center text-center space-y-2">
-              <p className="text-[10px] font-black uppercase text-black/40 tracking-widest">Resumo Analítico</p>
+              <p className="text-[10px] font-black uppercase text-black/40 tracking-widest">Resumo Analítico do Perfil</p>
               <p className="text-xs font-black uppercase leading-relaxed">
-                A operação encontra-se distribuída em {metrics.topTribunals.length} órgãos distintos, com maior concentração no tribunal {metrics.topTribunals[0]?.[0] || 'N/A'}.
+                A operação de {userName} encontra-se distribuída em {metrics.topTribunals.length} órgãos, com maior concentração no tribunal {metrics.topTribunals[0]?.[0] || 'N/A'}.
               </p>
            </div>
         </div>
@@ -284,7 +264,7 @@ export default function UnifiedReport() {
       </section>
 
       {/* 5. ANOTAÇÕES & EVIDÊNCIAS */}
-      <section className="mb-12 page-break-before">
+      <section className="mb-12">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded-none border border-black"><MessageSquare size={18} /></div>
           <h2 className="text-lg font-extrabold uppercase tracking-tight">5. Anotações de Auditoria & Evidências</h2>
@@ -303,12 +283,10 @@ export default function UnifiedReport() {
                   </div>
                   {n.imageUrl && (
                     <div className="w-full md:w-64 h-48 relative rounded-none overflow-hidden border-2 border-black shadow-md bg-white shrink-0">
-                      <Image 
+                      <img 
                         src={n.imageUrl} 
                         alt="Evidence" 
-                        fill 
-                        className="object-cover"
-                        unoptimized
+                        className="w-full h-full object-cover"
                       />
                     </div>
                   )}
@@ -317,7 +295,7 @@ export default function UnifiedReport() {
             ))}
           </div>
         ) : (
-          <p className="text-center py-10 border-2 border-dashed border-black/20 rounded-none italic text-gray-400 font-bold uppercase text-[10px]">Sem anotações estratégicas anexadas ao dossiê.</p>
+          <p className="text-center py-10 border-2 border-dashed border-black/20 rounded-none italic text-gray-400 font-bold uppercase text-[10px]">Sem anotações estratégicas vinculadas a este perfil.</p>
         )}
       </section>
 
@@ -326,7 +304,7 @@ export default function UnifiedReport() {
           <Copyright size={10} /> 2026 W1 Capital. Todos os direitos reservados.
         </div>
         <div className="inline-block px-6 py-2 border-2 border-black bg-white shadow-[4px_4px_0px_#000]">
-           <p className="text-[10px] text-black font-black uppercase tracking-tighter">Relatório Consolidado Analytics • FUNDADOR DAVI ALVES FIGUEREDO</p>
+           <p className="text-[10px] text-black font-black uppercase tracking-tighter">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</p>
         </div>
       </footer>
     </div>
