@@ -1,14 +1,13 @@
 'use server';
 /**
- * @fileOverview Motor de Inteligência Jurídica v260.0 ELITE - CRM W1 Capital
- * Script Estratégico W1 Capital + Integração DataJud Direta + Normalização de Schema v2.
- * Otimizado para execução em Vercel e Firebase (Multi-Cloud).
+ * @fileOverview Motor de Inteligência Jurídica v270.0 ELITE - CRM W1 Capital
+ * Script Estratégico W1 Capital + Integração DataJud Direta + Normalização de Schema v3.
+ * Motores: Grok (Llama 3.3) & Claude 3.5 Sonnet. Removido Gemini.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import {googleAI} from '@genkit-ai/google-genai';
 import {fetchDataJud} from '@/lib/datajud';
 
 const VereditoOutputSchema = z.object({
@@ -26,7 +25,7 @@ const VereditoOutputSchema = z.object({
 
 export type VereditoOutput = z.infer<typeof VereditoOutputSchema>;
 
-const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI v260.0 Elite, o assistente jurídico sênior mais avançado da W1 Capital.
+const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI v270.0 Elite, o assistente jurídico sênior mais avançado da W1 Capital.
 Sua missão é analisar os DADOS REAIS do tribunal (DataJud) e gerar um relatório estratégico e humano para o fundador Davi Alves Figueredo.
 
 ### Correção da Cronologia (obrigatória) ###
@@ -118,7 +117,7 @@ export const vereditoAIFlow = ai.defineFlow(
     name: 'vereditoAIFlow',
     inputSchema: z.object({
       cnj: z.string(),
-      preferredModel: z.enum(['gemini', 'grok', 'openrouter']).optional().default('gemini'),
+      preferredModel: z.enum(['grok', 'openrouter']).optional().default('grok'),
     }),
     outputSchema: VereditoOutputSchema,
   },
@@ -127,25 +126,13 @@ export const vereditoAIFlow = ai.defineFlow(
     if (!dataJudData) throw new Error("Processo não localizado no DataJud.");
 
     let result;
-    let engine = input.preferredModel.toUpperCase();
+    let engine = input.preferredModel === 'openrouter' ? 'CLAUDE 3.5 SONNET' : 'GROK (LLAMA 3.3)';
 
     try {
-      if (input.preferredModel === 'grok') {
-        result = await callGrokChat(dataJudData);
-        engine = 'GROK (LLAMA 3.3)';
-      } else if (input.preferredModel === 'openrouter') {
+      if (input.preferredModel === 'openrouter') {
         result = await callOpenRouterChat(dataJudData);
-        engine = 'OPENROUTER (DEEPSEEK R1)';
       } else {
-        // Uso de model factory para compatibilidade total com Vercel/Firebase
-        const {output} = await ai.generate({
-          model: googleAI.model('gemini-1.5-flash'),
-          system: SYSTEM_INSTRUCTIONS,
-          prompt: `Analise DataJud: ${JSON.stringify(dataJudData)}`,
-          output: { schema: VereditoOutputSchema }
-        });
-        result = output;
-        engine = 'GEMINI 1.5 FLASH';
+        result = await callGrokChat(dataJudData);
       }
 
       if (!result) throw new Error("Motor de análise falhou.");

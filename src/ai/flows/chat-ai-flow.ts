@@ -1,9 +1,8 @@
-
 'use server';
 /**
- * @fileOverview Motor de Consultoria Estratégica LexisPredict v2.0 Elite
- * Memória de Contexto Ativa + Suporte a Respostas Longas.
- * Claude 3.5 Sonnet | Grok (Llama 3.3) | Gemini 1.5 Flash
+ * @fileOverview Motor de Consultoria Estratégica LexisPredict v2.1 Elite
+ * Memória de Contexto Ativa. Motores: Claude 3.5 Sonnet | Grok (Llama 3.3). Removido Gemini.
+ * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
 import {ai} from '@/ai/genkit';
@@ -15,7 +14,7 @@ const ChatInputSchema = z.object({
     role: z.enum(['user', 'assistant']),
     content: z.string()
   })).optional().default([]).describe('O histórico de mensagens anteriores para contexto.'),
-  preferredModel: z.enum(['gemini', 'grok', 'openrouter']).optional().default('gemini'),
+  preferredModel: z.enum(['grok', 'openrouter']).optional().default('grok'),
   deepThinking: z.boolean().optional().default(false),
 });
 
@@ -34,8 +33,7 @@ DIRETRIZES DE OURO:
 4. FORMATO: Responda de forma estratégica, identificando riscos e brechas.
 5. ASSINATURA: Finalize sempre com "Gabinete Técnico — W1 Capital".
 
-RESTRIÇÃO TÉCNICA: Retorne estritamente um JSON plano: { "resposta": "todo_o_texto_aqui" }.
-O campo "resposta" deve conter apenas uma string de texto formatado (use \n para quebras de linha).`;
+RESTRIÇÃO TÉCNICA: Retorne estritamente um JSON plano: { "resposta": "todo_o_texto_aqui" }.`;
 
 function forceStringResponse(raw: any): string {
   if (typeof raw === 'string') return raw;
@@ -50,7 +48,7 @@ async function callGrokChat(pergunta: string, historico: any[], deepThinking: bo
   const GROQ_API_KEY = process.env.GROQ_API_KEY || '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';
   
   const messages = [
-    { role: 'system', content: SYSTEM_PROMPT + ' Use a palavra JSON na resposta.' },
+    { role: 'system', content: SYSTEM_PROMPT },
     ...historico.map(m => ({ role: m.role, content: m.content })),
     { role: 'user', content: pergunta }
   ];
@@ -67,10 +65,6 @@ async function callGrokChat(pergunta: string, historico: any[], deepThinking: bo
     })
   });
 
-  if (response.status === 429) {
-    const retryAfter = response.headers.get('retry-after') || '25';
-    throw new Error(`RATE_LIMIT:${retryAfter}`);
-  }
   if (!response.ok) throw new Error(`Erro Groq Chat: ${response.status}`);
   
   const data = await response.json();
@@ -107,16 +101,11 @@ async function callOpenRouterChat(pergunta: string, historico: any[], deepThinki
     })
   });
 
-  if (response.status === 429) {
-    const retryAfter = response.headers.get('retry-after') || '30';
-    throw new Error(`RATE_LIMIT:${retryAfter}`);
-  }
   if (!response.ok) throw new Error(`Erro OpenRouter Chat: ${response.status}`);
 
   const data = await response.json();
   try {
     const rawContent = data.choices[0].message.content;
-    // Tenta extrair JSON se o modelo retornar texto puro em volta
     const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
     const content = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(rawContent);
     return { resposta: forceStringResponse(content) };
@@ -135,33 +124,15 @@ export const chatAIFlow = ai.defineFlow(
     let result;
     let engine;
     try {
-      if (input.preferredModel === 'grok') {
-        result = await callGrokChat(input.pergunta, input.historico, input.deepThinking);
-        engine = `GROK (LLAMA 3.3)`;
-      } else if (input.preferredModel === 'openrouter') {
+      if (input.preferredModel === 'openrouter') {
         result = await callOpenRouterChat(input.pergunta, input.historico, input.deepThinking);
         engine = `CLAUDE 3.5 SONNET`;
       } else {
-        // Fallback Gemini com Memória
-        const {output} = await ai.generate({
-          model: 'googleai/gemini-1.5-flash',
-          system: SYSTEM_PROMPT,
-          messages: [
-            ...input.historico.map(m => ({ role: m.role, content: [{ text: m.content }] })),
-            { role: 'user', content: [{ text: input.pergunta }] }
-          ],
-          config: {
-            maxOutputTokens: 4096,
-            temperature: input.deepThinking ? 0.1 : 0.4,
-          },
-          output: { schema: z.object({ resposta: z.string() }) }
-        });
-        result = { resposta: forceStringResponse(output?.resposta || "O motor não retornou uma resposta válida.") };
-        engine = `GEMINI 1.5 FLASH`;
+        result = await callGrokChat(input.pergunta, input.historico, input.deepThinking);
+        engine = `GROK (LLAMA 3.3)`;
       }
       return { resposta: result.resposta, engineUtilizada: engine };
     } catch (e: any) { 
-      if (e.message.includes('RATE_LIMIT')) throw e;
       throw new Error(e.message || "Erro no processamento do Diálogo.");
     }
   }

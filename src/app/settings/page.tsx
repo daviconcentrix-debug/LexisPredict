@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -7,11 +6,9 @@ import {
   HardDrive, 
   Cpu,
   Palette,
-  Image as ImageIcon,
   Users,
   UserPlus,
   Trash2,
-  Video,
   Upload,
   Skull,
   ShieldAlert,
@@ -59,7 +56,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('Style');
   const [masterPasswordInput, setMasterPasswordInput] = useState('');
   const [isMasterActive, setIsMasterActive] = useState(false);
-  const [iaModel, setIaModel] = useState<'gemini' | 'grok' | 'openrouter'>('gemini');
+  const [iaModel, setIaModel] = useState<'grok' | 'openrouter'>('grok');
   const [empresaUsers, setEmpresaUsers] = useState<UserProfile[]>([]);
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isAddingUser, setIsAddUser] = useState(false);
@@ -71,10 +68,7 @@ export default function SettingsPage() {
   const [sideWpType, setSideWpType] = useState<'image' | 'video'>('image');
   const [wpOpacity, setWpOpacity] = useState(1);
   
-  // Customização Automática
   const [autoTheme, setAutoTheme] = useState(false);
-
-  // Cores Customizadas
   const [bgColor, setBgColor] = useState('#f3f2f2');
   const [fontColor, setFontColor] = useState('#000000');
   const [unselectedFontColor, setUnselectedFontColor] = useState('#000000');
@@ -105,7 +99,13 @@ export default function SettingsPage() {
     isMounted.current = true;
     
     const loadSettings = () => {
-      setIaModel((localStorage.getItem('lexisPredict_preferred_ia') as any) || 'gemini');
+      const savedIA = localStorage.getItem('lexisPredict_preferred_ia');
+      if (savedIA === 'grok' || savedIA === 'openrouter') {
+        setIaModel(savedIA as any);
+      } else {
+        setIaModel('grok');
+      }
+
       setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2');
       setFontColor(localStorage.getItem('lexisPredict_font_color') || '#000000');
       setUnselectedFontColor(localStorage.getItem('lexisPredict_unselected_font_color') || '#000000');
@@ -126,27 +126,16 @@ export default function SettingsPage() {
     };
 
     loadSettings();
-    window.addEventListener('storage', loadSettings);
-
-    const cookies = document.cookie.split('; ');
-    const masterUnlock = cookies.find(row => row.startsWith('lexis_master_unlock='))?.split('=')[1];
-    if (masterUnlock === '40028922' && isDevAccount) {
-      setIsMasterActive(true);
-    }
-
     loadUsers();
-    return () => { 
-      isMounted.current = false;
-      window.removeEventListener('storage', loadSettings);
-    };
-  }, [profile?.empresa_id, isDevAccount]);
+    return () => { isMounted.current = false; };
+  }, [profile?.empresa_id]);
 
   const loadUsers = async () => {
     const users = await getEmpresaUsers();
     if (isMounted.current) setEmpresaUsers(users);
   };
 
-  const handleIaChange = (value: 'gemini' | 'grok' | 'openrouter') => {
+  const handleIaChange = (value: 'grok' | 'openrouter') => {
     setIaModel(value);
     localStorage.setItem('lexisPredict_preferred_ia', value);
     toast({ title: "Núcleo Técnico Alterado", description: `Motor ${value.toUpperCase()} ativado.` });
@@ -168,27 +157,17 @@ export default function SettingsPage() {
     setAutoTheme(checked);
     localStorage.setItem('lexis_auto_theme', checked ? 'true' : 'false');
     window.dispatchEvent(new Event('storage'));
-    toast({ 
-      title: checked ? "Sincronização Ativa" : "Sincronização Desligada",
-      description: checked ? "A IA agora ajusta o tema em tempo real com base no fundo." : "Você retomou o controle manual total."
-    });
   };
 
   const handleLocalFile = async (e: React.ChangeEvent<HTMLInputElement>, target: 'main' | 'side') => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    try {
-      const storageKey = target === 'main' ? 'main_wallpaper_blob' : 'side_wallpaper_blob';
-      const success = await browserStorage.saveAsset(storageKey, file);
-      
-      if (success) {
-        if (target === 'main') setMainWpUrl('LOCAL_ASSET');
-        else setSideWpUrl('LOCAL_ASSET');
-        toast({ title: "Arquivo Local Carregado", description: "O wallpaper foi salvo no banco local." });
-      }
-    } catch (err) {
-      toast({ title: "Erro de Armazenamento", description: "Não foi possível processar o arquivo.", variant: "destructive" });
+    const storageKey = target === 'main' ? 'main_wallpaper_blob' : 'side_wallpaper_blob';
+    const success = await browserStorage.saveAsset(storageKey, file);
+    if (success) {
+      if (target === 'main') setMainWpUrl('LOCAL_ASSET');
+      else setSideWpUrl('LOCAL_ASSET');
+      toast({ title: "Arquivo Local Carregado" });
     }
   };
 
@@ -200,61 +179,44 @@ export default function SettingsPage() {
     localStorage.setItem('lexis_wp_sidebar_type', sideWpType);
     localStorage.setItem('lexis_wp_opacity', wpOpacity.toString());
     window.dispatchEvent(new Event('storage'));
-    toast({ title: "Configurações Salvas", description: "Atmosfera de gabinete atualizada." });
+    toast({ title: "Configurações Salvas" });
   };
 
   const handleUnlockMaster = (e: React.FormEvent) => {
     e.preventDefault();
     if (masterPasswordInput === '40028922') {
-      const cookieParams = "path=/; max-age=31536000; samesite=lax";
-      document.cookie = `lexis_master_unlock=40028922; ${cookieParams}`;
-      document.cookie = `lexis_master_email=daviconcentrix@gmail.com; ${cookieParams}`;
+      document.cookie = `lexis_master_unlock=40028922; path=/; max-age=31536000; samesite=lax`;
+      document.cookie = `lexis_master_email=daviconcentrix@gmail.com; path=/; max-age=31536000; samesite=lax`;
       setIsMasterActive(true);
       toast({ title: "Gabinete Master Desbloqueado" });
       setTimeout(() => window.location.reload(), 500);
-    } else {
-      toast({ title: "Token Inválido", variant: "destructive" });
     }
-  };
-
-  const handleLockMaster = () => {
-    document.cookie = "lexis_master_unlock=; path=/; max-age=0";
-    document.cookie = "lexis_master_email=; path=/; max-age=0";
-    setIsMasterActive(false);
-    window.location.reload();
   };
 
   const handleCreateOperator = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isAddingUser || !profile?.empresa_id) return;
     setIsAddUser(true);
-
     try {
       const cleanEmail = newUserForm.email.trim().toLowerCase();
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
       const tempClient = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } });
-
       const { data: authData, error: authError } = await tempClient.auth.signUp({
         email: cleanEmail,
         password: newUserForm.password,
         options: { data: { full_name: newUserForm.nome } }
       });
-
       if (authError) throw authError;
-
-      const profilePayload = {
+      await supabase.from('usuarios').insert({
         auth_user_id: authData.user?.id,
         empresa_id: profile.empresa_id,
         nome: newUserForm.nome.trim().toUpperCase(),
         email: cleanEmail,
         cargo: newUserForm.cargo
-      };
-
-      await supabase.from('usuarios').insert(profilePayload);
+      });
       toast({ title: "Operador Adicionado" });
       setIsAddUserModalOpen(false);
-      setNewUserForm({ nome: '', email: '', password: '', cargo: 'Operador' });
       loadUsers();
     } catch (error: any) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
@@ -267,10 +229,7 @@ export default function SettingsPage() {
     if (userId === profile?.id) return;
     if (confirm("Remover este usuário?")) {
        const success = await removeEmpresaUser(userId);
-       if (success) {
-          toast({ title: "Usuário Removido" });
-          loadUsers();
-       }
+       if (success) { loadUsers(); toast({ title: "Usuário Removido" }); }
     }
   };
 
@@ -281,7 +240,7 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Configuração Sistema</h1>
-            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v220.0 Elite Bi-Estável</Badge>
+            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v280.0 Elite Resiliente</Badge>
           </div>
         </header>
 
@@ -312,7 +271,7 @@ export default function SettingsPage() {
                 <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
                     <CardTitle className="text-black font-black uppercase text-sm flex items-center gap-2">
-                      <Palette size={18} /> Atmosfera de Gabinete (IndexedDB)
+                      <Palette size={18} /> Atmosfera de Gabinete
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-6 space-y-8">
@@ -323,8 +282,8 @@ export default function SettingsPage() {
                             <Zap size={24} className="text-black animate-pulse" />
                           </div>
                           <div>
-                            <p className="font-black text-xs uppercase text-white tracking-widest">Sincronização Cromática IA (On/Off)</p>
-                            <p className="text-[9px] font-black uppercase text-white/60">Atualiza cores quadro a quadro com base no fundo.</p>
+                            <p className="font-black text-xs uppercase text-white tracking-widest">Sincronização Cromática IA</p>
+                            <p className="text-[9px] font-black uppercase text-white/60">Adapta cores ao background quadro a quadro.</p>
                           </div>
                        </div>
                        <Switch checked={autoTheme} onCheckedChange={handleAutoThemeToggle} className="data-[state=checked]:bg-yellow-400 border-2 border-white" />
@@ -345,104 +304,29 @@ export default function SettingsPage() {
                       <Slider value={[containerOpacity]} onValueChange={([v]) => handleOpacityChange(v)} max={1} step={0.01} className="[&_[role=slider]]:bg-black" />
                     </div>
 
-                    <div className="grid grid-cols-1 gap-8">
-                      {(wpMode === 'global' || wpMode === 'main_only' || wpMode === 'separate') && (
-                        <div className="space-y-4 p-4 border-2 border-black bg-gray-50">
-                          <Label className="font-black uppercase text-[10px]">Wallpaper Principal</Label>
-                          <div className="flex gap-2">
-                             <Button size="sm" variant={mainWpType === 'image' ? 'default' : 'outline'} onClick={() => setMainWpType('image')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2">IMAGEM</Button>
-                             <Button size="sm" variant={mainWpType === 'video' ? 'default' : 'outline'} onClick={() => setMainWpType('video')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2">VÍDEO</Button>
-                          </div>
-                          <div className="flex gap-2">
-                            <Input 
-                              value={mainWpUrl === 'LOCAL_ASSET' ? 'Arquivo Local Selecionado' : mainWpUrl} 
-                              onChange={e => setMainWpUrl(e.target.value)} 
-                              placeholder="URL Externa..." 
-                              className="flex-1 border-black font-black text-[10px] rounded-none h-10 uppercase" 
-                            />
-                            <Button size="icon" variant="outline" onClick={() => mainFileInputRef.current?.click()} className="border-black border-2 h-10 w-10 shrink-0 hover:bg-black hover:text-white transition-all"><Upload size={14}/></Button>
-                            <input type="file" ref={mainFileInputRef} onChange={e => handleLocalFile(e, 'main')} className="hidden" accept="video/*,image/*" />
-                          </div>
-                        </div>
-                      )}
-
-                      {(wpMode === 'sidebar_only' || wpMode === 'separate') && (
-                        <div className="space-y-4 p-4 border-2 border-black bg-gray-50">
-                          <Label className="font-black uppercase text-[10px]">Wallpaper Sidebar</Label>
-                          <div className="flex gap-2">
-                             <Button size="sm" variant={sideWpType === 'image' ? 'default' : 'outline'} onClick={() => setSideWpType('image')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2">IMAGEM</Button>
-                             <Button size="sm" variant={sideWpType === 'video' ? 'default' : 'outline'} onClick={() => setSideWpType('video')} className="flex-1 font-black text-[9px] h-8 rounded-none border-black border-2">VÍDEO</Button>
-                          </div>
-                          <div className="flex gap-2">
-                            <Input 
-                              value={sideWpUrl === 'LOCAL_ASSET' ? 'Arquivo Local Selecionado' : sideWpUrl} 
-                              onChange={e => setSideWpUrl(e.target.value)} 
-                              placeholder="URL Externa..." 
-                              className="flex-1 border-black font-black text-[10px] rounded-none h-10 uppercase" 
-                            />
-                            <Button size="icon" variant="outline" onClick={() => sideFileInputRef.current?.click()} className="border-black border-2 h-10 w-10 shrink-0 hover:bg-black hover:text-white transition-all"><Upload size={14}/></Button>
-                            <input type="file" ref={sideFileInputRef} onChange={e => handleLocalFile(e, 'side')} className="hidden" accept="video/*,image/*" />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-6">
-                      <Label className="font-black text-black text-xs uppercase">Visibilidade do Wallpaper ({Math.round(wpOpacity * 100)}%)</Label>
-                      <Slider value={[wpOpacity]} onValueChange={([v]) => setWpOpacity(v)} max={1} step={0.01} className="[&_[role=slider]]:bg-black" />
-                    </div>
-
                     <div className="pt-4 border-t-2 border-black space-y-8 relative">
                        {autoTheme && (
                          <div className="absolute inset-0 bg-white/60 backdrop-blur-[4px] z-20 flex flex-col items-center justify-center p-8 text-center border-2 border-black m-[-2px]">
-                            <div className="bg-black text-white p-8 border-2 border-black shadow-[15px_15px_0px_#facc15] flex flex-col items-center gap-4 max-w-[300px]">
+                            <div className="bg-black text-white p-8 border-2 border-black shadow-[15px_15px_0px_#facc15] flex flex-col items-center gap-4">
                                <Bot size={48} className="animate-bounce text-yellow-400" />
                                <p className="text-sm font-black uppercase tracking-tighter">IA NO COMANDO</p>
-                               <p className="text-[10px] font-black uppercase text-white/60 leading-relaxed">As cores de fontes, botões e ícones estão sendo adaptadas automaticamente quadro a quadro.</p>
-                               <Button size="sm" onClick={() => handleAutoThemeToggle(false)} className="bg-yellow-400 text-black font-black uppercase text-[10px] rounded-none border-2 border-black hover:bg-white transition-all w-full h-10">Retomar Controle Manual</Button>
+                               <Button size="sm" onClick={() => handleAutoThemeToggle(false)} className="bg-yellow-400 text-black font-black uppercase text-[10px] rounded-none border-2 border-black hover:bg-white transition-all w-full h-10">Desativar Automático</Button>
                             </div>
                          </div>
                        )}
-                       <h3 className="font-black text-xs uppercase flex items-center gap-2">
-                         <Palette size={16} /> Personalização Individual de Elementos
-                       </h3>
-                       
                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
-                          <ColorPicker label="Cor de Fundo Base" value={bgColor} onChange={(v) => handleColorChange('lexisPredict_bg_color', v, setBgColor)} />
-                          <ColorPicker label="Letras (Selecionadas)" icon={<Type size={12}/>} value={fontColor} onChange={(v) => handleColorChange('lexisPredict_font_color', v, setFontColor)} />
-                          <ColorPicker label="Letras (Não Selecionadas)" icon={<Type size={12}/>} value={unselectedFontColor} onChange={(v) => handleColorChange('lexisPredict_unselected_font_color', v, setUnselectedFontColor)} />
-                          <ColorPicker label="Botões (Selecionados)" icon={<Square size={12}/>} value={btnBgColor} onChange={(v) => handleColorChange('lexisPredict_btn_bg_color', v, setBtnBgColor)} />
-                          <ColorPicker label="Botões (Não Selecionados)" icon={<Square size={12}/>} value={unselectedBtnBgColor} onChange={(v) => handleColorChange('lexisPredict_unselected_btn_bg_color', v, setUnselectedBtnBgColor)} />
-                          <ColorPicker label="Texto dos Botões" icon={<Type size={12}/>} value={btnTextColor} onChange={(v) => handleColorChange('lexisPredict_btn_text_color', v, setBtnTextColor)} />
-                          <ColorPicker label="Cor dos Ícones" icon={<MousePointer2 size={12}/>} value={iconColor} onChange={(v) => handleColorChange('lexisPredict_icon_color', v, setIconColor)} />
-                          <ColorPicker label="Bordas e Detalhes" icon={<Square size={12}/>} value={borderColor} onChange={(v) => handleColorChange('lexisPredict_border_color', v, setBorderColor)} />
+                          <ColorPicker label="Fundo Base" value={bgColor} onChange={(v) => handleColorChange('lexisPredict_bg_color', v, setBgColor)} />
+                          <ColorPicker label="Letras (Ativo)" icon={<Type size={12}/>} value={fontColor} onChange={(v) => handleColorChange('lexisPredict_font_color', v, setFontColor)} />
+                          <ColorPicker label="Letras (Inativo)" icon={<Type size={12}/>} value={unselectedFontColor} onChange={(v) => handleColorChange('lexisPredict_unselected_font_color', v, setUnselectedFontColor)} />
+                          <ColorPicker label="Botão (Ativo)" icon={<Square size={12}/>} value={btnBgColor} onChange={(v) => handleColorChange('lexisPredict_btn_bg_color', v, setBtnBgColor)} />
+                          <ColorPicker label="Botão (Inativo)" icon={<Square size={12}/>} value={unselectedBtnBgColor} onChange={(v) => handleColorChange('lexisPredict_unselected_btn_bg_color', v, setUnselectedBtnBgColor)} />
+                          <ColorPicker label="Texto Botão" icon={<Type size={12}/>} value={btnTextColor} onChange={(v) => handleColorChange('lexisPredict_btn_text_color', v, setBtnTextColor)} />
+                          <ColorPicker label="Ícones" icon={<MousePointer2 size={12}/>} value={iconColor} onChange={(v) => handleColorChange('lexisPredict_icon_color', v, setIconColor)} />
+                          <ColorPicker label="Bordas" icon={<Square size={12}/>} value={borderColor} onChange={(v) => handleColorChange('lexisPredict_border_color', v, setBorderColor)} />
                        </div>
                     </div>
 
-                    <Button onClick={saveWpSettings} className="w-full h-12 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#000] hover:shadow-none">Sincronizar Gabinete</Button>
-                  </CardContent>
-                </Card>
-              )}
-
-              {activeTab === 'Sync' && (
-                 <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
-                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
-                    <CardTitle className="text-black font-black uppercase text-sm">Silo SaaS Multi-Tenant</CardTitle>
-                    <CardDescription className="text-black font-bold uppercase text-[10px]">Identidade corporativa vinculada ao seu gabinete.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="p-6 bg-[#f3f2f2] rounded-none border-2 border-black">
-                      <div className="flex items-center justify-between mb-4">
-                         <div className="text-sm font-black text-black uppercase flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-green-600" />
-                          Sistema Online e Blindado
-                        </div>
-                        <Badge className="bg-green-600 text-white border-none font-black uppercase text-[9px] px-3 rounded-none">Cloud Active</Badge>
-                      </div>
-                      <div className="text-[10px] text-black/40 uppercase font-black tracking-widest bg-white/10 px-3 py-2 border border-black">
-                        Tenant ID: {profile?.empresa_id || 'MASTER_TENANT'}
-                      </div>
-                    </div>
+                    <Button onClick={saveWpSettings} className="w-full h-12 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#000] hover:shadow-none">Sincronizar Atmosfera</Button>
                   </CardContent>
                 </Card>
               )}
@@ -450,14 +334,33 @@ export default function SettingsPage() {
               {activeTab === 'Engine' && (
                 <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
-                    <CardTitle className="text-black font-black uppercase text-sm">Núcleo Neural</CardTitle>
+                    <CardTitle className="text-black font-black uppercase text-sm">Núcleo Neural Elite</CardTitle>
+                    <CardDescription className="text-[10px] font-black uppercase">Motores de processamento resilientes (Removido Gemini).</CardDescription>
                   </CardHeader>
                   <CardContent className="p-6">
                     <RadioGroup value={iaModel} onValueChange={handleIaChange} className="grid grid-cols-1 gap-4">
-                      <IaOption id="gemini" value="gemini" title="Gemini 1.5 Flash" desc="Alta performance em auditorias de longo prazo." active={iaModel === 'gemini'} />
-                      <IaOption id="grok" value="grok" title="Grok (Llama 3.3)" desc="Raciocínio lógico militar e assertividade." active={iaModel === 'grok'} />
-                      <IaOption id="openrouter" value="openrouter" title="Claude 3.5 Sonnet" desc="Elite em nuances jurídicas e redação." active={iaModel === 'openrouter'} />
+                      <IaOption id="grok" value="grok" title="Grok (Llama 3.3)" desc="Raciocínio lógico militar e alta velocidade de resposta." active={iaModel === 'grok'} />
+                      <IaOption id="openrouter" value="openrouter" title="Claude 3.5 Sonnet" desc="Elite em nuances jurídicas e redação estratégica de gabinete." active={iaModel === 'openrouter'} />
                     </RadioGroup>
+                  </CardContent>
+                </Card>
+              )}
+
+              {activeTab === 'Sync' && (
+                 <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
+                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
+                    <CardTitle className="text-black font-black uppercase text-sm">Infraestrutura Blindada</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="p-6 bg-[#f3f2f2] rounded-none border-2 border-black">
+                      <div className="flex items-center justify-between">
+                         <div className="text-sm font-black text-black uppercase flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-green-600" />
+                          Gabinete Online
+                        </div>
+                        <Badge className="bg-green-600 text-white border-none font-black uppercase text-[9px] px-3 rounded-none">Active</Badge>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -465,52 +368,26 @@ export default function SettingsPage() {
               {activeTab === 'Users' && (
                 <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black flex flex-row items-center justify-between">
-                    <div>
-                      <CardTitle className="text-black font-black uppercase text-sm">Corpo Técnico</CardTitle>
-                    </div>
+                    <CardTitle className="text-black font-black uppercase text-sm">Corpo Técnico</CardTitle>
                     {isAdmin && (
                        <Dialog open={isAddUserModalOpen} onOpenChange={setIsAddUserModalOpen}>
                          <DialogTrigger asChild>
-                           <Button size="sm" className="bg-white text-black border-2 border-black h-9 uppercase text-[10px] font-black hover:bg-black transition-all rounded-none px-6 shadow-[4px_4px_0px_#000] hover:shadow-none">
+                           <Button size="sm" className="bg-white text-black border-2 border-black h-9 uppercase text-[10px] font-black hover:bg-black transition-all rounded-none px-6">
                               <UserPlus size={12} className="mr-2" /> Novo Operador
                            </Button>
                          </DialogTrigger>
                          <DialogContent className="bg-white border-2 border-black text-black rounded-none">
-                           <form onSubmit={handleCreateOperator}>
+                            <form onSubmit={handleCreateOperator}>
                              <DialogHeader>
                                <DialogTitle className="text-black font-black uppercase">Provisionar Acesso</DialogTitle>
-                               <DialogDescription className="sr-only">Formulário para criar novo acesso de operador no sistema.</DialogDescription>
                              </DialogHeader>
                              <div className="grid gap-4 py-4">
-                               <div className="grid gap-1">
-                                 <Label className="text-[10px] font-black uppercase">Nome</Label>
-                                 <Input value={newUserForm.nome} onChange={e => setNewUserForm({...newUserForm, nome: e.target.value})} className="border-2 border-black text-black font-black uppercase rounded-none" required />
-                               </div>
-                               <div className="grid gap-1">
-                                 <Label className="text-[10px] font-black uppercase">E-mail</Label>
-                                 <Input type="email" value={newUserForm.email} onChange={e => setNewUserForm({...newUserForm, email: e.target.value})} className="border-2 border-black text-black font-black uppercase rounded-none" required />
-                               </div>
-                               <div className="grid gap-1">
-                                 <Label className="text-[10px] font-black uppercase">Senha</Label>
-                                 <Input type="password" value={newUserForm.password} onChange={e => setNewUserForm({...newUserForm, password: e.target.value})} className="border-2 border-black text-black rounded-none" required />
-                               </div>
-                               <div className="grid gap-1">
-                                 <Label className="text-[10px] font-black uppercase">Cargo</Label>
-                                 <Select value={newUserForm.cargo} onValueChange={val => setNewUserForm({...newUserForm, cargo: val as any})}>
-                                   <SelectTrigger className="border-2 border-black text-black font-black uppercase rounded-none">
-                                     <SelectValue />
-                                   </SelectTrigger>
-                                   <SelectContent className="bg-white border-2 border-black rounded-none">
-                                     <SelectItem value="Operador" className="text-black font-black uppercase">Operador</SelectItem>
-                                     <SelectItem value="Administrador" className="text-black font-black uppercase">Administrador</SelectItem>
-                                   </SelectContent>
-                                 </Select>
-                               </div>
+                               <Input value={newUserForm.nome} onChange={e => setNewUserForm({...newUserForm, nome: e.target.value})} placeholder="NOME" className="border-2 border-black font-black rounded-none" required />
+                               <Input type="email" value={newUserForm.email} onChange={e => setNewUserForm({...newUserForm, email: e.target.value})} placeholder="E-MAIL" className="border-2 border-black font-black rounded-none" required />
+                               <Input type="password" value={newUserForm.password} onChange={e => setNewUserForm({...newUserForm, password: e.target.value})} placeholder="SENHA" className="border-2 border-black rounded-none" required />
                              </div>
                              <DialogFooter>
-                               <Button type="submit" disabled={isAddingUser} className="w-full bg-black text-white font-black uppercase h-12 rounded-none hover:bg-white hover:text-black border-2 border-black transition-all">
-                                 {isAddingUser ? "Provisionando..." : "Criar Acesso Supabase"}
-                               </Button>
+                               <Button type="submit" disabled={isAddingUser} className="w-full bg-black text-white font-black uppercase h-12 rounded-none">Provisionar</Button>
                              </DialogFooter>
                            </form>
                          </DialogContent>
@@ -520,9 +397,9 @@ export default function SettingsPage() {
                   <CardContent className="p-0">
                     <div className="divide-y-2 divide-black/10">
                       {empresaUsers.map((u) => (
-                        <div key={u.id} className="p-4 flex items-center justify-between hover:bg-black group transition-all cursor-default">
+                        <div key={u.id} className="p-4 flex items-center justify-between hover:bg-black group transition-all">
                            <div className="flex items-center gap-4">
-                              <div className="w-9 h-9 rounded-none bg-[#f3f2f2] group-hover:bg-white flex items-center justify-center font-black text-xs text-black border-2 border-black uppercase">
+                              <div className="w-9 h-9 bg-[#f3f2f2] group-hover:bg-white flex items-center justify-center font-black text-xs border-2 border-black uppercase">
                                  {u.nome?.substring(0, 2) || '??'}
                               </div>
                               <div>
@@ -543,35 +420,6 @@ export default function SettingsPage() {
                         </div>
                       ))}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {isDevAccount && activeTab === 'Master' && (
-                <Card className="bg-white border-2 border-red-600 shadow-none rounded-none overflow-hidden">
-                  <CardHeader className="bg-red-50 border-b-2 border-red-600">
-                    <CardTitle className="text-red-600 font-black uppercase text-sm flex items-center gap-2">
-                       <Skull size={18} /> Protocolo Master
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                     {!isMasterActive ? (
-                        <form onSubmit={handleUnlockMaster} className="space-y-4">
-                           <div className="space-y-2">
-                              <Label className="text-red-600 font-black uppercase text-[10px]">Chave Global</Label>
-                              <Input type="password" value={masterPasswordInput} onChange={e => setMasterPasswordInput(e.target.value)} className="border-2 border-red-600 h-12 text-red-600 font-black rounded-none bg-white uppercase text-center tracking-widest text-lg" placeholder="TOKEN..." />
-                           </div>
-                           <Button type="submit" className="w-full bg-red-600 text-white font-black uppercase h-12 rounded-none hover:bg-black transition-all">Liberar Bypass</Button>
-                        </form>
-                     ) : (
-                        <div className="space-y-6">
-                           <div className="p-6 bg-red-600 text-white text-center rounded-none font-black uppercase animate-pulse">
-                              <ShieldAlert size={48} className="mx-auto mb-4" />
-                              <p className="text-lg">Bypass Global Ativado</p>
-                           </div>
-                           <Button onClick={handleLockMaster} className="w-full bg-white text-red-600 border-2 border-red-600 font-black uppercase h-12 rounded-none hover:bg-red-50 transition-all">Revogar Privilégios</Button>
-                        </div>
-                     )}
                   </CardContent>
                 </Card>
               )}

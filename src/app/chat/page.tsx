@@ -16,7 +16,7 @@ export default function ChatPage() {
   const [chatInput, setChatInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
-  const [model, setModel] = useState<'gemini' | 'grok' | 'openrouter'>('gemini');
+  const [model, setModel] = useState<'grok' | 'openrouter'>('grok');
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMounted = useRef(true);
   const { toast } = useToast();
@@ -24,7 +24,11 @@ export default function ChatPage() {
   useEffect(() => {
     isMounted.current = true;
     const savedIA = localStorage.getItem('lexisPredict_preferred_ia');
-    if (savedIA === 'grok' || savedIA === 'gemini' || savedIA === 'openrouter') setModel(savedIA as any);
+    if (savedIA === 'grok' || savedIA === 'openrouter') {
+      setModel(savedIA as any);
+    } else {
+      setModel('grok');
+    }
     return () => { isMounted.current = false; };
   }, []);
 
@@ -79,9 +83,7 @@ export default function ChatPage() {
                 <MessageSquare size={20} className="text-white" />
               </div>
             </div>
-            <div>
-              <h1 className="text-lg font-black text-black uppercase tracking-tight hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Consultoria de Gabinete</h1>
-            </div>
+            <h1 className="text-lg font-black text-black uppercase tracking-tight hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Consultoria de Gabinete</h1>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="border-black font-black text-[10px] text-black uppercase px-3 py-1">
@@ -107,57 +109,30 @@ export default function ChatPage() {
                     <h2 className="text-xl font-black text-black uppercase">Como posso auxiliar hoje?</h2>
                   </div>
                 )}
-
                 {chatMessages.map((msg, i) => (
                   <div key={i} className={cn("flex group", msg.role === 'user' ? "justify-end" : "justify-start")}>
                     <div className={cn(
                       "p-4 rounded-none max-w-[85%] shadow-sm text-sm font-black uppercase transition-all border-2",
                       msg.role === 'user' ? "bg-black text-white border-black" : "bg-white border-black text-black"
                     )}>
-                      <div className="flex items-center gap-2 mb-2 opacity-50">
-                        {msg.role === 'user' ? <User size={12} /> : <Bot size={12} />}
-                        <span className="text-[10px] tracking-widest">{msg.role === 'user' ? 'GABINETE' : 'CONSULTOR'}</span>
-                      </div>
                       <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                     </div>
                   </div>
                 ))}
-                {loading && (
-                  <div className="flex justify-start">
-                    <div className="bg-white border-2 border-black p-4 rounded-none shadow-sm">
-                      <div className="flex gap-1">
-                        <span className="w-2 h-2 bg-black rounded-full animate-bounce" />
-                        <span className="w-2 h-2 bg-black rounded-full animate-bounce [animation-delay:0.2s]" />
-                        <span className="w-2 h-2 bg-black rounded-full animate-bounce [animation-delay:0.4s]" />
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </ScrollArea>
-
             <div className="p-4 border-t-2 border-black bg-white shrink-0">
               <form onSubmit={handleChat} className="flex gap-3">
-                <Input 
-                  placeholder="DIGITE SUA DÚVIDA TÉCNICA..." 
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  disabled={loading}
-                  className="flex-1 border-2 border-black h-12 text-sm font-black text-black uppercase focus-visible:ring-0 rounded-none bg-white"
-                />
-                <Button type="submit" size="icon" disabled={loading || !chatInput.trim()} className="h-12 w-12 bg-black text-white hover:bg-gray-800 rounded-none transition-all shadow-lg border-2 border-black">
+                <Input placeholder="DÚVIDA TÉCNICA..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} disabled={loading} className="flex-1 border-2 border-black h-12 text-sm font-black text-black uppercase rounded-none bg-white" />
+                <Button type="submit" size="icon" disabled={loading} className="h-12 w-12 bg-black text-white border-2 border-black rounded-none">
                   <Send size={20} />
                 </Button>
               </form>
             </div>
           </Card>
         </div>
-
         <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0">
-          <div className="flex items-center gap-2">
-            <Copyright size={10} /> 2026 W1 Capital.
-          </div>
-          <span className="uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
+          <div className="flex items-center gap-2"><Copyright size={10} /> 2026 W1 Capital.</div>
         </footer>
       </main>
     </div>

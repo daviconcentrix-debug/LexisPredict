@@ -1,8 +1,7 @@
-
 'use server';
 /**
- * @fileOverview Motor de Geração de Documentos Jurídicos v16.0 ELITE (DEFINITIVO)
- * Extração de dados e preenchimento de Procuração Ad Judicia seguindo o modelo visual oficial.
+ * @fileOverview Motor de Geração de Documentos Jurídicos v16.1 ELITE (DEFINITIVO)
+ * Motores: Grok (Llama 3.3) & Claude 3.5 Sonnet. Removido Gemini.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -11,7 +10,7 @@ import {z} from 'genkit';
 
 const DocumentInputSchema = z.object({
   dadosBrutos: z.string().describe('O texto bruto, contrato ou PDF extraído para análise.'),
-  preferredModel: z.enum(['gemini', 'grok', 'openrouter']).optional().default('openrouter'),
+  preferredModel: z.enum(['grok', 'openrouter']).optional().default('openrouter'),
 });
 
 const DocumentOutputSchema = z.object({
@@ -19,51 +18,11 @@ const DocumentOutputSchema = z.object({
   engineUtilizada: z.string().optional()
 });
 
-const documentPrompt = ai.definePrompt({
-  name: 'documentPrompt',
-  input: {schema: z.object({dados: z.string(), today: z.string()})},
-  output: {schema: z.object({documento: z.string()})},
-  prompt: `Aja como um Assistente Jurídico Sênior da Get Assessoria (W1 Capital). Sua tarefa é extrair dados do texto fornecido e preencher a procuração "Ad Judicia" com precisão cirúrgica, seguindo RIGOROSAMENTE o modelo visual definitivo.
-
-INSTRUÇÕES DE EXECUÇÃO:
-1. Analise o texto de entrada e extraia: Nome Completo, Nacionalidade, Estado Civil, Profissão, RG, CPF, Endereço Completo (Rua, Número, Bairro, Cidade, UF, CEP) e E-mail.
-2. Caso algum dado esteja faltando, coloque [INSERIR DADO] no local correspondente.
-3. Mantenha os dados do procurador DIEGO GOMES DIAS e o CNPJ do Banco Votorantim (59.588.111/0001-03) exatamente como no modelo.
-4. Use a data: {{{today}}}.
-
-REGRAS DE FORMATO (CRÍTICO):
-- O resultado deve ser APENAS o texto da procuração. NÃO RETORNE OBJETOS JSON OU ESTRUTURAS DE DADOS DENTRO DO CAMPO DOCUMENTO.
-- Use **texto** para negritos.
-- Use a tag [CENTER] no início e [/CENTER] no fim das linhas que devem ser centralizadas (Título, Data e Bloco de Assinatura).
-
-MODELO DE SAÍDA EXATO (SIGA CADA NEGRITO E ESPAÇO):
-[CENTER]**PROCURAÇÃO “AD JUDICIA”**[/CENTER]
-
-**[NOME DO CLIENTE]**, [nacionalidade], [estado civil], [profissão], portador do RG sob Nº [RG] e devidamente inscrito no CPF sob Nº [CPF], residente e domiciliado à [Endereço Completo], com endereço eletrônico: [Email], neste ato nomeia como seu procurador:
-
-**DIEGO GOMES DIAS**, brasileiro, advogado, inscrito na OAB/SP sob o número 370.898, com endereço profissional na Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100, e endereço eletrônico: diego_gomesdias@yahoo.com.br.
-
-**PODERES:** Por este instrumento particular de mandato, a outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-la nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses da outorgante, agir nos autos da **AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA** promovida contra o **BANCO VOTORANTIM S/A**, inscrito no CNPJ nº **59.588.111/0001-03**.
-
-[CENTER]São Paulo, {{{today}}}.[/CENTER]
-
-[CENTER]____________________________________________________[/CENTER]
-[CENTER]**[NOME DO CLIENTE]**[/CENTER]
-
-TEXTO PARA ANÁLISE:
-{{{dados}}}
-
-SAÍDA: Retorne um JSON plano: { "documento": "texto_formatado_da_procuração" }.`,
-});
-
 function forceStringDocument(raw: any): string {
   if (!raw) return "";
   if (typeof raw === 'string') return raw;
   if (typeof raw === 'object') {
     if (raw.documento && typeof raw.documento === 'string') return raw.documento;
-    if (raw.documento && typeof raw.documento === 'object') {
-      return JSON.stringify(raw.documento, null, 2);
-    }
     return JSON.stringify(raw, null, 2);
   }
   return String(raw);
@@ -88,13 +47,12 @@ export const documentFlow = ai.defineFlow(
           headers: {
             'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
             'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://lexispredict.w1.capital',
-            'X-Title': 'LexisPredict Docs Elite'
+            'HTTP-Referer': 'https://lexispredict.w1.capital'
           },
           body: JSON.stringify({
             model: 'anthropic/claude-3.5-sonnet',
             messages: [
-              { role: 'system', content: 'Você é Assistente Jurídico Sênior da Get Assessoria. Gere a procuração exclusivamente como TEXTO FORMATADO no campo "documento", seguindo o modelo definitivo com centralizações e negritos. Mantenha os dados do advogado DIEGO GOMES DIAS e o CNPJ do Banco Votorantim 59.588.111/0001-03 sempre.' },
+              { role: 'system', content: 'Você é Assistente Jurídico Sênior da Get Assessoria. Gere a procuração exclusivamente como TEXTO FORMATADO no campo "documento". Mantenha os dados do advogado DIEGO GOMES DIAS e o CNPJ do Banco Votorantim 59.588.111/0001-03 sempre.' },
               { role: 'user', content: `Extraia dados e preencha a procuração exatamente conforme o modelo visual para: ${input.dadosBrutos}. Data de hoje: ${today}` }
             ],
             temperature: 0.1,
@@ -107,7 +65,7 @@ export const documentFlow = ai.defineFlow(
         const content = JSON.parse(data.choices[0].message.content);
         result = { documento: forceStringDocument(content) };
         engine = `CLAUDE 3.5 SONNET`;
-      } else if (input.preferredModel === 'grok') {
+      } else {
         const GROQ_API_KEY = process.env.GROQ_API_KEY || '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';
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
@@ -115,7 +73,7 @@ export const documentFlow = ai.defineFlow(
           body: JSON.stringify({
             model: 'llama-3.3-70b-versatile',
             messages: [
-              { role: 'system', content: 'Retorne apenas JSON com campo string "documento" contendo a procuração completa em texto puro formatado conforme o modelo oficial da Get Assessoria (W1 Capital). Use [CENTER] para centralizar.' },
+              { role: 'system', content: 'Retorne apenas JSON com campo string "documento" contendo a procuração completa em texto puro formatado conforme o modelo oficial da Get Assessoria (W1 Capital).' },
               { role: 'user', content: `Gere a procuração conforme o script visual para os dados: ${input.dadosBrutos}` }
             ],
             temperature: 0.1,
@@ -128,13 +86,6 @@ export const documentFlow = ai.defineFlow(
         const content = JSON.parse(data.choices[0].message.content);
         result = { documento: forceStringDocument(content) };
         engine = `GROK (LLAMA 3.3)`;
-      } else {
-        const {output} = await ai.generate({
-          model: 'googleai/gemini-1.5-flash',
-          prompt: documentPrompt({dados: input.dadosBrutos, today}),
-        });
-        result = { documento: forceStringDocument(output) };
-        engine = `GEMINI 1.5 FLASH`;
       }
       
       return { conteudoFormatado: forceStringDocument(result.documento), engineUtilizada: engine };
