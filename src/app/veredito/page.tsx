@@ -21,9 +21,9 @@ export default function VereditoPage() {
   const [cnj, setCnj] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [model, setModel] = useState<'gemini' | 'grok' | 'openrouter'>('openrouter');
+  const [model, setModel] = useState<'gemini' | 'grok' | 'openrouter'>('gemini');
   const [sendingApi, setSendingApi] = useState(false);
-  const isMounted = useRef(true);
+  const isMounted = useRef(false);
   
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -111,9 +111,9 @@ export default function VereditoPage() {
   };
 
   return (
-    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black">
+    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden text-black">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden text-black relative z-20">
         <header className="h-auto bg-white border-b border-[#dddbda] px-6 py-4 lg:py-6 shrink-0 z-40">
           <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
             <div className="flex items-center gap-4 lg:gap-6 pl-10 lg:pl-0">
@@ -143,19 +143,19 @@ export default function VereditoPage() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-4 lg:p-6">
+        <div className="flex-1 overflow-auto p-4 lg:p-6 relative z-30">
           <div className="max-w-7xl mx-auto space-y-6">
             {!result && (
               <div className="max-w-2xl mx-auto py-12 lg:py-20 text-center space-y-8">
                 <h2 className="text-xl lg:text-3xl font-black tracking-tighter uppercase">Unidade de Triagem Técnica</h2>
-                <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3 bg-white p-2 rounded-none border-2 border-black shadow-xl">
+                <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3 bg-white p-2 rounded-none border-2 border-black shadow-xl relative z-50">
                   <Input 
                     placeholder="0000000-00.2025.8.26.0000" 
                     value={cnj} 
                     onChange={(e) => setCnj(e.target.value)} 
-                    className="border-none h-12 lg:h-14 text-sm lg:text-lg focus-visible:ring-0 font-mono text-black bg-white rounded-none" 
+                    className="border-none h-12 lg:h-14 text-sm lg:text-lg focus-visible:ring-0 font-mono text-black bg-white rounded-none flex-1" 
                   />
-                  <Button type="submit" disabled={loading} className="h-12 lg:h-14 px-8 rounded-none bg-black text-white font-black hover:bg-gray-800 transition-all shadow-lg uppercase text-[10px] border-2 border-black">
+                  <Button type="submit" disabled={loading} className="h-12 lg:h-14 px-8 rounded-none bg-black text-white font-black hover:bg-gray-800 transition-all shadow-lg uppercase text-[10px] border-2 border-black min-w-[150px]">
                     {loading ? "Processando..." : "Realizar Auditoria"}
                   </Button>
                 </form>
@@ -298,11 +298,13 @@ export default function VereditoPage() {
                       </CardHeader>
                       <CardContent className="p-0">
                          <div className="divide-y-2 divide-black/5 max-h-[400px] lg:max-h-[600px] overflow-auto">
-                            {result.dataJudRaw?.movimentos?.slice(0, 10).map((m: any, i: number) => (
+                            {result.dataJudRaw?.movimentos?.slice(0, 20).map((m: any, i: number) => (
                                <div key={i} className="p-4 hover:bg-black group transition-all">
                                   <div className="flex items-center gap-2 mb-1">
                                      <Clock size={10} className="text-black/40 group-hover:text-white/40" />
-                                     <span className="text-[8px] lg:text-[9px] font-black text-black/60 group-hover:text-white/60 uppercase">{new Date(m.dataHora).toLocaleDateString('pt-BR')}</span>
+                                     <span className="text-[8px] lg:text-[9px] font-black text-black/60 group-hover:text-white/60 uppercase">
+                                       {m.dataHora ? new Date(m.dataHora).toLocaleDateString('pt-BR') : 'S/ DATA'}
+                                     </span>
                                   </div>
                                   <p className="text-[9px] lg:text-[10px] font-black text-black group-hover:text-white uppercase leading-tight">{m.nome}</p>
                                </div>
@@ -316,7 +318,7 @@ export default function VereditoPage() {
           </div>
         </div>
 
-        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-4 lg:gap-6 text-[8px] lg:text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0">
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-4 lg:gap-6 text-[8px] lg:text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 z-40">
           <div className="flex items-center gap-2">
             <Copyright size={10} /> 2026 W1 Capital.
           </div>

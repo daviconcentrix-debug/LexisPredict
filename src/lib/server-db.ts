@@ -6,28 +6,25 @@ import { LegalCase, CaseNote } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * MOTOR DE PERSISTÊNCIA RELACIONAL LEXISPREDICT (SUPABASE SaaS v145.0 ELITE)
- * Operações baseadas em contexto de sessão e cookies de identidade.
+ * MOTOR DE PERSISTÊNCIA RELACIONAL LEXISPREDICT (SUPABASE SaaS v270.0 ELITE)
+ * Operações baseadas em contexto de sessão e isolamento de perfil.
  * Propriedade de W1 Capital | Fundador: Davi Alves Figueredo
  */
 
-async function getUserContext(): Promise<{ id: string | null; empresa_id: string | null; cargo: string | null; email: string | null }> {
+async function getUserContext(): Promise<{ id: string | null; empresa_id: string | null; cargo: string | null; email: string | null; auth_id: string | null }> {
   const cookieStore = await cookies();
   const userEmailCookie = cookieStore.get('lexis_user_email')?.value;
   const masterEmailCookie = cookieStore.get('lexis_master_email')?.value;
   
   const emailToLookup = masterEmailCookie || userEmailCookie;
   
-  // Tenta obter a sessão diretamente do Supabase se o cookie falhar ou para validar
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!emailToLookup && !session?.user) {
-    return { id: null, empresa_id: null, cargo: null, email: null };
+  if (!emailToLookup) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return { id: null, empresa_id: null, cargo: null, email: null, auth_id: null };
   }
 
-  const email = emailToLookup || session?.user?.email;
+  const email = emailToLookup;
 
-  // Busca perfil completo
   const { data: profile } = await supabase
     .from('usuarios')
     .select('id, empresa_id, cargo, email, auth_user_id')
@@ -35,7 +32,8 @@ async function getUserContext(): Promise<{ id: string | null; empresa_id: string
     .maybeSingle();
     
   return { 
-    id: profile?.auth_user_id || session?.user?.id || profile?.id || null,
+    id: profile?.id || null,
+    auth_id: profile?.auth_user_id || null,
     empresa_id: profile?.empresa_id || null, 
     cargo: profile?.cargo || 'Operador',
     email: email || null
@@ -56,17 +54,21 @@ export async function getStoredCases(): Promise<LegalCase[]> {
   if (!isSupabaseConfigured) return [];
   
   const isMaster = await isMasterAuthorized();
-  const { id, empresa_id } = await getUserContext();
+  const { auth_id, empresa_id, cargo } = await getUserContext();
   
-  if (!id && !isMaster) return [];
+  if (!auth_id && !isMaster) return [];
 
   try {
-    let query = supabase.from('processos').select('dados');
+    let query = supabase.from('processos').select('dados, created_by');
 
     if (!isMaster) {
       if (!empresa_id) return [];
-      // Filtra por empresa para garantir que Davi e sua equipe vejam os dados do seu silo
       query = query.eq('empresa_id', empresa_id);
+      
+      // ISOLAMENTO: Operadores veem apenas seus próprios casos. Admins veem tudo da empresa.
+      if (cargo !== 'Administrador') {
+        query = query.eq('created_by', auth_id);
+      }
     }
 
     const { data, error } = await query.order('id', { ascending: false });
@@ -90,10 +92,10 @@ export async function getStoredCases(): Promise<LegalCase[]> {
 
 export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: boolean; message: string }> {
   if (!isSupabaseConfigured) return { success: false, message: "Erro de Configuração." };
-  const { id, empresa_id } = await getUserContext();
+  const { auth_id, empresa_id } = await getUserContext();
   
-  if (!empresa_id || !id) {
-    return { success: false, message: "Sessão de Gabinete expirada. Por favor, faça login novamente." };
+  if (!empresa_id || !auth_id) {
+    return { success: false, message: "Sessão expirada." };
   }
 
   try {
@@ -101,22 +103,21 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
     cases.forEach(c => { if(c && c.protocolo) uniqueMap.set(c.protocolo, c); });
     const uniqueCases = Array.from(uniqueMap.values());
 
-    // Limpeza por tenant para evitar duplicidade
-    const { error: deleteError } = await supabase.from('processos').delete().eq('empresa_id', empresa_id);
-    if (deleteError) throw deleteError;
+    // Deleta apenas os registros deste usuário específico para evitar wipe na empresa
+    await supabase.from('processos').delete().eq('created_by', auth_id);
     
     if (uniqueCases.length > 0) {
       const payload = uniqueCases.map(c => ({ 
         dados: c, 
         empresa_id: empresa_id, 
-        created_by: id
+        created_by: auth_id
       }));
       
       const { error: insertError } = await supabase.from('processos').insert(payload);
       if (insertError) throw insertError;
     }
     
-    return { success: true, message: "Base de dados sincronizada com sucesso." };
+    return { success: true, message: "Sincronizado." };
   } catch (error: any) {
     return { success: false, message: error.message };
   }
@@ -126,8 +127,8 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
   if (!isSupabaseConfigured) return [];
   
   const isMaster = await isMasterAuthorized();
-  const { id, empresa_id } = await getUserContext();
-  if (!id && !isMaster) return [];
+  const { auth_id, empresa_id, cargo } = await getUserContext();
+  if (!auth_id && !isMaster) return [];
 
   try {
     let query = supabase.from('notes').select('*');
@@ -135,6 +136,10 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
     if (!isMaster) {
       if (!empresa_id) return [];
       query = query.eq('empresa_id', empresa_id);
+      
+      if (cargo !== 'Administrador') {
+        query = query.eq('created_by', auth_id);
+      }
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });
@@ -153,7 +158,7 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
 
       return {
         id: item.id.toString(),
-        title: item.title || 'Atualização de Gabinete',
+        title: item.title || 'Nota',
         content: displayContent,
         imageUrl: imageUrl,
         color: 'bg-white',
@@ -167,22 +172,21 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
 
 export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boolean }> {
   if (!isSupabaseConfigured) return { success: false };
-  const { id, empresa_id } = await getUserContext();
-  if (!empresa_id || !id) return { success: false };
+  const { auth_id, empresa_id } = await getUserContext();
+  if (!empresa_id || !auth_id) return { success: false };
 
   try {
-    await supabase.from('notes').delete().eq('empresa_id', empresa_id);
+    await supabase.from('notes').delete().eq('created_by', auth_id);
     
     if (notes && notes.length > 0) {
       const dbNotes = notes.map(n => ({
-        title: n.title || 'Atualização de Gabinete',
+        title: n.title || 'Nota',
         content: n.imageUrl ? JSON.stringify({ text: n.content, imageUrl: n.imageUrl }) : n.content,
         empresa_id: empresa_id,
-        created_by: id
+        created_by: auth_id
       }));
       
-      const { error: insertError } = await supabase.from('notes').insert(dbNotes);
-      if (insertError) throw insertError;
+      await supabase.from('notes').insert(dbNotes);
     }
     
     return { success: true };

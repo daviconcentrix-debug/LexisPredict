@@ -17,7 +17,6 @@ import {
   Users 
 } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { fetchRepoCases, fetchRepoNotes } from '@/app/actions/case-actions';
 import { useAuth } from '@/components/auth/auth-provider';
 
@@ -26,21 +25,16 @@ export default function UnifiedReport() {
   const [notes, setNotes] = useState<CaseNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const { profile } = useAuth();
-
-  const userName = profile?.nome || "Gabinete Técnico";
-  const userRole = profile?.cargo || "Operador";
+  const { profile, loading: authLoading } = useAuth();
 
   useEffect(() => {
     setMounted(true);
     async function load() {
       try {
-        // O perfil logado é garantido pelas Server Actions que verificam cookies de empresa_id
         const [casesData, notesData] = await Promise.all([
           fetchRepoCases(),
           fetchRepoNotes()
         ]);
-
         setCases(casesData || []);
         setNotes(notesData || []);
       } catch (e) {
@@ -49,8 +43,8 @@ export default function UnifiedReport() {
         setLoading(false);
       }
     }
-    load();
-  }, []);
+    if (mounted && !authLoading) load();
+  }, [mounted, authLoading]);
 
   const metrics = useMemo(() => {
     const total = cases.length;
@@ -77,46 +71,35 @@ export default function UnifiedReport() {
       attorneyCounts[c.advogado || 'Não Atribuído'] = (attorneyCounts[c.advogado || 'Não Atribuído'] || 0) + 1;
     });
 
-    const topTribunals = Object.entries(tribunalCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10);
+    const topTribunals = Object.entries(tribunalCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const topAttorneys = Object.entries(attorneyCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
-    const topAttorneys = Object.entries(attorneyCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10);
-
-    return { 
-      total, 
-      statusCounts, 
-      topTribunals, 
-      topAttorneys 
-    };
+    return { total, statusCounts, topTribunals, topAttorneys };
   }, [cases]);
 
   const getPercent = (val: number) => metrics.total ? Math.round((val / metrics.total) * 100) : 0;
 
-  if (!mounted || loading) {
+  if (!mounted || loading || authLoading) {
     return (
       <div className="p-8 text-center font-mono text-black bg-white min-h-screen flex flex-col items-center justify-center space-y-4">
         <Activity className="animate-spin text-black" size={32} />
-        <p className="font-bold uppercase tracking-widest text-[10px] italic">Consolidando Relatório Mestre por Perfil (W1 Capital)...</p>
+        <p className="font-bold uppercase tracking-widest text-[10px] italic">Sincronizando Dossiê Individual (W1 Capital)...</p>
       </div>
     );
   }
 
-  const highRiskCases = cases
-    .filter(c => ['Vencido', 'É Hoje', 'Caso Crítico', 'Atenção'].includes(c.status))
-    .slice(0, 100);
+  const userName = profile?.nome || "Gabinete Técnico";
+  const userRole = profile?.cargo || "Operador";
+  const highRiskCases = cases.filter(c => ['Vencido', 'É Hoje', 'Caso Crítico', 'Atenção'].includes(c.status)).slice(0, 100);
 
   return (
     <div className="min-h-screen bg-white text-black p-8 md:p-12 max-w-5xl mx-auto print:p-0">
-      
       <div className="flex justify-between items-center mb-10 print:hidden">
         <Button variant="outline" asChild size="sm" className="border-black text-black font-black uppercase text-[10px] rounded-none border-2 shadow-[4px_4px_0px_#000] hover:shadow-none transition-all">
-          <Link href="/"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao Sistema</Link>
+          <Link href="/"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Link>
         </Button>
         <Button onClick={() => window.print()} className="bg-black text-white font-black px-8 rounded-none uppercase text-[10px] border-2 border-black shadow-[4px_4px_0px_#000] hover:shadow-none transition-all">
-          <Printer className="mr-2 h-4 w-4" /> Imprimir Dossiê Mestre
+          <Printer className="mr-2 h-4 w-4" /> Imprimir Dossiê
         </Button>
       </div>
 
@@ -131,28 +114,16 @@ export default function UnifiedReport() {
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{userRole}</p>
           </div>
         </div>
-        <div className="flex justify-between items-end mt-10">
-          <div className="flex gap-2">
-            <span className="text-[10px] bg-black text-white px-3 py-1 font-bold uppercase">Ofício Executivo de Gabinete</span>
-            <span className="text-[10px] border-2 border-black px-3 py-1 font-bold uppercase flex items-center gap-1.5">
-              <ShieldCheck size={10} /> Documento Auditado
-            </span>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] text-gray-400 font-mono font-bold uppercase">Extraído em: {new Date().toLocaleDateString('pt-BR')} — {new Date().toLocaleTimeString('pt-BR')}</p>
-          </div>
-        </div>
       </header>
 
-      {/* 1. INDICADORES DE GESTÃO */}
       <section className="mb-12">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded-none border border-black"><SearchCheck size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">1. Indicadores de Saúde Procedural</h2>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">1. Indicadores de Saúde do Gabinete</h2>
         </div>
-        <div className="grid grid-cols-4 gap-6 text-center">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           <div className="p-5 bg-gray-50 border-2 border-black rounded-none shadow-[4px_4px_0px_#000]">
-            <p className="text-[9px] font-black text-gray-400 uppercase">Total Geral</p>
+            <p className="text-[9px] font-black text-gray-400 uppercase">Total Sob Gestão</p>
             <p className="text-3xl font-black">{metrics.total}</p>
           </div>
           <div className="p-5 bg-red-50 border-2 border-red-600 rounded-none shadow-[4px_4px_0px_#dc2626]">
@@ -170,20 +141,19 @@ export default function UnifiedReport() {
         </div>
       </section>
 
-      {/* 2. TRIAGEM DE CASOS CRÍTICOS */}
       <section className="mb-12">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded-none border border-black"><FileText size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">2. Triagem de Casos Críticos</h2>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">2. Triagem de Casos por Auditor</h2>
         </div>
         <div className="border-2 border-black rounded-none overflow-hidden">
           <table className="w-full text-left text-[10px] border-collapse">
             <thead className="bg-gray-100 border-b-2 border-black">
               <tr className="uppercase font-extrabold text-gray-700">
                 <th className="px-5 py-3 border-r border-gray-300">Cliente</th>
-                <th className="px-5 py-3 border-r border-gray-300">Protocolo CNJ</th>
+                <th className="px-5 py-3 border-r border-gray-300">Protocolo</th>
                 <th className="px-5 py-3 border-r border-gray-300">Prazo</th>
-                <th className="px-5 py-3">Risco</th>
+                <th className="px-5 py-3">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y border-gray-200">
@@ -199,18 +169,17 @@ export default function UnifiedReport() {
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={4} className="px-5 py-10 text-center italic text-gray-400">Nenhum registro crítico identificado para o perfil atual.</td></tr>
+                <tr><td colSpan={4} className="px-5 py-10 text-center italic text-gray-400">Nenhum registro individual localizado para exportação.</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </section>
 
-      {/* 3. ANALYTICS: DISTRIBUIÇÃO POR TRIBUNAL */}
       <section className="mb-12 break-inside-avoid">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded-none border border-black"><Scale size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">3. Distribuição por Unidade Judiciária (Tribunais)</h2>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">3. Analytics: Distribuição por Tribunal</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
            <div className="space-y-4">
@@ -227,81 +196,17 @@ export default function UnifiedReport() {
               ))}
            </div>
            <div className="bg-gray-50 p-6 border-2 border-dashed border-black/20 flex flex-col justify-center text-center space-y-2">
-              <p className="text-[10px] font-black uppercase text-black/40 tracking-widest">Resumo Analítico do Perfil</p>
+              <p className="text-[10px] font-black uppercase text-black/40 tracking-widest">Parecer de Perfil</p>
               <p className="text-xs font-black uppercase leading-relaxed">
-                A operação de {userName} encontra-se distribuída em {metrics.topTribunals.length} órgãos, com maior concentração no tribunal {metrics.topTribunals[0]?.[0] || 'N/A'}.
+                Relatório gerado para {userName}. Base de dados filtrada individualmente por auditor.
               </p>
            </div>
         </div>
       </section>
 
-      {/* 4. ANALYTICS: CARGA POR ADVOGADO */}
-      <section className="mb-12 break-inside-avoid">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-1.5 bg-black text-white rounded-none border border-black"><Users size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">4. Carga Operacional por Advogado</h2>
-        </div>
-        <div className="border-2 border-black rounded-none overflow-hidden">
-          <table className="w-full text-left text-[10px] border-collapse">
-            <thead className="bg-gray-100 border-b-2 border-black">
-              <tr className="uppercase font-extrabold text-gray-700">
-                <th className="px-5 py-3 border-r border-gray-300">Profissional Responsável</th>
-                <th className="px-5 py-3 text-center">Processos Ativos</th>
-                <th className="px-5 py-3 text-right">Share (%)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y border-gray-200">
-              {metrics.topAttorneys.map(([name, count]) => (
-                <tr key={name}>
-                  <td className="px-5 py-3 font-extrabold uppercase border-r border-gray-200">{name}</td>
-                  <td className="px-5 py-3 text-center font-bold">{count}</td>
-                  <td className="px-5 py-3 text-right font-black">{getPercent(count)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* 5. ANOTAÇÕES & EVIDÊNCIAS */}
-      <section className="mb-12">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-1.5 bg-black text-white rounded-none border border-black"><MessageSquare size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">5. Anotações de Auditoria & Evidências</h2>
-        </div>
-        {notes.length > 0 ? (
-          <div className="grid grid-cols-1 gap-8">
-            {notes.map((n, i) => (
-              <div key={i} className="p-6 border-2 border-black rounded-none bg-gray-50/50 shadow-[4px_4px_0px_#000] break-inside-avoid">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-extrabold text-[12px] uppercase tracking-tight border-l-4 border-black pl-3">{n.title}</h3>
-                  <span className="text-[9px] font-mono text-gray-400 font-bold">{n.updatedAt}</span>
-                </div>
-                <div className="flex flex-col md:flex-row gap-6">
-                  <div className="flex-1">
-                    <p className="text-[11px] text-gray-700 leading-relaxed whitespace-pre-wrap font-black uppercase">{n.content}</p>
-                  </div>
-                  {n.imageUrl && (
-                    <div className="w-full md:w-64 h-48 relative rounded-none overflow-hidden border-2 border-black shadow-md bg-white shrink-0">
-                      <img 
-                        src={n.imageUrl} 
-                        alt="Evidence" 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-center py-10 border-2 border-dashed border-black/20 rounded-none italic text-gray-400 font-bold uppercase text-[10px]">Sem anotações estratégicas vinculadas a este perfil.</p>
-        )}
-      </section>
-
       <footer className="mt-20 pt-8 border-t-4 border-black text-center space-y-4">
         <div className="flex items-center justify-center gap-2 text-[10px] text-black font-black uppercase tracking-widest">
-          <Copyright size={10} /> 2026 W1 Capital. Todos os direitos reservados.
+          <Copyright size={10} /> 2026 W1 Capital.
         </div>
         <div className="inline-block px-6 py-2 border-2 border-black bg-white shadow-[4px_4px_0px_#000]">
            <p className="text-[10px] text-black font-black uppercase tracking-tighter">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</p>
