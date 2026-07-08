@@ -13,7 +13,11 @@ import {
   Bot,
   Layers,
   Skull,
-  ShieldCheck
+  ShieldCheck,
+  Upload,
+  FileVideo,
+  ImageIcon,
+  Link as LinkIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -29,6 +33,7 @@ import { UserProfile, supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { browserStorage } from '@/lib/browser-storage';
 import {
   Dialog,
   DialogContent,
@@ -65,6 +70,8 @@ export default function SettingsPage() {
   const [containerOpacity, setContainerOpacity] = useState(1);
 
   const isMounted = useRef(true);
+  const mainFileInput = useRef<HTMLInputElement>(null);
+  const sideFileInput = useRef<HTMLInputElement>(null);
 
   const [newUserForm, setNewUserForm] = useState({
     nome: '',
@@ -142,6 +149,26 @@ export default function SettingsPage() {
     window.dispatchEvent(new Event('storage'));
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'main' | 'side') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    toast({ title: "Processando Mídia..." });
+    const key = target === 'main' ? 'main_wallpaper_blob' : 'side_wallpaper_blob';
+    const success = await browserStorage.saveAsset(key, file);
+
+    if (success) {
+      if (target === 'main') {
+        setMainWpUrl('LOCAL_ASSET');
+        setMainWpType(file.type.includes('video') ? 'video' : 'image');
+      } else {
+        setSideWpUrl('LOCAL_ASSET');
+        setSideWpType(file.type.includes('video') ? 'video' : 'image');
+      }
+      toast({ title: "Mídia Sincronizada" });
+    }
+  };
+
   const saveWpSettings = () => {
     localStorage.setItem('lexis_wp_mode', wpMode);
     localStorage.setItem('lexis_wp_main_url', mainWpUrl);
@@ -150,7 +177,7 @@ export default function SettingsPage() {
     localStorage.setItem('lexis_wp_sidebar_type', sideWpType);
     localStorage.setItem('lexis_wp_opacity', wpOpacity.toString());
     window.dispatchEvent(new Event('storage'));
-    toast({ title: "Configurações Salvas" });
+    toast({ title: "Atmosfera Sincronizada" });
   };
 
   const handleCreateOperator = async (e: React.FormEvent) => {
@@ -200,7 +227,7 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Configuração Sistema</h1>
-            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v390.0 Elite Resiliente</Badge>
+            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v490.0 Elite Atmosfera</Badge>
           </div>
         </header>
 
@@ -259,9 +286,64 @@ export default function SettingsPage() {
                       </RadioGroup>
                     </div>
 
-                    <div className="space-y-6">
-                      <Label className="font-black text-black text-xs uppercase flex items-center gap-2"><Layers size={14}/> Opacidade dos Containers ({Math.round(containerOpacity * 100)}%)</Label>
-                      <Slider value={[containerOpacity]} onValueChange={([v]) => handleOpacityChange(v)} max={1} step={0.01} className="[&_[role=slider]]:bg-black" />
+                    <div className="space-y-8 pt-4 border-t-2 border-black">
+                       {(wpMode === 'global' || wpMode === 'main_only' || wpMode === 'separate') && (
+                         <div className="space-y-4">
+                            <Label className="font-black text-black text-xs uppercase">Wallpaper Principal (Conteúdo)</Label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                               <div className="space-y-2">
+                                  <div className="flex items-center gap-2 mb-2">
+                                     <Badge variant="outline" className={cn("text-[8px] font-black uppercase cursor-pointer", mainWpType === 'image' ? "bg-black text-white" : "")} onClick={() => setMainWpType('image')}>Imagem</Badge>
+                                     <Badge variant="outline" className={cn("text-[8px] font-black uppercase cursor-pointer", mainWpType === 'video' ? "bg-black text-white" : "")} onClick={() => setMainWpType('video')}>Vídeo</Badge>
+                                  </div>
+                                  <div className="relative">
+                                     <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
+                                     <Input placeholder="URL EXTERNA..." value={mainWpUrl === 'LOCAL_ASSET' ? 'ARQUIVO LOCAL CARREGADO' : mainWpUrl} onChange={e => setMainWpUrl(e.target.value)} className="pl-10 border-2 border-black h-11 text-[10px] font-black uppercase rounded-none" />
+                                  </div>
+                               </div>
+                               <div className="flex flex-col justify-end">
+                                  <input type="file" ref={mainFileInput} className="hidden" onChange={e => handleFileUpload(e, 'main')} accept="image/*,video/*" />
+                                  <Button onClick={() => mainFileInput.current?.click()} variant="outline" className="border-2 border-black h-11 font-black uppercase text-[10px] rounded-none hover:bg-black hover:text-white transition-all">
+                                     <Upload size={14} className="mr-2" /> Upload Local
+                                  </Button>
+                               </div>
+                            </div>
+                         </div>
+                       )}
+
+                       {(wpMode === 'sidebar_only' || wpMode === 'separate') && (
+                         <div className="space-y-4 pt-4 border-t-2 border-black/5">
+                            <Label className="font-black text-black text-xs uppercase">Wallpaper Sidebar (Menu)</Label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                               <div className="space-y-2">
+                                  <div className="flex items-center gap-2 mb-2">
+                                     <Badge variant="outline" className={cn("text-[8px] font-black uppercase cursor-pointer", sideWpType === 'image' ? "bg-black text-white" : "")} onClick={() => setSideWpType('image')}>Imagem</Badge>
+                                     <Badge variant="outline" className={cn("text-[8px] font-black uppercase cursor-pointer", sideWpType === 'video' ? "bg-black text-white" : "")} onClick={() => setSideWpType('video')}>Vídeo</Badge>
+                                  </div>
+                                  <div className="relative">
+                                     <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
+                                     <Input placeholder="URL EXTERNA..." value={sideWpUrl === 'LOCAL_ASSET' ? 'ARQUIVO LOCAL CARREGADO' : sideWpUrl} onChange={e => setSideWpUrl(e.target.value)} className="pl-10 border-2 border-black h-11 text-[10px] font-black uppercase rounded-none" />
+                                  </div>
+                               </div>
+                               <div className="flex flex-col justify-end">
+                                  <input type="file" ref={sideFileInput} className="hidden" onChange={e => handleFileUpload(e, 'side')} accept="image/*,video/*" />
+                                  <Button onClick={() => sideFileInput.current?.click()} variant="outline" className="border-2 border-black h-11 font-black uppercase text-[10px] rounded-none hover:bg-black hover:text-white transition-all">
+                                     <Upload size={14} className="mr-2" /> Upload Local
+                                  </Button>
+                               </div>
+                            </div>
+                         </div>
+                       )}
+
+                       <div className="space-y-6 pt-4 border-t-2 border-black/5">
+                          <Label className="font-black text-black text-xs uppercase flex items-center gap-2"><Layers size={14}/> Opacidade do Fundo ({Math.round(wpOpacity * 100)}%)</Label>
+                          <Slider value={[wpOpacity]} onValueChange={([v]) => setWpOpacity(v)} max={1} step={0.01} className="[&_[role=slider]]:bg-black" />
+                       </div>
+
+                       <div className="space-y-6">
+                          <Label className="font-black text-black text-xs uppercase flex items-center gap-2"><Layers size={14}/> Opacidade dos Containers ({Math.round(containerOpacity * 100)}%)</Label>
+                          <Slider value={[containerOpacity]} onValueChange={([v]) => handleOpacityChange(v)} max={1} step={0.01} className="[&_[role=slider]]:bg-black" />
+                       </div>
                     </div>
 
                     <div className="pt-4 border-t-2 border-black space-y-8 relative">
@@ -286,7 +368,7 @@ export default function SettingsPage() {
                        </div>
                     </div>
 
-                    <Button onClick={saveWpSettings} className="w-full h-12 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#000] hover:shadow-none">Sincronizar Atmosfera</Button>
+                    <Button onClick={saveWpSettings} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#000] hover:shadow-none">Sincronizar Atmosfera</Button>
                   </CardContent>
                 </Card>
               )}
@@ -295,7 +377,7 @@ export default function SettingsPage() {
                 <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
                     <CardTitle className="text-black font-black uppercase text-sm">Núcleo Neural Elite</CardTitle>
-                    <CardDescription className="text-[10px] font-black uppercase">Motores de processamento resilientes v390.0.</CardDescription>
+                    <CardDescription className="text-[10px] font-black uppercase">Motores de processamento resilientes v490.0.</CardDescription>
                   </CardHeader>
                   <CardContent className="p-6">
                     <RadioGroup value={iaModel} onValueChange={handleIaChange} className="grid grid-cols-1 gap-4">
