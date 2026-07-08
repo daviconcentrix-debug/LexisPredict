@@ -17,7 +17,8 @@ import {
   Upload,
   FileVideo,
   ImageIcon,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -51,6 +52,7 @@ export default function SettingsPage() {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isAddingUser, setIsAddUser] = useState(false);
   
+  const [visualMode, setVisualMode] = useState<'elite' | 'aura'>('elite');
   const [wpMode, setWpMode] = useState<'global' | 'separate' | 'main_only' | 'sidebar_only'>('global');
   const [mainWpUrl, setMainWpUrl] = useState('');
   const [sideWpUrl, setSideWpUrl] = useState('');
@@ -96,6 +98,7 @@ export default function SettingsPage() {
         setIaModel('grok');
       }
 
+      setVisualMode((localStorage.getItem('lexis_visual_mode') as any) || 'elite');
       setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2');
       setFontColor(localStorage.getItem('lexisPredict_font_color') || '#000000');
       setUnselectedFontColor(localStorage.getItem('lexisPredict_unselected_font_color') || '#000000');
@@ -129,6 +132,13 @@ export default function SettingsPage() {
     setIaModel(value);
     localStorage.setItem('lexisPredict_preferred_ia', value);
     toast({ title: "Núcleo Técnico Alterado", description: `Motor ${value.toUpperCase()} ativado.` });
+  };
+
+  const handleVisualModeChange = (mode: 'elite' | 'aura') => {
+    setVisualMode(mode);
+    localStorage.setItem('lexis_visual_mode', mode);
+    window.dispatchEvent(new Event('storage'));
+    toast({ title: mode === 'aura' ? "Aura Minimalist Ativado" : "Elite Edition Ativado" });
   };
 
   const handleColorChange = (key: string, value: string, setter: (v: string) => void) => {
@@ -227,7 +237,7 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Configuração Sistema</h1>
-            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v490.0 Elite Atmosfera</Badge>
+            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v510.0 Elite Transcendence</Badge>
           </div>
         </header>
 
@@ -263,6 +273,34 @@ export default function SettingsPage() {
                   </CardHeader>
                   <CardContent className="p-6 space-y-8">
                     
+                    <div className="space-y-4">
+                      <Label className="font-black text-black text-xs uppercase flex items-center gap-2">
+                        <Sparkles size={14} className="text-yellow-500" /> Modo de Experiência Visual
+                      </Label>
+                      <RadioGroup value={visualMode} onValueChange={(v: any) => handleVisualModeChange(v)} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <label htmlFor="mode-elite" className={cn(
+                          "flex items-center gap-3 p-5 border-2 border-black bg-white cursor-pointer transition-all",
+                          visualMode === 'elite' ? "bg-black text-white" : "hover:bg-gray-50"
+                        )}>
+                          <RadioGroupItem value="elite" id="mode-elite" className={visualMode === 'elite' ? "border-white" : "border-black"} />
+                          <div>
+                            <p className="font-black text-[10px] uppercase">Elite Edition</p>
+                            <p className="text-[8px] uppercase opacity-60">Shadows, Cantos Secos, 3D Isométrico.</p>
+                          </div>
+                        </label>
+                        <label htmlFor="mode-aura" className={cn(
+                          "flex items-center gap-3 p-5 border-2 border-black bg-white cursor-pointer transition-all",
+                          visualMode === 'aura' ? "bg-black text-white" : "hover:bg-gray-50"
+                        )}>
+                          <RadioGroupItem value="aura" id="mode-aura" className={visualMode === 'aura' ? "border-white" : "border-black"} />
+                          <div>
+                            <p className="font-black text-[10px] uppercase">Aura Minimalist</p>
+                            <p className="text-[8px] uppercase opacity-60">Glassmorphism, Rounds, Ultra Clean.</p>
+                          </div>
+                        </label>
+                      </RadioGroup>
+                    </div>
+
                     <div className="p-5 bg-black border-2 border-black flex items-center justify-between group transition-all cursor-default shadow-[8px_8px_0px_#facc15]">
                        <div className="flex items-center gap-4">
                           <div className="bg-white p-2 border-2 border-black">
@@ -377,7 +415,7 @@ export default function SettingsPage() {
                 <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
                     <CardTitle className="text-black font-black uppercase text-sm">Núcleo Neural Elite</CardTitle>
-                    <CardDescription className="text-[10px] font-black uppercase">Motores de processamento resilientes v490.0.</CardDescription>
+                    <CardDescription className="text-[10px] font-black uppercase">Motores de processamento resilientes v510.0.</CardDescription>
                   </CardHeader>
                   <CardContent className="p-6">
                     <RadioGroup value={iaModel} onValueChange={handleIaChange} className="grid grid-cols-1 gap-4">

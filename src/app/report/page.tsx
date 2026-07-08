@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { LegalCase, CaseNote } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Printer, 
   ArrowLeft, 
@@ -14,17 +15,22 @@ import {
   Copyright, 
   SearchCheck, 
   Scale, 
-  Users 
+  Users,
+  StickyNote,
+  Image as ImageIcon,
+  Edit3
 } from 'lucide-react';
 import Link from 'next/link';
 import { fetchRepoCases, fetchRepoNotes } from '@/app/actions/case-actions';
 import { useAuth } from '@/components/auth/auth-provider';
+import Image from 'next/image';
 
 export default function UnifiedReport() {
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [notes, setNotes] = useState<CaseNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [customComment, setCustomComment] = useState('');
   const { profile, loading: authLoading } = useAuth();
 
   useEffect(() => {
@@ -94,13 +100,29 @@ export default function UnifiedReport() {
 
   return (
     <div className="min-h-screen bg-white text-black p-8 md:p-12 max-w-5xl mx-auto print:p-0">
-      <div className="flex justify-between items-center mb-10 print:hidden">
-        <Button variant="outline" asChild size="sm" className="border-black text-black font-black uppercase text-[10px] rounded-none border-2 shadow-[4px_4px_0px_#000] hover:shadow-none transition-all">
-          <Link href="/"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Link>
-        </Button>
-        <Button onClick={() => window.print()} className="bg-black text-white font-black px-8 rounded-none uppercase text-[10px] border-2 border-black shadow-[4px_4px_0px_#000] hover:shadow-none transition-all">
-          <Printer className="mr-2 h-4 w-4" /> Imprimir Dossiê
-        </Button>
+      <div className="flex flex-col gap-6 mb-10 print:hidden">
+        <div className="flex justify-between items-center">
+          <Button variant="outline" asChild size="sm" className="border-black text-black font-black uppercase text-[10px] rounded-none border-2 shadow-[4px_4px_0px_#000] hover:shadow-none transition-all">
+            <Link href="/"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Link>
+          </Button>
+          <Button onClick={() => window.print()} className="bg-black text-white font-black px-8 rounded-none uppercase text-[10px] border-2 border-black shadow-[4px_4px_0px_#000] hover:shadow-none transition-all">
+            <Printer className="mr-2 h-4 w-4" /> Imprimir Dossiê
+          </Button>
+        </div>
+
+        <div className="p-6 bg-gray-50 border-2 border-dashed border-black space-y-4">
+           <div className="flex items-center gap-2 mb-2">
+              <Edit3 size={16} className="text-black" />
+              <p className="text-[10px] font-black uppercase tracking-widest">Parecer Técnico Adicional (Opcional)</p>
+           </div>
+           <Textarea 
+             placeholder="Digite aqui observações gerais, metas ou comentários que devem constar ao final deste relatório..."
+             value={customComment}
+             onChange={(e) => setCustomComment(e.target.value)}
+             className="min-h-[100px] border-2 border-black font-black uppercase text-xs rounded-none bg-white focus-visible:ring-0"
+           />
+           <p className="text-[9px] font-bold text-black/40 uppercase">Este texto será incluído na seção de observações do dossiê impresso.</p>
+        </div>
       </div>
 
       <header className="border-b-4 border-black pb-8 mb-10">
@@ -144,7 +166,7 @@ export default function UnifiedReport() {
       <section className="mb-12">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded-none border border-black"><FileText size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">2. Triagem de Casos por Auditor</h2>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">2. Triagem de Casos de Alta Prioridade</h2>
         </div>
         <div className="border-2 border-black rounded-none overflow-hidden">
           <table className="w-full text-left text-[10px] border-collapse">
@@ -169,7 +191,7 @@ export default function UnifiedReport() {
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={4} className="px-5 py-10 text-center italic text-gray-400">Nenhum registro individual localizado para exportação.</td></tr>
+                <tr><td colSpan={4} className="px-5 py-10 text-center italic text-gray-400">Nenhum registro de alta prioridade localizado para exportação.</td></tr>
               )}
             </tbody>
           </table>
@@ -178,8 +200,49 @@ export default function UnifiedReport() {
 
       <section className="mb-12 break-inside-avoid">
         <div className="flex items-center gap-3 mb-6">
+          <div className="p-1.5 bg-black text-white rounded-none border border-black"><StickyNote size={18} /></div>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">3. Evidências & Notas de Gabinete</h2>
+        </div>
+        <div className="space-y-6">
+           {notes.length > 0 ? notes.map((note) => (
+             <div key={note.id} className="p-6 border-2 border-black bg-white shadow-[4px_4px_0px_#000] break-inside-avoid">
+                <div className="flex justify-between items-start mb-4 border-b border-black/10 pb-2">
+                   <h3 className="text-sm font-black uppercase">{note.title}</h3>
+                   <span className="text-[9px] font-bold text-gray-400 uppercase">{note.updatedAt}</span>
+                </div>
+                <div className="flex flex-col md:flex-row gap-6">
+                   <div className="flex-1">
+                      <p className="text-[11px] font-black uppercase leading-relaxed text-black/80 whitespace-pre-wrap">{note.content}</p>
+                   </div>
+                   {note.imageUrl && (
+                      <div className="w-full md:w-48 h-48 relative border-2 border-black shrink-0">
+                         <img src={note.imageUrl} alt="Evidência" className="w-full h-full object-cover" />
+                      </div>
+                   )}
+                </div>
+             </div>
+           )) : (
+             <div className="p-10 border-2 border-dashed border-black/20 text-center italic text-gray-400 text-xs uppercase">Nenhuma anotação estratégica anexada a este dossiê.</div>
+           )}
+        </div>
+      </section>
+
+      {customComment && (
+        <section className="mb-12 break-inside-avoid">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-1.5 bg-black text-white rounded-none border border-black"><MessageSquare size={18} /></div>
+            <h2 className="text-lg font-extrabold uppercase tracking-tight">4. Parecer Complementar do Auditor</h2>
+          </div>
+          <div className="p-8 border-4 border-black bg-gray-50 italic text-sm font-black uppercase leading-loose">
+             {customComment}
+          </div>
+        </section>
+      )}
+
+      <section className="mb-12 break-inside-avoid">
+        <div className="flex items-center gap-3 mb-6">
           <div className="p-1.5 bg-black text-white rounded-none border border-black"><Scale size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">3. Analytics: Distribuição por Tribunal</h2>
+          <h2 className="text-lg font-extrabold uppercase tracking-tight">{customComment ? '5' : '4'}. Analytics: Distribuição por Tribunal</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
            <div className="space-y-4">
@@ -196,9 +259,9 @@ export default function UnifiedReport() {
               ))}
            </div>
            <div className="bg-gray-50 p-6 border-2 border-dashed border-black/20 flex flex-col justify-center text-center space-y-2">
-              <p className="text-[10px] font-black uppercase text-black/40 tracking-widest">Parecer de Perfil</p>
+              <p className="text-[10px] font-black uppercase text-black/40 tracking-widest">Autenticidade de Perfil</p>
               <p className="text-xs font-black uppercase leading-relaxed">
-                Relatório gerado para {userName}. Base de dados filtrada individualmente por auditor.
+                Relatório consolidado para o auditor {userName}. Todas as evidências foram extraídas da base individual W1 Capital.
               </p>
            </div>
         </div>

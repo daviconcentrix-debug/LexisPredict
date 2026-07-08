@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -155,6 +154,7 @@ export function Sidebar() {
 
       const settings = {
         mode: localStorage.getItem('lexis_wp_mode') || 'global',
+        visualMode: localStorage.getItem('lexis_visual_mode') || 'elite',
         mainUrl: localStorage.getItem('lexis_wp_main_url'),
         sideUrl: localStorage.getItem('lexis_wp_sidebar_url'),
         mainType: localStorage.getItem('lexis_wp_main_type') || 'image',
@@ -187,10 +187,21 @@ export function Sidebar() {
         const unselectedBtnBgRgba = hexToRgba(settings.unselectedBtnBgColor, settings.containerOpacity);
         const borderRgba = hexToRgba(settings.borderColor, settings.containerOpacity);
         const fontRgba = settings.fontColor;
+
+        const isAura = settings.visualMode === 'aura';
+        const radius = isAura ? '1rem' : '0rem';
+        const shadow = isAura ? '0 10px 25px -5px rgba(0,0,0,0.1)' : '8px 8px 0px rgba(0,0,0,1)';
+        const hoverShadow = isAura ? '0 20px 35px -5px rgba(0,0,0,0.15)' : 'none';
+        const borderWidth = isAura ? '1px' : '2px';
+        const glassBlur = isAura ? 'blur(10px)' : 'none';
         
         fontStyle.innerHTML = `
+          :root {
+            --radius: ${radius};
+          }
           body, .text-black, h1, h2, h3, h4, h5, h6, p, span, label, input, textarea, select, .font-black {
             color: ${fontRgba} !important;
+            font-weight: ${isAura ? '600' : '900'} !important;
           }
           .text-muted-foreground, .unselected-text {
             color: ${settings.unselectedFontColor} !important;
@@ -199,18 +210,23 @@ export function Sidebar() {
           input::placeholder, textarea::placeholder {
             color: ${settings.fontColor}44 !important;
           }
-          .border-black, .border-2, .border-r, .border-b, .border-t, .border-l, border-collapse, hr {
+          .border-black, .border-2, .border-r, .border-b, .border-t, .border-l, border-collapse, hr, .border {
             border-color: ${borderRgba} !important;
+            border-width: ${borderWidth} !important;
+            border-radius: ${radius} !important;
           }
           .divide-black\\/5 > * + *, .divide-black\\/10 > * + * {
             border-color: ${settings.borderColor}22 !important;
           }
           svg {
             stroke: ${settings.iconColor} !important;
+            stroke-width: ${isAura ? '1.5px' : '2.5px'} !important;
           }
           .bg-black, [data-active="true"], .active-item {
             background-color: ${btnBgRgba} !important;
             color: ${settings.btnTextColor} !important;
+            border-radius: ${radius} !important;
+            box-shadow: ${isAura ? shadow : 'none'} !important;
           }
           .bg-black svg, [data-active="true"] svg {
             stroke: ${settings.btnTextColor} !important;
@@ -218,6 +234,8 @@ export function Sidebar() {
           .bg-white, .bg-sidebar, .bg-card, .bg-\\[\\#f3f2f2\\], .bg-[#f3f2f2], [data-active="false"], .inactive-item {
             background-color: ${unselectedBtnBgRgba} !important;
             color: ${settings.unselectedFontColor} !important;
+            border-radius: ${radius} !important;
+            backdrop-filter: ${glassBlur} !important;
           }
           .bg-white svg, .bg-sidebar svg, .inactive-item svg {
             stroke: ${settings.iconColor} !important;
@@ -225,26 +243,38 @@ export function Sidebar() {
           header, .bg-\\[\\#f8f9fb\\], .bg-[#f8f9fb] {
             background-color: ${unselectedBtnBgRgba} !important;
             border-color: ${borderRgba} !important;
+            backdrop-filter: ${glassBlur} !important;
           }
           .hover\\:bg-black:hover {
             background-color: ${btnBgRgba} !important;
             color: ${settings.btnTextColor} !important;
+            box-shadow: ${hoverShadow} !important;
+            transform: ${isAura ? 'translateY(-2px)' : 'none'} !important;
           }
           .hover\\:bg-black:hover svg {
             stroke: ${settings.btnTextColor} !important;
           }
           .icon-3d-block {
             border-color: ${borderRgba} !important;
+            transform: ${isAura ? 'none' : 'perspective(100px) rotate(-30deg) skew(25deg)'} !important;
+            box-shadow: ${isAura ? 'none' : '-10px 10px 0px rgba(0,0,0,1)'} !important;
+            border-radius: ${isAura ? '50%' : '2px'} !important;
           }
           .icon-3d-block::before, .icon-3d-block::after {
+            display: ${isAura ? 'none' : 'block'} !important;
             background-color: ${settings.borderColor} !important;
-            opacity: 0.8;
           }
           .icon-3d-block.black {
             background-color: ${btnBgRgba} !important;
           }
           .icon-3d-block.black svg {
             stroke: ${settings.btnTextColor} !important;
+          }
+          .shadow-\\[8px_8px_0px_#000\\], .shadow-lg, .shadow-sm, .shadow-xl {
+             box-shadow: ${shadow} !important;
+          }
+          .rounded-none, .rounded-sm, .rounded-md, .rounded-lg, .rounded-2xl {
+             border-radius: ${radius} !important;
           }
         `;
       };
