@@ -1,52 +1,12 @@
 'use server';
 /**
- * @fileOverview Motor de Extração de Dados Jurídicos v650.0 ELITE
- * Núcleo: xAI (Grok 4.5) | Backup: Groq (Llama 3.3) | Reserva 1: Airforce (DeepSeek) | Reserva 2: Puter (Claude).
+ * @fileOverview Motor de Extração de Dados Jurídicos v800.0 ELITE
+ * Estratégia: Fatiamento de Contexto para evitar Erro de Buffer e Fallback Quaternário.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-
-const DocumentInputSchema = z.object({
-  text: z.string().describe('Texto bruto ou contrato do cliente.'),
-  preferredLawyer: z.string().optional().describe('Nome do advogado selecionado.'),
-  preferredState: z.string().optional().describe('Estado da OAB selecionado.'),
-  preferredModel: z.string().optional().default('xai'),
-});
-
-const DocumentOutputSchema = z.object({
-  cliente: z.object({
-    nome: z.string(),
-    estadoCivil: z.string(),
-    profissao: z.string(),
-    rg: z.string(),
-    cpf: z.string(),
-    endereco: z.string(),
-    email: z.string(),
-    genero: z.enum(['M', 'F']).default('M'),
-  }),
-  processos: z.array(z.object({
-    banco: z.string(),
-    cnpjBanco: z.string().optional().default(''),
-    numero: z.string(),
-    acao: z.string().default('AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA'),
-    estado: z.string().optional(),
-  })),
-  advogado: z.object({
-    nome: z.string(),
-    oab: z.string(),
-    endereco: z.string(),
-    email: z.string(),
-    cargo: z.string().default('advogado'),
-  }),
-});
-
-export type DocumentOutput = z.infer<typeof DocumentOutputSchema>;
-
-const XAI_API_KEY = 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE';
-const AIRFORCE_API_KEY = 'sk-air-Rxc7ygo5b0XpkZqUBqwSnhjwS0bZbWFnzwRLjfPtdAbYK6nj';
-const GROQ_API_KEY = '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';
 
 const BANCA_DATA = {
   "DIEGO GOMES DIAS": {
@@ -81,131 +41,117 @@ const BANCA_DATA = {
   }
 };
 
-const SYSTEM_PROMPT = `Você é o Arquiteto Jurídico da W1 Capital. Extraia os dados do contrato fornecido.
-RETORNE APENAS JSON PLANO. Não inclua Markdown, blocos de código ou textos explicativos.
-Estrutura exigida:
+const API_KEYS = {
+  XAI: 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE',
+  AIRFORCE: 'sk-air-Rxc7ygo5b0XpkZqUBqwSnhjwS0bZbWFnzwRLjfPtdAbYK6nj',
+  GROQ: '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'
+};
+
+const SYSTEM_PROMPT = `Você é o Arquiteto Jurídico da W1 Capital. Extraia os dados do contrato.
+RETORNE APENAS JSON PLANO. Sem markdown.
 {
   "cliente": { "nome": "", "estadoCivil": "", "profissao": "", "rg": "", "cpf": "", "endereco": "", "email": "", "genero": "M"|"F" },
   "processos": [{ "banco": "", "cnpjBanco": "", "numero": "", "acao": "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA", "estado": "UF" }]
 }`;
 
-function cleanJsonResponse(text: string): string {
-  if (!text) return "{}";
+function cleanJsonResponse(text: string): any {
+  if (!text) return null;
   try {
     const firstBrace = text.indexOf('{');
     const lastBrace = text.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1) {
-      return text.substring(firstBrace, lastBrace + 1);
+      return JSON.parse(text.substring(firstBrace, lastBrace + 1));
     }
-    return text;
-  } catch (e) {
-    return "{}";
+    return null;
+  } catch (e) { return null; }
+}
+
+async function fetchWithTimeout(url: string, options: any, timeout = 10000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    return null;
   }
 }
 
-async function callXAIExtraction(text: string) {
-  const response = await fetch('https://api.x.ai/v1/chat/completions', {
+async function callXAI(text: string) {
+  const res = await fetchWithTimeout('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${XAI_API_KEY}`, 'Content-Type': 'application/json' },
+    headers: { 'Authorization': `Bearer ${API_KEYS.XAI}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'grok-4.5',
-      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text.substring(0, 5000)}` }],
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text}` }],
       response_format: { type: 'json_object' }
     })
-  });
-  if (!response.ok) throw new Error(`XAI_FAILED_${response.status}`);
-  const data = await response.json();
-  return JSON.parse(cleanJsonResponse(data.choices[0].message.content));
+  }, 10000);
+  if (!res?.ok) return null;
+  const data = await res.json();
+  return cleanJsonResponse(data?.choices?.[0]?.message?.content);
 }
 
-async function callGroqExtraction(text: string) {
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+async function callAirforce(text: string) {
+  const res = await fetchWithTimeout('https://api.airforce/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text.substring(0, 5000)}` }],
-      response_format: { type: 'json_object' }
-    })
-  });
-  if (!response.ok) throw new Error(`GROQ_FAILED_${response.status}`);
-  const data = await response.json();
-  return JSON.parse(cleanJsonResponse(data.choices[0].message.content));
-}
-
-async function callAirforceExtraction(text: string) {
-  const response = await fetch('https://api.airforce/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${AIRFORCE_API_KEY}`, 'Content-Type': 'application/json' },
+    headers: { 'Authorization': `Bearer ${API_KEYS.AIRFORCE}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'deepseek-v3',
-      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text.substring(0, 5000)}` }]
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text}` }]
     })
-  });
-  if (!response.ok) throw new Error(`AIRFORCE_FAILED_${response.status}`);
-  const data = await response.json();
-  return JSON.parse(cleanJsonResponse(data.choices[0].message.content));
+  }, 10000);
+  if (!res?.ok) return null;
+  const data = await res.json();
+  return cleanJsonResponse(data?.choices?.[0]?.message?.content);
 }
 
-async function callPuterExtraction(text: string) {
-  const response = await fetch('https://api.puter.com/v2/ai/chat', {
+async function callGroq(text: string) {
+  const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      model: 'claude-sonnet-5', 
-      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text.substring(0, 5000)}` }],
-      stream: false
+    headers: { 'Authorization': `Bearer ${API_KEYS.GROQ}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text}` }],
+      response_format: { type: 'json_object' }
     })
-  });
-  if (!response.ok) throw new Error(`PUTER_FAILED_${response.status}`);
-  const data = await response.json();
-  return JSON.parse(cleanJsonResponse(data.message.content[0].text));
+  }, 10000);
+  if (!res?.ok) return null;
+  const data = await res.json();
+  return cleanJsonResponse(data?.choices?.[0]?.message?.content);
 }
 
 export const documentFlow = ai.defineFlow(
-  {
-    name: 'documentFlow',
-    inputSchema: DocumentInputSchema,
-    outputSchema: DocumentOutputSchema,
-  },
+  { name: 'documentFlow', inputSchema: z.any(), outputSchema: z.any() },
   async (input) => {
-    let parsed: any = null;
-    const model = input.preferredModel;
+    // BLINDAGEM DE BUFFER: Fatiar contrato para evitar erro de serialização
+    const slicedText = (input.text || "").substring(0, 6000);
     
+    let parsed: any = null;
     const engines = [
-      { id: 'xai', call: callXAIExtraction },
-      { id: 'grok', call: callGroqExtraction },
-      { id: 'airforce', call: callAirforceExtraction },
-      { id: 'puter', call: callPuterExtraction }
+      { id: 'xai', call: callXAI },
+      { id: 'airforce', call: callAirforce },
+      { id: 'grok', call: callGroq }
     ];
 
-    // Ordenar motores para que o preferido venha primeiro
-    const sortedEngines = [
-      engines.find(e => e.id === model) || engines[0],
-      ...engines.filter(e => e.id !== model)
-    ].filter(Boolean);
+    const pref = input.preferredModel || 'xai';
+    const sorted = [engines.find(e => e.id === pref) || engines[0], ...engines.filter(e => e.id !== pref)].filter(Boolean);
 
-    // Cascata linear blindada para evitar Erro 500
-    for (const engine of sortedEngines) {
+    for (const engine of sorted) {
+      console.log(`[DocumentFlow] Tentando motor: ${engine!.id.toUpperCase()}`);
       try {
-        console.log(`Tentando Motor Neural: ${engine!.id.toUpperCase()}`);
-        parsed = await engine!.call(input.text);
+        parsed = await engine!.call(slicedText);
         if (parsed && (parsed.cliente || parsed.processos)) break;
-      } catch (err: any) {
-        console.error(`Falha no motor ${engine!.id}: ${err.message}`);
-        // Continua para o próximo motor da lista
-      }
+      } catch (e) { continue; }
     }
 
-    if (!parsed) {
-      // Se chegarmos aqui, todos os motores falharam. Lançamos um erro controlado que o client catch irá pegar.
-      throw new Error("SISTEMA_INDISPONIVEL_TODOS_MOTORES_FALHARAM");
-    }
+    if (!parsed) return { error: true, code: "SISTEMA_INDISPONIVEL" };
 
     const targetLawyer = input.preferredLawyer || "PABLO MATHEUS SILVA BASTOS PEREIRA";
     const lawyerInfo = (BANCA_DATA as any)[targetLawyer] || BANCA_DATA["PABLO MATHEUS SILVA BASTOS PEREIRA"];
-    const rawProcessos = parsed.processos || parsed.processo || [];
-    const processosArray = Array.isArray(rawProcessos) ? rawProcessos : [rawProcessos];
+    const processosArray = Array.isArray(parsed.processos) ? parsed.processos : parsed.processo ? [parsed.processo] : [];
     const finalState = (input.preferredState || processosArray[0]?.estado || "SP").toUpperCase();
     const selectedOAB = (lawyerInfo.oabs as any)[finalState] || (lawyerInfo.oabs as any)["SP"];
 
@@ -217,7 +163,7 @@ export const documentFlow = ai.defineFlow(
         rg: parsed.cliente?.rg || "---",
         cpf: parsed.cliente?.cpf || "---",
         endereco: parsed.cliente?.endereco || "Não localizado",
-        email: parsed.cliente?.email || "---",
+        email: parsed.cliente?.email || "",
         genero: parsed.cliente?.genero || 'M',
       },
       advogado: {

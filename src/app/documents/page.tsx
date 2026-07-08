@@ -35,7 +35,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { extrairDadosProcuracao, DocumentOutput } from '@/ai/flows/document-flow';
+import { extrairDadosProcuracao } from '@/ai/flows/document-flow';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import {
@@ -63,7 +63,7 @@ export default function DocumentGenerator() {
   const [selectedLawyer, setSelectedLawyer] = useState<string>('');
   const [selectedState, setSelectedState] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [extractedData, setExtractedData] = useState<DocumentOutput | null>(null);
+  const [extractedData, setExtractedData] = useState<any | null>(null);
   const [step, setStep] = useState(1); 
   const [fileLoading, setFileLoading] = useState(false);
   const [pdfEngineReady, setPdfEngineReady] = useState(false);
@@ -118,14 +118,15 @@ export default function DocumentGenerator() {
             fullText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
           }
           setInputText(fullText);
-          toast({ title: "Contrato Lido", description: "Inicie a extração neural v650.0 Elite." });
+          toast({ title: "Contrato Lido" });
         } catch (err) {
-          toast({ title: "Falha na Leitura", description: "O PDF pode estar protegido ou corrompido.", variant: "destructive" });
+          console.error("PDF Reader Error:", err);
+          toast({ title: "Falha na Leitura", variant: "destructive" });
         } finally {
           setFileLoading(false);
         }
       };
-      reader.readAsArrayBuffer(file);
+      reader.readAsDataBuffer(file);
     } catch (error) {
       setFileLoading(false);
       toast({ title: "Erro de Buffer", variant: "destructive" });
@@ -141,53 +142,46 @@ export default function DocumentGenerator() {
         text: inputText, 
         preferredLawyer: selectedLawyer,
         preferredState: selectedState,
-        preferredModel: preferredIA as any
+        preferredModel: preferredIA
       });
-      if (data) {
+      
+      if (data && !data.error) {
         setExtractedData(data);
         setDocLocal(selectedState === "SP" ? "São Paulo - SP" : `${selectedState}`);
         setDocDate(new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }));
         setStep(2);
-        toast({ title: "Triagem Concluída", description: "Revise os dados de gabinete." });
+        toast({ title: "Triagem Concluída" });
       } else {
-        throw new Error("Falha Crítica na Resposta do Servidor.");
+        setApiError({ engine: preferredIA, message: "Todos os motores de triagem falharam ou o servidor excedeu o tempo limite." });
+        toast({ title: "falha na triagem", variant: "destructive" });
       }
     } catch (error: any) {
-      // Captura erros 500 ou falhas de timeout e ativa o botão de emergência
-      setApiError({ engine: preferredIA, message: error.message || "Motor Neural Indisponível" });
-      toast({ title: "Falha na Triagem", description: "O motor neural atingiu um limite. Alterne para continuar.", variant: "destructive" });
+      console.error("Erro Crítico no Frontend:", error);
+      setApiError({ engine: preferredIA, message: "Falha técnica na extração." });
+      toast({ title: "falha na triagem", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
   const handleSwitchAndRetry = () => {
-    const engines: any = ['xai', 'grok', 'airforce', 'puter'];
+    const engines = ['xai', 'airforce', 'grok'];
     const currentIndex = engines.indexOf(preferredIA);
     const nextIA = engines[(currentIndex + 1) % engines.length];
-    
     setPreferredIA(nextIA);
     localStorage.setItem('lexisPredict_preferred_ia', nextIA);
     setApiError(null);
-    toast({ title: "Alternância Neural", description: `Migrando para o motor ${nextIA.toUpperCase()}...` });
-    
-    setTimeout(() => {
-        if (inputText && selectedLawyer && selectedState) {
-            handleExtract();
-        }
-    }, 500);
+    toast({ title: "Alternando Motor...", description: `Migrando para ${nextIA.toUpperCase()}...` });
+    setTimeout(() => { if (inputText && selectedLawyer && selectedState) handleExtract(); }, 500);
   };
 
   const updateExtractedField = (category: 'cliente' | 'advogado', field: string, value: string) => {
     if (!extractedData) return;
-    setExtractedData({
-      ...extractedData,
-      [category]: { ...(extractedData as any)[category], [field]: value }
-    });
+    setExtractedData({ ...extractedData, [category]: { ...(extractedData as any)[category], [field]: value } });
   };
 
   const updateProcessField = (index: number, field: string, value: string) => {
-    if (!extractedData) return;
+    if (!extractedData || !extractedData.processos) return;
     const newProcessos = [...extractedData.processos];
     if (newProcessos[index]) {
       (newProcessos[index] as any)[field] = value;
@@ -201,17 +195,15 @@ export default function DocumentGenerator() {
     const processNumber = extractedData.processos?.[0]?.numero || 'S/N';
     const lawyerName = extractedData.advogado?.nome || 'Advogado';
     const honorific = extractedData.advogado?.cargo === 'advogada' ? 'Dra.' : 'Dr.';
-
     const subject = `Nova Procuração - Processo ${processNumber}`;
     const body = `Prezado(a) Sr.(a) ${clientName},\n\nInformamos que seu processo nº ${processNumber}, passará a ser acompanhado pelo ${honorific} ${lawyerName}, visando um acompanhamento ainda mais eficiente da demanda.\n\nPor esse motivo, será necessário anexar uma nova procuração atualizada aos autos.\n\nPedimos, por gentileza, que confira os dados do documento encaminhado, imprima e assine manualmente, com assinatura semelhante à do documento de identificação, realizando também o reconhecimento de firma em cartório.\n\nApós isso, solicitamos o envio de uma foto legível ou do documento digitalizado para juntada no processo.\n\nFicamos à disposição para quaisquer esclarecimentos.\n\nAtenciosamente,\nGabinete W1 Capital`;
-
     return { subject, body };
   };
 
   const handleSendEmail = () => {
     if (!extractedData) return;
     const email = extractedData.cliente?.email;
-    if (!email || email === '---' || email === 'Não localizado') {
+    if (!email || email === '---' || email === '') {
       toast({ title: "E-mail Ausente", description: "Insira o e-mail no passo anterior.", variant: "destructive" });
       setStep(2);
       return;
@@ -223,7 +215,7 @@ export default function DocumentGenerator() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast({ title: "Iniciando Despacho" });
+    toast({ title: "Abrindo E-mail" });
   };
 
   const handleCopyText = () => {
@@ -263,15 +255,12 @@ export default function DocumentGenerator() {
                  <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 rounded-none shadow-[8px_8px_0px_#000] p-6">
                    <div className="flex items-center gap-3">
                      <AlertCircle className="h-6 w-6" />
-                     <AlertTitle className="font-black uppercase text-sm">Alerta de Emergência Neural</AlertTitle>
+                     <AlertTitle className="font-black uppercase text-sm">Erro de Triagem</AlertTitle>
                    </div>
                    <AlertDescription className="flex flex-col gap-4 mt-3">
-                     <p className="text-[11px] font-bold uppercase leading-relaxed">
-                       O motor {apiError.engine.toUpperCase()} atingiu o limite de operação ou encontrou instabilidade no servidor. 
-                       <br/>Deseja alternar para a próxima via de inteligência disponível?
-                     </p>
+                     <p className="text-[11px] font-bold uppercase leading-relaxed">{apiError.message}</p>
                      <Button onClick={handleSwitchAndRetry} className="bg-red-600 text-white border-2 border-black h-12 font-black uppercase text-[10px] rounded-none hover:bg-black transition-all w-full sm:w-fit px-10 shadow-[4px_4px_0px_#000]">
-                        <RefreshCcw size={14} className="mr-2" /> Alternar Motor & Re-tentar
+                        Alternar Motor & Re-tentar
                      </Button>
                    </AlertDescription>
                  </Alert>
@@ -302,9 +291,7 @@ export default function DocumentGenerator() {
                           </div>
                           
                           <div className={cn("space-y-2 transition-all", !selectedLawyer && "opacity-30 pointer-events-none")}>
-                            <Label className="uppercase text-[10px] font-black flex items-center gap-1.5">
-                              <MapPin size={12}/> Estado (OAB Territorial)
-                            </Label>
+                            <Label className="uppercase text-[10px] font-black flex items-center gap-1.5"><MapPin size={12}/> Estado (OAB Territorial)</Label>
                             <Select value={selectedState} onValueChange={setSelectedState} disabled={!selectedLawyer}>
                               <SelectTrigger className="w-full border-2 border-black h-12 font-black uppercase text-[11px] rounded-none bg-white">
                                 <SelectValue placeholder={selectedLawyer ? "ESCOLHA O ESTADO..." : "AGUARDANDO..."} />
@@ -344,9 +331,7 @@ export default function DocumentGenerator() {
                   <div className="space-y-6">
                     <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                       <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                        <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                          <Upload size={14} /> Leitura PDF (Local)
-                        </CardTitle>
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Upload size={14} /> Leitura PDF (Local)</CardTitle>
                       </CardHeader>
                       <CardContent className="p-6">
                         <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 rounded-none p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all">
@@ -366,7 +351,7 @@ export default function DocumentGenerator() {
                <div className="flex items-center justify-between border-b-2 border-black pb-4">
                   <div className="flex items-center gap-3">
                      <Edit3 size={20} />
-                     <h2 className="text-xl font-black uppercase tracking-tight">Revisão de Gabinete v650.0</h2>
+                     <h2 className="text-xl font-black uppercase tracking-tight">Revisão de Gabinete v750.0</h2>
                   </div>
                   <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-transparent hover:border-black rounded-none">
                     <ChevronLeft size={14} className="mr-1" /> Voltar
@@ -376,9 +361,7 @@ export default function DocumentGenerator() {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                     <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                        <User size={14} /> Outorgante
-                      </CardTitle>
+                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><User size={14} /> Outorgante</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
                         <div className="grid gap-1">
@@ -409,12 +392,10 @@ export default function DocumentGenerator() {
                   <div className="space-y-8">
                     <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                       <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                        <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                          <Building2 size={14} /> Dados da Ação
-                        </CardTitle>
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados da Ação</CardTitle>
                       </CardHeader>
                       <CardContent className="p-6 space-y-6">
-                        {extractedData.processos?.map((p, i) => (
+                        {extractedData.processos?.map((p: any, i: number) => (
                           <div key={i} className="space-y-4 p-4 bg-gray-50 border-2 border-dashed border-black/10">
                             <div className="grid gap-1">
                               <Label className="text-yellow-600">Instituição Financeira (BANCO)</Label>
@@ -435,9 +416,7 @@ export default function DocumentGenerator() {
 
                     <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                       <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                        <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                          <CalendarDays size={14} /> Local e Data
-                        </CardTitle>
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><CalendarDays size={14} /> Local e Data</CardTitle>
                       </CardHeader>
                       <CardContent className="p-6 space-y-4">
                         <div className="grid gap-4">
@@ -446,10 +425,7 @@ export default function DocumentGenerator() {
                         </div>
                       </CardContent>
                     </Card>
-
-                    <Button onClick={() => setStep(3)} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
-                      <CheckCircle2 size={16} className="mr-2" /> Selar Documento
-                    </Button>
+                    <Button onClick={() => setStep(3)} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]"><CheckCircle2 size={16} className="mr-2" /> Selar Documento</Button>
                   </div>
                </div>
             </div>
@@ -459,27 +435,17 @@ export default function DocumentGenerator() {
             <div className="space-y-8 animate-in fade-in duration-500">
                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-[1200px] mx-auto print:flex print:flex-col">
                   <div className="lg:col-span-1 space-y-6 print:hidden">
-                    <Button variant="ghost" onClick={() => setStep(2)} className="w-full font-black uppercase text-[10px] border-2 border-transparent hover:border-black rounded-none h-10 mb-2">
-                      <ChevronLeft size={14} className="mr-1" /> Editar Dados
-                    </Button>
+                    <Button variant="ghost" onClick={() => setStep(2)} className="w-full font-black uppercase text-[10px] border-2 border-transparent hover:border-black rounded-none h-10 mb-2"><ChevronLeft size={14} className="mr-1" /> Editar Dados</Button>
                     <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                       <CardHeader className="bg-black text-white py-3">
-                         <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                            <MessageCircle size={14} className="text-green-400" /> Despacho
-                         </CardTitle>
+                         <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><MessageCircle size={14} className="text-green-400" /> Despacho</CardTitle>
                       </CardHeader>
                       <CardContent className="p-4 space-y-4">
-                         <Button onClick={handleCopyText} className="w-full bg-white text-black border-2 border-black h-11 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none">
-                            {copied ? <Check size={14} className="mr-2 text-green-600" /> : <Copy size={14} className="mr-2" />} Copiar Instruções
-                         </Button>
-                         <Button onClick={handleSendEmail} className="w-full bg-white text-black border-2 border-black h-11 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none">
-                            <Mail size={14} className="mr-2" /> Enviar por E-mail
-                         </Button>
+                         <Button onClick={handleCopyText} className="w-full bg-white text-black border-2 border-black h-11 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none">{copied ? <Check size={14} className="mr-2 text-green-600" /> : <Copy size={14} className="mr-2" />} Copiar Instruções</Button>
+                         <Button onClick={handleSendEmail} className="w-full bg-white text-black border-2 border-black h-11 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none"><Mail size={14} className="mr-2" /> Enviar por E-mail</Button>
                       </CardContent>
                     </Card>
-                    <Button onClick={() => window.print()} className="w-full bg-black text-white font-black uppercase text-[10px] h-14 rounded-none border-2 border-black shadow-[6px_6px_0px_#facc15] hover:shadow-none transition-all">
-                      <Printer size={16} className="mr-2" /> Exportar PDF Forense
-                    </Button>
+                    <Button onClick={() => window.print()} className="w-full bg-black text-white font-black uppercase text-[10px] h-14 rounded-none border-2 border-black shadow-[6px_6px_0px_#facc15] hover:shadow-none transition-all"><Printer size={16} className="mr-2" /> Exportar PDF Forense</Button>
                   </div>
                   <div className="lg:col-span-3 document-container bg-white shadow-2xl border-2 border-black print:shadow-none print:border-none">
                     <div className="procuracao-page" ref={printRef}>
@@ -491,42 +457,20 @@ export default function DocumentGenerator() {
                         <strong>{extractedData.advogado?.nome?.toUpperCase() || ''}</strong>, brasileiro, {extractedData.advogado?.cargo || ''}, inscrito na OAB sob o número {extractedData.advogado?.oab || ''}, com endereço profissional na {extractedData.advogado?.endereco || ''}, e endereço eletrônico: {extractedData.advogado?.email || ''}.
                       </div>
                       <div className="doc-paragraph">
-                        <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da {extractedData.processos?.map((p, index) => (
-                          <span key={index}>
-                            <strong><u>{p.acao}</u></strong> promovida contra <strong>{p.banco?.toUpperCase() || ''}</strong>, inscrito no CNPJ nº <strong>{p.cnpjBanco || ''}</strong>, processo nº {p.numero || ''}{index < (extractedData.processos?.length || 0) - 1 ? '; ' : '.'}
-                          </span>
+                        <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da {extractedData.processos?.map((p: any, index: number) => (
+                          <span key={index}><strong><u>{p.acao}</u></strong> promovida contra <strong>{p.banco?.toUpperCase() || ''}</strong>, processo nº {p.numero || ''}{index < (extractedData.processos?.length || 0) - 1 ? '; ' : '.'}</span>
                         ))}
                       </div>
                       <div className="doc-date">{docLocal || "____________________"}, {docDate || "____ de __________ de 202__."}</div>
-                      <div className="signature-area">
-                        <div className="signature-line"></div>
-                        <div className="signature-name">{extractedData.cliente?.nome?.toUpperCase() || ''}</div>
-                      </div>
+                      <div className="signature-area"><div className="signature-line"></div><div className="signature-name">{extractedData.cliente?.nome?.toUpperCase() || ''}</div></div>
                     </div>
                   </div>
                </div>
             </div>
           )}
         </div>
-        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 print:hidden">
-          <Copyright size={10} /> 2026 W1 Capital. <span className="uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
-        </footer>
-        <style jsx global>{`
-          .document-container { width: 210mm; min-height: 297mm; padding: 30mm 25mm; margin-bottom: 50px; }
-          @media print {
-            body * { visibility: hidden; }
-            .document-container, .document-container * { visibility: visible; }
-            .document-container { position: absolute; left: 0; top: 0; width: 210mm; height: 297mm; padding: 30mm 25mm; border: none !important; box-shadow: none !important; }
-            @page { size: A4; margin: 0; }
-          }
-          .procuracao-page { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; text-align: justify; }
-          .doc-title { text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 40px; }
-          .doc-paragraph { margin-bottom: 20px; text-indent: 20mm; }
-          .doc-date { text-align: center; margin-top: 50px; margin-bottom: 60px; }
-          .signature-area { text-align: center; margin-top: 40px; }
-          .signature-line { width: 70%; border-top: 1px solid #000; margin: 0 auto 10px auto; }
-          .signature-name { font-weight: bold; text-transform: uppercase; }
-        `}</style>
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 print:hidden"><Copyright size={10} /> 2026 W1 Capital. <span className="uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span></footer>
+        <style jsx global>{`.document-container { width: 210mm; min-height: 297mm; padding: 30mm 25mm; margin-bottom: 50px; } @media print { body * { visibility: hidden; } .document-container, .document-container * { visibility: visible; } .document-container { position: absolute; left: 0; top: 0; width: 210mm; height: 297mm; padding: 30mm 25mm; border: none !important; box-shadow: none !important; } @page { size: A4; margin: 0; } } .procuracao-page { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; text-align: justify; } .doc-title { text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 40px; } .doc-paragraph { margin-bottom: 20px; text-indent: 20mm; } .doc-date { text-align: center; margin-top: 50px; margin-bottom: 60px; } .signature-area { text-align: center; margin-top: 40px; } .signature-line { width: 70%; border-top: 1px solid #000; margin: 0 auto 10px auto; } .signature-name { font-weight: bold; text-transform: uppercase; }`}</style>
       </main>
     </div>
   );
