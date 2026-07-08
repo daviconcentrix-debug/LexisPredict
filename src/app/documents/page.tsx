@@ -27,7 +27,10 @@ import {
   AlertCircle,
   Download,
   MapPin,
-  CalendarDays
+  CalendarDays,
+  Mail,
+  Copy,
+  Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -68,6 +71,7 @@ export default function DocumentGenerator() {
   const [fileLoading, setFileLoading] = useState(false);
   const [pdfEngineReady, setPdfEngineReady] = useState(false);
   const [printError, setPrintError] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   // Custom Local and Date
   const [docLocal, setDocLocal] = useState('');
@@ -114,7 +118,7 @@ export default function DocumentGenerator() {
             fullText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
           }
           setInputText(fullText);
-          toast({ title: "Contrato Lido", description: "Inicie a extração neural v480.0 Elite." });
+          toast({ title: "Contrato Lido", description: "Inicie a extração neural v530.0 Elite." });
         } catch (err) {
           toast({ title: "Falha na Leitura", description: "O PDF pode estar protegido ou corrompido.", variant: "destructive" });
         } finally {
@@ -133,7 +137,8 @@ export default function DocumentGenerator() {
     const parts = address.split('–').map(p => p.trim());
     if (parts.length >= 2) {
       const cityPart = parts[parts.length - 3] || parts[parts.length - 2];
-      return cityPart.split('-')[0].trim() || "São Paulo";
+      const city = cityPart.split('-')[0].trim();
+      return city || "São Paulo";
     }
     return "São Paulo";
   };
@@ -165,7 +170,7 @@ export default function DocumentGenerator() {
 
   const handleConfirmData = () => {
     setStep(3);
-    toast({ title: "Documento Selado", description: "Pronto para exportação PDF." });
+    toast({ title: "Documento Selado", description: "Pronto para exportação e despacho." });
   };
 
   const updateExtractedField = (category: 'cliente' | 'advogado', field: string, value: string) => {
@@ -202,6 +207,46 @@ export default function DocumentGenerator() {
     }
   };
 
+  const getEmailContent = () => {
+    if (!extractedData) return { subject: '', body: '' };
+    const clientName = extractedData.cliente.nome;
+    const processNumber = extractedData.processos[0]?.numero || 'S/N';
+    const lawyerName = extractedData.advogado.nome;
+    const honorific = extractedData.advogado.cargo === 'advogada' ? 'Dra.' : 'Dr.';
+
+    const subject = `Nova Procuração - Processo ${processNumber}`;
+    const body = `Prezado(a) Sr.(a) ${clientName},
+
+Informamos que seu processo nº ${processNumber}, passará a ser acompanhado pelo ${honorific} ${lawyerName}, visando um acompanhamento ainda mais eficiente da demanda.
+
+Por esse motivo, será necessário anexar uma nova procuração atualizada aos autos.
+
+Pedimos, por gentileza, que confira os dados do documento encaminhado, imprima e assine manualmente, com assinatura semelhante à do documento de identificação, realizando também o reconhecimento de firma em cartório.
+
+Após isso, solicitamos o envio de uma foto legível ou do documento digitalizado para juntada no processo.
+
+Ficamos à disposição para quaisquer esclarecimentos.
+
+Atenciosamente,
+Gabinete W1 Capital`;
+
+    return { subject, body };
+  };
+
+  const handleSendEmail = () => {
+    const { subject, body } = getEmailContent();
+    const mailto = `mailto:${extractedData?.cliente.email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
+  };
+
+  const handleCopyText = () => {
+    const { body } = getEmailContent();
+    navigator.clipboard.writeText(body);
+    setCopied(true);
+    toast({ title: "Instruções Copiadas", description: "Pronto para colar no WhatsApp ou CRM." });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
@@ -217,7 +262,7 @@ export default function DocumentGenerator() {
           </div>
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">
-               Gabinete v520.0 Elite
+               Gabinete v530.0 Elite
             </Badge>
           </div>
         </header>
@@ -463,55 +508,99 @@ export default function DocumentGenerator() {
 
           {step === 3 && extractedData && (
             <div className="space-y-8 animate-in fade-in duration-500">
-               <div className="flex flex-col gap-4 print:hidden max-w-[210mm] mx-auto">
-                  <div className="flex items-center justify-between">
-                    <Button variant="ghost" onClick={() => setStep(2)} className="font-black uppercase text-[10px] border-2 border-transparent hover:border-black rounded-none h-10">
+               <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-[1200px] mx-auto print:flex print:flex-col">
+                  
+                  {/* PAINEL DE COMUNICAÇÃO (OCULTO NA IMPRESSÃO) */}
+                  <div className="lg:col-span-1 space-y-6 print:hidden">
+                    <Button variant="ghost" onClick={() => setStep(2)} className="w-full font-black uppercase text-[10px] border-2 border-transparent hover:border-black rounded-none h-10 mb-2">
                       <ChevronLeft size={14} className="mr-1" /> Voltar para Edição
                     </Button>
-                    <Button onClick={handlePrint} className="bg-black text-white font-black uppercase text-[10px] px-10 h-12 rounded-none border-2 border-black shadow-[4px_4px_0px_#facc15] hover:shadow-none transition-all">
+
+                    <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
+                      <CardHeader className="bg-black text-white py-3">
+                         <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                            <MessageCircle size={14} className="text-green-400" /> Despacho ao Cliente
+                         </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 space-y-6">
+                         <div className="space-y-2">
+                            <Label className="text-[9px]">Instruções de Envio</Label>
+                            <div className="bg-gray-50 border-2 border-dashed border-black/10 p-3 rounded-none">
+                               <p className="text-[10px] font-black uppercase leading-relaxed text-black/60 italic line-clamp-6">
+                                 {getEmailContent().body}
+                               </p>
+                            </div>
+                         </div>
+
+                         <div className="flex flex-col gap-3">
+                            <Button 
+                              onClick={handleCopyText} 
+                              className="bg-white text-black border-2 border-black h-11 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none"
+                            >
+                              {copied ? <Check size={14} className="mr-2 text-green-600" /> : <Copy size={14} className="mr-2" />}
+                              {copied ? "Texto Copiado" : "Copiar Instruções"}
+                            </Button>
+
+                            <Button 
+                              onClick={handleSendEmail} 
+                              className="bg-white text-black border-2 border-black h-11 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none"
+                            >
+                              <Mail size={14} className="mr-2" /> Enviar por E-mail
+                            </Button>
+                         </div>
+
+                         <div className="p-3 bg-blue-50 border border-blue-200">
+                            <p className="text-[8px] font-bold text-blue-700 uppercase leading-tight">
+                               O botão "E-mail" abrirá seu navegador padrão com o texto formatado. Certifique-se de anexar o PDF salvo.
+                            </p>
+                         </div>
+                      </CardContent>
+                    </Card>
+                    
+                    <Button onClick={handlePrint} className="w-full bg-black text-white font-black uppercase text-[10px] h-14 rounded-none border-2 border-black shadow-[6px_6px_0px_#facc15] hover:shadow-none transition-all">
                       <Printer size={16} className="mr-2" /> Exportar PDF Forense
                     </Button>
+
+                    {printError && (
+                      <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 rounded-none">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle className="font-black uppercase text-xs">Bloqueio de Ambiente</AlertTitle>
+                        <AlertDescription className="text-[10px] font-bold uppercase">
+                          Janela bloqueada. Tente pressionar <b>Ctrl + P</b>.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
-                  
-                  {printError && (
-                    <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 rounded-none">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle className="font-black uppercase text-xs">Bloqueio de Ambiente</AlertTitle>
-                      <AlertDescription className="text-[10px] font-bold uppercase">
-                        A janela de impressão foi bloqueada pelo sandbox do editor. 
-                        Tente pressionar <b>Ctrl + P</b> (Windows) ou <b>Cmd + P</b> (Mac) para salvar como PDF manualmente.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-               </div>
 
-               <div className="document-container bg-white shadow-2xl mx-auto border-2 border-black print:shadow-none print:border-none">
-                  <div className="procuracao-page" ref={printRef}>
-                    <div className="doc-title">PROCURAÇÃO "AD JUDICIA"</div>
-                    
-                    <div className="doc-paragraph">
-                      <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, brasileiro, {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador do RG sob Nº {extractedData.cliente.rg} e devidamente inscrito no CPF sob Nº {extractedData.cliente.cpf}, residente e domiciliado à {extractedData.cliente.endereco}, com endereço eletrônico: {extractedData.cliente.email}, neste ato nomeia como seu procurador:
-                    </div>
+                  {/* DOCUMENTO (PREVIEW) */}
+                  <div className="lg:col-span-3 document-container bg-white shadow-2xl border-2 border-black print:shadow-none print:border-none">
+                    <div className="procuracao-page" ref={printRef}>
+                      <div className="doc-title">PROCURAÇÃO "AD JUDICIA"</div>
+                      
+                      <div className="doc-paragraph">
+                        <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, brasileiro, {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador do RG sob Nº {extractedData.cliente.rg} e devidamente inscrito no CPF sob Nº {extractedData.cliente.cpf}, residente e domiciliado à {extractedData.cliente.endereco}, com endereço eletrônico: {extractedData.cliente.email}, neste ato nomeia como seu procurador:
+                      </div>
 
-                    <div className="doc-paragraph">
-                      <strong>{extractedData.advogado.nome.toUpperCase()}</strong>, brasileiro, {extractedData.advogado.cargo}, inscrito na OAB sob o número {extractedData.advogado.oab}, com endereço profissional na {extractedData.advogado.endereco}, e endereço eletrônico: {extractedData.advogado.email}.
-                    </div>
+                      <div className="doc-paragraph">
+                        <strong>{extractedData.advogado.nome.toUpperCase()}</strong>, brasileiro, {extractedData.advogado.cargo}, inscrito na OAB sob o número {extractedData.advogado.oab}, com endereço profissional na {extractedData.advogado.endereco}, e endereço eletrônico: {extractedData.advogado.email}.
+                      </div>
 
-                    <div className="doc-paragraph">
-                      <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da {extractedData.processos.map((p, index) => (
-                        <span key={index}>
-                          <strong><u>{p.acao}</u></strong> promovida contra <strong>{p.banco.toUpperCase()}</strong>, inscrito no CNPJ nº <strong>{p.cnpjBanco}</strong>, processo nº {p.numero}{index < extractedData.processos.length - 1 ? '; ' : '.'}
-                        </span>
-                      ))}
-                    </div>
+                      <div className="doc-paragraph">
+                        <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da {extractedData.processos.map((p, index) => (
+                          <span key={index}>
+                            <strong><u>{p.acao}</u></strong> promovida contra <strong>{p.banco.toUpperCase()}</strong>, inscrito no CNPJ nº <strong>{p.cnpjBanco}</strong>, processo nº {p.numero}{index < extractedData.processos.length - 1 ? '; ' : '.'}
+                          </span>
+                        ))}
+                      </div>
 
-                    <div className="doc-date">
-                      {docLocal || "____________________"}, {docDate || "____ de __________ de 202__."}
-                    </div>
+                      <div className="doc-date">
+                        {docLocal || "____________________"}, {docDate || "____ de __________ de 202__."}
+                      </div>
 
-                    <div className="signature-area">
-                      <div className="signature-line"></div>
-                      <div className="signature-name">{extractedData.cliente.nome.toUpperCase()}</div>
+                      <div className="signature-area">
+                        <div className="signature-line"></div>
+                        <div className="signature-name">{extractedData.cliente.nome.toUpperCase()}</div>
+                      </div>
                     </div>
                   </div>
                </div>
