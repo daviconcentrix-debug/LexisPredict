@@ -1,7 +1,6 @@
-
 'use server';
 /**
- * @fileOverview Motor de Consultoria Estratégica LexisPredict v620.0 Elite
+ * @fileOverview Motor de Consultoria Estratégica LexisPredict v650.0 Elite
  * Núcleo: xAI (Grok 4.5) | Redundância: Groq (Llama 3.3) | Reserva 1: Puter (Claude) | Reserva 2: Airforce (DeepSeek).
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
@@ -51,78 +50,66 @@ function cleanJsonResponse(text: string): string {
 }
 
 async function callXAIChat(pergunta: string, historico: any[], deepThinking: boolean) {
-  const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }];
-  try {
-    const response = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${XAI_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'grok-4.5',
-        messages,
-        temperature: deepThinking ? 0.2 : 0.5,
-        response_format: { type: 'json_object' }
-      })
-    });
-    if (!response.ok) throw new Error(`XAI_CHAT_ERR_${response.status}`);
-    const data = await response.json();
-    const content = JSON.parse(cleanJsonResponse(data.choices[0].message.content));
-    return { resposta: content.resposta || data.choices[0].message.content };
-  } catch (e: any) { throw e; }
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${XAI_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'grok-4.5',
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }],
+      temperature: deepThinking ? 0.2 : 0.5,
+      response_format: { type: 'json_object' }
+    })
+  });
+  if (!response.ok) throw new Error(`XAI_ERR_${response.status}`);
+  const data = await response.json();
+  const content = JSON.parse(cleanJsonResponse(data.choices[0].message.content));
+  return { resposta: content.resposta || data.choices[0].message.content };
 }
 
 async function callAirforceChat(pergunta: string, historico: any[]) {
-  const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }];
-  try {
-    const response = await fetch('https://api.airforce/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${AIRFORCE_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'deepseek-v3',
-        messages,
-        temperature: 0.3
-      })
-    });
-    if (!response.ok) throw new Error(`AIRFORCE_ERR_${response.status}`);
-    const data = await response.json();
-    const content = JSON.parse(cleanJsonResponse(data.choices[0].message.content));
-    return { resposta: content.resposta || data.choices[0].message.content };
-  } catch (e: any) { throw e; }
+  const response = await fetch('https://api.airforce/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${AIRFORCE_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'deepseek-v3',
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }],
+      temperature: 0.3
+    })
+  });
+  if (!response.ok) throw new Error(`AIRFORCE_ERR_${response.status}`);
+  const data = await response.json();
+  const content = JSON.parse(cleanJsonResponse(data.choices[0].message.content));
+  return { resposta: content.resposta || data.choices[0].message.content };
 }
 
 async function callGroqChat(pergunta: string, historico: any[], deepThinking: boolean) {
-  const GROQ_API_KEY = process.env.GROQ_API_KEY || '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';
-  const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }];
-  try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages,
-        temperature: deepThinking ? 0.1 : 0.4,
-        response_format: { type: 'json_object' }
-      })
-    });
-    if (!response.ok) throw new Error(`GROQ_CHAT_ERR_${response.status}`);
-    const data = await response.json();
-    const content = JSON.parse(cleanJsonResponse(data.choices[0].message.content));
-    return { resposta: content.resposta || data.choices[0].message.content };
-  } catch (e: any) { throw e; }
+  const GROQ_API_KEY = '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';
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }],
+      temperature: deepThinking ? 0.1 : 0.4,
+      response_format: { type: 'json_object' }
+    })
+  });
+  if (!response.ok) throw new Error(`GROQ_CHAT_ERR_${response.status}`);
+  const data = await response.json();
+  const content = JSON.parse(cleanJsonResponse(data.choices[0].message.content));
+  return { resposta: content.resposta || data.choices[0].message.content };
 }
 
 async function callPuterChat(pergunta: string, historico: any[]) {
-  const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }];
-  try {
-    const response = await fetch('https://api.puter.com/v2/ai/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-5', messages, stream: false })
-    });
-    if (!response.ok) throw new Error(`PUTER_CHAT_ERR_${response.status}`);
-    const data = await response.json();
-    const content = JSON.parse(cleanJsonResponse(data.message.content[0].text));
-    return { resposta: content.resposta || data.message.content[0].text };
-  } catch (e: any) { throw e; }
+  const response = await fetch('https://api.puter.com/v2/ai/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-5', messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }], stream: false })
+  });
+  if (!response.ok) throw new Error(`PUTER_CHAT_ERR_${response.status}`);
+  const data = await response.json();
+  const content = JSON.parse(cleanJsonResponse(data.message.content[0].text));
+  return { resposta: content.resposta || data.message.content[0].text };
 }
 
 export const chatAIFlow = ai.defineFlow(
@@ -135,19 +122,28 @@ export const chatAIFlow = ai.defineFlow(
     const hist = Array.isArray(input.historico) ? input.historico : [];
     const model = input.preferredModel;
     
-    try {
-      if (model === 'xai') return await callXAIChat(input.pergunta, hist, input.deepThinking);
-      if (model === 'airforce') return await callAirforceChat(input.pergunta, hist);
-      if (model === 'puter') return await callPuterChat(input.pergunta, hist);
-      return await callGroqChat(input.pergunta, hist, input.deepThinking);
-    } catch (e) {
-      // Failover Circular
-      try { return await callGroqChat(input.pergunta, hist, input.deepThinking); }
-      catch (e2) {
-        try { return await callAirforceChat(input.pergunta, hist); }
-        catch (e3) { return await callPuterChat(input.pergunta, hist); }
+    const engines = [
+      { id: 'xai', call: (p: string, h: any[]) => callXAIChat(p, h, input.deepThinking) },
+      { id: 'grok', call: (p: string, h: any[]) => callGroqChat(p, h, input.deepThinking) },
+      { id: 'airforce', call: (p: string, h: any[]) => callAirforceChat(p, h) },
+      { id: 'puter', call: (p: string, h: any[]) => callPuterChat(p, h) }
+    ];
+
+    const sortedEngines = [
+      engines.find(e => e.id === model) || engines[0],
+      ...engines.filter(e => e.id !== model)
+    ].filter(Boolean);
+
+    for (const engine of sortedEngines) {
+      try {
+        const res = await engine!.call(input.pergunta, hist);
+        return { ...res, engineUtilizada: engine!.id.toUpperCase() };
+      } catch (e) {
+        console.error(`Chat motor ${engine!.id} falhou.`);
       }
     }
+    
+    throw new Error("FALHA_SISTEMA_CHAT_TOTAL");
   }
 );
 

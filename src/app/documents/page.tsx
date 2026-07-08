@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
@@ -119,7 +118,7 @@ export default function DocumentGenerator() {
             fullText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
           }
           setInputText(fullText);
-          toast({ title: "Contrato Lido", description: "Inicie a extração neural v620.0 Elite." });
+          toast({ title: "Contrato Lido", description: "Inicie a extração neural v650.0 Elite." });
         } catch (err) {
           toast({ title: "Falha na Leitura", description: "O PDF pode estar protegido ou corrompido.", variant: "destructive" });
         } finally {
@@ -144,14 +143,19 @@ export default function DocumentGenerator() {
         preferredState: selectedState,
         preferredModel: preferredIA as any
       });
-      setExtractedData(data);
-      setDocLocal(selectedState === "SP" ? "São Paulo - SP" : `${selectedState}`);
-      setDocDate(new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }));
-      setStep(2);
-      toast({ title: "Triagem Concluída", description: "Revise os dados de gabinete." });
+      if (data) {
+        setExtractedData(data);
+        setDocLocal(selectedState === "SP" ? "São Paulo - SP" : `${selectedState}`);
+        setDocDate(new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }));
+        setStep(2);
+        toast({ title: "Triagem Concluída", description: "Revise os dados de gabinete." });
+      } else {
+        throw new Error("Falha Crítica na Resposta do Servidor.");
+      }
     } catch (error: any) {
-      setApiError({ engine: preferredIA, message: error.message });
-      toast({ title: "Falha na Triagem", variant: "destructive" });
+      // Captura erros 500 ou falhas de timeout e ativa o botão de emergência
+      setApiError({ engine: preferredIA, message: error.message || "Motor Neural Indisponível" });
+      toast({ title: "Falha na Triagem", description: "O motor neural atingiu um limite. Alterne para continuar.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -165,8 +169,13 @@ export default function DocumentGenerator() {
     setPreferredIA(nextIA);
     localStorage.setItem('lexisPredict_preferred_ia', nextIA);
     setApiError(null);
-    toast({ title: "Motor Alternado", description: `Migrando para ${nextIA.toUpperCase()}...` });
-    setTimeout(() => handleExtract(), 500);
+    toast({ title: "Alternância Neural", description: `Migrando para o motor ${nextIA.toUpperCase()}...` });
+    
+    setTimeout(() => {
+        if (inputText && selectedLawyer && selectedState) {
+            handleExtract();
+        }
+    }, 500);
   };
 
   const updateExtractedField = (category: 'cliente' | 'advogado', field: string, value: string) => {
@@ -180,16 +189,18 @@ export default function DocumentGenerator() {
   const updateProcessField = (index: number, field: string, value: string) => {
     if (!extractedData) return;
     const newProcessos = [...extractedData.processos];
-    (newProcessos[index] as any)[field] = value;
-    setExtractedData({ ...extractedData, processos: newProcessos });
+    if (newProcessos[index]) {
+      (newProcessos[index] as any)[field] = value;
+      setExtractedData({ ...extractedData, processos: newProcessos });
+    }
   };
 
   const getEmailContent = () => {
     if (!extractedData) return { subject: '', body: '' };
-    const clientName = extractedData.cliente.nome;
-    const processNumber = extractedData.processos[0]?.numero || 'S/N';
-    const lawyerName = extractedData.advogado.nome;
-    const honorific = extractedData.advogado.cargo === 'advogada' ? 'Dra.' : 'Dr.';
+    const clientName = extractedData.cliente?.nome || 'Cliente';
+    const processNumber = extractedData.processos?.[0]?.numero || 'S/N';
+    const lawyerName = extractedData.advogado?.nome || 'Advogado';
+    const honorific = extractedData.advogado?.cargo === 'advogada' ? 'Dra.' : 'Dr.';
 
     const subject = `Nova Procuração - Processo ${processNumber}`;
     const body = `Prezado(a) Sr.(a) ${clientName},\n\nInformamos que seu processo nº ${processNumber}, passará a ser acompanhado pelo ${honorific} ${lawyerName}, visando um acompanhamento ainda mais eficiente da demanda.\n\nPor esse motivo, será necessário anexar uma nova procuração atualizada aos autos.\n\nPedimos, por gentileza, que confira os dados do documento encaminhado, imprima e assine manualmente, com assinatura semelhante à do documento de identificação, realizando também o reconhecimento de firma em cartório.\n\nApós isso, solicitamos o envio de uma foto legível ou do documento digitalizado para juntada no processo.\n\nFicamos à disposição para quaisquer esclarecimentos.\n\nAtenciosamente,\nGabinete W1 Capital`;
@@ -199,7 +210,7 @@ export default function DocumentGenerator() {
 
   const handleSendEmail = () => {
     if (!extractedData) return;
-    const email = extractedData.cliente.email;
+    const email = extractedData.cliente?.email;
     if (!email || email === '---' || email === 'Não localizado') {
       toast({ title: "E-mail Ausente", description: "Insira o e-mail no passo anterior.", variant: "destructive" });
       setStep(2);
@@ -217,10 +228,12 @@ export default function DocumentGenerator() {
 
   const handleCopyText = () => {
     const { body } = getEmailContent();
-    navigator.clipboard.writeText(body);
-    setCopied(true);
-    toast({ title: "Copiado" });
-    setTimeout(() => setCopied(false), 2000);
+    if (body) {
+      navigator.clipboard.writeText(body);
+      setCopied(true);
+      toast({ title: "Copiado" });
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   return (
@@ -247,13 +260,18 @@ export default function DocumentGenerator() {
           {step === 1 && (
             <div className="space-y-8 animate-in fade-in duration-500">
                {apiError && (
-                 <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 rounded-none shadow-[4px_4px_0px_#000]">
-                   <AlertCircle className="h-4 w-4" />
-                   <AlertTitle className="font-black uppercase text-xs">Aviso de Núcleo Neural</AlertTitle>
-                   <AlertDescription className="flex flex-col gap-3 mt-2">
-                     <p className="text-[10px] font-bold uppercase">O motor {apiError.engine.toUpperCase()} falhou. Deseja alternar para a próxima via reserva?</p>
-                     <Button onClick={handleSwitchAndRetry} className="bg-red-600 text-white border-2 border-black h-9 font-black uppercase text-[9px] rounded-none hover:bg-black transition-all w-fit px-6">
-                        Alternar & Re-tentar
+                 <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 rounded-none shadow-[8px_8px_0px_#000] p-6">
+                   <div className="flex items-center gap-3">
+                     <AlertCircle className="h-6 w-6" />
+                     <AlertTitle className="font-black uppercase text-sm">Alerta de Emergência Neural</AlertTitle>
+                   </div>
+                   <AlertDescription className="flex flex-col gap-4 mt-3">
+                     <p className="text-[11px] font-bold uppercase leading-relaxed">
+                       O motor {apiError.engine.toUpperCase()} atingiu o limite de operação ou encontrou instabilidade no servidor. 
+                       <br/>Deseja alternar para a próxima via de inteligência disponível?
+                     </p>
+                     <Button onClick={handleSwitchAndRetry} className="bg-red-600 text-white border-2 border-black h-12 font-black uppercase text-[10px] rounded-none hover:bg-black transition-all w-full sm:w-fit px-10 shadow-[4px_4px_0px_#000]">
+                        <RefreshCcw size={14} className="mr-2" /> Alternar Motor & Re-tentar
                      </Button>
                    </AlertDescription>
                  </Alert>
@@ -348,7 +366,7 @@ export default function DocumentGenerator() {
                <div className="flex items-center justify-between border-b-2 border-black pb-4">
                   <div className="flex items-center gap-3">
                      <Edit3 size={20} />
-                     <h2 className="text-xl font-black uppercase tracking-tight">Revisão de Gabinete v620.0</h2>
+                     <h2 className="text-xl font-black uppercase tracking-tight">Revisão de Gabinete v650.0</h2>
                   </div>
                   <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-transparent hover:border-black rounded-none">
                     <ChevronLeft size={14} className="mr-1" /> Voltar
@@ -365,25 +383,25 @@ export default function DocumentGenerator() {
                     <CardContent className="p-6 space-y-4">
                         <div className="grid gap-1">
                           <Label>Nome</Label>
-                          <Input value={extractedData.cliente.nome} onChange={(e) => updateExtractedField('cliente', 'nome', e.target.value)} className="border-black font-black uppercase rounded-none h-11" />
+                          <Input value={extractedData.cliente?.nome || ''} onChange={(e) => updateExtractedField('cliente', 'nome', e.target.value)} className="border-black font-black uppercase rounded-none h-11" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="grid gap-1">
                             <Label>RG</Label>
-                            <Input value={extractedData.cliente.rg} onChange={(e) => updateExtractedField('cliente', 'rg', e.target.value)} className="border-black font-black rounded-none h-11" />
+                            <Input value={extractedData.cliente?.rg || ''} onChange={(e) => updateExtractedField('cliente', 'rg', e.target.value)} className="border-black font-black rounded-none h-11" />
                           </div>
                           <div className="grid gap-1">
                             <Label>CPF</Label>
-                            <Input value={extractedData.cliente.cpf} onChange={(e) => updateExtractedField('cliente', 'cpf', e.target.value)} className="border-black font-black rounded-none h-11" />
+                            <Input value={extractedData.cliente?.cpf || ''} onChange={(e) => updateExtractedField('cliente', 'cpf', e.target.value)} className="border-black font-black rounded-none h-11" />
                           </div>
                         </div>
                         <div className="grid gap-1">
                           <Label>E-mail do Cliente</Label>
-                          <Input value={extractedData.cliente.email} onChange={(e) => updateExtractedField('cliente', 'email', e.target.value)} placeholder="cliente@exemplo.com" className="border-black border-2 font-black uppercase rounded-none h-11" />
+                          <Input value={extractedData.cliente?.email || ''} onChange={(e) => updateExtractedField('cliente', 'email', e.target.value)} placeholder="cliente@exemplo.com" className="border-black border-2 font-black uppercase rounded-none h-11" />
                         </div>
                         <div className="grid gap-1">
                           <Label>Endereço</Label>
-                          <Input value={extractedData.cliente.endereco} onChange={(e) => updateExtractedField('cliente', 'endereco', e.target.value)} className="border-black font-black uppercase rounded-none h-11" />
+                          <Input value={extractedData.cliente?.endereco || ''} onChange={(e) => updateExtractedField('cliente', 'endereco', e.target.value)} className="border-black font-black uppercase rounded-none h-11" />
                         </div>
                     </CardContent>
                   </Card>
@@ -396,22 +414,22 @@ export default function DocumentGenerator() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-6 space-y-6">
-                        {extractedData.processos.map((p, i) => (
+                        {extractedData.processos?.map((p, i) => (
                           <div key={i} className="space-y-4 p-4 bg-gray-50 border-2 border-dashed border-black/10">
                             <div className="grid gap-1">
                               <Label className="text-yellow-600">Instituição Financeira (BANCO)</Label>
-                              <Input value={p.banco} onChange={(e) => updateProcessField(i, 'banco', e.target.value)} placeholder="NOME DO BANCO..." className="border-black border-2 font-black uppercase rounded-none h-11 bg-white" />
+                              <Input value={p.banco || ''} onChange={(e) => updateProcessField(i, 'banco', e.target.value)} placeholder="NOME DO BANCO..." className="border-black border-2 font-black uppercase rounded-none h-11 bg-white" />
                             </div>
                             <div className="grid gap-1">
                               <Label className="text-yellow-600">CNPJ do Banco</Label>
-                              <Input value={p.cnpjBanco} onChange={(e) => updateProcessField(i, 'cnpjBanco', e.target.value)} placeholder="00.000.000/0001-00" className="border-black border-2 font-black uppercase rounded-none h-11 bg-white" />
+                              <Input value={p.cnpjBanco || ''} onChange={(e) => updateProcessField(i, 'cnpjBanco', e.target.value)} placeholder="00.000.000/0001-00" className="border-black border-2 font-black uppercase rounded-none h-11 bg-white" />
                             </div>
                             <div className="grid gap-1">
                               <Label>Processo (CNJ)</Label>
-                              <Input value={p.numero} onChange={(e) => updateProcessField(i, 'numero', e.target.value)} className="border-black font-black rounded-none h-11 bg-white" />
+                              <Input value={p.numero || ''} onChange={(e) => updateProcessField(i, 'numero', e.target.value)} className="border-black font-black rounded-none h-11 bg-white" />
                             </div>
                           </div>
-                        ))}
+                        )) || <p className="text-[10px] font-black uppercase opacity-40">Nenhum processo identificado.</p>}
                       </CardContent>
                     </Card>
 
@@ -467,22 +485,22 @@ export default function DocumentGenerator() {
                     <div className="procuracao-page" ref={printRef}>
                       <div className="doc-title">PROCURAÇÃO "AD JUDICIA"</div>
                       <div className="doc-paragraph">
-                        <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, brasileiro, {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador do RG sob Nº {extractedData.cliente.rg} e devidamente inscrito no CPF sob Nº {extractedData.cliente.cpf}, residente e domiciliado à {extractedData.cliente.endereco}, com endereço eletrônico: {extractedData.cliente.email}, neste ato nomeia como seu procurador:
+                        <strong>{extractedData.cliente?.nome?.toUpperCase() || ''}</strong>, brasileiro, {extractedData.cliente?.estadoCivil || ''}, {extractedData.cliente?.profissao || ''}, portador do RG sob Nº {extractedData.cliente?.rg || ''} e devidamente inscrito no CPF sob Nº {extractedData.cliente?.cpf || ''}, residente e domiciliado à {extractedData.cliente?.endereco || ''}, com endereço eletrônico: {extractedData.cliente?.email || ''}, neste ato nomeia como seu procurador:
                       </div>
                       <div className="doc-paragraph">
-                        <strong>{extractedData.advogado.nome.toUpperCase()}</strong>, brasileiro, {extractedData.advogado.cargo}, inscrito na OAB sob o número {extractedData.advogado.oab}, com endereço profissional na {extractedData.advogado.endereco}, e endereço eletrônico: {extractedData.advogado.email}.
+                        <strong>{extractedData.advogado?.nome?.toUpperCase() || ''}</strong>, brasileiro, {extractedData.advogado?.cargo || ''}, inscrito na OAB sob o número {extractedData.advogado?.oab || ''}, com endereço profissional na {extractedData.advogado?.endereco || ''}, e endereço eletrônico: {extractedData.advogado?.email || ''}.
                       </div>
                       <div className="doc-paragraph">
-                        <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da {extractedData.processos.map((p, index) => (
+                        <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da {extractedData.processos?.map((p, index) => (
                           <span key={index}>
-                            <strong><u>{p.acao}</u></strong> promovida contra <strong>{p.banco.toUpperCase()}</strong>, inscrito no CNPJ nº <strong>{p.cnpjBanco}</strong>, processo nº {p.numero}{index < extractedData.processos.length - 1 ? '; ' : '.'}
+                            <strong><u>{p.acao}</u></strong> promovida contra <strong>{p.banco?.toUpperCase() || ''}</strong>, inscrito no CNPJ nº <strong>{p.cnpjBanco || ''}</strong>, processo nº {p.numero || ''}{index < (extractedData.processos?.length || 0) - 1 ? '; ' : '.'}
                           </span>
                         ))}
                       </div>
                       <div className="doc-date">{docLocal || "____________________"}, {docDate || "____ de __________ de 202__."}</div>
                       <div className="signature-area">
                         <div className="signature-line"></div>
-                        <div className="signature-name">{extractedData.cliente.nome.toUpperCase()}</div>
+                        <div className="signature-name">{extractedData.cliente?.nome?.toUpperCase() || ''}</div>
                       </div>
                     </div>
                   </div>

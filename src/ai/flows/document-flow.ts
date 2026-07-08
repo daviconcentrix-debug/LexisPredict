@@ -1,8 +1,7 @@
-
 'use server';
 /**
- * @fileOverview Motor de Extração de Dados Jurídicos v620.0 ELITE
- * Núcleo: xAI (Grok 4.5) | Backup: Groq (Llama 3.3) | Reserva 1: Puter (Claude) | Reserva 2: Airforce (DeepSeek).
+ * @fileOverview Motor de Extração de Dados Jurídicos v650.0 ELITE
+ * Núcleo: xAI (Grok 4.5) | Backup: Groq (Llama 3.3) | Reserva 1: Airforce (DeepSeek) | Reserva 2: Puter (Claude).
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -47,6 +46,7 @@ export type DocumentOutput = z.infer<typeof DocumentOutputSchema>;
 
 const XAI_API_KEY = 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE';
 const AIRFORCE_API_KEY = 'sk-air-Rxc7ygo5b0XpkZqUBqwSnhjwS0bZbWFnzwRLjfPtdAbYK6nj';
+const GROQ_API_KEY = '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';
 
 const BANCA_DATA = {
   "DIEGO GOMES DIAS": {
@@ -81,8 +81,9 @@ const BANCA_DATA = {
   }
 };
 
-const SYSTEM_PROMPT = `Você é o Arquiteto Jurídico da W1 Capital. Extraia os dados do contrato.
-RETORNE APENAS JSON PLANO. Não inclua Markdown.
+const SYSTEM_PROMPT = `Você é o Arquiteto Jurídico da W1 Capital. Extraia os dados do contrato fornecido.
+RETORNE APENAS JSON PLANO. Não inclua Markdown, blocos de código ou textos explicativos.
+Estrutura exigida:
 {
   "cliente": { "nome": "", "estadoCivil": "", "profissao": "", "rg": "", "cpf": "", "endereco": "", "email": "", "genero": "M"|"F" },
   "processos": [{ "banco": "", "cnpjBanco": "", "numero": "", "acao": "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA", "estado": "UF" }]
@@ -90,13 +91,16 @@ RETORNE APENAS JSON PLANO. Não inclua Markdown.
 
 function cleanJsonResponse(text: string): string {
   if (!text) return "{}";
-  let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-  const firstBrace = cleaned.indexOf('{');
-  const lastBrace = cleaned.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  try {
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      return text.substring(firstBrace, lastBrace + 1);
+    }
+    return text;
+  } catch (e) {
+    return "{}";
   }
-  return cleaned;
 }
 
 async function callXAIExtraction(text: string) {
@@ -109,7 +113,22 @@ async function callXAIExtraction(text: string) {
       response_format: { type: 'json_object' }
     })
   });
-  if (!response.ok) throw new Error(`XAI_ERR_${response.status}`);
+  if (!response.ok) throw new Error(`XAI_FAILED_${response.status}`);
+  const data = await response.json();
+  return JSON.parse(cleanJsonResponse(data.choices[0].message.content));
+}
+
+async function callGroqExtraction(text: string) {
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text.substring(0, 5000)}` }],
+      response_format: { type: 'json_object' }
+    })
+  });
+  if (!response.ok) throw new Error(`GROQ_FAILED_${response.status}`);
   const data = await response.json();
   return JSON.parse(cleanJsonResponse(data.choices[0].message.content));
 }
@@ -123,23 +142,7 @@ async function callAirforceExtraction(text: string) {
       messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text.substring(0, 5000)}` }]
     })
   });
-  if (!response.ok) throw new Error(`AIRFORCE_ERR_${response.status}`);
-  const data = await response.json();
-  return JSON.parse(cleanJsonResponse(data.choices[0].message.content));
-}
-
-async function callGroqExtraction(text: string) {
-  const GROQ_API_KEY = process.env.GROQ_API_KEY || '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';
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text.substring(0, 5000)}` }],
-      response_format: { type: 'json_object' }
-    })
-  });
-  if (!response.ok) throw new Error(`GROQ_ERR_${response.status}`);
+  if (!response.ok) throw new Error(`AIRFORCE_FAILED_${response.status}`);
   const data = await response.json();
   return JSON.parse(cleanJsonResponse(data.choices[0].message.content));
 }
@@ -148,9 +151,13 @@ async function callPuterExtraction(text: string) {
   const response = await fetch('https://api.puter.com/v2/ai/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'claude-sonnet-5', messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text.substring(0, 5000)}` }] })
+    body: JSON.stringify({ 
+      model: 'claude-sonnet-5', 
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text.substring(0, 5000)}` }],
+      stream: false
+    })
   });
-  if (!response.ok) throw new Error(`PUTER_ERR_${response.status}`);
+  if (!response.ok) throw new Error(`PUTER_FAILED_${response.status}`);
   const data = await response.json();
   return JSON.parse(cleanJsonResponse(data.message.content[0].text));
 }
@@ -165,20 +172,35 @@ export const documentFlow = ai.defineFlow(
     let parsed: any = null;
     const model = input.preferredModel;
     
-    try {
-      if (model === 'xai') parsed = await callXAIExtraction(input.text);
-      else if (model === 'airforce') parsed = await callAirforceExtraction(input.text);
-      else if (model === 'puter') parsed = await callPuterExtraction(input.text);
-      else parsed = await callGroqExtraction(input.text);
-    } catch (e) {
-      try { parsed = await callGroqExtraction(input.text); }
-      catch (e2) {
-        try { parsed = await callAirforceExtraction(input.text); }
-        catch (e3) { parsed = await callPuterExtraction(input.text); }
+    const engines = [
+      { id: 'xai', call: callXAIExtraction },
+      { id: 'grok', call: callGroqExtraction },
+      { id: 'airforce', call: callAirforceExtraction },
+      { id: 'puter', call: callPuterExtraction }
+    ];
+
+    // Ordenar motores para que o preferido venha primeiro
+    const sortedEngines = [
+      engines.find(e => e.id === model) || engines[0],
+      ...engines.filter(e => e.id !== model)
+    ].filter(Boolean);
+
+    // Cascata linear blindada para evitar Erro 500
+    for (const engine of sortedEngines) {
+      try {
+        console.log(`Tentando Motor Neural: ${engine!.id.toUpperCase()}`);
+        parsed = await engine!.call(input.text);
+        if (parsed && (parsed.cliente || parsed.processos)) break;
+      } catch (err: any) {
+        console.error(`Falha no motor ${engine!.id}: ${err.message}`);
+        // Continua para o próximo motor da lista
       }
     }
 
-    if (!parsed) throw new Error("FALHA_MOTORES_NEURAIS");
+    if (!parsed) {
+      // Se chegarmos aqui, todos os motores falharam. Lançamos um erro controlado que o client catch irá pegar.
+      throw new Error("SISTEMA_INDISPONIVEL_TODOS_MOTORES_FALHARAM");
+    }
 
     const targetLawyer = input.preferredLawyer || "PABLO MATHEUS SILVA BASTOS PEREIRA";
     const lawyerInfo = (BANCA_DATA as any)[targetLawyer] || BANCA_DATA["PABLO MATHEUS SILVA BASTOS PEREIRA"];
