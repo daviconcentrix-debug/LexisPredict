@@ -1,8 +1,8 @@
 'use server';
 /**
- * @fileOverview Motor de Inteligência Jurídica v270.0 ELITE - CRM W1 Capital
+ * @fileOverview Motor de Inteligência Jurídica v390.0 ELITE - CRM W1 Capital
  * Script Estratégico W1 Capital + Integração DataJud Direta + Normalização de Schema v3.
- * Motores: Grok (Llama 3.3) & Claude 3.5 Sonnet. Removido Gemini.
+ * Motores: Grok (Llama 3.3) & Claude 3.5 Sonnet.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -25,50 +25,33 @@ const VereditoOutputSchema = z.object({
 
 export type VereditoOutput = z.infer<typeof VereditoOutputSchema>;
 
-const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI v270.0 Elite, o assistente jurídico sênior mais avançado da W1 Capital.
-Sua missão é analisar os DADOS REAIS do tribunal (DataJud) e gerar um relatório estratégico e humano para o fundador Davi Alves Figueredo.
+const SYSTEM_INSTRUCTIONS = `Return strictly valid JSON only.
+Você é o Veredito AI v390.0 Elite, o assistente jurídico sênior da W1 Capital.
+Sua missão é analisar dados reais do DataJud para o fundador Davi Alves Figueredo.
 
 ### Correção da Cronologia (obrigatória) ###
-Antes de iniciar qualquer análise do processo, organize todos os eventos pela data e hora reais em ordem cronológica crescente (do mais antigo para o mais recente).
+Organize todos os eventos pela data/hora em ordem cronológica crescente.
+O último movimento é o evento final dessa lista organizada.
 
-Regras obrigatórias:
-1. Nunca utilize a ordem em que os eventos aparecem no JSON. 
-2. Sempre ordene pelo campo de data/hora completo (dataHora, dataHoraMovimento ou equivalente). 
-3. Quando existir dataHoraUltimaAtualizacao, trate esse campo apenas como a última sincronização do processo e NÃO como um movimento processual. 
-4. A cronologia deve refletir exclusivamente os movimentos efetivamente praticados no processo. 
-5. Se houver vários eventos no mesmo dia, respeite também o horário. 
-6. Após ordenar, faça toda a análise utilizando essa sequência cronológica.
-
-Ao informar o andamento, diferencie obrigatoriamente:
-- Último movimento processual: último evento da cronologia ordenada. 
-- Última atualização do sistema: valor de dataHoraUltimaAtualizacao, apenas para indicar quando os dados foram sincronizados.
-
-É proibido afirmar que dataHoraUltimaAtualizacao corresponde ao último movimento do processo. Esse campo representa apenas a última atualização do registro no sistema e não um ato processual. Isso evita análises desincronizadas e cronologias fora de ordem.
-
-REGRAS DE OURO PARA GERAÇÃO:
-1. MENSAGEM WHATSAPP (mensagemCliente): Deve ser baseada nos FATOS REAIS do processo. 
-   - Tom: Cordial, coeso, humanizado, para pessoas leigas.
-   - Restrição: NUNCA diga nada negativo que possa assustar o cliente. Use um tom de "estamos no controle".
-
-2. ANÁLISE TÉCNICA (resumoTecnico, analiseRisco, proximosPassos): 
-   - Utilize toda a sua capacidade jurídica para interpretar o JSON do DataJud após a ordenação.
-   - Identifique brechas, prazos e a estratégia vencedora.
-
-IMPORTANTE: Retorne APENAS o JSON puro estruturado conforme o esquema.`;
+REGRAS DE OURO:
+1. MENSAGEM WHATSAPP: Cordial, humanizada, tom de "estamos no controle".
+2. ANÁLISE TÉCNICA: Identifique brechas e estratégias vencedoras.
+3. FORMATO: Retorne APENAS um objeto JSON. Do not include markdown blocks.`;
 
 function normalizarResultado(raw: any): any {
   let data = raw;
   if (typeof raw === 'string') {
     try {
-      const match = raw.match(/\{[\s\S]*\}/);
+      const clean = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+      const match = clean.match(/\{[\s\S]*\}/);
       data = match ? JSON.parse(match[0]) : {};
     } catch { data = {}; }
   }
 
   return {
-    resumoTecnico: data.resumoTecnico || "Análise técnica indisponível.",
-    analiseRisco: data.analiseRisco || "Sem riscos identificados.",
-    proximosPassos: data.proximosPassos || "Aguardar nova movimentação.",
+    resumoTecnico: data.resumoTecnico || data.analise_interna || "Análise técnica indisponível.",
+    analiseRisco: data.analiseRisco || "Sem riscos identificados no momento.",
+    proximosPassos: data.proximosPassos || "Aguardar nova movimentação processual.",
     mensagemCliente: data.mensagemCliente || "Olá! Estamos acompanhando seu processo de perto.",
     historicoMovimentacoes: data.historicoMovimentacoes || []
   };
@@ -83,7 +66,7 @@ async function callGrokChat(datajud: any) {
       model: 'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: SYSTEM_INSTRUCTIONS },
-        { role: 'user', content: `Analise DataJud: ${JSON.stringify(datajud)}` }
+        { role: 'user', content: `Analise DataJud: ${JSON.stringify(datajud).substring(0, 10000)}` }
       ],
       response_format: { type: 'json_object' }
     })
@@ -97,19 +80,25 @@ async function callOpenRouterChat(datajud: any) {
   const OPENROUTER_API_KEY = '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';
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${OPENROUTER_API_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://lexispredict.w1.capital' },
+    headers: { 
+      'Authorization': `Bearer ${OPENROUTER_API_KEY}`, 
+      'Content-Type': 'application/json', 
+      'HTTP-Referer': 'https://lexispredict.w1.capital' 
+    },
     body: JSON.stringify({
-      model: 'deepseek/deepseek-r1-distill-llama-70b',
+      model: 'anthropic/claude-3.5-sonnet',
       messages: [
         { role: 'system', content: SYSTEM_INSTRUCTIONS },
-        { role: 'user', content: `DADOS: ${JSON.stringify(datajud)}` }
-      ],
-      response_format: { type: 'json_object' }
+        { role: 'user', content: `DADOS DATAJUD: ${JSON.stringify(datajud).substring(0, 10000)}` }
+      ]
     })
   });
   if (!response.ok) throw new Error(`Erro OpenRouter: ${response.status}`);
   const data = await response.json();
-  return JSON.parse(data.choices[0].message.content);
+  const rawContent = data.choices[0].message.content;
+  const clean = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
+  const match = clean.match(/\{[\s\S]*\}/);
+  return match ? JSON.parse(match[0]) : JSON.parse(clean);
 }
 
 export const vereditoAIFlow = ai.defineFlow(
@@ -135,7 +124,7 @@ export const vereditoAIFlow = ai.defineFlow(
         result = await callGrokChat(dataJudData);
       }
 
-      if (!result) throw new Error("Motor de análise falhou.");
+      if (!result) throw new Error("Motor de análise falhou ao retornar dados.");
 
       return {
         ...normalizarResultado(result),

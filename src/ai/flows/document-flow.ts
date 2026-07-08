@@ -1,7 +1,9 @@
 'use server';
 /**
- * @fileOverview Motor de Geração de Documentos Jurídicos v16.1 ELITE (DEFINITIVO)
- * Motores: Grok (Llama 3.3) & Claude 3.5 Sonnet. Removido Gemini.
+ * @fileOverview Motor de Extração e Triagem de Dados Jurídicos v440.0 ELITE
+ * Especializado em filtrar dados relevantes de textos ruidosos.
+ * Inclui Banco de Dados de Banca com OABs Territoriais e Sanitização Neural.
+ * Resiliência 400/500: Prompt simplificado para modo JSON estrito.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -9,24 +11,81 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const DocumentInputSchema = z.object({
-  dadosBrutos: z.string().describe('O texto bruto, contrato ou PDF extraído para análise.'),
-  preferredModel: z.enum(['grok', 'openrouter']).optional().default('openrouter'),
+  text: z.string().describe('Texto bruto ou contrato do cliente.'),
+  preferredLawyer: z.string().optional().describe('Nome do advogado selecionado.'),
 });
 
 const DocumentOutputSchema = z.object({
-  conteudoFormatado: z.string().describe('O documento preenchido e formatado para Word.'),
-  engineUtilizada: z.string().optional()
+  cliente: z.object({
+    nome: z.string(),
+    estadoCivil: z.string(),
+    profissao: z.string(),
+    rg: z.string(),
+    cpf: z.string(),
+    endereco: z.string(),
+    email: z.string(),
+    genero: z.enum(['M', 'F']).default('M'),
+  }),
+  processos: z.array(z.object({
+    banco: z.string(),
+    numero: z.string(),
+    acao: z.string().default('AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA'),
+    estado: z.string().optional(),
+  })),
+  advogado: z.object({
+    nome: z.string(),
+    oab: z.string(),
+    endereco: z.string(),
+    email: z.string(),
+    cargo: z.string().default('advogado'),
+  }),
 });
 
-function forceStringDocument(raw: any): string {
-  if (!raw) return "";
-  if (typeof raw === 'string') return raw;
-  if (typeof raw === 'object') {
-    if (raw.documento && typeof raw.documento === 'string') return raw.documento;
-    return JSON.stringify(raw, null, 2);
-  }
-  return String(raw);
+export type DocumentOutput = z.infer<typeof DocumentOutputSchema>;
+
+// Sanitização profunda para evitar erros de tokenização e Bad Request no Groq
+function sanitizeInputText(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/[\x00-\x1F\x7F-\x9F]/g, "") // Remove caracteres de controle
+    .replace(/[^\x20-\x7E\xA1-\xFF]/g, " ") // Mantém apenas caracteres imprimíveis latinos
+    .replace(/\s+/g, " ") // Colapsa espaços múltiplos
+    .trim()
+    .substring(0, 7000); // Limite de 7k para evitar estouro de buffer e erro 400
 }
+
+const BANCA_DATA = {
+  "DIEGO GOMES DIAS": {
+    oabs: { "BA": "77.510/BA", "CE": "52.996-A/CE", "MT": "34.044-A/MT", "PI": "22.858/PI", "RN": "21.766-A/RN", "SP": "370.898/SP" },
+    endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
+    email: "diego_gomesdias@yahoo.com.br",
+    genero: "M"
+  },
+  "LETICIA ALVES GODOY DA CRUZ": {
+    oabs: { "TO": "12.528-A/TO", "AC": "6.572/AC", "RS": "131.831-A/RS", "PB": "31.888-A/PB", "PA": "36.417-A/PA", "SP": "490.641/SP" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
+    email: "leticiagodoy.adv@gmail.com",
+    genero: "F"
+  },
+  "PABLO MATHEUS SILVA BASTOS PEREIRA": {
+    oabs: { "SP": "520.783/SP", "RN": "520.783/SP", "PI": "520.783/SP", "MT": "520.783/SP", "CE": "520.783/SP", "BA": "520.783/SP", "SC": "520.783/SP", "ES": "520.783/SP", "MS": "520.783/SP", "MG": "249.550/MG", "PR": "520.783/PR" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
+    email: "pablobastos@adv.oabsp.org.br",
+    genero: "M"
+  },
+  "INGRID MICHAELLY TELES PACHECO OLIVEIRA ALVES": {
+    oabs: { "SP": "490.641/SP", "MA": "490.641/SP", "RO": "13.438/RO", "AP": "5.819-A/AP", "SE": "1.601-A/SE", "RR": "844-A/RR", "GO": "70.699/GO" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
+    email: "pachecoingrid.adv@gmail.com",
+    genero: "F"
+  },
+  "LUCAS DOS SANTOS DE JESUS": {
+    oabs: { "DF": "78.116/DF", "AL": "21.512-A/AL", "AM": "A2373/AM", "PE": "66.465/PE", "RJ": "261.767/RJ", "SP": "520.783/SP" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
+    email: "lucassj.adv01@gmail.com",
+    genero: "M"
+  }
+};
 
 export const documentFlow = ai.defineFlow(
   {
@@ -34,67 +93,85 @@ export const documentFlow = ai.defineFlow(
     inputSchema: DocumentInputSchema,
     outputSchema: DocumentOutputSchema,
   },
-  async input => {
-    let result;
-    let engine;
-    const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  async (input) => {
+    const GROQ_API_KEY = process.env.GROQ_API_KEY || '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';
+    const cleanedText = sanitizeInputText(input.text);
+    const targetLawyer = input.preferredLawyer || "PABLO MATHEUS SILVA BASTOS PEREIRA";
+    
+    const systemPrompt = `Você é o Arquiteto Jurídico da W1 Capital. Extraia os dados do outorgante e da ação.
+Ignore ruído financeiro, taxas, seguros e dados irrelevantes.
+RETORNE APENAS JSON.
+ESTRUTURA OBRIGATÓRIA:
+{
+  "cliente": { "nome": "", "estadoCivil": "", "profissao": "", "rg": "", "cpf": "", "endereco": "", "email": "", "genero": "M"|"F" },
+  "processos": [{ "banco": "", "numero": "", "acao": "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA", "estado": "" }]
+}
+IMPORTANTE: A chave "processos" DEVE ser um ARRAY (lista). Mesmo que haja apenas um processo.`;
 
     try {
-      if (input.preferredModel === 'openrouter') {
-        const OPENROUTER_API_KEY = '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';
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://lexispredict.w1.capital'
-          },
-          body: JSON.stringify({
-            model: 'anthropic/claude-3.5-sonnet',
-            messages: [
-              { role: 'system', content: 'Você é Assistente Jurídico Sênior da Get Assessoria. Gere a procuração exclusivamente como TEXTO FORMATADO no campo "documento". Mantenha os dados do advogado DIEGO GOMES DIAS e o CNPJ do Banco Votorantim 59.588.111/0001-03 sempre.' },
-              { role: 'user', content: `Extraia dados e preencha a procuração exatamente conforme o modelo visual para: ${input.dadosBrutos}. Data de hoje: ${today}` }
-            ],
-            temperature: 0.1,
-            response_format: { type: 'json_object' }
-          })
-        });
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `CONTRATO: ${cleanedText}` }
+          ],
+          temperature: 0.1,
+          response_format: { type: 'json_object' }
+        })
+      });
 
-        if (!response.ok) throw new Error(`Erro API OpenRouter: ${response.status}`);
-        const data = await response.json();
-        const content = JSON.parse(data.choices[0].message.content);
-        result = { documento: forceStringDocument(content) };
-        engine = `CLAUDE 3.5 SONNET`;
-      } else {
-        const GROQ_API_KEY = process.env.GROQ_API_KEY || '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';
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [
-              { role: 'system', content: 'Retorne apenas JSON com campo string "documento" contendo a procuração completa em texto puro formatado conforme o modelo oficial da Get Assessoria (W1 Capital).' },
-              { role: 'user', content: `Gere a procuração conforme o script visual para os dados: ${input.dadosBrutos}` }
-            ],
-            temperature: 0.1,
-            response_format: { type: 'json_object' }
-          })
-        });
-        
-        if (!response.ok) throw new Error(`Erro API Groq: ${response.status}`);
-        const data = await response.json();
-        const content = JSON.parse(data.choices[0].message.content);
-        result = { documento: forceStringDocument(content) };
-        engine = `GROK (LLAMA 3.3)`;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Erro API Groq (${response.status}): ${errorData.error?.message || 'Falha na geração'}`);
       }
+
+      const data = await response.json();
+      const rawContent = data.choices[0].message.content;
+      const parsed = JSON.parse(rawContent);
       
-      return { conteudoFormatado: forceStringDocument(result.documento), engineUtilizada: engine };
-    } catch (e: any) {
-      throw new Error(e.message || "Erro na geração do documento.");
+      // Normalização resiliente: garante que 'processos' seja sempre um array e use a chave correta
+      const rawProcessos = parsed.processos || parsed.processo || [];
+      const processosArray = Array.isArray(rawProcessos) ? rawProcessos : [rawProcessos];
+
+      const lawyerInfo = (BANCA_DATA as any)[targetLawyer] || BANCA_DATA["PABLO MATHEUS SILVA BASTOS PEREIRA"];
+      const firstProcessState = (processosArray[0]?.estado || processosArray[0]?.uf || "SP").toUpperCase();
+      const selectedOAB = (lawyerInfo.oabs as any)[firstProcessState] || lawyerInfo.oabs["SP"];
+
+      return {
+        cliente: {
+          nome: (parsed.cliente?.nome || "NÃO IDENTIFICADO").toUpperCase(),
+          estadoCivil: parsed.cliente?.estadoCivil || "casado(a)",
+          profissao: parsed.cliente?.profissao || "autônomo(a)",
+          rg: parsed.cliente?.rg || "---",
+          cpf: parsed.cliente?.cpf || "---",
+          endereco: parsed.cliente?.endereco || "Não localizado",
+          email: parsed.cliente?.email || "---",
+          genero: parsed.cliente?.genero || 'M',
+        },
+        advogado: {
+          nome: targetLawyer.toUpperCase(),
+          oab: selectedOAB,
+          endereco: lawyerInfo.endereco,
+          email: lawyerInfo.email,
+          cargo: lawyerInfo.genero === 'F' ? 'advogada' : 'advogado',
+        },
+        processos: processosArray.map((p: any) => ({
+          banco: (p.banco || "BANCO").toUpperCase(),
+          numero: p.numero || "S/N",
+          acao: p.acao || 'AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA',
+          estado: (p.estado || p.uf || "SP").toUpperCase()
+        }))
+      } as DocumentOutput;
+    } catch (error: any) {
+      console.error("Erro no documentFlow:", error.message);
+      throw new Error(`Falha na triagem neural: ${error.message}`);
     }
   }
 );
 
-export async function gerarDocumentoIA(input: any) {
+export async function extrairDadosProcuracao(input: {text: string, preferredLawyer?: string}) {
   return documentFlow(input);
 }

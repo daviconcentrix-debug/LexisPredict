@@ -1,7 +1,7 @@
 'use server';
 /**
- * @fileOverview Motor de Consultoria Estratégica LexisPredict v2.1 Elite
- * Memória de Contexto Ativa. Motores: Claude 3.5 Sonnet | Grok (Llama 3.3). Removido Gemini.
+ * @fileOverview Motor de Consultoria Estratégica LexisPredict v350.0 Elite
+ * Memória de Contexto Ativa. Motores: Claude 3.5 Sonnet | Grok (Llama 3.3).
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -69,7 +69,9 @@ async function callGrokChat(pergunta: string, historico: any[], deepThinking: bo
   
   const data = await response.json();
   try {
-    const content = JSON.parse(data.choices[0].message.content);
+    const rawContent = data.choices[0].message.content;
+    const cleanContent = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
+    const content = JSON.parse(cleanContent);
     return { resposta: forceStringResponse(content) };
   } catch {
     return { resposta: data.choices[0].message.content };
@@ -106,8 +108,9 @@ async function callOpenRouterChat(pergunta: string, historico: any[], deepThinki
   const data = await response.json();
   try {
     const rawContent = data.choices[0].message.content;
-    const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-    const content = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(rawContent);
+    const cleanContent = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
+    const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+    const content = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(cleanContent);
     return { resposta: forceStringResponse(content) };
   } catch {
     return { resposta: data.choices[0].message.content };

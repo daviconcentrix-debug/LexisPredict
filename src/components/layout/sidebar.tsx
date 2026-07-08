@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -23,7 +22,8 @@ import {
   LogOut,
   MessageCircle,
   Menu,
-  X
+  X,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -68,17 +68,23 @@ export function Sidebar() {
       }
       
       const count = data.length / 4;
+      if (!count || isNaN(count) || count === 0) return null;
+
       const avgR = Math.round(r / count);
       const avgG = Math.round(g / count);
       const avgB = Math.round(b / count);
 
-      // Luminância (ITU-R BT.709)
+      if (isNaN(avgR) || isNaN(avgG) || isNaN(avgB)) return null;
+
       const lum = (0.2126 * avgR + 0.7152 * avgG + 0.0722 * avgB) / 255;
       
-      const toHex = (c: number) => c.toString(16).padStart(2, '0');
+      const toHex = (c: number) => {
+        const hex = Math.max(0, Math.min(255, c)).toString(16);
+        return hex.padStart(2, '0');
+      };
+
       const dominant = `#${toHex(avgR)}${toHex(avgG)}${toHex(avgB)}`;
       
-      // Regras de Contraste Automático
       const isLight = lum > 0.5;
       const font = isLight ? '#000000' : '#ffffff';
       const border = isLight ? '#000000' : '#ffffff';
@@ -109,7 +115,7 @@ export function Sidebar() {
 
       if (target) {
         const colors = extractColorsFromElement(target);
-        if (colors) {
+        if (colors && colors.dominant.length === 7) {
           const lastDominant = localStorage.getItem('lexisPredict_last_sampled');
           if (colors.dominant !== lastDominant) {
             localStorage.setItem('lexisPredict_bg_color', colors.dominant);
@@ -133,9 +139,10 @@ export function Sidebar() {
     isMounted.current = true;
     
     const hexToRgba = (hex: string, opacity: number) => {
-      const r = parseInt(hex.slice(1, 3), 16);
-      const g = parseInt(hex.slice(3, 5), 16);
-      const b = parseInt(hex.slice(5, 7), 16);
+      if (!hex || hex.length !== 7) return `rgba(0,0,0,${opacity})`;
+      const r = parseInt(hex.slice(1, 3), 16) || 0;
+      const g = parseInt(hex.slice(3, 5), 16) || 0;
+      const b = parseInt(hex.slice(5, 7), 16) || 0;
       return `rgba(${r}, ${g}, ${b}, ${opacity})`;
     };
 
@@ -197,7 +204,6 @@ export function Sidebar() {
           svg {
             stroke: ${settings.iconColor} !important;
           }
-          /* Estado Ativo/Selecionado */
           .bg-black, [data-active="true"], .active-item {
             background-color: ${btnBgRgba} !important;
             color: ${settings.btnTextColor} !important;
@@ -205,7 +211,6 @@ export function Sidebar() {
           .bg-black svg, [data-active="true"] svg {
             stroke: ${settings.btnTextColor} !important;
           }
-          /* Estado Inativo/Não Selecionado e Containers de Conteúdo */
           .bg-white, .bg-sidebar, .bg-card, .bg-\\[\\#f3f2f2\\], .bg-[#f3f2f2], [data-active="false"], .inactive-item {
             background-color: ${unselectedBtnBgRgba} !important;
             color: ${settings.unselectedFontColor} !important;
@@ -213,12 +218,10 @@ export function Sidebar() {
           .bg-white svg, .bg-sidebar svg, .inactive-item svg {
             stroke: ${settings.iconColor} !important;
           }
-          /* Header e Headers de Cards */
           header, .bg-\\[\\#f8f9fb\\], .bg-[#f8f9fb] {
             background-color: ${unselectedBtnBgRgba} !important;
             border-color: ${borderRgba} !important;
           }
-          /* Hover */
           .hover\\:bg-black:hover {
             background-color: ${btnBgRgba} !important;
             color: ${settings.btnTextColor} !important;
@@ -342,6 +345,7 @@ export function Sidebar() {
 
   const omniNav = [
     { label: 'Auditoria 3D', href: '/veredito', icon: FileSearch },
+    { label: 'Gerador de Procurações', href: '/documents', icon: FileText },
     { label: 'Consultoria de Gabinete', href: '/chat', icon: MessageSquare },
     { label: 'Mensagens WhatsApp', href: '/whatsapp', icon: MessageCircle },
     { label: 'Importação de Dados', href: '/import', icon: Upload },

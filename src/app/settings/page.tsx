@@ -9,16 +9,11 @@ import {
   Users,
   UserPlus,
   Trash2,
-  Upload,
-  Skull,
-  ShieldAlert,
-  CheckCircle2,
-  Type,
-  MousePointer2,
-  Square,
   Zap,
   Bot,
-  Layers
+  Layers,
+  Skull,
+  ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -33,7 +28,6 @@ import { getEmpresaUsers, removeEmpresaUser } from '@/lib/server-db';
 import { UserProfile, supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { Slider } from '@/components/ui/slider';
-import { browserStorage } from '@/lib/browser-storage';
 import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
@@ -44,18 +38,9 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('Style');
-  const [masterPasswordInput, setMasterPasswordInput] = useState('');
-  const [isMasterActive, setIsMasterActive] = useState(false);
+  const [activeTab, setActiveTab] = useState('Sync');
   const [iaModel, setIaModel] = useState<'grok' | 'openrouter'>('grok');
   const [empresaUsers, setEmpresaUsers] = useState<UserProfile[]>([]);
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
@@ -79,8 +64,6 @@ export default function SettingsPage() {
   const [borderColor, setBorderColor] = useState('#000000');
   const [containerOpacity, setContainerOpacity] = useState(1);
 
-  const mainFileInputRef = useRef<HTMLInputElement>(null);
-  const sideFileInputRef = useRef<HTMLInputElement>(null);
   const isMounted = useRef(true);
 
   const [newUserForm, setNewUserForm] = useState({
@@ -159,18 +142,6 @@ export default function SettingsPage() {
     window.dispatchEvent(new Event('storage'));
   };
 
-  const handleLocalFile = async (e: React.ChangeEvent<HTMLInputElement>, target: 'main' | 'side') => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const storageKey = target === 'main' ? 'main_wallpaper_blob' : 'side_wallpaper_blob';
-    const success = await browserStorage.saveAsset(storageKey, file);
-    if (success) {
-      if (target === 'main') setMainWpUrl('LOCAL_ASSET');
-      else setSideWpUrl('LOCAL_ASSET');
-      toast({ title: "Arquivo Local Carregado" });
-    }
-  };
-
   const saveWpSettings = () => {
     localStorage.setItem('lexis_wp_mode', wpMode);
     localStorage.setItem('lexis_wp_main_url', mainWpUrl);
@@ -180,17 +151,6 @@ export default function SettingsPage() {
     localStorage.setItem('lexis_wp_opacity', wpOpacity.toString());
     window.dispatchEvent(new Event('storage'));
     toast({ title: "Configurações Salvas" });
-  };
-
-  const handleUnlockMaster = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (masterPasswordInput === '40028922') {
-      document.cookie = `lexis_master_unlock=40028922; path=/; max-age=31536000; samesite=lax`;
-      document.cookie = `lexis_master_email=daviconcentrix@gmail.com; path=/; max-age=31536000; samesite=lax`;
-      setIsMasterActive(true);
-      toast({ title: "Gabinete Master Desbloqueado" });
-      setTimeout(() => window.location.reload(), 500);
-    }
   };
 
   const handleCreateOperator = async (e: React.FormEvent) => {
@@ -240,7 +200,7 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Configuração Sistema</h1>
-            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v280.0 Elite Resiliente</Badge>
+            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v390.0 Elite Resiliente</Badge>
           </div>
         </header>
 
@@ -316,13 +276,13 @@ export default function SettingsPage() {
                        )}
                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
                           <ColorPicker label="Fundo Base" value={bgColor} onChange={(v) => handleColorChange('lexisPredict_bg_color', v, setBgColor)} />
-                          <ColorPicker label="Letras (Ativo)" icon={<Type size={12}/>} value={fontColor} onChange={(v) => handleColorChange('lexisPredict_font_color', v, setFontColor)} />
-                          <ColorPicker label="Letras (Inativo)" icon={<Type size={12}/>} value={unselectedFontColor} onChange={(v) => handleColorChange('lexisPredict_unselected_font_color', v, setUnselectedFontColor)} />
-                          <ColorPicker label="Botão (Ativo)" icon={<Square size={12}/>} value={btnBgColor} onChange={(v) => handleColorChange('lexisPredict_btn_bg_color', v, setBtnBgColor)} />
-                          <ColorPicker label="Botão (Inativo)" icon={<Square size={12}/>} value={unselectedBtnBgColor} onChange={(v) => handleColorChange('lexisPredict_unselected_btn_bg_color', v, setUnselectedBtnBgColor)} />
-                          <ColorPicker label="Texto Botão" icon={<Type size={12}/>} value={btnTextColor} onChange={(v) => handleColorChange('lexisPredict_btn_text_color', v, setBtnTextColor)} />
-                          <ColorPicker label="Ícones" icon={<MousePointer2 size={12}/>} value={iconColor} onChange={(v) => handleColorChange('lexisPredict_icon_color', v, setIconColor)} />
-                          <ColorPicker label="Bordas" icon={<Square size={12}/>} value={borderColor} onChange={(v) => handleColorChange('lexisPredict_border_color', v, setBorderColor)} />
+                          <ColorPicker label="Letras (Ativo)" value={fontColor} onChange={(v) => handleColorChange('lexisPredict_font_color', v, setFontColor)} />
+                          <ColorPicker label="Letras (Inativa)" value={unselectedFontColor} onChange={(v) => handleColorChange('lexisPredict_unselected_font_color', v, setUnselectedFontColor)} />
+                          <ColorPicker label="Botão (Ativo)" value={btnBgColor} onChange={(v) => handleColorChange('lexisPredict_btn_bg_color', v, setBtnBgColor)} />
+                          <ColorPicker label="Botão (Inativo)" value={unselectedBtnBgColor} onChange={(v) => handleColorChange('lexisPredict_unselected_btn_bg_color', v, setUnselectedBtnBgColor)} />
+                          <ColorPicker label="Texto Botão" value={btnTextColor} onChange={(v) => handleColorChange('lexisPredict_btn_text_color', v, setBtnTextColor)} />
+                          <ColorPicker label="Cor dos Ícones" value={iconColor} onChange={(v) => handleColorChange('lexisPredict_icon_color', v, setIconColor)} />
+                          <ColorPicker label="Cor das Bordas" value={borderColor} onChange={(v) => handleColorChange('lexisPredict_border_color', v, setBorderColor)} />
                        </div>
                     </div>
 
@@ -335,7 +295,7 @@ export default function SettingsPage() {
                 <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
                     <CardTitle className="text-black font-black uppercase text-sm">Núcleo Neural Elite</CardTitle>
-                    <CardDescription className="text-[10px] font-black uppercase">Motores de processamento resilientes (Removido Gemini).</CardDescription>
+                    <CardDescription className="text-[10px] font-black uppercase">Motores de processamento resilientes v390.0.</CardDescription>
                   </CardHeader>
                   <CardContent className="p-6">
                     <RadioGroup value={iaModel} onValueChange={handleIaChange} className="grid grid-cols-1 gap-4">
@@ -352,14 +312,13 @@ export default function SettingsPage() {
                     <CardTitle className="text-black font-black uppercase text-sm">Infraestrutura Blindada</CardTitle>
                   </CardHeader>
                   <CardContent className="p-6">
-                    <div className="p-6 bg-[#f3f2f2] rounded-none border-2 border-black">
-                      <div className="flex items-center justify-between">
-                         <div className="text-sm font-black text-black uppercase flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-green-600" />
-                          Gabinete Online
-                        </div>
-                        <Badge className="bg-green-600 text-white border-none font-black uppercase text-[9px] px-3 rounded-none">Active</Badge>
+                    <div className="p-8 bg-[#f3f2f2] rounded-none border-2 border-black border-dashed flex flex-col items-center justify-center text-center space-y-4">
+                      <ShieldCheck size={48} className="text-green-600" />
+                      <div>
+                        <p className="font-black text-black uppercase text-sm">Gabinete Cloud Sincronizado</p>
+                        <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mt-1">Conexão SaaS Multi-Tenant Blindada</p>
                       </div>
+                      <Badge className="bg-green-600 text-white border-none font-black uppercase text-[10px] px-6 py-1.5 rounded-none shadow-[4px_4px_0px_#000]">Status: Operacional</Badge>
                     </div>
                   </CardContent>
                 </Card>
@@ -380,6 +339,7 @@ export default function SettingsPage() {
                             <form onSubmit={handleCreateOperator}>
                              <DialogHeader>
                                <DialogTitle className="text-black font-black uppercase">Provisionar Acesso</DialogTitle>
+                               <DialogDescription className="sr-only">Formulário de criação de novo operador de gabinete.</DialogDescription>
                              </DialogHeader>
                              <div className="grid gap-4 py-4">
                                <Input value={newUserForm.nome} onChange={e => setNewUserForm({...newUserForm, nome: e.target.value})} placeholder="NOME" className="border-2 border-black font-black rounded-none" required />
@@ -440,16 +400,14 @@ function WpModeOption({ id, value, label }: { id: string, value: string, label: 
   );
 }
 
-function ColorPicker({ label, icon, value, onChange }: { label: string, icon?: React.ReactNode, value: string, onChange: (v: string) => void }) {
+function ColorPicker({ label, value, onChange }: { label: string, value: string, onChange: (v: string) => void }) {
   return (
-    <div className="space-y-2">
-      <Label className="font-black text-black text-[10px] uppercase flex items-center gap-2">
-        {icon} {label}
-      </Label>
-      <div className="flex gap-2 items-center">
-        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-10 w-16 border-2 border-black cursor-pointer bg-white" />
-        <Input value={value} readOnly className="font-mono border-2 border-black text-black font-black rounded-none h-10 uppercase text-[10px]" />
-      </div>
+    <div className="space-y-1.5">
+       <Label className="text-[9px] font-black uppercase text-black/50">{label}</Label>
+       <div className="flex gap-2 items-center">
+         <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-9 w-9 border-2 border-black cursor-pointer bg-white" />
+         <Input value={value} readOnly className="font-mono border-2 border-black text-black font-black rounded-none h-9 uppercase text-[9px]" />
+       </div>
     </div>
   );
 }
@@ -467,7 +425,7 @@ function IaOption({ id, value, title, desc, active }: { id: string, value: strin
           <p className={cn("text-[9px] font-black uppercase transition-colors", active ? "text-white/60" : "text-black/40")}>{desc}</p>
         </div>
       </div>
-      {active && <CheckCircle2 className="text-white" size={16} />}
+      {active && <Zap className="text-yellow-400 fill-yellow-400" size={16} />}
     </label>
   );
 }
