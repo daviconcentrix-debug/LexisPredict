@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   FileText, 
@@ -24,7 +24,8 @@ import {
   Building2,
   Scale,
   AlertCircle,
-  Download
+  Download,
+  MapPin
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -48,16 +49,17 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 let pdfjsLib: any = null;
 
 const ADVOGADOS_BANCA = [
-  { id: 'pablo', nome: 'PABLO MATHEUS SILVA BASTOS PEREIRA' },
-  { id: 'ingrid', nome: 'INGRID MICHAELLY TELES PACHECO OLIVEIRA ALVES' },
-  { id: 'diego', nome: 'DIEGO GOMES DIAS' },
-  { id: 'lucas', nome: 'LUCAS DOS SANTOS DE JESUS' },
-  { id: 'leticia', nome: 'LETICIA ALVES GODOY DA CRUZ' },
+  { id: 'pablo', nome: 'PABLO MATHEUS SILVA BASTOS PEREIRA', estados: ["SP", "RN", "PI", "MT", "CE", "BA", "SC", "ES", "MS", "MG", "PR"] },
+  { id: 'ingrid', nome: 'INGRID MICHAELLY TELES PACHECO OLIVEIRA ALVES', estados: ["MA", "RO", "AP", "SE", "RR", "GO", "SP"] },
+  { id: 'diego', nome: 'DIEGO GOMES DIAS', estados: ["BA", "CE", "MT", "PI", "RN", "SP"] },
+  { id: 'lucas', nome: 'LUCAS DOS SANTOS DE JESUS', estados: ["DF", "AL", "AM", "PE", "RJ", "SP"] },
+  { id: 'leticia', nome: 'LETICIA ALVES GODOY DA CRUZ', estados: ["TO", "AC", "RS", "PB", "PA", "SP"] },
 ];
 
 export default function DocumentGenerator() {
   const [inputText, setInputText] = useState('');
   const [selectedLawyer, setSelectedLawyer] = useState<string>('');
+  const [selectedState, setSelectedState] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [extractedData, setExtractedData] = useState<DocumentOutput | null>(null);
   const [step, setStep] = useState(1); 
@@ -82,6 +84,11 @@ export default function DocumentGenerator() {
     initPdfJS();
   }, []);
 
+  const availableStates = useMemo(() => {
+    const lawyer = ADVOGADOS_BANCA.find(a => a.nome === selectedLawyer);
+    return lawyer?.estados || [];
+  }, [selectedLawyer]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !pdfEngineReady) return;
@@ -100,7 +107,7 @@ export default function DocumentGenerator() {
             fullText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
           }
           setInputText(fullText);
-          toast({ title: "Contrato Lido", description: "Inicie a extração neural v450.0 Elite." });
+          toast({ title: "Contrato Lido", description: "Inicie a extração neural v480.0 Elite." });
         } catch (err) {
           toast({ title: "Falha na Leitura", description: "O PDF pode estar protegido ou corrompido.", variant: "destructive" });
         } finally {
@@ -115,10 +122,14 @@ export default function DocumentGenerator() {
   };
 
   const handleExtract = async () => {
-    if (!inputText || loading || !selectedLawyer) return;
+    if (!inputText || loading || !selectedLawyer || !selectedState) return;
     setLoading(true);
     try {
-      const data = await extrairDadosProcuracao({ text: inputText, preferredLawyer: selectedLawyer });
+      const data = await extrairDadosProcuracao({ 
+        text: inputText, 
+        preferredLawyer: selectedLawyer,
+        preferredState: selectedState
+      });
       setExtractedData(data);
       setStep(2);
       toast({ title: "Triagem Concluída", description: "Revise os dados e insira o CNPJ do Banco se necessário." });
@@ -170,7 +181,6 @@ export default function DocumentGenerator() {
 
   const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
   
-  // Extrair cidade do endereço para a linha de data
   const extractCity = (address: string) => {
     if (!address) return "São Paulo";
     const parts = address.split('–').map(p => p.trim());
@@ -196,7 +206,7 @@ export default function DocumentGenerator() {
           </div>
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">
-               Gabinete v450.0 Elite
+               Gabinete v480.0 Elite
             </Badge>
           </div>
         </header>
@@ -209,20 +219,41 @@ export default function DocumentGenerator() {
                     <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                       <CardHeader className="bg-black text-white py-3">
                         <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                          <Shield size={14} className="text-yellow-400" /> 1. Advogado Responsável (Banca)
+                          <Shield size={14} className="text-yellow-400" /> 1. Configuração de Banca Suplementar
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="p-6">
-                        <Select value={selectedLawyer} onValueChange={setSelectedLawyer}>
-                          <SelectTrigger className="w-full border-2 border-black h-12 font-black uppercase text-[11px] rounded-none bg-white">
-                            <SelectValue placeholder="SELECIONE O PROFISSIONAL..." />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white border-2 border-black rounded-none">
-                            {ADVOGADOS_BANCA.map((adv) => (
-                              <SelectItem key={adv.id} value={adv.nome} className="font-black uppercase text-[10px]">{adv.nome}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <CardContent className="p-6 space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="uppercase text-[10px] font-black">Advogado Responsável</Label>
+                            <Select value={selectedLawyer} onValueChange={(val) => { setSelectedLawyer(val); setSelectedState(''); }}>
+                              <SelectTrigger className="w-full border-2 border-black h-12 font-black uppercase text-[11px] rounded-none bg-white">
+                                <SelectValue placeholder="SELECIONE..." />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white border-2 border-black rounded-none">
+                                {ADVOGADOS_BANCA.map((adv) => (
+                                  <SelectItem key={adv.id} value={adv.nome} className="font-black uppercase text-[10px]">{adv.nome}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className={cn("space-y-2 transition-all", !selectedLawyer && "opacity-30 pointer-events-none")}>
+                            <Label className="uppercase text-[10px] font-black flex items-center gap-1.5">
+                              <MapPin size={12}/> Estado (OAB Territorial)
+                            </Label>
+                            <Select value={selectedState} onValueChange={setSelectedState} disabled={!selectedLawyer}>
+                              <SelectTrigger className="w-full border-2 border-black h-12 font-black uppercase text-[11px] rounded-none bg-white">
+                                <SelectValue placeholder={selectedLawyer ? "ESCOLHA O ESTADO..." : "AGUARDANDO ADVOGADO..."} />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white border-2 border-black rounded-none">
+                                {availableStates.map((uf) => (
+                                  <SelectItem key={uf} value={uf} className="font-black uppercase text-[10px]">{uf}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
                       </CardContent>
                     </Card>
 
@@ -237,7 +268,7 @@ export default function DocumentGenerator() {
                         />
                         <Button 
                           onClick={handleExtract} 
-                          disabled={loading || !inputText || !selectedLawyer}
+                          disabled={loading || !inputText || !selectedLawyer || !selectedState}
                           className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#facc15] hover:shadow-none"
                         >
                           {loading ? <Loader2 className="animate-spin mr-2" /> : <Zap size={16} className="mr-2 text-yellow-500 fill-yellow-500" />}
@@ -370,7 +401,10 @@ export default function DocumentGenerator() {
                       <div className="pt-4 space-y-4">
                         <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200">
                            <Shield size={16} className="text-blue-600" />
-                           <p className="text-[9px] font-black text-blue-900 uppercase">Advogado: {extractedData.advogado.nome}</p>
+                           <div className="min-w-0">
+                              <p className="text-[9px] font-black text-blue-900 uppercase">Advogado: {extractedData.advogado.nome}</p>
+                              <p className="text-[8px] font-bold text-blue-700 uppercase">Inscrição: {extractedData.advogado.oab}</p>
+                           </div>
                         </div>
                         <Button 
                           onClick={handleConfirmData} 
@@ -444,7 +478,7 @@ export default function DocumentGenerator() {
         </div>
 
         <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 print:hidden">
-          <Copyright size={10} /> 2026 W1 Capital. <span className="uppercase">FUNDADOR DAVI ALVES FIGUEREDO</span>
+          <Copyright size={10} /> 2026 W1 Capital. <span className="uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
         </footer>
 
         <style jsx global>{`

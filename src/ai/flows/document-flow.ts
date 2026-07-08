@@ -1,9 +1,8 @@
 'use server';
 /**
- * @fileOverview Motor de Extração e Triagem de Dados Jurídicos v450.0 ELITE
+ * @fileOverview Motor de Extração e Triagem de Dados Jurídicos v480.0 ELITE
  * Especializado em filtrar dados relevantes de textos ruidosos.
- * Inclui Banco de Dados de Banca com OABs Territoriais e Sanitização Neural.
- * Resiliência 400/500: Prompt simplificado para modo JSON estrito.
+ * Inclui Banco de Dados de Banca com OABs Territoriais Suplementares e Sanitização Neural.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -13,6 +12,7 @@ import {z} from 'genkit';
 const DocumentInputSchema = z.object({
   text: z.string().describe('Texto bruto ou contrato do cliente.'),
   preferredLawyer: z.string().optional().describe('Nome do advogado selecionado.'),
+  preferredState: z.string().optional().describe('Estado da OAB selecionado.'),
 });
 
 const DocumentOutputSchema = z.object({
@@ -56,31 +56,72 @@ function sanitizeInputText(text: string): string {
 
 const BANCA_DATA = {
   "DIEGO GOMES DIAS": {
-    oabs: { "BA": "77.510/BA", "CE": "52.996-A/CE", "MT": "34.044-A/MT", "PI": "22.858/PI", "RN": "21.766-A/RN", "SP": "370.898/SP" },
+    oabs: { 
+      "BA": "77.510/BA", 
+      "CE": "52.996-A/CE", 
+      "MT": "34.044-A/MT", 
+      "PI": "22.858/PI", 
+      "RN": "21.766A/RN", 
+      "SP": "370.898/SP" 
+    },
     endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
     email: "diego_gomesdias@yahoo.com.br",
     genero: "M"
   },
   "LETICIA ALVES GODOY DA CRUZ": {
-    oabs: { "TO": "12.528-A/TO", "AC": "6.572/AC", "RS": "131.831-A/RS", "PB": "31.888-A/PB", "PA": "36.417-A/PA", "SP": "490.641/SP" },
+    oabs: { 
+      "TO": "12.528-A/TO", 
+      "AC": "6.572/AC", 
+      "RS": "131.831-A/RS", 
+      "PB": "31.888 A/PB", 
+      "PA": "36.417-A/PA", 
+      "SP": "490.641/SP" 
+    },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "leticiagodoy.adv@gmail.com",
     genero: "F"
   },
   "PABLO MATHEUS SILVA BASTOS PEREIRA": {
-    oabs: { "SP": "520.783/SP", "RN": "520.783/SP", "PI": "520.783/SP", "MT": "520.783/SP", "CE": "520.783/SP", "BA": "520.783/SP", "SC": "520.783/SP", "ES": "520.783/SP", "MS": "520.783/SP", "MG": "249.550/MG", "PR": "520.783/PR" },
+    oabs: { 
+      "SP": "520.783/SP", 
+      "RN": "520.783/SP", 
+      "PI": "520.783/SP", 
+      "MT": "520.783/SP", 
+      "CE": "520.783/SP", 
+      "BA": "520.783/SP", 
+      "SC": "520.783/SP", 
+      "ES": "520.783/SP", 
+      "MS": "520.783/SP", 
+      "MG": "249.550/MG", 
+      "PR": "520.783/PR" 
+    },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
     email: "pablobastos@adv.oabsp.org.br",
     genero: "M"
   },
   "INGRID MICHAELLY TELES PACHECO OLIVEIRA ALVES": {
-    oabs: { "SP": "490.641/SP", "MA": "490.641/SP", "RO": "13.438/RO", "AP": "5.819-A/AP", "SE": "1.601-A/SE", "RR": "844-A/RR", "GO": "70.699/GO" },
+    oabs: { 
+      "MA": "490.641/SP", 
+      "RO": "13.438/RO", 
+      "AP": "5.819-A/AP", 
+      "SE": "1.601A/SE", 
+      "RR": "844-A/RR", 
+      "GO": "70.699/GO", 
+      "SP": "490.641/SP" 
+    },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "pachecoingrid.adv@gmail.com",
     genero: "F"
   },
   "LUCAS DOS SANTOS DE JESUS": {
-    oabs: { "DF": "78.116/DF", "AL": "21.512-A/AL", "AM": "A2373/AM", "PE": "66.465/PE", "RJ": "261.767/RJ", "SP": "520.783/SP" },
+    oabs: { 
+      "DF": "78.116/DF", 
+      "AL": "21.512A/AL", 
+      "AM": "A2373/AM", 
+      "PE": "66.465/PE", 
+      "RJ": "261.767/RJ", 
+      "SP": "520.783/SP" 
+    },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "lucassj.adv01@gmail.com",
     genero: "M"
@@ -111,7 +152,10 @@ IMPORTANTE: "processos" DEVE ser um ARRAY. Extraia o CNPJ do Banco se visível, 
     try {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+        headers: { 
+          'Authorization': `Bearer ${GROQ_API_KEY}`, 
+          'Content-Type': 'application/json' 
+        },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
           messages: [
@@ -136,8 +180,11 @@ IMPORTANTE: "processos" DEVE ser um ARRAY. Extraia o CNPJ do Banco se visível, 
       const processosArray = Array.isArray(rawProcessos) ? rawProcessos : [rawProcessos];
 
       const lawyerInfo = (BANCA_DATA as any)[targetLawyer] || BANCA_DATA["PABLO MATHEUS SILVA BASTOS PEREIRA"];
-      const firstProcessState = (processosArray[0]?.estado || processosArray[0]?.uf || "SP").toUpperCase();
-      const selectedOAB = (lawyerInfo.oabs as any)[firstProcessState] || lawyerInfo.oabs["SP"];
+      
+      // Lógica de seleção de OAB: Prioriza input manual, depois detecção de texto, depois SP
+      const detectedState = (processosArray[0]?.estado || processosArray[0]?.uf || "SP").toUpperCase();
+      const finalState = (input.preferredState || detectedState).toUpperCase();
+      const selectedOAB = (lawyerInfo.oabs as any)[finalState] || lawyerInfo.oabs["SP"];
 
       return {
         cliente: {
@@ -162,7 +209,7 @@ IMPORTANTE: "processos" DEVE ser um ARRAY. Extraia o CNPJ do Banco se visível, 
           cnpjBanco: p.cnpjBanco || '',
           numero: p.numero || "S/N",
           acao: p.acao || 'AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA',
-          estado: (p.estado || p.uf || "SP").toUpperCase()
+          estado: finalState
         }))
       } as DocumentOutput;
     } catch (error: any) {
@@ -172,6 +219,6 @@ IMPORTANTE: "processos" DEVE ser um ARRAY. Extraia o CNPJ do Banco se visível, 
   }
 );
 
-export async function extrairDadosProcuracao(input: {text: string, preferredLawyer?: string}) {
+export async function extrairDadosProcuracao(input: {text: string, preferredLawyer?: string, preferredState?: string}) {
   return documentFlow(input);
 }
