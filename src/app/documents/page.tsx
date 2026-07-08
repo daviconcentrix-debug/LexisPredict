@@ -19,18 +19,16 @@ import {
   RefreshCcw,
   Sparkles,
   Shield,
-  FileCheck,
-  ChevronLeft,
   CheckCircle2,
   Building2,
-  Scale,
   AlertCircle,
-  Download,
   MapPin,
   CalendarDays,
   Mail,
   Copy,
-  Check
+  Check,
+  MessageCircle,
+  ChevronLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -70,10 +68,10 @@ export default function DocumentGenerator() {
   const [step, setStep] = useState(1); 
   const [fileLoading, setFileLoading] = useState(false);
   const [pdfEngineReady, setPdfEngineReady] = useState(false);
-  const [printError, setPrintError] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [preferredIA, setPreferredIA] = useState('xai');
+  const [apiError, setApiError] = useState<{ engine: string, message: string } | null>(null);
   
-  // Custom Local and Date
   const [docLocal, setDocLocal] = useState('');
   const [docDate, setDocDate] = useState('');
 
@@ -82,6 +80,9 @@ export default function DocumentGenerator() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const savedIA = localStorage.getItem('lexisPredict_preferred_ia') || 'xai';
+    setPreferredIA(savedIA);
+
     const initPdfJS = async () => {
       try {
         const pdfjs = await import('pdfjs-dist');
@@ -118,7 +119,7 @@ export default function DocumentGenerator() {
             fullText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
           }
           setInputText(fullText);
-          toast({ title: "Contrato Lido", description: "Inicie a extração neural v530.0 Elite." });
+          toast({ title: "Contrato Lido", description: "Inicie a extração neural v620.0 Elite." });
         } catch (err) {
           toast({ title: "Falha na Leitura", description: "O PDF pode estar protegido ou corrompido.", variant: "destructive" });
         } finally {
@@ -132,55 +133,47 @@ export default function DocumentGenerator() {
     }
   };
 
-  const extractCity = (address: string) => {
-    if (!address) return "São Paulo";
-    const parts = address.split('–').map(p => p.trim());
-    if (parts.length >= 2) {
-      const cityPart = parts[parts.length - 3] || parts[parts.length - 2];
-      const city = cityPart.split('-')[0].trim();
-      return city || "São Paulo";
-    }
-    return "São Paulo";
-  };
-
   const handleExtract = async () => {
     if (!inputText || loading || !selectedLawyer || !selectedState) return;
     setLoading(true);
+    setApiError(null);
     try {
       const data = await extrairDadosProcuracao({ 
         text: inputText, 
         preferredLawyer: selectedLawyer,
-        preferredState: selectedState
+        preferredState: selectedState,
+        preferredModel: preferredIA as any
       });
       setExtractedData(data);
-      
-      // Auto-fill local and date
-      const city = extractCity(data.cliente.endereco);
-      setDocLocal(`${city} - ${selectedState}`);
+      setDocLocal(selectedState === "SP" ? "São Paulo - SP" : `${selectedState}`);
       setDocDate(new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }));
-      
       setStep(2);
-      toast({ title: "Triagem Concluída", description: "Revise os dados e insira o CNPJ do Banco se necessário." });
+      toast({ title: "Triagem Concluída", description: "Revise os dados de gabinete." });
     } catch (error: any) {
-      toast({ title: "Falha na Extração", description: error.message, variant: "destructive" });
+      setApiError({ engine: preferredIA, message: error.message });
+      toast({ title: "Falha na Triagem", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleConfirmData = () => {
-    setStep(3);
-    toast({ title: "Documento Selado", description: "Pronto para exportação e despacho." });
+  const handleSwitchAndRetry = () => {
+    const engines: any = ['xai', 'grok', 'airforce', 'puter'];
+    const currentIndex = engines.indexOf(preferredIA);
+    const nextIA = engines[(currentIndex + 1) % engines.length];
+    
+    setPreferredIA(nextIA);
+    localStorage.setItem('lexisPredict_preferred_ia', nextIA);
+    setApiError(null);
+    toast({ title: "Motor Alternado", description: `Migrando para ${nextIA.toUpperCase()}...` });
+    setTimeout(() => handleExtract(), 500);
   };
 
   const updateExtractedField = (category: 'cliente' | 'advogado', field: string, value: string) => {
     if (!extractedData) return;
     setExtractedData({
       ...extractedData,
-      [category]: {
-        ...(extractedData as any)[category],
-        [field]: value
-      }
+      [category]: { ...(extractedData as any)[category], [field]: value }
     });
   };
 
@@ -188,23 +181,7 @@ export default function DocumentGenerator() {
     if (!extractedData) return;
     const newProcessos = [...extractedData.processos];
     (newProcessos[index] as any)[field] = value;
-    setExtractedData({
-      ...extractedData,
-      processos: newProcessos
-    });
-  };
-
-  const handlePrint = () => {
-    try {
-      window.print();
-    } catch (e) {
-      setPrintError(true);
-      toast({ 
-        title: "Aviso de Ambiente", 
-        description: "O ambiente de desenvolvimento pode bloquear a janela de impressão. Utilize o comando Ctrl+P se necessário.",
-        variant: "destructive"
-      });
-    }
+    setExtractedData({ ...extractedData, processos: newProcessos });
   };
 
   const getEmailContent = () => {
@@ -215,35 +192,34 @@ export default function DocumentGenerator() {
     const honorific = extractedData.advogado.cargo === 'advogada' ? 'Dra.' : 'Dr.';
 
     const subject = `Nova Procuração - Processo ${processNumber}`;
-    const body = `Prezado(a) Sr.(a) ${clientName},
-
-Informamos que seu processo nº ${processNumber}, passará a ser acompanhado pelo ${honorific} ${lawyerName}, visando um acompanhamento ainda mais eficiente da demanda.
-
-Por esse motivo, será necessário anexar uma nova procuração atualizada aos autos.
-
-Pedimos, por gentileza, que confira os dados do documento encaminhado, imprima e assine manualmente, com assinatura semelhante à do documento de identificação, realizando também o reconhecimento de firma em cartório.
-
-Após isso, solicitamos o envio de uma foto legível ou do documento digitalizado para juntada no processo.
-
-Ficamos à disposição para quaisquer esclarecimentos.
-
-Atenciosamente,
-Gabinete W1 Capital`;
+    const body = `Prezado(a) Sr.(a) ${clientName},\n\nInformamos que seu processo nº ${processNumber}, passará a ser acompanhado pelo ${honorific} ${lawyerName}, visando um acompanhamento ainda mais eficiente da demanda.\n\nPor esse motivo, será necessário anexar uma nova procuração atualizada aos autos.\n\nPedimos, por gentileza, que confira os dados do documento encaminhado, imprima e assine manualmente, com assinatura semelhante à do documento de identificação, realizando também o reconhecimento de firma em cartório.\n\nApós isso, solicitamos o envio de uma foto legível ou do documento digitalizado para juntada no processo.\n\nFicamos à disposição para quaisquer esclarecimentos.\n\nAtenciosamente,\nGabinete W1 Capital`;
 
     return { subject, body };
   };
 
   const handleSendEmail = () => {
+    if (!extractedData) return;
+    const email = extractedData.cliente.email;
+    if (!email || email === '---' || email === 'Não localizado') {
+      toast({ title: "E-mail Ausente", description: "Insira o e-mail no passo anterior.", variant: "destructive" });
+      setStep(2);
+      return;
+    }
     const { subject, body } = getEmailContent();
-    const mailto = `mailto:${extractedData?.cliente.email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailto;
+    const mailto = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const link = document.createElement('a');
+    link.href = mailto;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Iniciando Despacho" });
   };
 
   const handleCopyText = () => {
     const { body } = getEmailContent();
     navigator.clipboard.writeText(body);
     setCopied(true);
-    toast({ title: "Instruções Copiadas", description: "Pronto para colar no WhatsApp ou CRM." });
+    toast({ title: "Copiado" });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -253,16 +229,16 @@ Gabinete W1 Capital`;
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40 print:hidden">
           <div className="flex items-center gap-4">
-            <div className="icon-3d-wrapper">
-              <div className="icon-3d-block black w-10 h-10 rounded-sm overflow-hidden flex items-center justify-center p-1 border-2 border-black">
-                 <img src="https://picsum.photos/seed/lexislogo/32/32" className="object-contain invert" alt="Logo" />
+             <div className="icon-3d-wrapper">
+                <div className="icon-3d-block black w-10 h-10 rounded-sm overflow-hidden flex items-center justify-center p-1 border-2 border-black">
+                   <img src="https://picsum.photos/seed/lexislogo/32/32" className="object-contain invert" alt="Logo" />
+                </div>
               </div>
-            </div>
             <h1 className="font-black text-xl text-black uppercase tracking-tighter">Gerador de Procurações</h1>
           </div>
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">
-               Gabinete v530.0 Elite
+               Engine: {preferredIA.toUpperCase()}
             </Badge>
           </div>
         </header>
@@ -270,12 +246,25 @@ Gabinete W1 Capital`;
         <div className="flex-1 overflow-auto p-4 lg:p-8 max-w-7xl mx-auto w-full print:p-0">
           {step === 1 && (
             <div className="space-y-8 animate-in fade-in duration-500">
+               {apiError && (
+                 <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 rounded-none shadow-[4px_4px_0px_#000]">
+                   <AlertCircle className="h-4 w-4" />
+                   <AlertTitle className="font-black uppercase text-xs">Aviso de Núcleo Neural</AlertTitle>
+                   <AlertDescription className="flex flex-col gap-3 mt-2">
+                     <p className="text-[10px] font-bold uppercase">O motor {apiError.engine.toUpperCase()} falhou. Deseja alternar para a próxima via reserva?</p>
+                     <Button onClick={handleSwitchAndRetry} className="bg-red-600 text-white border-2 border-black h-9 font-black uppercase text-[9px] rounded-none hover:bg-black transition-all w-fit px-6">
+                        Alternar & Re-tentar
+                     </Button>
+                   </AlertDescription>
+                 </Alert>
+               )}
+
                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   <div className="lg:col-span-2 space-y-6">
                     <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                       <CardHeader className="bg-black text-white py-3">
                         <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                          <Shield size={14} className="text-yellow-400" /> 1. Configuração de Banca Suplementar
+                          <Shield size={14} className="text-yellow-400" /> 1. Configuração de Banca
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-6 space-y-6">
@@ -300,7 +289,7 @@ Gabinete W1 Capital`;
                             </Label>
                             <Select value={selectedState} onValueChange={setSelectedState} disabled={!selectedLawyer}>
                               <SelectTrigger className="w-full border-2 border-black h-12 font-black uppercase text-[11px] rounded-none bg-white">
-                                <SelectValue placeholder={selectedLawyer ? "ESCOLHA O ESTADO..." : "AGUARDANDO ADVOGADO..."} />
+                                <SelectValue placeholder={selectedLawyer ? "ESCOLHA O ESTADO..." : "AGUARDANDO..."} />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-2 border-black rounded-none">
                                 {availableStates.map((uf) => (
@@ -315,9 +304,9 @@ Gabinete W1 Capital`;
 
                     <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                       <CardContent className="p-6 space-y-4">
-                        <Label className="uppercase text-[10px] font-black">2. Texto do Contrato ou Dados Brutos</Label>
+                        <Label className="uppercase text-[10px] font-black">2. Texto do Contrato ou PDF</Label>
                         <Textarea 
-                          placeholder="COLE O TEXTO DO CONTRATO AQUI OU ANEXE O PDF AO LADO..."
+                          placeholder="COLE O TEXTO OU ANEXE O PDF AO LADO..."
                           className="min-h-[350px] border-2 border-black font-black uppercase text-[11px] rounded-none bg-gray-50/50 resize-none leading-relaxed"
                           value={inputText}
                           onChange={(e) => setInputText(e.target.value)}
@@ -328,7 +317,7 @@ Gabinete W1 Capital`;
                           className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#facc15] hover:shadow-none"
                         >
                           {loading ? <Loader2 className="animate-spin mr-2" /> : <Zap size={16} className="mr-2 text-yellow-500 fill-yellow-500" />}
-                          {loading ? "Processando Triagem Neural..." : "Extrair & Iniciar Edição"}
+                          {loading ? "Sintonizando Triagem Neural..." : "Extrair & Iniciar Gabinete"}
                         </Button>
                       </CardContent>
                     </Card>
@@ -338,23 +327,14 @@ Gabinete W1 Capital`;
                     <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                       <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
                         <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                          <Upload size={14} /> Ingestão Automática (PDF)
+                          <Upload size={14} /> Leitura PDF (Local)
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-6">
-                        <div 
-                          onClick={() => fileInputRef.current?.click()}
-                          className="border-2 border-dashed border-black/20 rounded-none p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all"
-                        >
+                        <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 rounded-none p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all">
                           {fileLoading ? <Loader2 className="animate-spin text-black group-hover:text-white" size={32} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
-                          <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Arraste ou clique (Contrato PDF)</p>
+                          <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Arraste o Contrato</p>
                           <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-                        </div>
-                        <div className="mt-4 p-4 bg-blue-50 border border-blue-100 flex gap-3 items-start">
-                          <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
-                          <p className="text-[9px] font-black text-blue-800 uppercase leading-tight">
-                            A leitura é local e privada. O texto será extraído e carregado no campo de triagem automaticamente.
-                          </p>
                         </div>
                       </CardContent>
                     </Card>
@@ -368,7 +348,7 @@ Gabinete W1 Capital`;
                <div className="flex items-center justify-between border-b-2 border-black pb-4">
                   <div className="flex items-center gap-3">
                      <Edit3 size={20} />
-                     <h2 className="text-xl font-black uppercase tracking-tight">Revisão de Dados de Gabinete</h2>
+                     <h2 className="text-xl font-black uppercase tracking-tight">Revisão de Gabinete v620.0</h2>
                   </div>
                   <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-transparent hover:border-black rounded-none">
                     <ChevronLeft size={14} className="mr-1" /> Voltar
@@ -379,13 +359,12 @@ Gabinete W1 Capital`;
                   <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                     <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
                       <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                        <User size={14} /> Dados do Outorgante (Cliente)
+                        <User size={14} /> Outorgante
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
-                      <div className="grid gap-4">
                         <div className="grid gap-1">
-                          <Label>Nome Completo</Label>
+                          <Label>Nome</Label>
                           <Input value={extractedData.cliente.nome} onChange={(e) => updateExtractedField('cliente', 'nome', e.target.value)} className="border-black font-black uppercase rounded-none h-11" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -398,25 +377,14 @@ Gabinete W1 Capital`;
                             <Input value={extractedData.cliente.cpf} onChange={(e) => updateExtractedField('cliente', 'cpf', e.target.value)} className="border-black font-black rounded-none h-11" />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="grid gap-1">
-                            <Label>Estado Civil</Label>
-                            <Input value={extractedData.cliente.estadoCivil} onChange={(e) => updateExtractedField('cliente', 'estadoCivil', e.target.value)} className="border-black font-black uppercase rounded-none h-11" />
-                          </div>
-                          <div className="grid gap-1">
-                            <Label>Profissão</Label>
-                            <Input value={extractedData.cliente.profissao} onChange={(e) => updateExtractedField('cliente', 'profissao', e.target.value)} className="border-black font-black uppercase rounded-none h-11" />
-                          </div>
+                        <div className="grid gap-1">
+                          <Label>E-mail do Cliente</Label>
+                          <Input value={extractedData.cliente.email} onChange={(e) => updateExtractedField('cliente', 'email', e.target.value)} placeholder="cliente@exemplo.com" className="border-black border-2 font-black uppercase rounded-none h-11" />
                         </div>
                         <div className="grid gap-1">
-                          <Label>Endereço Residencial</Label>
+                          <Label>Endereço</Label>
                           <Input value={extractedData.cliente.endereco} onChange={(e) => updateExtractedField('cliente', 'endereco', e.target.value)} className="border-black font-black uppercase rounded-none h-11" />
                         </div>
-                        <div className="grid gap-1">
-                          <Label>E-mail</Label>
-                          <Input value={extractedData.cliente.email} onChange={(e) => updateExtractedField('cliente', 'email', e.target.value)} className="border-black font-black rounded-none h-11" />
-                        </div>
-                      </div>
                     </CardContent>
                   </Card>
 
@@ -424,7 +392,7 @@ Gabinete W1 Capital`;
                     <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                       <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
                         <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                          <Building2 size={14} /> Dados da Ação (Banco & Processo)
+                          <Building2 size={14} /> Dados da Ação
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-6 space-y-6">
@@ -432,24 +400,14 @@ Gabinete W1 Capital`;
                           <div key={i} className="space-y-4 p-4 bg-gray-50 border-2 border-dashed border-black/10">
                             <div className="grid gap-1">
                               <Label className="text-yellow-600">Instituição Financeira (BANCO)</Label>
-                              <Input 
-                                value={p.banco} 
-                                onChange={(e) => updateProcessField(i, 'banco', e.target.value)} 
-                                placeholder="NOME DO BANCO..."
-                                className="border-black border-2 font-black uppercase rounded-none h-11 bg-white focus-visible:ring-yellow-400" 
-                              />
+                              <Input value={p.banco} onChange={(e) => updateProcessField(i, 'banco', e.target.value)} placeholder="NOME DO BANCO..." className="border-black border-2 font-black uppercase rounded-none h-11 bg-white" />
                             </div>
                             <div className="grid gap-1">
                               <Label className="text-yellow-600">CNPJ do Banco</Label>
-                              <Input 
-                                value={p.cnpjBanco} 
-                                onChange={(e) => updateProcessField(i, 'cnpjBanco', e.target.value)} 
-                                placeholder="00.000.000/0001-00"
-                                className="border-black border-2 font-black uppercase rounded-none h-11 bg-white focus-visible:ring-yellow-400" 
-                              />
+                              <Input value={p.cnpjBanco} onChange={(e) => updateProcessField(i, 'cnpjBanco', e.target.value)} placeholder="00.000.000/0001-00" className="border-black border-2 font-black uppercase rounded-none h-11 bg-white" />
                             </div>
                             <div className="grid gap-1">
-                              <Label>Número do Processo (CNJ)</Label>
+                              <Label>Processo (CNJ)</Label>
                               <Input value={p.numero} onChange={(e) => updateProcessField(i, 'numero', e.target.value)} className="border-black font-black rounded-none h-11 bg-white" />
                             </div>
                           </div>
@@ -460,47 +418,20 @@ Gabinete W1 Capital`;
                     <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                       <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
                         <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                          <CalendarDays size={14} /> Local e Data do Documento
+                          <CalendarDays size={14} /> Local e Data
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-6 space-y-4">
-                        <div className="grid gap-1">
-                          <Label>Local (Cidade - UF)</Label>
-                          <Input 
-                            value={docLocal} 
-                            onChange={(e) => setDocLocal(e.target.value)} 
-                            placeholder="EX: SÃO PAULO - SP (DEIXE VAZIO PARA LINHA EM BRANCO)"
-                            className="border-black font-black uppercase rounded-none h-11" 
-                          />
+                        <div className="grid gap-4">
+                          <Input value={docLocal} onChange={(e) => setDocLocal(e.target.value)} placeholder="LOCAL (CIDADE - UF)" className="border-black font-black uppercase rounded-none h-11" />
+                          <Input value={docDate} onChange={(e) => setDocDate(e.target.value)} placeholder="DATA POR EXTENSO" className="border-black font-black uppercase rounded-none h-11" />
                         </div>
-                        <div className="grid gap-1">
-                          <Label>Data por Extenso</Label>
-                          <Input 
-                            value={docDate} 
-                            onChange={(e) => setDocDate(e.target.value)} 
-                            placeholder="EX: 08 DE JULHO DE 2026"
-                            className="border-black font-black uppercase rounded-none h-11" 
-                          />
-                        </div>
-                        <p className="text-[9px] font-bold text-black/40 uppercase">Se os campos acima forem apagados, o documento exibirá linhas pontilhadas para preenchimento manual.</p>
                       </CardContent>
                     </Card>
 
-                    <div className="pt-4 space-y-4">
-                      <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200">
-                         <Shield size={16} className="text-blue-600" />
-                         <div className="min-w-0">
-                            <p className="text-[9px] font-black text-blue-900 uppercase">Advogado: {extractedData.advogado.nome}</p>
-                            <p className="text-[8px] font-bold text-blue-700 uppercase">Inscrição: {extractedData.advogado.oab}</p>
-                         </div>
-                      </div>
-                      <Button 
-                        onClick={handleConfirmData} 
-                        className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]"
-                      >
-                        <CheckCircle2 size={16} className="mr-2" /> Selar Dados & Gerar Procuração
-                      </Button>
-                    </div>
+                    <Button onClick={() => setStep(3)} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
+                      <CheckCircle2 size={16} className="mr-2" /> Selar Documento
+                    </Button>
                   </div>
                </div>
             </div>
@@ -509,82 +440,38 @@ Gabinete W1 Capital`;
           {step === 3 && extractedData && (
             <div className="space-y-8 animate-in fade-in duration-500">
                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-[1200px] mx-auto print:flex print:flex-col">
-                  
-                  {/* PAINEL DE COMUNICAÇÃO (OCULTO NA IMPRESSÃO) */}
                   <div className="lg:col-span-1 space-y-6 print:hidden">
                     <Button variant="ghost" onClick={() => setStep(2)} className="w-full font-black uppercase text-[10px] border-2 border-transparent hover:border-black rounded-none h-10 mb-2">
-                      <ChevronLeft size={14} className="mr-1" /> Voltar para Edição
+                      <ChevronLeft size={14} className="mr-1" /> Editar Dados
                     </Button>
-
                     <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                       <CardHeader className="bg-black text-white py-3">
                          <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                            <MessageCircle size={14} className="text-green-400" /> Despacho ao Cliente
+                            <MessageCircle size={14} className="text-green-400" /> Despacho
                          </CardTitle>
                       </CardHeader>
-                      <CardContent className="p-4 space-y-6">
-                         <div className="space-y-2">
-                            <Label className="text-[9px]">Instruções de Envio</Label>
-                            <div className="bg-gray-50 border-2 border-dashed border-black/10 p-3 rounded-none">
-                               <p className="text-[10px] font-black uppercase leading-relaxed text-black/60 italic line-clamp-6">
-                                 {getEmailContent().body}
-                               </p>
-                            </div>
-                         </div>
-
-                         <div className="flex flex-col gap-3">
-                            <Button 
-                              onClick={handleCopyText} 
-                              className="bg-white text-black border-2 border-black h-11 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none"
-                            >
-                              {copied ? <Check size={14} className="mr-2 text-green-600" /> : <Copy size={14} className="mr-2" />}
-                              {copied ? "Texto Copiado" : "Copiar Instruções"}
-                            </Button>
-
-                            <Button 
-                              onClick={handleSendEmail} 
-                              className="bg-white text-black border-2 border-black h-11 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none"
-                            >
-                              <Mail size={14} className="mr-2" /> Enviar por E-mail
-                            </Button>
-                         </div>
-
-                         <div className="p-3 bg-blue-50 border border-blue-200">
-                            <p className="text-[8px] font-bold text-blue-700 uppercase leading-tight">
-                               O botão "E-mail" abrirá seu navegador padrão com o texto formatado. Certifique-se de anexar o PDF salvo.
-                            </p>
-                         </div>
+                      <CardContent className="p-4 space-y-4">
+                         <Button onClick={handleCopyText} className="w-full bg-white text-black border-2 border-black h-11 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none">
+                            {copied ? <Check size={14} className="mr-2 text-green-600" /> : <Copy size={14} className="mr-2" />} Copiar Instruções
+                         </Button>
+                         <Button onClick={handleSendEmail} className="w-full bg-white text-black border-2 border-black h-11 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none">
+                            <Mail size={14} className="mr-2" /> Enviar por E-mail
+                         </Button>
                       </CardContent>
                     </Card>
-                    
-                    <Button onClick={handlePrint} className="w-full bg-black text-white font-black uppercase text-[10px] h-14 rounded-none border-2 border-black shadow-[6px_6px_0px_#facc15] hover:shadow-none transition-all">
+                    <Button onClick={() => window.print()} className="w-full bg-black text-white font-black uppercase text-[10px] h-14 rounded-none border-2 border-black shadow-[6px_6px_0px_#facc15] hover:shadow-none transition-all">
                       <Printer size={16} className="mr-2" /> Exportar PDF Forense
                     </Button>
-
-                    {printError && (
-                      <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 rounded-none">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle className="font-black uppercase text-xs">Bloqueio de Ambiente</AlertTitle>
-                        <AlertDescription className="text-[10px] font-bold uppercase">
-                          Janela bloqueada. Tente pressionar <b>Ctrl + P</b>.
-                        </AlertDescription>
-                      </Alert>
-                    )}
                   </div>
-
-                  {/* DOCUMENTO (PREVIEW) */}
                   <div className="lg:col-span-3 document-container bg-white shadow-2xl border-2 border-black print:shadow-none print:border-none">
                     <div className="procuracao-page" ref={printRef}>
                       <div className="doc-title">PROCURAÇÃO "AD JUDICIA"</div>
-                      
                       <div className="doc-paragraph">
                         <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, brasileiro, {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador do RG sob Nº {extractedData.cliente.rg} e devidamente inscrito no CPF sob Nº {extractedData.cliente.cpf}, residente e domiciliado à {extractedData.cliente.endereco}, com endereço eletrônico: {extractedData.cliente.email}, neste ato nomeia como seu procurador:
                       </div>
-
                       <div className="doc-paragraph">
                         <strong>{extractedData.advogado.nome.toUpperCase()}</strong>, brasileiro, {extractedData.advogado.cargo}, inscrito na OAB sob o número {extractedData.advogado.oab}, com endereço profissional na {extractedData.advogado.endereco}, e endereço eletrônico: {extractedData.advogado.email}.
                       </div>
-
                       <div className="doc-paragraph">
                         <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da {extractedData.processos.map((p, index) => (
                           <span key={index}>
@@ -592,11 +479,7 @@ Gabinete W1 Capital`;
                           </span>
                         ))}
                       </div>
-
-                      <div className="doc-date">
-                        {docLocal || "____________________"}, {docDate || "____ de __________ de 202__."}
-                      </div>
-
+                      <div className="doc-date">{docLocal || "____________________"}, {docDate || "____ de __________ de 202__."}</div>
                       <div className="signature-area">
                         <div className="signature-line"></div>
                         <div className="signature-name">{extractedData.cliente.nome.toUpperCase()}</div>
@@ -607,31 +490,18 @@ Gabinete W1 Capital`;
             </div>
           )}
         </div>
-
         <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 print:hidden">
           <Copyright size={10} /> 2026 W1 Capital. <span className="uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
         </footer>
-
         <style jsx global>{`
-          .document-container {
-            width: 210mm;
-            min-height: 297mm;
-            padding: 30mm 25mm;
-            margin-bottom: 50px;
-          }
+          .document-container { width: 210mm; min-height: 297mm; padding: 30mm 25mm; margin-bottom: 50px; }
           @media print {
             body * { visibility: hidden; }
             .document-container, .document-container * { visibility: visible; }
-            .document-container {
-              position: absolute; left: 0; top: 0; width: 210mm; height: 297mm;
-              padding: 30mm 25mm; border: none !important; box-shadow: none !important;
-            }
+            .document-container { position: absolute; left: 0; top: 0; width: 210mm; height: 297mm; padding: 30mm 25mm; border: none !important; box-shadow: none !important; }
             @page { size: A4; margin: 0; }
           }
-          .procuracao-page {
-            font-family: 'Times New Roman', Times, serif; font-size: 12pt;
-            line-height: 1.5; color: #000; text-align: justify;
-          }
+          .procuracao-page { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; text-align: justify; }
           .doc-title { text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 40px; }
           .doc-paragraph { margin-bottom: 20px; text-indent: 20mm; }
           .doc-date { text-align: center; margin-top: 50px; margin-bottom: 60px; }

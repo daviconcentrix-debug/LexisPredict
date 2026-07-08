@@ -1,8 +1,9 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { FileText, FileSearch, History, Search, Copyright, Send, Bot, User, Clock, Copy, MessageCircle, Zap, Loader2 } from 'lucide-react';
+import { FileText, FileSearch, History, Search, Copyright, Send, Bot, User, Clock, Copy, MessageCircle, Zap, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -15,12 +16,14 @@ import { cn, formatWhatsAppLink } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function VereditoPage() {
   const [cnj, setCnj] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [model, setModel] = useState<'grok' | 'openrouter'>('grok');
+  const [model, setModel] = useState<'grok' | 'xai' | 'airforce' | 'puter'>('xai');
+  const [apiError, setApiError] = useState<{ engine: string, message: string } | null>(null);
   const [sendingApi, setSendingApi] = useState(false);
   const isMounted = useRef(false);
   
@@ -34,10 +37,10 @@ export default function VereditoPage() {
   useEffect(() => {
     isMounted.current = true;
     const savedIA = localStorage.getItem('lexisPredict_preferred_ia');
-    if (savedIA === 'grok' || savedIA === 'openrouter') {
+    if (savedIA === 'grok' || savedIA === 'xai' || savedIA === 'airforce' || savedIA === 'puter') {
       setModel(savedIA as any);
     } else {
-      setModel('grok');
+      setModel('xai');
     }
     return () => { isMounted.current = false; };
   }, []);
@@ -48,12 +51,13 @@ export default function VereditoPage() {
     }
   }, [chatMessages]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!cnj || loading) return;
     setLoading(true);
     setResult(null);
     setChatMessages([]);
+    setApiError(null);
     try {
       const data = await executarVereditoAI({ cnj, preferredModel: model });
       if (isMounted.current) {
@@ -61,10 +65,25 @@ export default function VereditoPage() {
         toast({ title: "Auditoria Gerada" });
       }
     } catch (error: any) {
-      if (isMounted.current) toast({ title: "Erro na Auditoria", description: error.message, variant: "destructive" });
+      if (isMounted.current) {
+        setApiError({ engine: model, message: error.message });
+        toast({ title: "Erro na Auditoria", description: "O motor falhou. Tente alternar o núcleo técnico.", variant: "destructive" });
+      }
     } finally {
       if (isMounted.current) setLoading(false);
     }
+  };
+
+  const handleSwitchAndRetry = () => {
+    const engines: any = ['xai', 'grok', 'airforce', 'puter'];
+    const currentIndex = engines.indexOf(model);
+    const nextIA = engines[(currentIndex + 1) % engines.length];
+    
+    setModel(nextIA);
+    localStorage.setItem('lexisPredict_preferred_ia', nextIA);
+    setApiError(null);
+    toast({ title: "Motor Alternado", description: `Migrando para ${nextIA.toUpperCase()}...` });
+    setTimeout(() => handleSearch(), 500);
   };
 
   const handleChat = async (e: React.FormEvent) => {
@@ -148,6 +167,19 @@ export default function VereditoPage() {
           <div className="max-w-7xl mx-auto space-y-6">
             {!result && (
               <div className="max-w-2xl mx-auto py-12 lg:py-20 text-center space-y-8">
+                {apiError && (
+                  <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 rounded-none shadow-[4px_4px_0px_#000] text-left">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle className="font-black uppercase text-xs">Erro de Triagem</AlertTitle>
+                    <AlertDescription className="flex flex-col gap-3 mt-2">
+                      <p className="text-[10px] font-bold uppercase">O motor {apiError.engine.toUpperCase()} falhou. Deseja alternar para o motor de backup?</p>
+                      <Button onClick={handleSwitchAndRetry} className="bg-red-600 text-white border-2 border-black h-9 font-black uppercase text-[9px] rounded-none hover:bg-black transition-all w-fit px-6">
+                        Trocar Motor & Re-tentar
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <h2 className="text-xl lg:text-3xl font-black tracking-tighter uppercase">Unidade de Triagem Técnica</h2>
                 <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3 bg-white p-2 rounded-none border-2 border-black shadow-xl relative z-50">
                   <Input 

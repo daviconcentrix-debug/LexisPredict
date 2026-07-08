@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -18,7 +19,8 @@ import {
   FileVideo,
   ImageIcon,
   Link as LinkIcon,
-  Sparkles
+  Sparkles,
+  RefreshCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -46,8 +48,8 @@ import {
 } from "@/components/ui/dialog";
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('Sync');
-  const [iaModel, setIaModel] = useState<'grok' | 'openrouter'>('grok');
+  const [activeTab, setActiveTab] = useState('Engine');
+  const [iaModel, setIaModel] = useState<'grok' | 'xai' | 'puter' | 'airforce'>('xai');
   const [empresaUsers, setEmpresaUsers] = useState<UserProfile[]>([]);
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isAddingUser, setIsAddUser] = useState(false);
@@ -61,14 +63,6 @@ export default function SettingsPage() {
   const [wpOpacity, setWpOpacity] = useState(1);
   
   const [autoTheme, setAutoTheme] = useState(false);
-  const [bgColor, setBgColor] = useState('#f3f2f2');
-  const [fontColor, setFontColor] = useState('#000000');
-  const [unselectedFontColor, setUnselectedFontColor] = useState('#000000');
-  const [btnBgColor, setBtnBgColor] = useState('#000000');
-  const [unselectedBtnBgColor, setUnselectedBtnBgColor] = useState('#ffffff');
-  const [btnTextColor, setBtnTextColor] = useState('#ffffff');
-  const [iconColor, setIconColor] = useState('#000000');
-  const [borderColor, setBorderColor] = useState('#000000');
   const [containerOpacity, setContainerOpacity] = useState(1);
 
   const isMounted = useRef(true);
@@ -92,21 +86,13 @@ export default function SettingsPage() {
     
     const loadSettings = () => {
       const savedIA = localStorage.getItem('lexisPredict_preferred_ia');
-      if (savedIA === 'grok' || savedIA === 'openrouter') {
+      if (savedIA === 'grok' || savedIA === 'xai' || savedIA === 'puter' || savedIA === 'airforce') {
         setIaModel(savedIA as any);
       } else {
-        setIaModel('grok');
+        setIaModel('xai');
       }
 
       setVisualMode((localStorage.getItem('lexis_visual_mode') as any) || 'elite');
-      setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2');
-      setFontColor(localStorage.getItem('lexisPredict_font_color') || '#000000');
-      setUnselectedFontColor(localStorage.getItem('lexisPredict_unselected_font_color') || '#000000');
-      setBtnBgColor(localStorage.getItem('lexisPredict_btn_bg_color') || '#000000');
-      setUnselectedBtnBgColor(localStorage.getItem('lexisPredict_unselected_btn_bg_color') || '#ffffff');
-      setBtnTextColor(localStorage.getItem('lexisPredict_btn_text_color') || '#ffffff');
-      setIconColor(localStorage.getItem('lexisPredict_icon_color') || '#000000');
-      setBorderColor(localStorage.getItem('lexisPredict_border_color') || '#000000');
       setContainerOpacity(parseFloat(localStorage.getItem('lexisPredict_container_opacity') || '1'));
       setAutoTheme(localStorage.getItem('lexis_auto_theme') === 'true');
 
@@ -128,7 +114,7 @@ export default function SettingsPage() {
     if (isMounted.current) setEmpresaUsers(users);
   };
 
-  const handleIaChange = (value: 'grok' | 'openrouter') => {
+  const handleIaChange = (value: 'grok' | 'xai' | 'puter' | 'airforce') => {
     setIaModel(value);
     localStorage.setItem('lexisPredict_preferred_ia', value);
     toast({ title: "Núcleo Técnico Alterado", description: `Motor ${value.toUpperCase()} ativado.` });
@@ -139,12 +125,6 @@ export default function SettingsPage() {
     localStorage.setItem('lexis_visual_mode', mode);
     window.dispatchEvent(new Event('storage'));
     toast({ title: mode === 'aura' ? "Aura Minimalist Ativado" : "Elite Edition Ativado" });
-  };
-
-  const handleColorChange = (key: string, value: string, setter: (v: string) => void) => {
-    setter(value);
-    localStorage.setItem(key, value);
-    window.dispatchEvent(new Event('storage'));
   };
 
   const handleOpacityChange = (value: number) => {
@@ -237,21 +217,21 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Configuração Sistema</h1>
-            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v510.0 Elite Transcendence</Badge>
+            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v620.0 Elite Supremacy</Badge>
           </div>
         </header>
 
         <div className="flex-1 overflow-auto p-8 max-w-5xl mx-auto w-full space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <aside className="space-y-1">
-              <Button variant={activeTab === 'Sync' ? 'default' : 'ghost'} onClick={() => setActiveTab('Sync')} className={cn("w-full justify-start rounded-none font-black uppercase text-xs h-10 border-2 border-transparent", activeTab === 'Sync' ? "bg-black text-white border-black" : "text-black hover:bg-black hover:text-white")}>
-                <HardDrive size={18} className="mr-2" /> Infraestrutura Cloud
-              </Button>
               <Button variant={activeTab === 'Engine' ? 'default' : 'ghost'} onClick={() => setActiveTab('Engine')} className={cn("w-full justify-start rounded-none font-black uppercase text-xs h-10 border-2 border-transparent", activeTab === 'Engine' ? "bg-black text-white border-black" : "text-black hover:bg-black hover:text-white")}>
                 <Cpu size={18} className="mr-2" /> Núcleo Técnico
               </Button>
               <Button variant={activeTab === 'Style' ? 'default' : 'ghost'} onClick={() => setActiveTab('Style')} className={cn("w-full justify-start rounded-none font-black uppercase text-xs h-10 border-2 border-transparent", activeTab === 'Style' ? "bg-black text-white border-black" : "text-black hover:bg-black hover:text-white")}>
                 <Palette size={18} className="mr-2" /> Atmosfera Multimídia
+              </Button>
+              <Button variant={activeTab === 'Sync' ? 'default' : 'ghost'} onClick={() => setActiveTab('Sync')} className={cn("w-full justify-start rounded-none font-black uppercase text-xs h-10 border-2 border-transparent", activeTab === 'Sync' ? "bg-black text-white border-black" : "text-black hover:bg-black hover:text-white")}>
+                <HardDrive size={18} className="mr-2" /> Infraestrutura Cloud
               </Button>
               <Button variant={activeTab === 'Users' ? 'default' : 'ghost'} onClick={() => setActiveTab('Users')} className={cn("w-full justify-start rounded-none font-black uppercase text-xs h-10 border-2 border-transparent", activeTab === 'Users' ? "bg-black text-white border-black" : "text-black hover:bg-black hover:text-white")}>
                 <Users size={18} className="mr-2" /> Gestão de Equipe
@@ -264,6 +244,23 @@ export default function SettingsPage() {
             </aside>
 
             <div className="md:col-span-3 space-y-6 pb-20">
+              {activeTab === 'Engine' && (
+                <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
+                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
+                    <CardTitle className="text-black font-black uppercase text-sm">Tríade de Inteligência</CardTitle>
+                    <CardDescription className="text-[10px] font-black uppercase">Motores de processamento em redundância circular.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <RadioGroup value={iaModel} onValueChange={handleIaChange as any} className="grid grid-cols-1 gap-4">
+                      <IaOption id="xai" value="xai" title="xAI GROK 4.5" desc="Núcleo de soberania e raciocínio jurídico avançado." active={iaModel === 'xai'} />
+                      <IaOption id="grok" value="grok" title="GROQ (LLAMA 3.3)" desc="Redundância ultra-rápida para triagem em massa." active={iaModel === 'grok'} />
+                      <IaOption id="airforce" value="airforce" title="AIRFORCE (DEEPSEEK V3)" desc="Redundância quaternária de alta fidelidade." active={iaModel === 'airforce'} />
+                      <IaOption id="puter" value="puter" title="PUTER AI (CLAUDE)" desc="Reserva de emergência para alta disponibilidade." active={iaModel === 'puter'} />
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
+              )}
+
               {activeTab === 'Style' && (
                 <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
@@ -272,7 +269,6 @@ export default function SettingsPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-6 space-y-8">
-                    
                     <div className="space-y-4">
                       <Label className="font-black text-black text-xs uppercase flex items-center gap-2">
                         <Sparkles size={14} className="text-yellow-500" /> Modo de Experiência Visual
@@ -314,64 +310,28 @@ export default function SettingsPage() {
                        <Switch checked={autoTheme} onCheckedChange={handleAutoThemeToggle} className="data-[state=checked]:bg-yellow-400 border-2 border-white" />
                     </div>
 
-                    <div className="space-y-4">
-                      <Label className="font-black text-black text-xs uppercase">Modo de Aplicação de Fundo</Label>
-                      <RadioGroup value={wpMode} onValueChange={(v: any) => setWpMode(v)} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <WpModeOption id="global" value="global" label="Mesmo WP (Conteúdo + Menu)" />
-                        <WpModeOption id="separate" value="separate" label="Diferentes (Main/Side)" />
-                        <WpModeOption id="main_only" value="main_only" label="Apenas Conteúdo" />
-                        <WpModeOption id="sidebar_only" value="sidebar_only" label="Apenas Sidebar" />
-                      </RadioGroup>
-                    </div>
-
                     <div className="space-y-8 pt-4 border-t-2 border-black">
-                       {(wpMode === 'global' || wpMode === 'main_only' || wpMode === 'separate') && (
-                         <div className="space-y-4">
-                            <Label className="font-black text-black text-xs uppercase">Wallpaper Principal (Conteúdo)</Label>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                               <div className="space-y-2">
-                                  <div className="flex items-center gap-2 mb-2">
-                                     <Badge variant="outline" className={cn("text-[8px] font-black uppercase cursor-pointer", mainWpType === 'image' ? "bg-black text-white" : "")} onClick={() => setMainWpType('image')}>Imagem</Badge>
-                                     <Badge variant="outline" className={cn("text-[8px] font-black uppercase cursor-pointer", mainWpType === 'video' ? "bg-black text-white" : "")} onClick={() => setMainWpType('video')}>Vídeo</Badge>
-                                  </div>
-                                  <div className="relative">
-                                     <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
-                                     <Input placeholder="URL EXTERNA..." value={mainWpUrl === 'LOCAL_ASSET' ? 'ARQUIVO LOCAL CARREGADO' : mainWpUrl} onChange={e => setMainWpUrl(e.target.value)} className="pl-10 border-2 border-black h-11 text-[10px] font-black uppercase rounded-none" />
-                                  </div>
-                               </div>
-                               <div className="flex flex-col justify-end">
-                                  <input type="file" ref={mainFileInput} className="hidden" onChange={e => handleFileUpload(e, 'main')} accept="image/*,video/*" />
-                                  <Button onClick={() => mainFileInput.current?.click()} variant="outline" className="border-2 border-black h-11 font-black uppercase text-[10px] rounded-none hover:bg-black hover:text-white transition-all">
-                                     <Upload size={14} className="mr-2" /> Upload Local
-                                  </Button>
-                               </div>
-                            </div>
-                         </div>
-                       )}
-
-                       {(wpMode === 'sidebar_only' || wpMode === 'separate') && (
-                         <div className="space-y-4 pt-4 border-t-2 border-black/5">
-                            <Label className="font-black text-black text-xs uppercase">Wallpaper Sidebar (Menu)</Label>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                               <div className="space-y-2">
-                                  <div className="flex items-center gap-2 mb-2">
-                                     <Badge variant="outline" className={cn("text-[8px] font-black uppercase cursor-pointer", sideWpType === 'image' ? "bg-black text-white" : "")} onClick={() => setSideWpType('image')}>Imagem</Badge>
-                                     <Badge variant="outline" className={cn("text-[8px] font-black uppercase cursor-pointer", sideWpType === 'video' ? "bg-black text-white" : "")} onClick={() => setSideWpType('video')}>Vídeo</Badge>
-                                  </div>
-                                  <div className="relative">
-                                     <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
-                                     <Input placeholder="URL EXTERNA..." value={sideWpUrl === 'LOCAL_ASSET' ? 'ARQUIVO LOCAL CARREGADO' : sideWpUrl} onChange={e => setSideWpUrl(e.target.value)} className="pl-10 border-2 border-black h-11 text-[10px] font-black uppercase rounded-none" />
-                                  </div>
-                               </div>
-                               <div className="flex flex-col justify-end">
-                                  <input type="file" ref={sideFileInput} className="hidden" onChange={e => handleFileUpload(e, 'side')} accept="image/*,video/*" />
-                                  <Button onClick={() => sideFileInput.current?.click()} variant="outline" className="border-2 border-black h-11 font-black uppercase text-[10px] rounded-none hover:bg-black hover:text-white transition-all">
-                                     <Upload size={14} className="mr-2" /> Upload Local
-                                  </Button>
-                               </div>
-                            </div>
-                         </div>
-                       )}
+                       <div className="space-y-4">
+                          <Label className="font-black text-black text-xs uppercase">Wallpaper Principal (Conteúdo)</Label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                             <div className="space-y-2">
+                                <div className="flex items-center gap-2 mb-2">
+                                   <Badge variant="outline" className={cn("text-[8px] font-black uppercase cursor-pointer", mainWpType === 'image' ? "bg-black text-white" : "")} onClick={() => setMainWpType('image')}>Imagem</Badge>
+                                   <Badge variant="outline" className={cn("text-[8px] font-black uppercase cursor-pointer", mainWpType === 'video' ? "bg-black text-white" : "")} onClick={() => setMainWpType('video')}>Vídeo</Badge>
+                                </div>
+                                <div className="relative">
+                                   <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
+                                   <Input placeholder="URL EXTERNA..." value={mainWpUrl === 'LOCAL_ASSET' ? 'ARQUIVO LOCAL CARREGADO' : mainWpUrl} onChange={e => setMainWpUrl(e.target.value)} className="pl-10 border-2 border-black h-11 text-[10px] font-black uppercase rounded-none" />
+                                </div>
+                             </div>
+                             <div className="flex flex-col justify-end">
+                                <input type="file" ref={mainFileInput} className="hidden" onChange={e => handleFileUpload(e, 'main')} accept="image/*,video/*" />
+                                <Button onClick={() => mainFileInput.current?.click()} variant="outline" className="border-2 border-black h-11 font-black uppercase text-[10px] rounded-none hover:bg-black hover:text-white transition-all">
+                                   <Upload size={14} className="mr-2" /> Upload Local
+                                </Button>
+                             </div>
+                          </div>
+                       </div>
 
                        <div className="space-y-6 pt-4 border-t-2 border-black/5">
                           <Label className="font-black text-black text-xs uppercase flex items-center gap-2"><Layers size={14}/> Opacidade do Fundo ({Math.round(wpOpacity * 100)}%)</Label>
@@ -384,44 +344,7 @@ export default function SettingsPage() {
                        </div>
                     </div>
 
-                    <div className="pt-4 border-t-2 border-black space-y-8 relative">
-                       {autoTheme && (
-                         <div className="absolute inset-0 bg-white/60 backdrop-blur-[4px] z-20 flex flex-col items-center justify-center p-8 text-center border-2 border-black m-[-2px]">
-                            <div className="bg-black text-white p-8 border-2 border-black shadow-[15px_15px_0px_#facc15] flex flex-col items-center gap-4">
-                               <Bot size={48} className="animate-bounce text-yellow-400" />
-                               <p className="text-sm font-black uppercase tracking-tighter">IA NO COMANDO</p>
-                               <Button size="sm" onClick={() => handleAutoThemeToggle(false)} className="bg-yellow-400 text-black font-black uppercase text-[10px] rounded-none border-2 border-black hover:bg-white transition-all w-full h-10">Desativar Automático</Button>
-                            </div>
-                         </div>
-                       )}
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
-                          <ColorPicker label="Fundo Base" value={bgColor} onChange={(v) => handleColorChange('lexisPredict_bg_color', v, setBgColor)} />
-                          <ColorPicker label="Letras (Ativo)" value={fontColor} onChange={(v) => handleColorChange('lexisPredict_font_color', v, setFontColor)} />
-                          <ColorPicker label="Letras (Inativa)" value={unselectedFontColor} onChange={(v) => handleColorChange('lexisPredict_unselected_font_color', v, setUnselectedFontColor)} />
-                          <ColorPicker label="Botão (Ativo)" value={btnBgColor} onChange={(v) => handleColorChange('lexisPredict_btn_bg_color', v, setBtnBgColor)} />
-                          <ColorPicker label="Botão (Inativo)" value={unselectedBtnBgColor} onChange={(v) => handleColorChange('lexisPredict_unselected_btn_bg_color', v, setUnselectedBtnBgColor)} />
-                          <ColorPicker label="Texto Botão" value={btnTextColor} onChange={(v) => handleColorChange('lexisPredict_btn_text_color', v, setBtnTextColor)} />
-                          <ColorPicker label="Cor dos Ícones" value={iconColor} onChange={(v) => handleColorChange('lexisPredict_icon_color', v, setIconColor)} />
-                          <ColorPicker label="Cor das Bordas" value={borderColor} onChange={(v) => handleColorChange('lexisPredict_border_color', v, setBorderColor)} />
-                       </div>
-                    </div>
-
                     <Button onClick={saveWpSettings} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#000] hover:shadow-none">Sincronizar Atmosfera</Button>
-                  </CardContent>
-                </Card>
-              )}
-
-              {activeTab === 'Engine' && (
-                <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
-                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
-                    <CardTitle className="text-black font-black uppercase text-sm">Núcleo Neural Elite</CardTitle>
-                    <CardDescription className="text-[10px] font-black uppercase">Motores de processamento resilientes v510.0.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <RadioGroup value={iaModel} onValueChange={handleIaChange} className="grid grid-cols-1 gap-4">
-                      <IaOption id="grok" value="grok" title="Grok (Llama 3.3)" desc="Raciocínio lógico militar e alta velocidade de resposta." active={iaModel === 'grok'} />
-                      <IaOption id="openrouter" value="openrouter" title="Claude 3.5 Sonnet" desc="Elite em nuances jurídicas e redação estratégica de gabinete." active={iaModel === 'openrouter'} />
-                    </RadioGroup>
                   </CardContent>
                 </Card>
               )}
@@ -459,12 +382,11 @@ export default function SettingsPage() {
                             <form onSubmit={handleCreateOperator}>
                              <DialogHeader>
                                <DialogTitle className="text-black font-black uppercase">Provisionar Acesso</DialogTitle>
-                               <DialogDescription className="sr-only">Formulário de criação de novo operador de gabinete.</DialogDescription>
                              </DialogHeader>
                              <div className="grid gap-4 py-4">
                                <Input value={newUserForm.nome} onChange={e => setNewUserForm({...newUserForm, nome: e.target.value})} placeholder="NOME" className="border-2 border-black font-black rounded-none" required />
                                <Input type="email" value={newUserForm.email} onChange={e => setNewUserForm({...newUserForm, email: e.target.value})} placeholder="E-MAIL" className="border-2 border-black font-black rounded-none" required />
-                               <Input type="password" value={newUserForm.password} onChange={e => setNewUserForm({...newUserForm, password: e.target.value})} placeholder="SENHA" className="border-2 border-black rounded-none" required />
+                               <Input type="password" value={newUserForm.password} onChange={e => setNewUserForm({...newUserForm, password: e.target.value})} placeholder="SENHA" className="border-2 border-black font-black rounded-none" required />
                              </div>
                              <DialogFooter>
                                <Button type="submit" disabled={isAddingUser} className="w-full bg-black text-white font-black uppercase h-12 rounded-none">Provisionar</Button>
@@ -507,27 +429,6 @@ export default function SettingsPage() {
           </div>
         </div>
       </main>
-    </div>
-  );
-}
-
-function WpModeOption({ id, value, label }: { id: string, value: string, label: string }) {
-  return (
-    <label htmlFor={id} className="flex items-center gap-3 p-3 border-2 border-black bg-white cursor-pointer hover:bg-black group transition-all">
-      <RadioGroupItem value={value} id={id} className="border-black group-hover:border-white" />
-      <span className="text-[10px] font-black uppercase group-hover:text-white transition-colors">{label}</span>
-    </label>
-  );
-}
-
-function ColorPicker({ label, value, onChange }: { label: string, value: string, onChange: (v: string) => void }) {
-  return (
-    <div className="space-y-1.5">
-       <Label className="text-[9px] font-black uppercase text-black/50">{label}</Label>
-       <div className="flex gap-2 items-center">
-         <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-9 w-9 border-2 border-black cursor-pointer bg-white" />
-         <Input value={value} readOnly className="font-mono border-2 border-black text-black font-black rounded-none h-9 uppercase text-[9px]" />
-       </div>
     </div>
   );
 }

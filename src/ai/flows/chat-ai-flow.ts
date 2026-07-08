@@ -1,7 +1,8 @@
+
 'use server';
 /**
- * @fileOverview Motor de Consultoria Estratégica LexisPredict v350.0 Elite
- * Memória de Contexto Ativa. Motores: Claude 3.5 Sonnet | Grok (Llama 3.3).
+ * @fileOverview Motor de Consultoria Estratégica LexisPredict v620.0 Elite
+ * Núcleo: xAI (Grok 4.5) | Redundância: Groq (Llama 3.3) | Reserva 1: Puter (Claude) | Reserva 2: Airforce (DeepSeek).
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -14,7 +15,7 @@ const ChatInputSchema = z.object({
     role: z.enum(['user', 'assistant']),
     content: z.string()
   })).optional().default([]).describe('O histórico de mensagens anteriores para contexto.'),
-  preferredModel: z.enum(['grok', 'openrouter']).optional().default('grok'),
+  preferredModel: z.enum(['grok', 'xai', 'puter', 'airforce']).optional().default('xai'),
   deepThinking: z.boolean().optional().default(false),
 });
 
@@ -24,97 +25,104 @@ const ChatOutputSchema = z.object({
 });
 
 const SYSTEM_PROMPT = `Você é o Consultor Estratégico Sênior de Elite da W1 Capital.
-Sua missão é fornecer orientações técnicas e resolutivas sobre processos judiciais.
+Sua missão é fornecer orientações técnicas e resolutivas sobre processos judiciais brasileiros.
 
 DIRETRIZES DE OURO:
-1. MEMÓRIA: Utilize as mensagens anteriores para manter a continuidade do raciocínio.
-2. COMPLETUDE: Nunca corte a resposta pela metade. Entregue a análise completa, mesmo que seja extensa.
-3. TOM: Profissional, assertivo e focado em proteger a operação e acelerar os resultados.
-4. FORMATO: Responda de forma estratégica, identificando riscos e brechas.
+1. MEMÓRIA: Utilize o histórico para manter a continuidade do raciocínio.
+2. COMPLETUDE: Entregue a análise completa, sem cortes.
+3. TOM: Profissional, assertivo e focado em resultados para o Gabinete.
+4. FORMATO: Responda de forma estratégica, identificando riscos.
 5. ASSINATURA: Finalize sempre com "Gabinete Técnico — W1 Capital".
 
-RESTRIÇÃO TÉCNICA: Retorne estritamente um JSON plano: { "resposta": "todo_o_texto_aqui" }.`;
+RESTRIÇÃO: Retorne APENAS um JSON plano no formato: { "resposta": "todo_o_texto" }. Não inclua explicações fora do JSON.`;
 
-function forceStringResponse(raw: any): string {
-  if (typeof raw === 'string') return raw;
-  if (typeof raw === 'object' && raw !== null) {
-    if (raw.resposta && typeof raw.resposta === 'string') return raw.resposta;
-    return JSON.stringify(raw, null, 2);
+const XAI_API_KEY = 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE';
+const AIRFORCE_API_KEY = 'sk-air-Rxc7ygo5b0XpkZqUBqwSnhjwS0bZbWFnzwRLjfPtdAbYK6nj';
+
+function cleanJsonResponse(text: string): string {
+  if (!text) return "{}";
+  let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
   }
-  return String(raw);
+  return cleaned;
 }
 
-async function callGrokChat(pergunta: string, historico: any[], deepThinking: boolean) {
+async function callXAIChat(pergunta: string, historico: any[], deepThinking: boolean) {
+  const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }];
+  try {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${XAI_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'grok-4.5',
+        messages,
+        temperature: deepThinking ? 0.2 : 0.5,
+        response_format: { type: 'json_object' }
+      })
+    });
+    if (!response.ok) throw new Error(`XAI_CHAT_ERR_${response.status}`);
+    const data = await response.json();
+    const content = JSON.parse(cleanJsonResponse(data.choices[0].message.content));
+    return { resposta: content.resposta || data.choices[0].message.content };
+  } catch (e: any) { throw e; }
+}
+
+async function callAirforceChat(pergunta: string, historico: any[]) {
+  const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }];
+  try {
+    const response = await fetch('https://api.airforce/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${AIRFORCE_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'deepseek-v3',
+        messages,
+        temperature: 0.3
+      })
+    });
+    if (!response.ok) throw new Error(`AIRFORCE_ERR_${response.status}`);
+    const data = await response.json();
+    const content = JSON.parse(cleanJsonResponse(data.choices[0].message.content));
+    return { resposta: content.resposta || data.choices[0].message.content };
+  } catch (e: any) { throw e; }
+}
+
+async function callGroqChat(pergunta: string, historico: any[], deepThinking: boolean) {
   const GROQ_API_KEY = process.env.GROQ_API_KEY || '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';
-  
-  const messages = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    ...historico.map(m => ({ role: m.role, content: m.content })),
-    { role: 'user', content: pergunta }
-  ];
-
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages,
-      temperature: deepThinking ? 0.1 : 0.4,
-      max_tokens: 4096,
-      response_format: { type: 'json_object' }
-    })
-  });
-
-  if (!response.ok) throw new Error(`Erro Groq Chat: ${response.status}`);
-  
-  const data = await response.json();
+  const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }];
   try {
-    const rawContent = data.choices[0].message.content;
-    const cleanContent = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
-    const content = JSON.parse(cleanContent);
-    return { resposta: forceStringResponse(content) };
-  } catch {
-    return { resposta: data.choices[0].message.content };
-  }
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages,
+        temperature: deepThinking ? 0.1 : 0.4,
+        response_format: { type: 'json_object' }
+      })
+    });
+    if (!response.ok) throw new Error(`GROQ_CHAT_ERR_${response.status}`);
+    const data = await response.json();
+    const content = JSON.parse(cleanJsonResponse(data.choices[0].message.content));
+    return { resposta: content.resposta || data.choices[0].message.content };
+  } catch (e: any) { throw e; }
 }
 
-async function callOpenRouterChat(pergunta: string, historico: any[], deepThinking: boolean) {
-  const OPENROUTER_API_KEY = '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';
-  
-  const messages = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    ...historico.map(m => ({ role: m.role, content: m.content })),
-    { role: 'user', content: pergunta }
-  ];
-
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://lexispredict.w1.capital',
-      'X-Title': 'LexisPredict Chat Elite'
-    },
-    body: JSON.stringify({
-      model: 'anthropic/claude-3.5-sonnet',
-      messages,
-      temperature: deepThinking ? 0.2 : 0.5,
-      max_tokens: 4096
-    })
-  });
-
-  if (!response.ok) throw new Error(`Erro OpenRouter Chat: ${response.status}`);
-
-  const data = await response.json();
+async function callPuterChat(pergunta: string, historico: any[]) {
+  const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }];
   try {
-    const rawContent = data.choices[0].message.content;
-    const cleanContent = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
-    const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
-    const content = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(cleanContent);
-    return { resposta: forceStringResponse(content) };
-  } catch {
-    return { resposta: data.choices[0].message.content };
-  }
+    const response = await fetch('https://api.puter.com/v2/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-5', messages, stream: false })
+    });
+    if (!response.ok) throw new Error(`PUTER_CHAT_ERR_${response.status}`);
+    const data = await response.json();
+    const content = JSON.parse(cleanJsonResponse(data.message.content[0].text));
+    return { resposta: content.resposta || data.message.content[0].text };
+  } catch (e: any) { throw e; }
 }
 
 export const chatAIFlow = ai.defineFlow(
@@ -124,23 +132,25 @@ export const chatAIFlow = ai.defineFlow(
     outputSchema: ChatOutputSchema,
   },
   async input => {
-    let result;
-    let engine;
+    const hist = Array.isArray(input.historico) ? input.historico : [];
+    const model = input.preferredModel;
+    
     try {
-      if (input.preferredModel === 'openrouter') {
-        result = await callOpenRouterChat(input.pergunta, input.historico, input.deepThinking);
-        engine = `CLAUDE 3.5 SONNET`;
-      } else {
-        result = await callGrokChat(input.pergunta, input.historico, input.deepThinking);
-        engine = `GROK (LLAMA 3.3)`;
+      if (model === 'xai') return await callXAIChat(input.pergunta, hist, input.deepThinking);
+      if (model === 'airforce') return await callAirforceChat(input.pergunta, hist);
+      if (model === 'puter') return await callPuterChat(input.pergunta, hist);
+      return await callGroqChat(input.pergunta, hist, input.deepThinking);
+    } catch (e) {
+      // Failover Circular
+      try { return await callGroqChat(input.pergunta, hist, input.deepThinking); }
+      catch (e2) {
+        try { return await callAirforceChat(input.pergunta, hist); }
+        catch (e3) { return await callPuterChat(input.pergunta, hist); }
       }
-      return { resposta: result.resposta, engineUtilizada: engine };
-    } catch (e: any) { 
-      throw new Error(e.message || "Erro no processamento do Diálogo.");
     }
   }
 );
 
 export async function perguntarIA(input: any) {
-  return chatAIFlow(input);
+  return await chatAIFlow(input);
 }
