@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
@@ -25,7 +26,8 @@ import {
   Scale,
   AlertCircle,
   Download,
-  MapPin
+  MapPin,
+  CalendarDays
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -66,6 +68,11 @@ export default function DocumentGenerator() {
   const [fileLoading, setFileLoading] = useState(false);
   const [pdfEngineReady, setPdfEngineReady] = useState(false);
   const [printError, setPrintError] = useState(false);
+  
+  // Custom Local and Date
+  const [docLocal, setDocLocal] = useState('');
+  const [docDate, setDocDate] = useState('');
+
   const { toast } = useToast();
   const printRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -121,6 +128,16 @@ export default function DocumentGenerator() {
     }
   };
 
+  const extractCity = (address: string) => {
+    if (!address) return "São Paulo";
+    const parts = address.split('–').map(p => p.trim());
+    if (parts.length >= 2) {
+      const cityPart = parts[parts.length - 3] || parts[parts.length - 2];
+      return cityPart.split('-')[0].trim() || "São Paulo";
+    }
+    return "São Paulo";
+  };
+
   const handleExtract = async () => {
     if (!inputText || loading || !selectedLawyer || !selectedState) return;
     setLoading(true);
@@ -131,6 +148,12 @@ export default function DocumentGenerator() {
         preferredState: selectedState
       });
       setExtractedData(data);
+      
+      // Auto-fill local and date
+      const city = extractCity(data.cliente.endereco);
+      setDocLocal(`${city} - ${selectedState}`);
+      setDocDate(new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }));
+      
       setStep(2);
       toast({ title: "Triagem Concluída", description: "Revise os dados e insira o CNPJ do Banco se necessário." });
     } catch (error: any) {
@@ -179,18 +202,6 @@ export default function DocumentGenerator() {
     }
   };
 
-  const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-  
-  const extractCity = (address: string) => {
-    if (!address) return "São Paulo";
-    const parts = address.split('–').map(p => p.trim());
-    if (parts.length >= 2) {
-      const cityPart = parts[parts.length - 3] || parts[parts.length - 2];
-      return cityPart.split('-')[0].trim() || "São Paulo";
-    }
-    return "São Paulo";
-  };
-
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
@@ -198,15 +209,15 @@ export default function DocumentGenerator() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40 print:hidden">
           <div className="flex items-center gap-4">
             <div className="icon-3d-wrapper">
-              <div className="icon-3d-block black w-10 h-10 rounded-sm">
-                <FileText size={20} className="text-white" />
+              <div className="icon-3d-block black w-10 h-10 rounded-sm overflow-hidden flex items-center justify-center p-1 border-2 border-black">
+                 <img src="https://picsum.photos/seed/lexislogo/32/32" className="object-contain invert" alt="Logo" />
               </div>
             </div>
             <h1 className="font-black text-xl text-black uppercase tracking-tighter">Gerador de Procurações</h1>
           </div>
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">
-               Gabinete v480.0 Elite
+               Gabinete v520.0 Elite
             </Badge>
           </div>
         </header>
@@ -364,57 +375,88 @@ export default function DocumentGenerator() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
-                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                        <Building2 size={14} /> Dados da Ação (Banco & Processo)
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-6">
-                      {extractedData.processos.map((p, i) => (
-                        <div key={i} className="space-y-4 p-4 bg-gray-50 border-2 border-dashed border-black/10">
-                          <div className="grid gap-1">
-                            <Label className="text-yellow-600">Instituição Financeira (BANCO)</Label>
-                            <Input 
-                              value={p.banco} 
-                              onChange={(e) => updateProcessField(i, 'banco', e.target.value)} 
-                              placeholder="NOME DO BANCO..."
-                              className="border-black border-2 font-black uppercase rounded-none h-11 bg-white focus-visible:ring-yellow-400" 
-                            />
+                  <div className="space-y-8">
+                    <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
+                      <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                          <Building2 size={14} /> Dados da Ação (Banco & Processo)
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-6">
+                        {extractedData.processos.map((p, i) => (
+                          <div key={i} className="space-y-4 p-4 bg-gray-50 border-2 border-dashed border-black/10">
+                            <div className="grid gap-1">
+                              <Label className="text-yellow-600">Instituição Financeira (BANCO)</Label>
+                              <Input 
+                                value={p.banco} 
+                                onChange={(e) => updateProcessField(i, 'banco', e.target.value)} 
+                                placeholder="NOME DO BANCO..."
+                                className="border-black border-2 font-black uppercase rounded-none h-11 bg-white focus-visible:ring-yellow-400" 
+                              />
+                            </div>
+                            <div className="grid gap-1">
+                              <Label className="text-yellow-600">CNPJ do Banco</Label>
+                              <Input 
+                                value={p.cnpjBanco} 
+                                onChange={(e) => updateProcessField(i, 'cnpjBanco', e.target.value)} 
+                                placeholder="00.000.000/0001-00"
+                                className="border-black border-2 font-black uppercase rounded-none h-11 bg-white focus-visible:ring-yellow-400" 
+                              />
+                            </div>
+                            <div className="grid gap-1">
+                              <Label>Número do Processo (CNJ)</Label>
+                              <Input value={p.numero} onChange={(e) => updateProcessField(i, 'numero', e.target.value)} className="border-black font-black rounded-none h-11 bg-white" />
+                            </div>
                           </div>
-                          <div className="grid gap-1">
-                            <Label className="text-yellow-600">CNPJ do Banco</Label>
-                            <Input 
-                              value={p.cnpjBanco} 
-                              onChange={(e) => updateProcessField(i, 'cnpjBanco', e.target.value)} 
-                              placeholder="00.000.000/0001-00"
-                              className="border-black border-2 font-black uppercase rounded-none h-11 bg-white focus-visible:ring-yellow-400" 
-                            />
-                          </div>
-                          <div className="grid gap-1">
-                            <Label>Número do Processo (CNJ)</Label>
-                            <Input value={p.numero} onChange={(e) => updateProcessField(i, 'numero', e.target.value)} className="border-black font-black rounded-none h-11 bg-white" />
-                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
+                      <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                          <CalendarDays size={14} /> Local e Data do Documento
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-4">
+                        <div className="grid gap-1">
+                          <Label>Local (Cidade - UF)</Label>
+                          <Input 
+                            value={docLocal} 
+                            onChange={(e) => setDocLocal(e.target.value)} 
+                            placeholder="EX: SÃO PAULO - SP (DEIXE VAZIO PARA LINHA EM BRANCO)"
+                            className="border-black font-black uppercase rounded-none h-11" 
+                          />
                         </div>
-                      ))}
-                      
-                      <div className="pt-4 space-y-4">
-                        <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200">
-                           <Shield size={16} className="text-blue-600" />
-                           <div className="min-w-0">
-                              <p className="text-[9px] font-black text-blue-900 uppercase">Advogado: {extractedData.advogado.nome}</p>
-                              <p className="text-[8px] font-bold text-blue-700 uppercase">Inscrição: {extractedData.advogado.oab}</p>
-                           </div>
+                        <div className="grid gap-1">
+                          <Label>Data por Extenso</Label>
+                          <Input 
+                            value={docDate} 
+                            onChange={(e) => setDocDate(e.target.value)} 
+                            placeholder="EX: 08 DE JULHO DE 2026"
+                            className="border-black font-black uppercase rounded-none h-11" 
+                          />
                         </div>
-                        <Button 
-                          onClick={handleConfirmData} 
-                          className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]"
-                        >
-                          <CheckCircle2 size={16} className="mr-2" /> Selar Dados & Gerar Procuração
-                        </Button>
+                        <p className="text-[9px] font-bold text-black/40 uppercase">Se os campos acima forem apagados, o documento exibirá linhas pontilhadas para preenchimento manual.</p>
+                      </CardContent>
+                    </Card>
+
+                    <div className="pt-4 space-y-4">
+                      <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200">
+                         <Shield size={16} className="text-blue-600" />
+                         <div className="min-w-0">
+                            <p className="text-[9px] font-black text-blue-900 uppercase">Advogado: {extractedData.advogado.nome}</p>
+                            <p className="text-[8px] font-bold text-blue-700 uppercase">Inscrição: {extractedData.advogado.oab}</p>
+                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <Button 
+                        onClick={handleConfirmData} 
+                        className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]"
+                      >
+                        <CheckCircle2 size={16} className="mr-2" /> Selar Dados & Gerar Procuração
+                      </Button>
+                    </div>
+                  </div>
                </div>
             </div>
           )}
@@ -464,7 +506,7 @@ export default function DocumentGenerator() {
                     </div>
 
                     <div className="doc-date">
-                      {extractCity(extractedData.cliente.endereco)}, {today.split(' de ')[0]} de {today.split(' de ')[1]} de {today.split(' de ')[2]}.
+                      {docLocal || "____________________"}, {docDate || "____ de __________ de 202__."}
                     </div>
 
                     <div className="signature-area">
