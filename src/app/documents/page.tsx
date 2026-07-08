@@ -60,7 +60,7 @@ export default function DocumentGenerator() {
   const [selectedLawyer, setSelectedLawyer] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [extractedData, setExtractedData] = useState<DocumentOutput | null>(null);
-  const [step, setStep] = useState(1); // 1: Ingestão, 2: Edição/Revisão, 3: Documento Final
+  const [step, setStep] = useState(1); 
   const [fileLoading, setFileLoading] = useState(false);
   const [pdfEngineReady, setPdfEngineReady] = useState(false);
   const [printError, setPrintError] = useState(false);
@@ -100,7 +100,7 @@ export default function DocumentGenerator() {
             fullText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
           }
           setInputText(fullText);
-          toast({ title: "Contrato Lido", description: "Inicie a extração neural v430.0 Elite." });
+          toast({ title: "Contrato Lido", description: "Inicie a extração neural v450.0 Elite." });
         } catch (err) {
           toast({ title: "Falha na Leitura", description: "O PDF pode estar protegido ou corrompido.", variant: "destructive" });
         } finally {
@@ -121,7 +121,7 @@ export default function DocumentGenerator() {
       const data = await extrairDadosProcuracao({ text: inputText, preferredLawyer: selectedLawyer });
       setExtractedData(data);
       setStep(2);
-      toast({ title: "Triagem Concluída", description: "Revise e ajuste o banco manualmente se necessário." });
+      toast({ title: "Triagem Concluída", description: "Revise os dados e insira o CNPJ do Banco se necessário." });
     } catch (error: any) {
       toast({ title: "Falha na Extração", description: error.message, variant: "destructive" });
     } finally {
@@ -185,7 +185,7 @@ export default function DocumentGenerator() {
           </div>
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">
-               Gabinete v430.0 Elite
+               Gabinete v450.0 Elite
             </Badge>
           </div>
         </header>
@@ -341,12 +341,17 @@ export default function DocumentGenerator() {
                             />
                           </div>
                           <div className="grid gap-1">
-                            <Label>Número do Processo (CNJ)</Label>
-                            <Input value={p.numero} onChange={(e) => updateProcessField(i, 'numero', e.target.value)} className="border-black font-black rounded-none h-11 bg-white" />
+                            <Label className="text-yellow-600">CNPJ do Banco</Label>
+                            <Input 
+                              value={p.cnpjBanco} 
+                              onChange={(e) => updateProcessField(i, 'cnpjBanco', e.target.value)} 
+                              placeholder="00.000.000/0001-00"
+                              className="border-black border-2 font-black uppercase rounded-none h-11 bg-white focus-visible:ring-yellow-400" 
+                            />
                           </div>
                           <div className="grid gap-1">
-                            <Label>Natureza da Ação</Label>
-                            <Input value={p.acao} onChange={(e) => updateProcessField(i, 'acao', e.target.value)} className="border-black font-black uppercase rounded-none h-11 bg-white" />
+                            <Label>Número do Processo (CNJ)</Label>
+                            <Input value={p.numero} onChange={(e) => updateProcessField(i, 'numero', e.target.value)} className="border-black font-black rounded-none h-11 bg-white" />
                           </div>
                         </div>
                       ))}
@@ -406,13 +411,13 @@ export default function DocumentGenerator() {
                     </div>
 
                     <div className="doc-paragraph">
-                      <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula "<em>AD JUDICIA</em>", em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e {extractedData.cliente.genero === 'F' ? 'defendê-la' : 'defendê-lo'} nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos das seguintes ações:
+                      <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da:
                     </div>
 
                     <div className="process-list">
                       {extractedData.processos.map((p, index) => (
                         <div key={index} className="doc-process">
-                          {index + 1}) <strong><u>{p.acao}</u></strong> promovida contra <strong>{p.banco.toUpperCase()}</strong>, processo nº {p.numero};
+                          {index + 1}) <strong><u>{p.acao}</u></strong> promovida contra <strong>{p.banco.toUpperCase()}</strong>, inscrito no CNPJ sob o nº <strong>{p.cnpjBanco}</strong>, processo nº {p.numero};
                         </div>
                       ))}
                     </div>
