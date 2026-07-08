@@ -169,6 +169,17 @@ export default function DocumentGenerator() {
   };
 
   const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  
+  // Extrair cidade do endereço para a linha de data
+  const extractCity = (address: string) => {
+    if (!address) return "São Paulo";
+    const parts = address.split('–').map(p => p.trim());
+    if (parts.length >= 2) {
+      const cityPart = parts[parts.length - 3] || parts[parts.length - 2];
+      return cityPart.split('-')[0].trim() || "São Paulo";
+    }
+    return "São Paulo";
+  };
 
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
@@ -403,7 +414,7 @@ export default function DocumentGenerator() {
                     <div className="doc-title">PROCURAÇÃO "AD JUDICIA"</div>
                     
                     <div className="doc-paragraph">
-                      <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador do RG sob Nº {extractedData.cliente.rg} e devidamente inscrito no CPF sob Nº {extractedData.cliente.cpf}, residente e domiciliado à {extractedData.cliente.endereco}, com endereço eletrônico: {extractedData.cliente.email}, neste ato nomeia como seu procurador:
+                      <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, brasileiro, {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador do RG sob Nº {extractedData.cliente.rg} e devidamente inscrito no CPF sob Nº {extractedData.cliente.cpf}, residente e domiciliado à {extractedData.cliente.endereco}, com endereço eletrônico: {extractedData.cliente.email}, neste ato nomeia como seu procurador:
                     </div>
 
                     <div className="doc-paragraph">
@@ -411,25 +422,20 @@ export default function DocumentGenerator() {
                     </div>
 
                     <div className="doc-paragraph">
-                      <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da:
-                    </div>
-
-                    <div className="process-list">
-                      {extractedData.processos.map((p, index) => (
-                        <div key={index} className="doc-process">
-                          {index + 1}) <strong><u>{p.acao}</u></strong> promovida contra <strong>{p.banco.toUpperCase()}</strong>, inscrito no CNPJ sob o nº <strong>{p.cnpjBanco}</strong>, processo nº {p.numero};
-                        </div>
+                      <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da {extractedData.processos.map((p, index) => (
+                        <span key={index}>
+                          <strong><u>{p.acao}</u></strong> promovida contra <strong>{p.banco.toUpperCase()}</strong>, inscrito no CNPJ nº <strong>{p.cnpjBanco}</strong>, processo nº {p.numero}{index < extractedData.processos.length - 1 ? '; ' : '.'}
+                        </span>
                       ))}
                     </div>
 
                     <div className="doc-date">
-                      São Paulo, {today.split(' de ')[0]} de {today.split(' de ')[1]} de {today.split(' de ')[2]}.
+                      {extractCity(extractedData.cliente.endereco)}, {today.split(' de ')[0]} de {today.split(' de ')[1]} de {today.split(' de ')[2]}.
                     </div>
 
                     <div className="signature-area">
                       <div className="signature-line"></div>
                       <div className="signature-name">{extractedData.cliente.nome.toUpperCase()}</div>
-                      <div className="signature-label">OUTORGANTE</div>
                     </div>
                   </div>
                </div>
@@ -461,14 +467,12 @@ export default function DocumentGenerator() {
             font-family: 'Times New Roman', Times, serif; font-size: 12pt;
             line-height: 1.5; color: #000; text-align: justify;
           }
-          .doc-title { text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 40px; text-decoration: underline; }
+          .doc-title { text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 40px; }
           .doc-paragraph { margin-bottom: 20px; text-indent: 20mm; }
-          .doc-process { margin-bottom: 15px; padding-left: 20mm; }
           .doc-date { text-align: center; margin-top: 50px; margin-bottom: 60px; }
           .signature-area { text-align: center; margin-top: 40px; }
           .signature-line { width: 70%; border-top: 1px solid #000; margin: 0 auto 10px auto; }
           .signature-name { font-weight: bold; text-transform: uppercase; }
-          .signature-label { font-size: 10pt; font-weight: bold; }
         `}</style>
       </main>
     </div>

@@ -7,6 +7,10 @@ import { AuthProvider } from '@/components/auth/auth-provider';
 export const metadata: Metadata = {
   title: 'W1 Capital | LexisPredict Elite SaaS',
   description: 'Enterprise Legal Management & Risk Analysis Multi-Tenant - Fundador Davi Alves Figueredo',
+  icons: {
+    icon: 'https://picsum.photos/seed/lexislogo/32/32',
+    apple: 'https://picsum.photos/seed/lexislogo/180/180',
+  },
 };
 
 export default function RootLayout({

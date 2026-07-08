@@ -1,8 +1,10 @@
+
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   LayoutDashboard, 
   Briefcase, 
@@ -30,6 +32,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth/auth-provider';
 import { browserStorage } from '@/lib/browser-storage';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -44,6 +47,7 @@ export function Sidebar() {
   const samplingCanvas = useRef<HTMLCanvasElement | null>(null);
 
   const isAdmin = profile?.cargo === 'Administrador';
+  const logoAsset = PlaceHolderImages.find(img => img.id === 'app-logo');
 
   const extractColorsFromElement = useCallback((element: HTMLImageElement | HTMLVideoElement) => {
     if (!samplingCanvas.current) {
@@ -363,8 +367,17 @@ export function Sidebar() {
       <div className="h-14 flex items-center px-5 border-b border-black bg-white/5 relative z-10 shrink-0">
         <div className="flex items-center gap-4">
           <div className="icon-3d-wrapper">
-            <div className="icon-3d-block black w-8 h-8 rounded-sm">
-              <Scale size={16} className="text-white" />
+            <div className="icon-3d-block black w-10 h-10 rounded-sm overflow-hidden flex items-center justify-center p-1 border-2 border-black">
+              {logoAsset && (
+                <Image 
+                  src={logoAsset.imageUrl} 
+                  alt="Lexis Predict" 
+                  width={32} 
+                  height={32} 
+                  data-ai-hint={logoAsset.imageHint}
+                  className="object-contain invert"
+                />
+              )}
             </div>
           </div>
           <div className="flex flex-col">
@@ -450,8 +463,17 @@ export function Sidebar() {
         <div className="h-14 flex items-center px-5 border-b border-black bg-white/5 relative z-10 shrink-0">
           <div className="flex items-center gap-4">
             <div className="icon-3d-wrapper">
-              <div className="icon-3d-block black w-8 h-8 rounded-sm">
-                <Scale size={16} className="text-white" />
+              <div className="icon-3d-block black w-8 h-8 rounded-sm overflow-hidden flex items-center justify-center p-1 border-2 border-black">
+                {logoAsset && (
+                  <Image 
+                    src={logoAsset.imageUrl} 
+                    alt="Logo" 
+                    width={collapsed ? 24 : 32} 
+                    height={collapsed ? 24 : 32} 
+                    data-ai-hint={logoAsset.imageHint}
+                    className="object-contain invert"
+                  />
+                )}
               </div>
             </div>
             {!collapsed && (

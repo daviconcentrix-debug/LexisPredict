@@ -4,13 +4,15 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Scale, Mail, Lock, Copyright, KeyRound } from 'lucide-react';
+import { Mail, Lock, Copyright, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -24,6 +26,7 @@ export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
   const signupLock = useRef(false);
+  const logoAsset = PlaceHolderImages.find(img => img.id === 'app-logo');
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,8 +127,17 @@ export default function SignupPage() {
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-4">
           <div className="icon-3d-wrapper w-fit mx-auto">
-            <div className="icon-3d-block black w-16 h-16 rounded-none border-2 border-black shadow-[10px_10px_0px_#000]">
-              <Scale size={32} className="text-white" />
+            <div className="icon-3d-block black w-16 h-16 rounded-none border-2 border-black shadow-[10px_10px_0px_#000] overflow-hidden flex items-center justify-center p-2">
+              {logoAsset && (
+                <Image 
+                  src={logoAsset.imageUrl} 
+                  alt="Lexis Predict" 
+                  width={48} 
+                  height={48} 
+                  data-ai-hint={logoAsset.imageHint}
+                  className="object-contain invert"
+                />
+              )}
             </div>
           </div>
           <div className="group cursor-default">
