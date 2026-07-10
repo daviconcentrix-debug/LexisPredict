@@ -5,139 +5,82 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%; /* Branco Puro */
-    --foreground: 0 0% 0%; /* Preto Puro */
+    /* DEFAULT: STARLINK MINIMAL (WHITE) */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
+    --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
-    --primary: 0 0% 0%; /* Preto Puro para botões */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 95%;
-    --secondary-foreground: 0 0% 0%;
-    --muted: 0 0% 90%;
-    --muted-foreground: 0 0% 0%;
-    --accent: 0 0% 0%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 191 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 0%; /* Bordas Pretas por padrão */
-    --input: 0 0% 0%;
-    --ring: 0 0% 0%;
-    --radius: 0rem; /* B&W Sharp Edges */
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 191 100% 50%;
+    --radius: 4px;
+
+    --card-opacity: 1;
+    --sidebar-opacity: 1;
+
+    /* SIDEBAR VARIABLES */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 0%;
-    --sidebar-primary: 0 0% 0%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 96%;
-    --sidebar-accent-foreground: 0 0% 0%;
-    --sidebar-border: 0 0% 0%;
-    --sidebar-ring: 0 0% 0%;
-  }
-}
-
-@layer components {
-  /* Estilo de Ícone 3D Isométrico (W1 Capital Black & White Edition) */
-  .icon-3d-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.5s;
-    cursor: pointer;
-  }
-
-  .icon-3d-block {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #fff;
-    transform: perspective(100px) rotate(-30deg) skew(25deg);
-    transition: all 0.5s;
-    box-shadow: -10px 10px 0px rgba(0, 0, 0, 1); /* Hard Shadow */
-    border: 2px solid #000;
-  }
-
-  .icon-3d-block::before {
-    content: "";
-    position: absolute;
-    top: 2px;
-    left: -12px;
-    height: 100%;
-    width: 12px;
-    background: #000;
-    transform: rotate(0deg) skewY(-45deg);
-    transition: 0.5s;
-  }
-
-  .icon-3d-block::after {
-    content: "";
-    position: absolute;
-    bottom: -12px;
-    left: -6px;
-    height: 12px;
-    width: 100%;
-    background: #444;
-    transform: rotate(0deg) skewX(-45deg);
-    transition: 0.5s;
-  }
-
-  .icon-3d-wrapper:hover .icon-3d-block {
-    transform: perspective(1000px) rotate(-30deg) skew(25deg) translate(10px, -10px);
-    box-shadow: -20px 20px 0px rgba(0, 0, 0, 1);
-  }
-
-  .icon-3d-block.black { background: #000000; }
-  .icon-3d-block.black::before { background: #000; }
-  .icon-3d-block.black::after { background: #111; }
-
-  /* PERFORMANCE: Aceleração de Hardware para Wallpapers */
-  .lexis-bg-layer, .lexis-side-bg-layer {
-    backface-visibility: hidden;
-    perspective: 1000px;
-    transform: translate3d(0, 0, 0);
-    will-change: opacity, transform;
-    pointer-events: none;
-    overflow: hidden;
-    transition: opacity 0.5s ease-in-out;
-  }
-
-  .lexis-bg-layer video, .lexis-side-bg-layer video {
-    object-fit: cover;
-    width: 100%;
-    height: 100%;
-    backface-visibility: hidden;
-    transform: translate3d(0, 0, 0);
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 191 100% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 191 100% 50%;
   }
 }
 
 @layer base {
   * {
-    @apply border-black;
-    font-family: 'Inter', sans-serif;
+    @apply border-border;
   }
   body {
-    @apply bg-white text-black;
-    color: #000000;
-  }
-  
-  /* Garantia de Texto Preto em Inputs e Placeholders */
-  input, textarea, select {
-    @apply text-black placeholder:text-black/30 font-black;
-  }
-  
-  label {
-    @apply text-black font-black uppercase text-[10px];
+    @apply bg-background text-foreground antialiased transition-all duration-300;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
   }
 }
 
-@media print {
-  .print\:hidden {
-    display: none !important;
+@layer components {
+  .bg-card {
+    background-color: hsla(var(--card), var(--card-opacity));
   }
-  body {
-    background-color: white !important;
-    color: black !important;
+  .bg-sidebar {
+    background-color: hsla(var(--sidebar-background), var(--sidebar-opacity));
   }
+  .mission-control-table {
+    @apply w-full text-left border-collapse text-[11px];
+  }
+  .mission-control-table th {
+    @apply px-4 py-3 bg-secondary/50 text-muted-foreground font-bold uppercase tracking-widest border-b border-border;
+  }
+  .mission-control-table td {
+    @apply px-4 py-3 border-b border-border/10 align-middle font-medium;
+  }
+}
+
+/* Starlink Shadow Protocol */
+.hard-shadow {
+  box-shadow: 6px 6px 0px hsla(var(--border), 0.2);
+}
+
+.icon-3d-block {
+  @apply flex items-center justify-center transition-all duration-300;
+  box-shadow: 4px 4px 0px hsla(var(--primary), 0.1);
+}
+
+.icon-3d-block.black {
+  @apply bg-black text-white;
+  box-shadow: 4px 4px 0px hsla(var(--foreground), 0.2);
 }

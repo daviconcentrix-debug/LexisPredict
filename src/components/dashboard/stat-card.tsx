@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 
@@ -12,46 +11,47 @@ interface StatCardProps {
 }
 
 export function StatCard({ title, value, icon, trend, trendUp, color = 'primary' }: StatCardProps) {
-  const borderMap = {
-    primary: "border-l-black",
-    accent: "border-l-black",
-    destructive: "border-l-red-600",
-    success: "border-l-green-600",
-  };
-
-  const iconTextMap = {
-    primary: "text-black",
-    accent: "text-black",
-    destructive: "text-red-600",
-    success: "text-green-600",
+  const accentColors = {
+    primary: "text-primary border-t-primary/30",
+    accent: "text-primary border-t-primary/30",
+    destructive: "text-destructive border-t-destructive/30",
+    success: "text-green-500 border-t-green-500/30",
   };
 
   return (
     <div className={cn(
-      "bg-white border border-[#dddbda] border-l-4 p-5 rounded-sm relative overflow-hidden transition-all hover:shadow-lg hover:bg-black group cursor-default",
-      borderMap[color]
+      "bg-card border border-border/50 p-6 rounded-md relative overflow-hidden transition-all duration-300 hover:border-border group cursor-default",
+      accentColors[color]
     )}>
-      <div className="relative z-10 flex flex-col gap-1">
-        <div className="flex justify-between items-start">
-          <p className="text-black/60 text-[10px] font-black uppercase tracking-[0.1em] group-hover:text-white/60 transition-colors">{title}</p>
-          <div className="icon-3d-wrapper">
-             <div className="icon-3d-block w-8 h-8 rounded-sm group-hover:bg-white transition-colors border-none shadow-sm">
-                <div className={cn("transition-colors", iconTextMap[color], "group-hover:text-black")}>
-                  {icon}
-                </div>
-             </div>
+      <div className="relative z-10 flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+          <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.15em]">{title}</p>
+          <div className="text-muted-foreground group-hover:text-foreground transition-colors duration-300">
+            {icon}
           </div>
         </div>
-        <h3 className="text-2xl font-black text-black tracking-tighter mt-1 group-hover:text-white transition-colors uppercase">{value}</h3>
-        {trend && (
-          <div className={cn(
-            "flex items-center gap-1 text-[9px] font-black mt-2 uppercase tracking-tighter transition-colors",
-            trendUp ? "text-green-600 group-hover:text-green-400" : "text-red-600 group-hover:text-red-400"
-          )}>
-            {trendUp ? "↑" : "↓"} {trend}
-          </div>
-        )}
+        
+        <div>
+          <h3 className="text-3xl font-bold tracking-tight tnum">
+            {value}
+          </h3>
+          
+          {trend && (
+            <div className={cn(
+              "flex items-center gap-2 text-[10px] font-medium mt-3 uppercase tracking-wider",
+              trendUp ? "text-green-500" : "text-destructive"
+            )}>
+              <span className="px-1.5 py-0.5 bg-secondary/50 rounded-sm">
+                {trendUp ? "↑" : "↓"} {trend}
+              </span>
+              <span className="text-muted-foreground opacity-50">vs last interval</span>
+            </div>
+          )}
+        </div>
       </div>
+      
+      {/* Precision Detail Line */}
+      <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-current to-transparent opacity-10 group-hover:opacity-30 transition-opacity"></div>
     </div>
   );
 }

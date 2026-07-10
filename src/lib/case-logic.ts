@@ -1,3 +1,10 @@
+
+/**
+ * MOTOR DE LÓGICA JURÍDICA PURA (v900.0 ELITE)
+ * Cálculos matemáticos de prazos, triagem de CNJ e normalização de status.
+ * Propriedade de W1 Capital | Fundador: Davi Alves Figueredo
+ */
+
 export type LegalCase = {
   id: string;
   cliente: string;
@@ -65,11 +72,14 @@ export const TRIBUNAIS_CNJ: Record<string, { tribunal: string; url: string }> = 
   "4.06": { tribunal: "TRF6", url: "https://pje1g.trf6.jus.br/pje/ConsultaPublica/listView.seam" }
 };
 
+/**
+ * FUNÇÃO PURA PARA NORMALIZAÇÃO DE CASOS JURÍDICOS
+ */
 export function processarCaso(linha: Record<string, string>): LegalCase {
   const situacao = (linha.SITUACAO || linha.SITUAÇÃO || '').toUpperCase();
   let status: LegalCase['status'] = 'Sem Prazo';
   let diasFaltando: number | null = null;
-  const dataPrazoOriginal = linha['PRÓXIMO PRAZO'] || linha['PRAZO'] || linha.RETORNO || '';
+  const dataPrazoOriginal = linha['PRÓXIMO PRAZO'] || linha['PRAZO'] || linha.RETORNO || linha.VENCIMENTO || '';
 
   if (dataPrazoOriginal) {
     const parts = dataPrazoOriginal.split('/');
@@ -98,16 +108,18 @@ export function processarCaso(linha: Record<string, string>): LegalCase {
     }
   }
 
+  // Prioridade 1: Arquivados
   if (['ENCERRADO', 'SUSPENSO', 'ARQUIVADO'].some(s => situacao.includes(s))) {
     status = 'Arquivado';
   } 
 
-  // Prioridade de Status Manual se existir e não for Automático
+  // Prioridade 2: Status Manual Sobrescrito
   const statusManual = linha.STATUS_MANUAL;
   if (statusManual && statusManual !== 'Automatico' && statusManual !== '') {
     status = statusManual as any;
   }
 
+  // Identificação Neural de Tribunais (Baseada em Padrão CNJ)
   let tribunal = 'Outros';
   let url = 'https://www.google.com/search?q=consulta+processo+judicial';
   const cnjLimpo = (linha.PROTOCOLO || linha.PROCESSO || '').replace(/[^0-9.-]/g, '');
@@ -121,12 +133,10 @@ export function processarCaso(linha: Record<string, string>): LegalCase {
     tribunal = linha.TRIBUNAL;
   }
 
-  const finalId = cnjLimpo || linha.PROTOCOLO || `AUTO-${Math.random().toString(36).substr(2, 9)}`;
-
   return {
-    id: finalId,
-    cliente: linha.CLIENTE || linha.NOME || 'Desconhecido',
-    advogado: linha['ADVOGADO RESPONSÁVEL'] || linha.ADVOGADO || linha.RESPONSÁVEL || 'Não Atribuído',
+    id: cnjLimpo || `AUTO-${Math.random().toString(36).substr(2, 9)}`,
+    cliente: (linha.CLIENTE || linha.NOME || 'DESCONHECIDO').toUpperCase(),
+    advogado: (linha['ADVOGADO RESPONSÁVEL'] || linha.ADVOGADO || linha.RESPONSÁVEL || 'NÃO ATRIBUÍDO').toUpperCase(),
     protocolo: cnjLimpo || linha.PROTOCOLO || 'S/N',
     situacao: situacao || 'EM ANDAMENTO',
     proximoPrazo: dataPrazoOriginal,
@@ -134,12 +144,9 @@ export function processarCaso(linha: Record<string, string>): LegalCase {
     status,
     diasFaltando,
     linkConsulta: url,
-    tipo: linha.TIPO || 'NOVO',
+    tipo: linha.TIPO || 'GERAL',
     telefone: linha.TELEFONE || '',
     atendente: linha.ATENDENTE || '',
-    scoreIA: linha.RISCO ? parseInt(linha.RISCO, 10) : undefined,
-    riscoIA: linha.ALERTA || '',
-    parecerIA: linha.OBSERVAÇÕES || linha.OBSERVAÇÃO || '',
     ultimoRetorno: linha.ULTIMO_RETORNO || linha['ÚLTIMO RETORNO'] || undefined,
     observacao: linha.OBSERVACAO || linha.OBSERVAÇÃO || '',
     statusManual: linha.STATUS_MANUAL as any

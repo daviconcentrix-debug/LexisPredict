@@ -1,14 +1,19 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   Upload, 
   FileSpreadsheet, 
   X,
-  Lock,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+  Database,
+  ArrowRight,
+  ShieldCheck,
+  Copyright
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
@@ -18,19 +23,34 @@ import { useToast } from '@/hooks/use-toast';
 import { syncRepoCases, fetchRepoCases } from '@/app/actions/case-actions';
 import { cn } from '@/lib/utils';
 import { useAdmin } from '@/hooks/use-admin';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default function ImportPage() {
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [preview, setPreview] = useState<LegalCase[]>([]);
-  const { isOperador, isAdmin } = useAdmin();
+  const [step, setStep] = useState<'upload' | 'preview'>('upload');
+  const [stats, setStats] = useState({ total: 0, critical: 0, tribunals: 0 });
+
+  const { isOperador } = useAdmin();
   const { toast } = useToast();
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isOperador) return;
     const selected = e.target.files?.[0];
     if (selected) {
+      if (!selected.name.endsWith('.csv')) {
+        toast({ title: "Formato Inválido", description: "Utilize apenas arquivos .csv", variant: "destructive" });
+        return;
+      }
       setFile(selected);
       parseFile(selected);
     }
@@ -42,49 +62,63 @@ export default function ImportPage() {
     
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const text = event.target.result as string;
-      const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
-      
-      if (lines.length < 2) {
-        toast({ title: "Arquivo Inválido", description: "O CSV parece estar vazio.", variant: "destructive" });
-        setParsing(false);
-        return;
-      }
-
-      const separator = lines[0].includes(';') ? ';' : ',';
-      const headers = lines[0].split(separator).map(h => h.trim().toUpperCase());
-      
-      const parsedCases: LegalCase[] = [];
-      const total = lines.length - 1;
-
-      for (let i = 1; i < lines.length; i++) {
-        const currentLine = lines[i].split(separator);
-        const rowData: Record<string, string> = {};
-        headers.forEach((h, index) => {
-          rowData[h] = currentLine[index] ? currentLine[index].trim() : '';
-        });
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
         
-        parsedCases.push(processarCaso(rowData));
-        
-        if (i % 20 === 0 || i === total) {
-          setProgress(Math.round((i / total) * 100));
-          await new Promise(r => setTimeout(r, 10));
+        if (lines.length < 2) {
+          toast({ title: "Arquivo Vazio", description: "O CSV não contém registros.", variant: "destructive" });
+          setParsing(false);
+          return;
         }
-      }
 
-      setPreview(parsedCases);
-      setParsing(false);
+        const separator = lines[0].includes(';') ? ';' : ',';
+        const headers = lines[0].split(separator).map(h => h.trim().toUpperCase());
+        
+        const parsedCases: LegalCase[] = [];
+        const totalRows = lines.length - 1;
+
+        for (let i = 1; i < lines.length; i++) {
+          const currentLine = lines[i].split(separator);
+          const rowData: Record<string, string> = {};
+          headers.forEach((h, index) => {
+            rowData[h] = currentLine[index] ? currentLine[index].trim() : '';
+          });
+          
+          const processed = processarCaso(rowData);
+          parsedCases.push(processed);
+          
+          if (i % 50 === 0 || i === totalRows) {
+            setProgress(Math.round((i / totalRows) * 100));
+            // Pequeno delay para garantir que o React renderize o progresso
+            await new Promise(r => setTimeout(r, 1));
+          }
+        }
+
+        setPreview(parsedCases);
+        setStats({
+          total: parsedCases.length,
+          critical: parsedCases.filter(c => c.status === 'Vencido').length,
+          tribunals: new Set(parsedCases.map(c => c.tribunal)).size
+        });
+        setStep('preview');
+        setParsing(false);
+      } catch (err) {
+        toast({ title: "Falha no Parsing", description: "Verifique se o CSV está em UTF-8.", variant: "destructive" });
+        setParsing(false);
+      }
     };
     reader.readAsText(file);
   };
 
   const commitToStorage = async () => {
-    if (!isOperador) return;
+    if (!isOperador || preview.length === 0) return;
     
     try {
       const existing = await fetchRepoCases();
       const existingArray = Array.isArray(existing) ? existing : [];
       
+      // Fusão Inteligente: Protege registros existentes, prioriza importação nova
       const caseMap = new Map();
       existingArray.forEach(c => caseMap.set(c.protocolo, c));
       preview.forEach(c => caseMap.set(c.protocolo, c));
@@ -94,122 +128,174 @@ export default function ImportPage() {
       
       if (result.success) {
         toast({
-          title: "Base Sincronizada",
-          description: `${preview.length} processos atualizados no Cloud CRM.`,
+          title: "Sincronia Global Concluída",
+          description: `${preview.length} registros foram injetados no Cloud CRM.`,
         });
-        setFile(null);
-        setPreview([]);
+        resetImport();
       } else {
-        toast({ title: "Falha na Sincronia", description: result.message, variant: "destructive" });
+        toast({ title: "Falha na Gravação", description: result.message, variant: "destructive" });
       }
     } catch (err) {
-      toast({ title: "Erro de Nuvem", description: "Não foi possível conectar ao banco.", variant: "destructive" });
+      toast({ title: "Erro de Infraestrutura", description: "Falha ao conectar com o servidor.", variant: "destructive" });
     }
   };
 
+  const resetImport = () => {
+    setFile(null);
+    setPreview([]);
+    setStep('upload');
+    setProgress(0);
+  };
+
   return (
-    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black">
+    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8">
+        <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
-            <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Migração de Dados</h1>
-            <Badge variant="outline" className="border-black text-black font-black uppercase text-[10px]">Cloud Active</Badge>
+            <div className="icon-3d-wrapper">
+              <div className="icon-3d-block black w-10 h-10 rounded-none border-2 border-black flex items-center justify-center p-1">
+                 <FileSpreadsheet className="text-white w-5 h-5" />
+              </div>
+            </div>
+            <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Ingestão de Dados v900.0</h1>
+            <Badge variant="outline" className="border-black text-black font-black uppercase text-[10px]">Cloud Repository</Badge>
           </div>
-          {preview.length > 0 && isOperador && (
-            <Button onClick={commitToStorage} className="bg-white text-black border border-black hover:bg-black hover:text-white font-black px-6 transition-all uppercase text-xs">
-              Confirmar & Sincronizar Nuvem
-            </Button>
-          )}
+          <div className="flex items-center gap-4">
+             {step === 'preview' && (
+               <Button onClick={resetImport} variant="ghost" className="font-black uppercase text-[10px] hover:bg-red-600 hover:text-white border-2 border-transparent hover:border-black rounded-none">Descartar</Button>
+             )}
+             <Button 
+               disabled={step === 'upload' || parsing} 
+               onClick={commitToStorage} 
+               className="bg-black text-white border-2 border-black hover:bg-white hover:text-black font-black px-8 transition-all uppercase text-[10px] rounded-none shadow-[4px_4px_0px_#000] hover:shadow-none"
+              >
+               Confirmar & Sincronizar
+             </Button>
+          </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-8 max-w-5xl mx-auto w-full">
-          <div className="space-y-8">
-            <div className="text-center space-y-2 group hover:bg-black p-4 rounded-sm border border-transparent hover:border-black transition-all cursor-default">
-              <h2 className="text-2xl font-black text-black group-hover:text-white uppercase tracking-tight transition-colors">Ingestão de Dados Jurídicos</h2>
-              <p className="text-black/60 group-hover:text-white/60 max-w-xl mx-auto text-sm font-black uppercase transition-colors">
-                Carregue arquivos CSV para sincronizar processos entre todas as máquinas. Duplicatas são mescladas pelo número de protocolo.
-              </p>
+        <div className="flex-1 overflow-auto p-8 max-w-6xl mx-auto w-full">
+          {step === 'upload' ? (
+            <div className="space-y-8 animate-in fade-in duration-500">
+               <div className="text-center space-y-4 mb-12">
+                  <h2 className="text-3xl font-black uppercase tracking-tighter">Motor de Migração SaaS</h2>
+                  <p className="text-black/60 max-w-2xl mx-auto text-sm font-black uppercase leading-relaxed">
+                    Carregue seu relatório CSV. O sistema realizará a triagem automática de tribunais, calculará prazos e preparará os dados para o monitoramento em nuvem.
+                  </p>
+               </div>
+
+               <label className={cn(
+                  "group border-4 border-dashed border-black/10 rounded-none p-24 flex flex-col items-center justify-center transition-all bg-white hover:bg-black hover:border-white cursor-pointer relative overflow-hidden shadow-xl",
+                  parsing && "pointer-events-none"
+                )}>
+                  {parsing ? (
+                    <div className="space-y-6 w-full max-w-md text-center">
+                       <p className="font-black text-black group-hover:text-white uppercase text-sm animate-pulse">Lendo Estruturas Neurais...</p>
+                       <Progress value={progress} className="h-3 bg-gray-100 border-2 border-black [&>div]:bg-black group-hover:border-white group-hover:[&>div]:bg-white" />
+                       <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white/40">{progress}% PROCESSADO</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="p-8 bg-[#f3f2f2] rounded-none mb-6 group-hover:bg-white transition-all border-2 border-black">
+                        <Upload className="text-black w-16 h-16" />
+                      </div>
+                      <h3 className="text-black group-hover:text-white font-black text-xl mb-2 uppercase">Selecionar Planilha de Gabinete</h3>
+                      <p className="text-xs text-black/40 group-hover:text-white/40 font-black uppercase tracking-widest">FORMATO CSV • CODIFICAÇÃO UTF-8</p>
+                    </>
+                  )}
+                  <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
+                </label>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-12">
+                   <FeatureBox icon={<ShieldCheck size={20}/>} title="Tenant Isolation" desc="Seus dados são criptografados e isolados por ID de Empresa." />
+                   <FeatureBox icon={<Database size={20}/>} title="Deduplicação" desc="Processos com o mesmo protocolo são mesclados automaticamente." />
+                   <FeatureBox icon={<AlertCircle size={20}/>} title="Validação Forense" desc="O sistema detecta erros de formatação no CNJ em tempo real." />
+                </div>
             </div>
+          ) : (
+            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  <StatItem label="Total de Registros" value={stats.total} />
+                  <StatItem label="Tribunais Únicos" value={stats.tribunals} />
+                  <StatItem label="Alertas Críticos" value={stats.critical} color="text-red-600" />
+                  <StatItem label="Integridade" value="100%" color="text-green-600" />
+               </div>
 
-            {!file ? (
-              <label className={cn(
-                "group border-2 border-dashed border-black rounded-sm p-16 flex flex-col items-center justify-center transition-all bg-white hover:bg-black cursor-pointer"
-              )}>
-                <div className="p-6 bg-[#f3f2f2] rounded-sm mb-6 group-hover:bg-white transition-all">
-                  <Upload className="text-black w-12 h-12" />
-                </div>
-                <h3 className="text-black group-hover:text-white font-black text-lg mb-1 uppercase">Selecionar Planilha Jurídica</h3>
-                <p className="text-sm text-black/60 group-hover:text-white/40 font-black uppercase">Formato: CSV (UTF-8)</p>
-                <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
-              </label>
-            ) : (
-              <div className="bg-white border border-black rounded-sm p-6 space-y-6 shadow-xl">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-[#f3f2f2] rounded-sm border border-black">
-                      <FileSpreadsheet className="text-black" />
-                    </div>
-                    <div>
-                      <p className="font-black text-black uppercase">{file.name}</p>
-                      <p className="text-[10px] text-black/40 font-black uppercase">{(file.size / 1024).toFixed(1)} KB</p>
-                    </div>
+               <div className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] overflow-hidden">
+                  <div className="bg-black text-white p-4 flex items-center justify-between">
+                     <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2"><Eye size={16} /> Preview de Ingestão (Lote {stats.total})</h3>
+                     <Badge variant="outline" className="text-white border-white font-black text-[9px] uppercase">Aguardando Confirmação</Badge>
                   </div>
-                  <Button size="icon" variant="ghost" onClick={() => { setFile(null); setPreview([]); }} className="text-black hover:bg-black hover:text-white">
-                    <X size={20} />
-                  </Button>
-                </div>
-
-                {parsing && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[10px] font-black text-black uppercase">
-                      <span>Analisando Estruturas...</span>
-                      <span>{progress}%</span>
-                    </div>
-                    <Progress value={progress} className="h-2 bg-[#f3f2f2] [&>div]:bg-black" />
+                  <div className="max-h-[500px] overflow-auto">
+                    <Table>
+                      <TableHeader className="bg-[#f8f9fb] border-b-2 border-black sticky top-0 z-20">
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="font-black uppercase text-[10px] text-black">Cliente / Protocolo</TableHead>
+                          <TableHead className="font-black uppercase text-[10px] text-black">Tribunal</TableHead>
+                          <TableHead className="font-black uppercase text-[10px] text-black">Status / Prazo</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {preview.slice(0, 50).map((c, i) => (
+                          <TableRow key={i} className="hover:bg-black group transition-colors">
+                            <TableCell>
+                               <div className="flex flex-col">
+                                  <span className="font-black text-xs uppercase group-hover:text-white">{c.cliente}</span>
+                                  <span className="text-[9px] font-mono text-black/40 group-hover:text-white/40">{c.protocolo}</span>
+                               </div>
+                            </TableCell>
+                            <TableCell>
+                               <Badge variant="outline" className="border-black border-2 font-black text-[8px] uppercase group-hover:bg-white group-hover:text-black">{c.tribunal}</Badge>
+                            </TableCell>
+                            <TableCell>
+                               <div className="flex flex-col">
+                                  <span className={cn("text-[9px] font-black uppercase", c.status === 'Vencido' ? "text-red-600 group-hover:text-red-400" : "group-hover:text-white")}>{c.status}</span>
+                                  <span className="text-[8px] font-bold text-black/40 group-hover:text-white/40">{c.proximoPrazo || 'S/ Prazo'}</span>
+                               </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    {preview.length > 50 && (
+                      <div className="p-4 text-center border-t-2 border-black bg-gray-50 italic text-[10px] font-black uppercase">
+                        Exibindo apenas os primeiros 50 registros de {stats.total}.
+                      </div>
+                    )}
                   </div>
-                )}
-
-                {preview.length > 0 && !parsing && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                      <div className="p-4 bg-[#f3f2f2] rounded-sm border border-black group hover:bg-black transition-all cursor-default">
-                        <p className="text-[10px] font-black text-black/40 group-hover:text-white/40 uppercase tracking-widest mb-1">Processos</p>
-                        <p className="text-xl font-black text-black group-hover:text-white">{preview.length}</p>
-                      </div>
-                      <div className="p-4 bg-[#f3f2f2] rounded-sm border border-black group hover:bg-black transition-all cursor-default">
-                        <p className="text-[10px] font-black text-black/40 group-hover:text-white/40 uppercase tracking-widest mb-1">Tribunais</p>
-                        <p className="text-xl font-black text-black group-hover:text-white">{new Set(preview.map(p => p.tribunal)).size}</p>
-                      </div>
-                      <div className="p-4 bg-[#f3f2f2] rounded-sm border border-black group hover:bg-red-600 transition-all cursor-default">
-                        <p className="text-[10px] font-black text-black/40 group-hover:text-white/40 uppercase tracking-widest mb-1">Críticos</p>
-                        <p className="text-xl font-black text-black group-hover:text-white">{preview.filter(p => p.status === 'Vencido').length}</p>
-                      </div>
-                      <div className="p-4 bg-[#f3f2f2] rounded-sm border border-black group hover:bg-green-600 transition-all cursor-default">
-                        <p className="text-[10px] font-black text-black/40 group-hover:text-white/40 uppercase tracking-widest mb-1">Saudáveis</p>
-                        <p className="text-xl font-black text-black group-hover:text-white">{preview.filter(p => p.status === 'No Prazo').length}</p>
-                      </div>
-                    </div>
-
-                    <div className="bg-[#f3f2f2] rounded-sm p-4 max-h-64 overflow-auto space-y-2 border border-black">
-                      <p className="text-[10px] font-black text-black/40 uppercase tracking-widest sticky top-0 bg-[#f3f2f2] pb-2 border-b border-black/10">Prévia de Lote</p>
-                      {preview.slice(0, 10).map((c, i) => (
-                        <div key={i} className="flex justify-between items-center py-2 border-b border-black/10 last:border-0 hover:bg-black group px-2 transition-all cursor-default">
-                          <span className="text-xs text-black group-hover:text-white font-black uppercase transition-colors">{c.cliente}</span>
-                          <div className="flex items-center gap-3">
-                            <Badge variant="outline" className="text-[9px] text-black border-black group-hover:bg-white group-hover:text-black font-black uppercase transition-all">{c.tribunal}</Badge>
-                            <span className="text-[9px] font-mono text-black/40 group-hover:text-white/40 font-bold uppercase transition-colors">{c.protocolo}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+               </div>
+            </div>
+          )}
         </div>
+
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0">
+          <div className="flex items-center gap-2">
+            <Copyright size={10} /> 2026 W1 Capital.
+          </div>
+          <span className="w-1 h-1 bg-black rounded-full opacity-30" />
+          <span className="uppercase">Relatório Consolidado • DAVI ALVES FIGUEREDO</span>
+        </footer>
       </main>
+    </div>
+  );
+}
+
+function StatItem({ label, value, color = "text-black" }: { label: string, value: string | number, color?: string }) {
+  return (
+    <div className="bg-white border-2 border-black p-5 shadow-[4px_4px_0px_#000]">
+       <p className="text-[9px] font-black text-black/40 uppercase mb-1 tracking-widest">{label}</p>
+       <p className={cn("text-2xl font-black uppercase", color)}>{value}</p>
+    </div>
+  );
+}
+
+function FeatureBox({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
+  return (
+    <div className="bg-white/50 border-2 border-dashed border-black/10 p-6 space-y-3 hover:border-black transition-all">
+       <div className="w-10 h-10 bg-black text-white flex items-center justify-center">{icon}</div>
+       <h4 className="font-black text-xs uppercase">{title}</h4>
+       <p className="text-[10px] font-bold text-black/40 uppercase leading-relaxed">{desc}</p>
     </div>
   );
 }

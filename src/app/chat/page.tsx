@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -11,24 +12,27 @@ import { useToast } from '@/hooks/use-toast';
 import { perguntarIA } from '@/ai/flows/chat-ai-flow';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function ChatPage() {
   const [chatInput, setChatInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
-  const [model, setModel] = useState<'grok' | 'openrouter'>('grok');
+  const [model, setModel] = useState<string>('xai');
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMounted = useRef(true);
   const { toast } = useToast();
 
   useEffect(() => {
     isMounted.current = true;
-    const savedIA = localStorage.getItem('lexisPredict_preferred_ia');
-    if (savedIA === 'grok' || savedIA === 'openrouter') {
-      setModel(savedIA as any);
-    } else {
-      setModel('grok');
-    }
+    const savedIA = localStorage.getItem('lexisPredict_preferred_ia') || 'xai';
+    setModel(savedIA);
     return () => { isMounted.current = false; };
   }, []);
 
@@ -51,8 +55,7 @@ export default function ChatPage() {
       const response = await perguntarIA({ 
         pergunta: chatInput, 
         historico: chatMessages.slice(-10),
-        preferredModel: model,
-        deepThinking: localStorage.getItem('lexisPredict_deep_thinking') === 'true'
+        preferredModel: model
       });
 
       if (isMounted.current) {
@@ -83,13 +86,22 @@ export default function ChatPage() {
                 <MessageSquare size={20} className="text-white" />
               </div>
             </div>
-            <h1 className="text-lg font-black text-black uppercase tracking-tight hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Consultoria de Gabinete</h1>
+            <h1 className="text-lg font-black text-black uppercase tracking-tight hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Consultoria Get Assessoria</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="border-black font-black text-[10px] text-black uppercase px-3 py-1">
-              {model.toUpperCase()}
-            </Badge>
-            <Button variant="outline" size="sm" onClick={clearChat} className="border-black h-8 text-[10px] font-black uppercase hover:bg-black hover:text-white transition-all">
+            <Select value={model} onValueChange={(val) => { setModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); }}>
+              <SelectTrigger className="w-[180px] border-2 border-black font-black uppercase text-[10px] h-10 rounded-none bg-white">
+                <SelectValue placeholder="Motor Neural" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-2 border-black rounded-none">
+                <SelectItem value="xai" className="font-black uppercase text-[10px]">xAI Grok 4.5</SelectItem>
+                <SelectItem value="airforce" className="font-black uppercase text-[10px]">Airforce DeepSeek</SelectItem>
+                <SelectItem value="groq-llama" className="font-black uppercase text-[10px]">Groq Llama 3.3</SelectItem>
+                <SelectItem value="groq-deepseek" className="font-black uppercase text-[10px]">Groq DeepSeek R1</SelectItem>
+                <SelectItem value="puter" className="font-black uppercase text-[10px]">Puter AI</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={clearChat} className="border-black border-2 h-10 text-[10px] font-black uppercase hover:bg-black hover:text-white transition-all rounded-none bg-white">
               <RefreshCcw size={12} className="mr-2" /> Reiniciar
             </Button>
           </div>
@@ -106,7 +118,7 @@ export default function ChatPage() {
                         <Bot className="text-white" size={32} />
                       </div>
                     </div>
-                    <h2 className="text-xl font-black text-black uppercase">Como posso auxiliar hoje?</h2>
+                    <h2 className="text-xl font-black text-black uppercase">Como posso auxiliar a Get Assessoria hoje?</h2>
                   </div>
                 )}
                 {chatMessages.map((msg, i) => (
@@ -123,7 +135,7 @@ export default function ChatPage() {
             </ScrollArea>
             <div className="p-4 border-t-2 border-black bg-white shrink-0">
               <form onSubmit={handleChat} className="flex gap-3">
-                <Input placeholder="DÚVIDA TÉCNICA..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} disabled={loading} className="flex-1 border-2 border-black h-12 text-sm font-black text-black uppercase rounded-none bg-white" />
+                <Input placeholder="DÚVIDA TÉCNICA (GET ASSESSORIA)..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} disabled={loading} className="flex-1 border-2 border-black h-12 text-sm font-black text-black uppercase rounded-none bg-white" />
                 <Button type="submit" size="icon" disabled={loading} className="h-12 w-12 bg-black text-white border-2 border-black rounded-none">
                   <Send size={20} />
                 </Button>
