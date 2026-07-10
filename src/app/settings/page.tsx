@@ -1,315 +1,391 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
+  HardDrive, 
   Cpu,
   Palette,
-  Globe,
-  RotateCcw,
+  Users,
+  UserPlus,
+  Trash2,
   Zap,
-  CheckCircle2,
-  AlertTriangle,
-  Monitor,
-  Sparkles,
-  Loader2,
-  Layout,
-  ImageIcon,
-  Upload,
-  Link as LinkIcon,
-  X,
+  Bot,
+  Layers,
+  Skull,
   ShieldCheck,
-  MousePointer2
+  Upload,
+  FileVideo,
+  ImageIcon,
+  Link as LinkIcon,
+  Sparkles,
+  RefreshCcw,
+  Paintbrush,
+  Type,
+  Square,
+  Maximize
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { cn, getIdealTextColor, getAccessibilityRating } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { useAdmin } from '@/hooks/use-admin';
+import { Input } from '@/components/ui/input';
+import { getEmpresaUsers, removeEmpresaUser } from '@/lib/server-db';
+import { UserProfile, supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
-import { Locale } from '@/lib/i18n';
-import { AUTHORITY_PRESETS, applyGlobalTheme } from '@/lib/theme';
-import { generateNeuralTheme } from '@/ai/flows/theme-architect-flow';
+import { browserStorage } from '@/lib/browser-storage';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function SettingsPage() {
-  const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState('Style');
-  const [iaModel, setIaModel] = useState('xai');
-  const [locale, setLocale] = useState<Locale>('pt');
+  const [activeTab, setActiveTab] = useState('Engine');
+  const [iaModel, setIaModel] = useState<'grok' | 'xai' | 'puter' | 'airforce'>('xai');
+  const [empresaUsers, setEmpresaUsers] = useState<UserProfile[]>([]);
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [isAddingUser, setIsAddUser] = useState(false);
   
-  const [themePrompt, setThemePrompt] = useState('');
-  const [isGeneratingTheme, setIsGeneratingTheme] = useState(false);
+  const [visualMode, setVisualMode] = useState<'elite' | 'aura'>('elite');
+  const [wpMode, setWpMode] = useState<'global' | 'separate' | 'main_only' | 'sidebar_only'>('global');
+  const [mainWpUrl, setMainWpUrl] = useState('');
+  const [sideWpUrl, setSideWpUrl] = useState('');
+  const [mainWpType, setMainWpType] = useState<'image' | 'video'>('image');
+  const [sideWpType, setSideWpType] = useState<'image' | 'video'>('image');
+  const [wpOpacity, setWpOpacity] = useState(1);
+  const [autoTheme, setAutoTheme] = useState(false);
+  const [containerOpacity, setContainerOpacity] = useState(1);
+  const [borderRadius, setBorderRadius] = useState(0);
+  const [hardShadow, setHardShadow] = useState(true);
 
-  const [longReadingMode, setLongReadingMode] = useState(false);
-  const [cardOpacity, setCardOpacity] = useState(1);
-  const [sidebarOpacity, setSidebarOpacity] = useState(1);
-  const [borderRadius, setBorderRadius] = useState(4);
-  const [wallpaper, setWallpaper] = useState('');
-  const [wallpaperBrightness, setWallpaperBrightness] = useState(1);
+  // Cores Manuais
+  const [bgColor, setBgColor] = useState('#f3f2f2');
+  const [fontColor, setFontColor] = useState('#000000');
+  const [btnBgColor, setBtnBgColor] = useState('#000000');
+  const [borderColor, setBorderColor] = useState('#000000');
 
-  const [bgColor, setBgColor] = useState('#FFFFFF');
-  const [fontColor, setFontColor] = useState('#0A0A0A');
-  const [btnBgColor, setBtnBgColor] = useState('#00D1FF');
-  const [borderColor, setBorderColor] = useState('#E5E7EB');
-  const [secondaryColor, setSecondaryColor] = useState('#F3F4F6');
+  const isMounted = useRef(true);
+  const mainFileInput = useRef<HTMLInputElement>(null);
+  const sideFileInput = useRef<HTMLInputElement>(null);
 
-  const [contrastRating, setContrastRating] = useState<'AAA' | 'AA' | 'FAIL'>('AAA');
+  const [newUserForm, setNewUserForm] = useState({
+    nome: '',
+    email: '',
+    password: '',
+    cargo: 'Operador' as any
+  });
+
+  const { isAdmin, profile } = useAdmin();
   const { toast } = useToast();
-  const wallpaperInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setMounted(true);
-    const loadSettings = () => {
-      setIaModel(localStorage.getItem('lexisPredict_preferred_ia') || 'xai');
-      setLocale((localStorage.getItem('lexisPredict_locale') as any) || 'pt');
-      setCardOpacity(parseFloat(localStorage.getItem('lexisPredict_card_opacity') || '1'));
-      setSidebarOpacity(parseFloat(localStorage.getItem('lexisPredict_sidebar_opacity') || '1'));
-      setBorderRadius(parseInt(localStorage.getItem('lexisPredict_border_radius') || '4'));
-      setLongReadingMode(localStorage.getItem('lexis_long_reading') === 'true');
-      setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#FFFFFF');
-      setFontColor(localStorage.getItem('lexisPredict_font_color') || '#0A0A0A');
-      setBtnBgColor(localStorage.getItem('lexisPredict_btn_bg_color') || '#00D1FF');
-      setBorderColor(localStorage.getItem('lexisPredict_border_color') || '#E5E7EB');
-      setSecondaryColor(localStorage.getItem('lexisPredict_secondary_color') || '#F3F4F6');
-      setWallpaper(localStorage.getItem('lexisPredict_wallpaper') || '');
-      setWallpaperBrightness(parseFloat(localStorage.getItem('lexisPredict_wallpaper_brightness') || '1'));
-    };
-    loadSettings();
-  }, []);
-
-  useEffect(() => {
-    if (mounted) {
-      setContrastRating(getAccessibilityRating(bgColor, fontColor));
-    }
-  }, [bgColor, fontColor, mounted]);
-
-  const handleApplyNeuralTheme = async () => {
-    if (!themePrompt.trim() || isGeneratingTheme) return;
-    setIsGeneratingTheme(true);
+    isMounted.current = true;
     
-    try {
-      const theme = await generateNeuralTheme(themePrompt);
-      
-      setBgColor(theme.background);
-      setFontColor(theme.foreground);
-      setBtnBgColor(theme.primary);
-      setSecondaryColor(theme.secondary);
-      setBorderColor(theme.border);
-      setBorderRadius(theme.radius);
+    const loadSettings = () => {
+      setIaModel((localStorage.getItem('lexisPredict_preferred_ia') as any) || 'xai');
+      setVisualMode((localStorage.getItem('lexis_visual_mode') as any) || 'elite');
+      setContainerOpacity(parseFloat(localStorage.getItem('lexisPredict_container_opacity') || '1'));
+      setBorderRadius(parseInt(localStorage.getItem('lexisPredict_border_radius') || '0'));
+      setHardShadow(localStorage.getItem('lexisPredict_hard_shadow') !== 'false');
+      setAutoTheme(localStorage.getItem('lexis_auto_theme') === 'true');
+      setWpMode((localStorage.getItem('lexis_wp_mode') as any) || 'global');
+      setMainWpUrl(localStorage.getItem('lexis_wp_main_url') || '');
+      setSideWpUrl(localStorage.getItem('lexis_wp_sidebar_url') || '');
+      setMainWpType((localStorage.getItem('lexis_wp_main_type') as any) || 'image');
+      setSideWpType((localStorage.getItem('lexis_wp_sidebar_type') as any) || 'image');
+      setWpOpacity(parseFloat(localStorage.getItem('lexis_wp_opacity') || '1'));
 
-      applyGlobalTheme({
-        background: theme.background,
-        foreground: theme.foreground,
-        primary: theme.primary,
-        secondary: theme.secondary,
-        border: theme.border,
-        card: theme.background,
-        accent: theme.primary
-      }, theme.radius, longReadingMode);
+      setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#f3f2f2');
+      setFontColor(localStorage.getItem('lexisPredict_font_color') || '#000000');
+      setBtnBgColor(localStorage.getItem('lexisPredict_btn_bg_color') || '#000000');
+      setBorderColor(localStorage.getItem('lexisPredict_border_color') || '#000000');
+    };
 
-      toast({ title: "Atmosfera Neural Aplicada", description: theme.description });
-      setThemePrompt('');
-    } catch (e: any) {
-      toast({ title: "Motor Neural Instável", description: "Ativando modo de segurança...", variant: "destructive" });
-    } finally {
-      setIsGeneratingTheme(false);
-    }
+    loadSettings();
+    loadUsers();
+    return () => { isMounted.current = false; };
+  }, [profile?.empresa_id]);
+
+  const loadUsers = async () => {
+    const users = await getEmpresaUsers();
+    if (isMounted.current) setEmpresaUsers(users);
   };
 
-  const handlePresetChange = (preset: typeof AUTHORITY_PRESETS[0]) => {
-    setBgColor(preset.colors.background);
-    setFontColor(preset.colors.foreground);
-    setBtnBgColor(preset.colors.primary);
-    setBorderColor(preset.colors.border);
-    setSecondaryColor(preset.colors.secondary);
-    setBorderRadius(preset.radius);
-
-    applyGlobalTheme(preset.colors, preset.radius, longReadingMode);
-    toast({ title: `${preset.name} Ativado` });
+  const handleIaChange = (value: 'grok' | 'xai' | 'puter' | 'airforce') => {
+    setIaModel(value);
+    localStorage.setItem('lexisPredict_preferred_ia', value);
+    toast({ title: "Núcleo Técnico Alterado", description: `Motor ${value.toUpperCase()} ativado.` });
   };
 
-  const handleLocalWallpaperUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        updateManualSetting('lexisPredict_wallpaper', result, setWallpaper);
-        toast({ title: "Atmosfera Local Sincronizada" });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const updateManualSetting = (key: string, value: any, setter: any) => {
+  const updateSetting = (key: string, value: any, setter: any) => {
     setter(value);
     localStorage.setItem(key, String(value));
-    
-    if (key.includes('color')) {
-      const colors = {
-        background: key === 'lexisPredict_bg_color' ? value : bgColor,
-        foreground: key === 'lexisPredict_font_color' ? value : fontColor,
-        primary: key === 'lexisPredict_btn_bg_color' ? value : btnBgColor,
-        border: key === 'lexisPredict_border_color' ? value : borderColor,
-        secondary: key === 'lexisPredict_secondary_color' ? value : secondaryColor,
-        card: key === 'lexisPredict_bg_color' ? value : bgColor,
-        accent: key === 'lexisPredict_btn_bg_color' ? value : btnBgColor,
-      };
-      applyGlobalTheme(colors, borderRadius, longReadingMode);
-    }
-
-    if (key === 'lexisPredict_border_radius') document.documentElement.style.setProperty('--radius', `${value}px`);
-    if (key === 'lexisPredict_card_opacity') document.documentElement.style.setProperty('--card-opacity', String(value));
-    if (key === 'lexisPredict_sidebar_opacity') document.documentElement.style.setProperty('--sidebar-opacity', String(value));
-    if (key === 'lexisPredict_wallpaper') {
-       document.documentElement.style.backgroundImage = value ? `url(${value})` : 'none';
-       document.documentElement.style.backgroundSize = 'cover';
-       document.documentElement.style.backgroundAttachment = 'fixed';
-    }
-    if (key === 'lexisPredict_wallpaper_brightness') document.documentElement.style.setProperty('--wallpaper-brightness', String(value));
+    window.dispatchEvent(new Event('storage'));
   };
 
-  if (!mounted) return null;
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'main' | 'side') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    toast({ title: "Sincronizando Mídia..." });
+    const key = target === 'main' ? 'main_wallpaper_blob' : 'side_wallpaper_blob';
+    const success = await browserStorage.saveAsset(key, file);
+    if (success) {
+      if (target === 'main') { setMainWpUrl('LOCAL_ASSET'); setMainWpType(file.type.includes('video') ? 'video' : 'image'); }
+      else { setSideWpUrl('LOCAL_ASSET'); setSideWpType(file.type.includes('video') ? 'video' : 'image'); }
+      toast({ title: "Mídia Atualizada" });
+    }
+  };
+
+  const saveWpSettings = () => {
+    localStorage.setItem('lexis_wp_mode', wpMode);
+    localStorage.setItem('lexis_wp_main_url', mainWpUrl);
+    localStorage.setItem('lexis_wp_sidebar_url', sideWpUrl);
+    localStorage.setItem('lexis_wp_main_type', mainWpType);
+    localStorage.setItem('lexis_wp_sidebar_type', sideWpType);
+    localStorage.setItem('lexis_wp_opacity', wpOpacity.toString());
+    localStorage.setItem('lexisPredict_container_opacity', containerOpacity.toString());
+    localStorage.setItem('lexisPredict_border_radius', borderRadius.toString());
+    localStorage.setItem('lexisPredict_hard_shadow', hardShadow.toString());
+    window.dispatchEvent(new Event('storage'));
+    toast({ title: "Atmosfera de Gabinete Sincronizada" });
+  };
+
+  const handleCreateOperator = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isAddingUser || !profile?.empresa_id) return;
+    setIsAddUser(true);
+    try {
+      const cleanEmail = newUserForm.email.trim().toLowerCase();
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const tempClient = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } });
+      const { data: authData, error: authError } = await tempClient.auth.signUp({ email: cleanEmail, password: newUserForm.password, options: { data: { full_name: newUserForm.nome } } });
+      if (authError) throw authError;
+      await supabase.from('usuarios').insert({ auth_user_id: authData.user?.id, empresa_id: profile.empresa_id, nome: newUserForm.nome.trim().toUpperCase(), email: cleanEmail, cargo: newUserForm.cargo });
+      toast({ title: "Operador Adicionado" });
+      setIsAddUserModalOpen(false);
+      loadUsers();
+    } catch (error: any) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } finally {
+      setIsAddUser(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (userId === profile?.id) return;
+    if (confirm("Remover este usuário?")) {
+       const success = await removeEmpresaUser(userId);
+       if (success) { loadUsers(); toast({ title: "Usuário Removido" }); }
+    }
+  };
 
   return (
-    <div className="flex h-screen bg-background/90 font-sans text-foreground">
+    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-16 border-b border-border/30 bg-background/80 backdrop-blur-xl flex items-center justify-between px-8 shrink-0 z-40">
-          <div className="flex items-center gap-6">
-            <h1 className="font-bold text-sm tracking-[0.2em] uppercase">Gabinete Mission Control</h1>
-            <Badge variant="outline" className="border-primary text-primary text-[9px] uppercase font-bold tracking-[0.3em] px-3 py-1">Elite v9.5</Badge>
+        <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
+          <div className="flex items-center gap-4">
+            <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Configuração Sistema</h1>
+            <Badge variant="outline" className="border-black text-black text-[10px] uppercase font-black tracking-widest">v800.0 Elite Granular</Badge>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => handlePresetChange(AUTHORITY_PRESETS[0])} className="text-[10px] font-bold uppercase tracking-widest hover:text-primary">
-            <RotateCcw size={12} className="mr-2" /> Reset Factory
-          </Button>
         </header>
 
-        <div className="flex-1 overflow-auto p-8 max-w-6xl mx-auto w-full">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+        <div className="flex-1 overflow-auto p-8 max-w-5xl mx-auto w-full space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <aside className="space-y-1">
-              <NavButton active={activeTab === 'Style'} onClick={() => setActiveTab('Style')} icon={<Palette size={14}/>} label="Hardware Visual" />
-              <NavButton active={activeTab === 'Wallpaper'} onClick={() => setActiveTab('Wallpaper')} icon={<ImageIcon size={14}/>} label="Atmosfera (Fundo)" />
-              <NavButton active={activeTab === 'Engine'} onClick={() => setActiveTab('Engine')} icon={<Cpu size={14}/>} label="Núcleo Neural" />
-              <NavButton active={activeTab === 'System'} onClick={() => setActiveTab('System')} icon={<Globe size={14}/>} label="Localização" />
+              <Button variant={activeTab === 'Engine' ? 'default' : 'ghost'} onClick={() => setActiveTab('Engine')} className={cn("w-full justify-start rounded-none font-black uppercase text-xs h-10 border-2 border-transparent", activeTab === 'Engine' ? "bg-black text-white border-black" : "text-black hover:bg-black hover:text-white")}>
+                <Cpu size={18} className="mr-2" /> Núcleo Técnico
+              </Button>
+              <Button variant={activeTab === 'Style' ? 'default' : 'ghost'} onClick={() => setActiveTab('Style')} className={cn("w-full justify-start rounded-none font-black uppercase text-xs h-10 border-2 border-transparent", activeTab === 'Style' ? "bg-black text-white border-black" : "text-black hover:bg-black hover:text-white")}>
+                <Palette size={18} className="mr-2" /> Atmosfera & Visual
+              </Button>
+              <Button variant={activeTab === 'Users' ? 'default' : 'ghost'} onClick={() => setActiveTab('Users')} className={cn("w-full justify-start rounded-none font-black uppercase text-xs h-10 border-2 border-transparent", activeTab === 'Users' ? "bg-black text-white border-black" : "text-black hover:bg-black hover:text-white")}>
+                <Users size={18} className="mr-2" /> Gestão de Equipe
+              </Button>
+              <Button variant={activeTab === 'Sync' ? 'default' : 'ghost'} onClick={() => setActiveTab('Sync')} className={cn("w-full justify-start rounded-none font-black uppercase text-xs h-10 border-2 border-transparent", activeTab === 'Sync' ? "bg-black text-white border-black" : "text-black hover:bg-black hover:text-white")}>
+                <HardDrive size={18} className="mr-2" /> Infraestrutura
+              </Button>
             </aside>
 
-            <div className="md:col-span-3 space-y-12 pb-24">
+            <div className="md:col-span-3 space-y-6 pb-20">
+              {activeTab === 'Engine' && (
+                <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
+                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-4">
+                    <CardTitle className="text-black font-black uppercase text-sm">Tríade de Inteligência</CardTitle>
+                    <CardDescription className="text-[10px] font-black uppercase">Motores de processamento em redundância circular.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <RadioGroup value={iaModel} onValueChange={handleIaChange as any} className="grid grid-cols-1 gap-4">
+                      <IaOption id="xai" value="xai" title="xAI GROK 4.5" desc="Núcleo de soberania e raciocínio jurídico avançado." active={iaModel === 'xai'} />
+                      <IaOption id="airforce" value="airforce" title="AIRFORCE (DEEPSEEK V3)" desc="Alta performance em extração e triagem de contratos." active={iaModel === 'airforce'} />
+                      <IaOption id="grok" value="grok" title="GROQ (LLAMA 3.3)" desc="Redundância ultra-rápida para processamento em lote." active={iaModel === 'grok'} />
+                      <IaOption id="puter" value="puter" title="PUTER AI (CLAUDE)" desc="Reserva de emergência para alta disponibilidade via Claude." active={iaModel === 'puter'} />
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
+              )}
+
               {activeTab === 'Style' && (
-                <div className="space-y-12 animate-in fade-in duration-500">
-                  <Card className="bg-black border-2 border-primary/20 rounded-none">
-                    <CardHeader className="py-4 border-b border-primary/10">
-                      <CardTitle className="text-xs font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
-                        <Sparkles size={16} /> Neural Theme Architect
+                <div className="space-y-6">
+                  <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
+                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-4">
+                      <CardTitle className="text-black font-black uppercase text-sm flex items-center gap-2">
+                        <Sparkles size={18} className="text-yellow-500" /> Arquitetura Visual Granular
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-6">
-                      <div className="flex gap-4">
-                        <Input 
-                          placeholder="EX: LEWIS HAMILTON NA FERRARI..." 
-                          value={themePrompt}
-                          onChange={(e) => setThemePrompt(e.target.value)}
-                          className="bg-zinc-900 border-zinc-800 text-white font-black uppercase text-[10px] h-12 rounded-none focus-visible:ring-primary"
-                          onKeyDown={(e) => e.key === 'Enter' && handleApplyNeuralTheme()}
-                        />
-                        <Button onClick={handleApplyNeuralTheme} disabled={isGeneratingTheme || !themePrompt.trim()} className="h-12 px-10 bg-primary text-black font-black uppercase text-[10px] rounded-none">
-                          {isGeneratingTheme ? <Loader2 className="animate-spin" /> : <Sparkles size={16} />}
-                        </Button>
+                    <CardContent className="p-6 space-y-8">
+                      <div className="p-5 bg-black border-2 border-black flex items-center justify-between group transition-all cursor-default shadow-[8px_8px_0px_#facc15]">
+                         <div className="flex items-center gap-4">
+                            <Zap size={24} className="text-white animate-pulse" />
+                            <div>
+                              <p className="font-black text-xs uppercase text-white tracking-widest">Sincronização Cromática IA</p>
+                              <p className="text-[9px] font-black uppercase text-white/60">Cores adaptadas ao background em tempo real.</p>
+                            </div>
+                         </div>
+                         <Switch checked={autoTheme} onCheckedChange={(c) => updateSetting('lexis_auto_theme', c, setAutoTheme)} className="data-[state=checked]:bg-yellow-400 border-2 border-white" />
                       </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-4 border-t-2 border-black/5">
+                        <div className="space-y-6">
+                           <Label className="font-black text-black text-xs uppercase flex items-center gap-2"><Square size={14}/> Arredondamento (Radius: {borderRadius}px)</Label>
+                           <Slider value={[borderRadius]} onValueChange={([v]) => updateSetting('lexisPredict_border_radius', v, setBorderRadius)} max={24} step={1} className="[&_[role=slider]]:bg-black" />
+                        </div>
+                        <div className="flex items-center justify-between p-4 bg-gray-50 border-2 border-dashed border-black/20">
+                           <Label className="font-black text-black text-[10px] uppercase">Efeito Hard Shadow 3D</Label>
+                           <Switch checked={hardShadow} onCheckedChange={(c) => updateSetting('lexisPredict_hard_shadow', c, setHardShadow)} />
+                        </div>
+                      </div>
+
+                      {!autoTheme && (
+                        <div className="space-y-6 pt-6 border-t-2 border-black animate-in fade-in duration-500">
+                          <Label className="font-black text-black text-xs uppercase flex items-center gap-2"><Paintbrush size={14}/> Customização Cromática Manual</Label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <ColorInput label="Fundo (Background)" value={bgColor} onChange={(v) => updateSetting('lexisPredict_bg_color', v, setBgColor)} />
+                            <ColorInput label="Texto (Font)" value={fontColor} onChange={(v) => updateSetting('lexisPredict_font_color', v, setFontColor)} />
+                            <ColorInput label="Botões (Primary)" value={btnBgColor} onChange={(v) => updateSetting('lexisPredict_btn_bg_color', v, setBtnBgColor)} />
+                            <ColorInput label="Bordas (Border)" value={borderColor} onChange={(v) => updateSetting('lexisPredict_border_color', v, setBorderColor)} />
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
-                  <section className="space-y-4">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Live Telemetry Preview</Label>
-                    <div className="p-12 bg-[#f3f2f2] border-2 border-border/50 relative overflow-hidden flex items-center justify-center min-h-[380px]">
-                        {wallpaper && (
-                          <div className="absolute inset-0 z-0 bg-cover bg-center pointer-events-none" style={{ backgroundImage: `url(${wallpaper})`, filter: `brightness(${wallpaperBrightness})` }} />
-                        )}
-                        <div style={{ borderRadius: `${borderRadius}px`, opacity: cardOpacity }} className="w-full max-w-md p-8 border border-border bg-card shadow-2xl relative z-10 transition-all">
-                           <div className="flex items-center gap-4 mb-8">
-                              <div className="w-10 h-10 flex items-center justify-center bg-primary rounded-none">
-                                 <Layout size={20} className="text-primary-foreground" />
-                              </div>
+                  <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
+                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
+                      <CardTitle className="text-black font-black uppercase text-sm">Controle Multimídia</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-8">
+                       <div className="space-y-4">
+                          <Label className="font-black text-black text-xs uppercase">Wallpaper do Gabinete</Label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                             <div className="space-y-2">
+                                <div className="flex items-center gap-2 mb-2">
+                                   <Badge variant="outline" className={cn("text-[8px] font-black uppercase cursor-pointer", mainWpType === 'image' ? "bg-black text-white" : "")} onClick={() => setMainWpType('image')}>Imagem</Badge>
+                                   <Badge variant="outline" className={cn("text-[8px] font-black uppercase cursor-pointer", mainWpType === 'video' ? "bg-black text-white" : "")} onClick={() => setMainWpType('video')}>Vídeo</Badge>
+                                </div>
+                                <div className="relative">
+                                   <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
+                                   <Input placeholder="URL EXTERNA..." value={mainWpUrl === 'LOCAL_ASSET' ? 'ARQUIVO LOCAL' : mainWpUrl} onChange={e => setMainWpUrl(e.target.value)} className="pl-10 border-2 border-black h-11 text-[10px] font-black uppercase rounded-none" />
+                                </div>
+                             </div>
+                             <div className="flex flex-col justify-end">
+                                <input type="file" ref={mainFileInput} className="hidden" onChange={e => handleFileUpload(e, 'main')} accept="image/*,video/*" />
+                                <Button onClick={() => mainFileInput.current?.click()} variant="outline" className="border-2 border-black h-11 font-black uppercase text-[10px] rounded-none hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none">
+                                   <Upload size={14} className="mr-2" /> Upload Local
+                                </Button>
+                             </div>
+                          </div>
+                       </div>
+
+                       <div className="space-y-6 pt-4 border-t-2 border-black/5">
+                          <Label className="font-black text-black text-xs uppercase flex items-center gap-2"><Layers size={14}/> Opacidade do Fundo ({Math.round(wpOpacity * 100)}%)</Label>
+                          <Slider value={[wpOpacity]} onValueChange={([v]) => setWpOpacity(v)} max={1} step={0.01} className="[&_[role=slider]]:bg-black" />
+                       </div>
+
+                       <div className="space-y-6">
+                          <Label className="font-black text-black text-xs uppercase flex items-center gap-2"><Layers size={14}/> Opacidade dos Containers ({Math.round(containerOpacity * 100)}%)</Label>
+                          <Slider value={[containerOpacity]} onValueChange={([v]) => setContainerOpacity(v)} max={1} step={0.01} className="[&_[role=slider]]:bg-black" />
+                       </div>
+
+                       <Button onClick={saveWpSettings} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#000] hover:shadow-none">Sincronizar Atmosfera</Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {activeTab === 'Users' && (
+                <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
+                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black flex flex-row items-center justify-between py-4">
+                    <CardTitle className="text-black font-black uppercase text-sm">Corpo Técnico</CardTitle>
+                    {isAdmin && (
+                       <Dialog open={isAddUserModalOpen} onOpenChange={setIsAddUserModalOpen}>
+                         <DialogTrigger asChild>
+                           <Button size="sm" className="bg-white text-black border-2 border-black h-9 uppercase text-[10px] font-black hover:bg-black transition-all rounded-none px-6">
+                              <UserPlus size={12} className="mr-2" /> Novo Operador
+                           </Button>
+                         </DialogTrigger>
+                         <DialogContent className="bg-white border-2 border-black text-black rounded-none">
+                            <form onSubmit={handleCreateOperator}>
+                             <DialogHeader><DialogTitle className="text-black font-black uppercase">Provisionar Acesso</DialogTitle></DialogHeader>
+                             <div className="grid gap-4 py-4">
+                               <Input value={newUserForm.nome} onChange={e => setNewUserForm({...newUserForm, nome: e.target.value})} placeholder="NOME" className="border-2 border-black font-black rounded-none" required />
+                               <Input type="email" value={newUserForm.email} onChange={e => setNewUserForm({...newUserForm, email: e.target.value})} placeholder="E-MAIL" className="border-2 border-black font-black rounded-none" required />
+                               <Input type="password" value={newUserForm.password} onChange={e => setNewUserForm({...newUserForm, password: e.target.value})} placeholder="SENHA" className="border-2 border-black font-black rounded-none" required />
+                             </div>
+                             <DialogFooter><Button type="submit" disabled={isAddingUser} className="w-full bg-black text-white font-black uppercase h-12 rounded-none">Provisionar</Button></DialogFooter>
+                           </form>
+                         </DialogContent>
+                       </Dialog>
+                    )}
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y-2 divide-black/10">
+                      {empresaUsers.map((u) => (
+                        <div key={u.id} className="p-4 flex items-center justify-between hover:bg-black group transition-all">
+                           <div className="flex items-center gap-4">
+                              <div className="w-9 h-9 bg-[#f3f2f2] group-hover:bg-white flex items-center justify-center font-black text-xs border-2 border-black uppercase">{u.nome?.substring(0, 2) || '??'}</div>
                               <div>
-                                 <h4 className="font-black uppercase text-xs tracking-tight text-foreground">Gabinete Real-Time</h4>
-                                 <Badge className={cn("text-[8px] font-black uppercase mt-1", contrastRating === 'FAIL' ? "bg-red-600" : "bg-primary text-black")}>
-                                    Contraste {contrastRating}
-                                 </Badge>
+                                 <p className="text-xs font-black text-black group-hover:text-white uppercase">{u.nome}</p>
+                                 <p className="text-[9px] font-bold text-black/40 group-hover:text-white/40">{u.email}</p>
                               </div>
                            </div>
-                           <div className="flex gap-4">
-                              <Button className="flex-1 h-10 text-[9px] font-black uppercase bg-primary text-primary-foreground rounded-none">Primary Action</Button>
-                              <Button variant="outline" className="flex-1 h-10 text-[9px] font-black uppercase border-border text-foreground rounded-none hover:bg-secondary">Secondary Action</Button>
+                           <div className="flex items-center gap-3">
+                              <Badge variant="outline" className="border-2 border-black text-black group-hover:bg-white group-hover:text-black font-black uppercase text-[8px] h-6 rounded-none">{u.cargo}</Badge>
+                              {isAdmin && u.id !== profile?.id && (
+                                 <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u.id)} className="text-black/20 group-hover:text-red-50 hover:bg-transparent h-8 w-8"><Trash2 size={14} /></Button>
+                              )}
                            </div>
                         </div>
+                      ))}
                     </div>
-                  </section>
-
-                  <section className="space-y-6">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Authority Series Presets</Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                       {AUTHORITY_PRESETS.map((p) => (
-                         <button key={p.id} onClick={() => handlePresetChange(p)} className={cn("p-4 border-2 transition-all flex flex-col items-center gap-3 rounded-none bg-card", bgColor === p.colors.background ? "border-primary ring-2 ring-primary/10" : "border-border/50")}>
-                            <div className="w-8 h-8 rounded-full border border-black/5" style={{ backgroundColor: p.colors.background }}></div>
-                            <span className="text-[8px] font-black uppercase tracking-widest">{p.name.split(' ')[0]}</span>
-                         </button>
-                       ))}
-                    </div>
-                  </section>
-                </div>
+                  </CardContent>
+                </Card>
               )}
 
-              {activeTab === 'Wallpaper' && (
-                <div className="space-y-12 animate-in slide-in-from-right-4">
-                  <Card className="bg-card border-border/50 rounded-none">
-                    <CardHeader className="py-6 border-b border-border/30">
-                      <CardTitle className="text-xs font-black uppercase tracking-[0.3em]">Atmosfera de Gabinete</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-8 space-y-10">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                         <div className="space-y-6">
-                            <Label className="text-[10px] font-black uppercase opacity-60">Upload de Imagem Local</Label>
-                            <div onClick={() => wallpaperInputRef.current?.click()} className="border-2 border-dashed border-border/50 p-10 flex flex-col items-center justify-center cursor-pointer hover:bg-secondary/30 transition-all rounded-none group">
-                              <Upload size={24} className="mb-2 opacity-40 group-hover:text-primary transition-all" />
-                              <p className="text-[9px] font-black uppercase">Sincronizar Arquivo</p>
-                              <input type="file" accept="image/*" className="hidden" ref={wallpaperInputRef} onChange={handleLocalWallpaperUpload} />
-                            </div>
-                         </div>
-                         <div className="space-y-6">
-                            <Label className="text-[10px] font-black uppercase opacity-60">URL Customizada</Label>
-                            <Input value={wallpaper.startsWith('data:') ? 'IMAGEM LOCAL ATIVA' : wallpaper} onChange={(e) => updateManualSetting('lexisPredict_wallpaper', e.target.value, setWallpaper)} placeholder="HTTPS://..." className="bg-secondary/20 border-border h-11 text-[10px] font-black uppercase" />
-                            <div className="space-y-2">
-                               <div className="flex justify-between text-[10px] font-black uppercase">
-                                  <span>Brilho da Atmosfera</span>
-                                  <span>{Math.round(wallpaperBrightness * 100)}%</span>
-                               </div>
-                               <Slider value={[wallpaperBrightness]} onValueChange={([v]) => updateManualSetting('lexisPredict_wallpaper_brightness', v, setWallpaperBrightness)} min={0.1} max={1.2} step={0.01} />
-                            </div>
-                         </div>
+              {activeTab === 'Sync' && (
+                 <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
+                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black"><CardTitle className="text-black font-black uppercase text-sm">Infraestrutura Blindada</CardTitle></CardHeader>
+                  <CardContent className="p-6">
+                    <div className="p-12 bg-[#f3f2f2] rounded-none border-2 border-black border-dashed flex flex-col items-center justify-center text-center space-y-4">
+                      <ShieldCheck size={48} className="text-green-600" />
+                      <div>
+                        <p className="font-black text-black uppercase text-sm">Gabinete Cloud Sincronizado</p>
+                        <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mt-1">Conexão SaaS Multi-Tenant Operacional</p>
                       </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {activeTab === 'Engine' && (
-                <Card className="bg-card border-border/50 rounded-none animate-in slide-in-from-right-4">
-                  <CardHeader className="py-8 border-b border-border/30">
-                    <CardTitle className="text-xs font-black uppercase tracking-[0.3em]">Pentade Neural Mission Control</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-8">
-                    <RadioGroup value={iaModel} onValueChange={(val) => { setIaModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); }}>
-                      <EngineOption id="xai" label="xAI GROK 4.5" desc="Raciocínio sênior de alta fidelidade." active={iaModel === 'xai'} />
-                      <EngineOption id="airforce" label="AIRFORCE DEEPSEEK-V3" desc="Processamento ultra-veloz de dados." active={iaModel === 'airforce'} />
-                      <EngineOption id="groq-llama" label="GROQ LLAMA 3.3" desc="Comunicação fluida em tempo real." active={iaModel === 'groq-llama'} />
-                      <EngineOption id="groq-deepseek" label="GROQ DEEPSEEK R1" desc="Lógica profunda para casos críticos." active={iaModel === 'groq-deepseek'} />
-                      <EngineOption id="puter" label="PUTER AI" desc="Operação local para baixa latência." active={iaModel === 'puter'} />
-                    </RadioGroup>
+                      <Badge className="bg-green-600 text-white border-none font-black uppercase text-[10px] px-8 py-2 rounded-none shadow-[4px_4px_0px_#000]">ATIVO</Badge>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -321,26 +397,31 @@ export default function SettingsPage() {
   );
 }
 
-function NavButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) {
+function ColorInput({ label, value, onChange }: { label: string, value: string, onChange: (v: string) => void }) {
   return (
-    <Button variant="ghost" onClick={onClick} className={cn("w-full justify-start rounded-none font-black uppercase text-[10px] tracking-[0.2em] h-12 transition-all relative border-none", active ? "bg-primary text-black shadow-lg" : "text-muted-foreground hover:bg-secondary/30")}>
-      {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-black" />}
-      <span className="mr-4">{icon}</span> {label}
-    </Button>
+    <div className="space-y-2">
+      <Label className="text-[10px] font-black uppercase">{label}</Label>
+      <div className="flex gap-3">
+        <div className="w-11 h-11 border-2 border-black relative rounded-none overflow-hidden shrink-0">
+          <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 w-[150%] h-[150%] -translate-x-1/4 -translate-y-1/4 cursor-pointer" />
+        </div>
+        <Input value={value.toUpperCase()} onChange={(e) => onChange(e.target.value)} className="border-2 border-black h-11 font-mono text-xs font-black uppercase rounded-none" maxLength={7} />
+      </div>
+    </div>
   );
 }
 
-function EngineOption({ id, label, desc, active }: { id: string, label: string, desc: string, active: boolean }) {
+function IaOption({ id, value, title, desc, active }: { id: string, value: string, title: string, desc: string, active: boolean }) {
   return (
-    <label htmlFor={id} className={cn("flex items-center justify-between p-6 border-2 transition-all cursor-pointer mb-4 rounded-none", active ? "border-primary bg-primary/5" : "border-border/50")}>
-      <div className="flex items-center gap-5">
-         <RadioGroupItem value={id} id={id} />
-         <div>
-           <p className="font-black text-[10px] uppercase tracking-widest">{label}</p>
-           <p className="text-[9px] text-muted-foreground uppercase mt-1 opacity-60">{desc}</p>
-         </div>
+    <label htmlFor={id} className={cn("flex items-center justify-between p-5 rounded-none border-2 transition-all cursor-pointer group", active ? "bg-black border-black shadow-none" : "bg-white border-black/10 hover:border-black shadow-[4px_4px_0px_#000]")}>
+      <div className="flex items-center gap-4">
+        <RadioGroupItem value={value} id={id} className={cn("border-2", active ? "border-white text-white" : "border-black text-black")} />
+        <div>
+          <p className={cn("font-black text-xs uppercase transition-colors", active ? "text-white" : "text-black")}>{title}</p>
+          <p className={cn("text-[9px] font-black uppercase transition-colors", active ? "text-white/60" : "text-black/40")}>{desc}</p>
+        </div>
       </div>
-      {active && <Zap size={14} className="text-primary fill-primary animate-pulse" />}
+      {active && <Zap className="text-yellow-400 fill-yellow-400" size={16} />}
     </label>
   );
 }
