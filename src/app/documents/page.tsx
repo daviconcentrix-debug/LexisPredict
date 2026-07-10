@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
@@ -36,7 +35,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { extrairDadosProcuracao, extrairTextoDoPDFAction, generateProcuracaoPDFAction } from '@/app/actions/document-actions';
+import { extrairDadosProcuracao } from '@/ai/flows/document-flow';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import {
@@ -47,6 +46,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+// Global reference for PDFJS
+let pdfjsLib: any = null;
 
 const ADVOGADOS_BANCA = [
   { id: 'pablo', nome: 'PABLO MATHEUS SILVA BASTOS PEREIRA', estados: ["SP", "RN", "PI", "MT", "CE", "BA", "SC", "ES", "MS", "MG", "PR"] },
@@ -64,17 +66,33 @@ export default function DocumentGenerator() {
   const [extractedData, setExtractedData] = useState<any | null>(null);
   const [step, setStep] = useState(1); 
   const [fileLoading, setFileLoading] = useState(false);
+  const [pdfEngineReady, setPdfEngineReady] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [preferredIA, setPreferredIA] = useState('xai');
+  const [apiError, setApiError] = useState<{ engine: string, message: string } | null>(null);
   
   const [docLocal, setDocLocal] = useState('');
   const [docDate, setDocDate] = useState('');
 
   const { toast } = useToast();
+  const printRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setDocDate(new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }));
+    const savedIA = localStorage.getItem('lexisPredict_preferred_ia') || 'xai';
+    setPreferredIA(savedIA);
+
+    const initPdfJS = async () => {
+      try {
+        const pdfjs = await import('pdfjs-dist');
+        pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+        pdfjsLib = pdfjs;
+        setPdfEngineReady(true);
+      } catch (error) {
+        console.error("PDF.js Engine Load Failure:", error);
+      }
+    };
+    initPdfJS();
   }, []);
 
   const availableStates = useMemo(() => {
@@ -84,60 +102,77 @@ export default function DocumentGenerator() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !pdfEngineReady) return;
 
     setFileLoading(true);
-    const formData = new FormData();
-    formData.append('pdf', file);
-
     try {
-      const result = await extrairTextoDoPDFAction(formData);
-      if (result.success && result.text) {
-        setInputText(result.text);
-        toast({ title: "Contrato Transcrito" });
-      } else {
-        toast({ title: "Falha na Leitura", description: result.error, variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Erro de Servidor", variant: "destructive" });
-    } finally {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const typedarray = new Uint8Array(reader.result as ArrayBuffer);
+          const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+          let fullText = '';
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            fullText += textContent.items.map((item: any) => item.str).join(' ') + '\n';
+          }
+          setInputText(fullText);
+          toast({ title: "Contrato Lido" });
+        } catch (err) {
+          console.error("PDF Reader Error:", err);
+          toast({ title: "Falha na Leitura", variant: "destructive" });
+        } finally {
+          setFileLoading(false);
+        }
+      };
+      reader.readAsDataBuffer(file);
+    } catch (error) {
       setFileLoading(false);
+      toast({ title: "Erro de Buffer", variant: "destructive" });
     }
   };
 
   const handleExtract = async () => {
-    console.log("[DOCS] Iniciando Extração...");
-    if (!selectedLawyer || !selectedState) {
-      toast({ title: "Configuração Pendente", description: "Selecione o advogado e o estado antes de extrair.", variant: "destructive" });
-      return;
-    }
-    if (inputText.length < 50) {
-      toast({ title: "Texto Curto", description: "O contrato precisa ter pelo menos 50 caracteres.", variant: "destructive" });
-      return;
-    }
-
+    if (!inputText || loading || !selectedLawyer || !selectedState) return;
     setLoading(true);
     setApiError(null);
     try {
       const data = await extrairDadosProcuracao({ 
         text: inputText, 
         preferredLawyer: selectedLawyer,
-        preferredState: selectedState
+        preferredState: selectedState,
+        preferredModel: preferredIA
       });
       
       if (data && !data.error) {
         setExtractedData(data);
         setDocLocal(selectedState === "SP" ? "São Paulo - SP" : `${selectedState}`);
+        setDocDate(new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }));
         setStep(2);
-        toast({ title: "Triagem Neural Concluída" });
+        toast({ title: "Triagem Concluída" });
       } else {
-        setApiError(data.message || "A extração neural falhou. Verifique se o texto do contrato é válido.");
+        setApiError({ engine: preferredIA, message: "Todos os motores de triagem falharam ou o servidor excedeu o tempo limite." });
+        toast({ title: "falha na triagem", variant: "destructive" });
       }
     } catch (error: any) {
-      setApiError("Falha crítica de comunicação com o núcleo neural.");
+      console.error("Erro Crítico no Frontend:", error);
+      setApiError({ engine: preferredIA, message: "Falha técnica na extração." });
+      toast({ title: "falha na triagem", variant: "destructive" });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSwitchAndRetry = () => {
+    const engines = ['xai', 'airforce', 'grok'];
+    const currentIndex = engines.indexOf(preferredIA);
+    const nextIA = engines[(currentIndex + 1) % engines.length];
+    setPreferredIA(nextIA);
+    localStorage.setItem('lexisPredict_preferred_ia', nextIA);
+    setApiError(null);
+    toast({ title: "Alternando Motor...", description: `Migrando para ${nextIA.toUpperCase()}...` });
+    setTimeout(() => { if (inputText && selectedLawyer && selectedState) handleExtract(); }, 500);
   };
 
   const updateExtractedField = (category: 'cliente' | 'advogado', field: string, value: string) => {
@@ -154,28 +189,42 @@ export default function DocumentGenerator() {
     }
   };
 
-  const handleFinalize = async () => {
-    setLoading(true);
-    try {
-      const result = await generateProcuracaoPDFAction({
-        ...extractedData,
-        local: docLocal,
-        dataExtenso: docDate
-      });
+  const getEmailContent = () => {
+    if (!extractedData) return { subject: '', body: '' };
+    const clientName = extractedData.cliente?.nome || 'Cliente';
+    const processNumber = extractedData.processos?.[0]?.numero || 'S/N';
+    const lawyerName = extractedData.advogado?.nome || 'Advogado';
+    const honorific = extractedData.advogado?.cargo === 'advogada' ? 'Dra.' : 'Dr.';
+    const subject = `Nova Procuração - Processo ${processNumber}`;
+    const body = `Prezado(a) Sr.(a) ${clientName},\n\nInformamos que seu processo nº ${processNumber}, passará a ser acompanhado pelo ${honorific} ${lawyerName}, visando um acompanhamento ainda mais eficiente da demanda.\n\nPor esse motivo, será necessário anexar uma nova procuração atualizada aos autos.\n\nPedimos, por gentileza, que confira os dados do documento encaminhado, imprima e assine manualmente, com assinatura semelhante à do documento de identificação, realizando também o reconhecimento de firma em cartório.\n\nApós isso, solicitamos o envio de uma foto legível ou do documento digitalizado para juntada no processo.\n\nFicamos à disposição para quaisquer esclarecimentos.\n\nAtenciosamente,\nGabinete W1 Capital`;
+    return { subject, body };
+  };
 
-      if (result.success && result.base64) {
-        const link = document.createElement('a');
-        link.href = `data:application/pdf;base64,${result.base64}`;
-        link.download = `PROCURACAO_${extractedData.cliente.nome.replace(/\s+/g, '_')}.pdf`;
-        link.click();
-        toast({ title: "Documento Selado e Exportado" });
-      } else {
-        toast({ title: "Falha na Geração", description: result.error, variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Erro na Geração", variant: "destructive" });
-    } finally {
-      setLoading(false);
+  const handleSendEmail = () => {
+    if (!extractedData) return;
+    const email = extractedData.cliente?.email;
+    if (!email || email === '---' || email === '') {
+      toast({ title: "E-mail Ausente", description: "Insira o e-mail no passo anterior.", variant: "destructive" });
+      setStep(2);
+      return;
+    }
+    const { subject, body } = getEmailContent();
+    const mailto = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const link = document.createElement('a');
+    link.href = mailto;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Abrindo E-mail" });
+  };
+
+  const handleCopyText = () => {
+    const { body } = getEmailContent();
+    if (body) {
+      navigator.clipboard.writeText(body);
+      setCopied(true);
+      toast({ title: "Copiado" });
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -190,24 +239,29 @@ export default function DocumentGenerator() {
                    <img src="https://picsum.photos/seed/lexislogo/32/32" className="object-contain invert" alt="Logo" />
                 </div>
               </div>
-            <h1 className="font-black text-xl text-black uppercase tracking-tighter">Gerador de Procurações v10.5</h1>
+            <h1 className="font-black text-xl text-black uppercase tracking-tighter">Gerador de Procurações</h1>
           </div>
-          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">
-             Gabinete W1 Capital
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">
+               Engine: {preferredIA.toUpperCase()}
+            </Badge>
+          </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-4 lg:p-8 max-w-7xl mx-auto w-full">
+        <div className="flex-1 overflow-auto p-4 lg:p-8 max-w-7xl mx-auto w-full print:p-0">
           {step === 1 && (
             <div className="space-y-8 animate-in fade-in duration-500">
                {apiError && (
-                 <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 rounded-xl p-6 shadow-md">
+                 <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 rounded-none shadow-[8px_8px_0px_#000] p-6">
                    <div className="flex items-center gap-3">
                      <AlertCircle className="h-6 w-6" />
                      <AlertTitle className="font-black uppercase text-sm">Erro de Triagem</AlertTitle>
                    </div>
-                   <AlertDescription className="mt-3">
-                     <p className="text-[11px] font-bold uppercase leading-relaxed">{apiError}</p>
+                   <AlertDescription className="flex flex-col gap-4 mt-3">
+                     <p className="text-[11px] font-bold uppercase leading-relaxed">{apiError.message}</p>
+                     <Button onClick={handleSwitchAndRetry} className="bg-red-600 text-white border-2 border-black h-12 font-black uppercase text-[10px] rounded-none hover:bg-black transition-all w-full sm:w-fit px-10 shadow-[4px_4px_0px_#000]">
+                        Alternar Motor & Re-tentar
+                     </Button>
                    </AlertDescription>
                  </Alert>
                )}
@@ -293,11 +347,11 @@ export default function DocumentGenerator() {
           )}
 
           {step === 2 && extractedData && (
-            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto pb-24">
+            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
                <div className="flex items-center justify-between border-b-2 border-black pb-4">
                   <div className="flex items-center gap-3">
                      <Edit3 size={20} />
-                     <h2 className="text-xl font-black uppercase tracking-tight">Revisão de Gabinete v10.5</h2>
+                     <h2 className="text-xl font-black uppercase tracking-tight">Revisão de Gabinete v750.0</h2>
                   </div>
                   <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-transparent hover:border-black rounded-none">
                     <ChevronLeft size={14} className="mr-1" /> Voltar
@@ -311,25 +365,25 @@ export default function DocumentGenerator() {
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
                         <div className="grid gap-1">
-                          <Label className="uppercase text-[9px] font-black">Nome</Label>
+                          <Label>Nome</Label>
                           <Input value={extractedData.cliente?.nome || ''} onChange={(e) => updateExtractedField('cliente', 'nome', e.target.value)} className="border-black font-black uppercase rounded-none h-11" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="grid gap-1">
-                            <Label className="uppercase text-[9px] font-black">RG</Label>
+                            <Label>RG</Label>
                             <Input value={extractedData.cliente?.rg || ''} onChange={(e) => updateExtractedField('cliente', 'rg', e.target.value)} className="border-black font-black rounded-none h-11" />
                           </div>
                           <div className="grid gap-1">
-                            <Label className="uppercase text-[9px] font-black">CPF</Label>
+                            <Label>CPF</Label>
                             <Input value={extractedData.cliente?.cpf || ''} onChange={(e) => updateExtractedField('cliente', 'cpf', e.target.value)} className="border-black font-black rounded-none h-11" />
                           </div>
                         </div>
                         <div className="grid gap-1">
-                          <Label className="uppercase text-[9px] font-black">E-mail</Label>
+                          <Label>E-mail do Cliente</Label>
                           <Input value={extractedData.cliente?.email || ''} onChange={(e) => updateExtractedField('cliente', 'email', e.target.value)} placeholder="cliente@exemplo.com" className="border-black border-2 font-black uppercase rounded-none h-11" />
                         </div>
                         <div className="grid gap-1">
-                          <Label className="uppercase text-[9px] font-black">Endereço</Label>
+                          <Label>Endereço</Label>
                           <Input value={extractedData.cliente?.endereco || ''} onChange={(e) => updateExtractedField('cliente', 'endereco', e.target.value)} className="border-black font-black uppercase rounded-none h-11" />
                         </div>
                     </CardContent>
@@ -344,11 +398,15 @@ export default function DocumentGenerator() {
                         {extractedData.processos?.map((p: any, i: number) => (
                           <div key={i} className="space-y-4 p-4 bg-gray-50 border-2 border-dashed border-black/10">
                             <div className="grid gap-1">
-                              <Label className="uppercase text-[9px] font-black text-yellow-600">Instituição Financeira</Label>
-                              <Input value={p.banco || ''} onChange={(e) => updateProcessField(i, 'banco', e.target.value)} placeholder="BANCO..." className="border-black border-2 font-black uppercase rounded-none h-11 bg-white" />
+                              <Label className="text-yellow-600">Instituição Financeira (BANCO)</Label>
+                              <Input value={p.banco || ''} onChange={(e) => updateProcessField(i, 'banco', e.target.value)} placeholder="NOME DO BANCO..." className="border-black border-2 font-black uppercase rounded-none h-11 bg-white" />
                             </div>
                             <div className="grid gap-1">
-                              <Label className="uppercase text-[9px] font-black">Processo (CNJ)</Label>
+                              <Label className="text-yellow-600">CNPJ do Banco</Label>
+                              <Input value={p.cnpjBanco || ''} onChange={(e) => updateProcessField(i, 'cnpjBanco', e.target.value)} placeholder="00.000.000/0001-00" className="border-black border-2 font-black uppercase rounded-none h-11 bg-white" />
+                            </div>
+                            <div className="grid gap-1">
+                              <Label>Processo (CNJ)</Label>
                               <Input value={p.numero || ''} onChange={(e) => updateProcessField(i, 'numero', e.target.value)} className="border-black font-black rounded-none h-11 bg-white" />
                             </div>
                           </div>
@@ -363,20 +421,56 @@ export default function DocumentGenerator() {
                       <CardContent className="p-6 space-y-4">
                         <div className="grid gap-4">
                           <Input value={docLocal} onChange={(e) => setDocLocal(e.target.value)} placeholder="LOCAL (CIDADE - UF)" className="border-black font-black uppercase rounded-none h-11" />
-                          <Input value={docDate} onChange={(e) => setDocDate(e.target.value)} placeholder="DATA" className="border-black font-black uppercase rounded-none h-11" />
+                          <Input value={docDate} onChange={(e) => setDocDate(e.target.value)} placeholder="DATA POR EXTENSO" className="border-black font-black uppercase rounded-none h-11" />
                         </div>
                       </CardContent>
                     </Card>
-                    <Button onClick={handleFinalize} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
-                      {loading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
-                      Selar & Exportar PDF
-                    </Button>
+                    <Button onClick={() => setStep(3)} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]"><CheckCircle2 size={16} className="mr-2" /> Selar Documento</Button>
+                  </div>
+               </div>
+            </div>
+          )}
+
+          {step === 3 && extractedData && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+               <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-[1200px] mx-auto print:flex print:flex-col">
+                  <div className="lg:col-span-1 space-y-6 print:hidden">
+                    <Button variant="ghost" onClick={() => setStep(2)} className="w-full font-black uppercase text-[10px] border-2 border-transparent hover:border-black rounded-none h-10 mb-2"><ChevronLeft size={14} className="mr-1" /> Editar Dados</Button>
+                    <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
+                      <CardHeader className="bg-black text-white py-3">
+                         <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><MessageCircle size={14} className="text-green-400" /> Despacho</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 space-y-4">
+                         <Button onClick={handleCopyText} className="w-full bg-white text-black border-2 border-black h-11 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none">{copied ? <Check size={14} className="mr-2 text-green-600" /> : <Copy size={14} className="mr-2" />} Copiar Instruções</Button>
+                         <Button onClick={handleSendEmail} className="w-full bg-white text-black border-2 border-black h-11 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none"><Mail size={14} className="mr-2" /> Enviar por E-mail</Button>
+                      </CardContent>
+                    </Card>
+                    <Button onClick={() => window.print()} className="w-full bg-black text-white font-black uppercase text-[10px] h-14 rounded-none border-2 border-black shadow-[6px_6px_0px_#facc15] hover:shadow-none transition-all"><Printer size={16} className="mr-2" /> Exportar PDF Forense</Button>
+                  </div>
+                  <div className="lg:col-span-3 document-container bg-white shadow-2xl border-2 border-black print:shadow-none print:border-none">
+                    <div className="procuracao-page" ref={printRef}>
+                      <div className="doc-title">PROCURAÇÃO "AD JUDICIA"</div>
+                      <div className="doc-paragraph">
+                        <strong>{extractedData.cliente?.nome?.toUpperCase() || ''}</strong>, brasileiro, {extractedData.cliente?.estadoCivil || ''}, {extractedData.cliente?.profissao || ''}, portador do RG sob Nº {extractedData.cliente?.rg || ''} e devidamente inscrito no CPF sob Nº {extractedData.cliente?.cpf || ''}, residente e domiciliado à {extractedData.cliente?.endereco || ''}, com endereço eletrônico: {extractedData.cliente?.email || ''}, neste ato nomeia como seu procurador:
+                      </div>
+                      <div className="doc-paragraph">
+                        <strong>{extractedData.advogado?.nome?.toUpperCase() || ''}</strong>, brasileiro, {extractedData.advogado?.cargo || ''}, inscrito na OAB sob o número {extractedData.advogado?.oab || ''}, com endereço profissional na {extractedData.advogado?.endereco || ''}, e endereço eletrônico: {extractedData.advogado?.email || ''}.
+                      </div>
+                      <div className="doc-paragraph">
+                        <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da {extractedData.processos?.map((p: any, index: number) => (
+                          <span key={index}><strong><u>{p.acao}</u></strong> promovida contra <strong>{p.banco?.toUpperCase() || ''}</strong>, processo nº {p.numero || ''}{index < (extractedData.processos?.length || 0) - 1 ? '; ' : '.'}</span>
+                        ))}
+                      </div>
+                      <div className="doc-date">{docLocal || "____________________"}, {docDate || "____ de __________ de 202__."}</div>
+                      <div className="signature-area"><div className="signature-line"></div><div className="signature-name">{extractedData.cliente?.nome?.toUpperCase() || ''}</div></div>
+                    </div>
                   </div>
                </div>
             </div>
           )}
         </div>
         <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 print:hidden"><Copyright size={10} /> 2026 W1 Capital. <span className="uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span></footer>
+        <style jsx global>{`.document-container { width: 210mm; min-height: 297mm; padding: 30mm 25mm; margin-bottom: 50px; } @media print { body * { visibility: hidden; } .document-container, .document-container * { visibility: visible; } .document-container { position: absolute; left: 0; top: 0; width: 210mm; height: 297mm; padding: 30mm 25mm; border: none !important; box-shadow: none !important; } @page { size: A4; margin: 0; } } .procuracao-page { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; text-align: justify; } .doc-title { text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 40px; } .doc-paragraph { margin-bottom: 20px; text-indent: 20mm; } .doc-date { text-align: center; margin-top: 50px; margin-bottom: 60px; } .signature-area { text-align: center; margin-top: 40px; } .signature-line { width: 70%; border-top: 1px solid #000; margin: 0 auto 10px auto; } .signature-name { font-weight: bold; text-transform: uppercase; }`}</style>
       </main>
     </div>
   );

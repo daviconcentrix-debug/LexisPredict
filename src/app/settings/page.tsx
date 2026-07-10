@@ -20,9 +20,7 @@ import {
   Link as LinkIcon,
   X,
   ShieldCheck,
-  MousePointer2,
-  Languages,
-  Check
+  MousePointer2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -135,14 +133,6 @@ export default function SettingsPage() {
     toast({ title: `${preset.name} Ativado` });
   };
 
-  const handleLanguageChange = (newLang: string) => {
-    const lang = newLang.startsWith('pt') ? 'pt' : 'en';
-    setLocale(lang as any);
-    localStorage.setItem('lexisPredict_locale', lang);
-    toast({ title: "Idioma Alterado", description: "Sincronizando fuso horário do gabinete..." });
-    setTimeout(() => window.location.reload(), 800);
-  };
-
   const handleLocalWallpaperUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -193,7 +183,7 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-border/30 bg-background/80 backdrop-blur-xl flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-6">
             <h1 className="font-bold text-sm tracking-[0.2em] uppercase">Gabinete Mission Control</h1>
-            <Badge variant="outline" className="border-primary text-primary text-[9px] uppercase font-bold tracking-[0.3em] px-3 py-1">Elite v10.5</Badge>
+            <Badge variant="outline" className="border-primary text-primary text-[9px] uppercase font-bold tracking-[0.3em] px-3 py-1">Elite v9.5</Badge>
           </div>
           <Button variant="ghost" size="sm" onClick={() => handlePresetChange(AUTHORITY_PRESETS[0])} className="text-[10px] font-bold uppercase tracking-widest hover:text-primary">
             <RotateCcw size={12} className="mr-2" /> Reset Factory
@@ -236,32 +226,27 @@ export default function SettingsPage() {
 
                   <section className="space-y-4">
                     <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Live Telemetry Preview</Label>
-                    <div className="bg-card border border-border rounded-2xl p-6 shadow-sm relative overflow-hidden">
-                      {wallpaper && (
-                        <div className="absolute inset-0 z-0 bg-cover bg-center pointer-events-none opacity-20" style={{ backgroundImage: `url(${wallpaper})`, filter: `brightness(${wallpaperBrightness})` }} />
-                      )}
-                      <div className="relative z-10">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-primary rounded-sm" />
-                            <span className="text-sm font-medium text-foreground uppercase tracking-tight">GABINETE REAL-TIME</span>
-                          </div>
-                          <div className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-medium">
-                            CONTRASTE AAA
-                          </div>
+                    <div className="p-12 bg-[#f3f2f2] border-2 border-border/50 relative overflow-hidden flex items-center justify-center min-h-[380px]">
+                        {wallpaper && (
+                          <div className="absolute inset-0 z-0 bg-cover bg-center pointer-events-none" style={{ backgroundImage: `url(${wallpaper})`, filter: `brightness(${wallpaperBrightness})` }} />
+                        )}
+                        <div style={{ borderRadius: `${borderRadius}px`, opacity: cardOpacity }} className="w-full max-w-md p-8 border border-border bg-card shadow-2xl relative z-10 transition-all">
+                           <div className="flex items-center gap-4 mb-8">
+                              <div className="w-10 h-10 flex items-center justify-center bg-primary rounded-none">
+                                 <Layout size={20} className="text-primary-foreground" />
+                              </div>
+                              <div>
+                                 <h4 className="font-black uppercase text-xs tracking-tight text-foreground">Gabinete Real-Time</h4>
+                                 <Badge className={cn("text-[8px] font-black uppercase mt-1", contrastRating === 'FAIL' ? "bg-red-600" : "bg-primary text-black")}>
+                                    Contraste {contrastRating}
+                                 </Badge>
+                              </div>
+                           </div>
+                           <div className="flex gap-4">
+                              <Button className="flex-1 h-10 text-[9px] font-black uppercase bg-primary text-primary-foreground rounded-none">Primary Action</Button>
+                              <Button variant="outline" className="flex-1 h-10 text-[9px] font-black uppercase border-border text-foreground rounded-none hover:bg-secondary">Secondary Action</Button>
+                           </div>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-6 uppercase font-bold tracking-widest leading-relaxed">
-                          Esta simulação reflete fielmente o comportamento dos botões primários e secundários.
-                        </p>
-                        <div className="flex gap-3">
-                          <button className="px-6 py-2.5 rounded-xl text-sm font-semibold transition-all bg-primary text-primary-foreground hover:opacity-90 active:scale-[0.985]">
-                            PRIMARY ACTION
-                          </button>
-                          <button className="px-6 py-2.5 rounded-xl text-sm font-semibold transition-all border border-border text-foreground hover:bg-accent hover:text-accent-foreground active:scale-[0.985]">
-                            SECONDARY ACTION
-                          </button>
-                        </div>
-                      </div>
                     </div>
                   </section>
 
@@ -313,76 +298,20 @@ export default function SettingsPage() {
               )}
 
               {activeTab === 'Engine' && (
-                <Card className="bg-[#0F1117] border border-white/10 rounded-2xl p-5 animate-in slide-in-from-right-4">
-                  <CardHeader className="py-4 border-b border-white/5">
-                    <CardTitle className="text-sm font-semibold text-white uppercase tracking-widest">Pentade Neural Mission Control</CardTitle>
-                    <CardDescription className="text-[11px] text-white/50 uppercase">Selecione o motor de IA principal para auditorias.</CardDescription>
+                <Card className="bg-card border-border/50 rounded-none animate-in slide-in-from-right-4">
+                  <CardHeader className="py-8 border-b border-border/30">
+                    <CardTitle className="text-xs font-black uppercase tracking-[0.3em]">Pentade Neural Mission Control</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4">
+                  <CardContent className="p-8">
                     <RadioGroup value={iaModel} onValueChange={(val) => { setIaModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); }}>
-                      <EngineOption id="xai" label="xAI GROK 4.5" desc="Raciocínio sênior de alta fidelidade para auditorias complexas." active={iaModel === 'xai'} />
-                      <EngineOption id="airforce" label="AIRFORCE DEEPSEEK-V3" desc="Processamento ultra-rápido de grandes volumes de dados." active={iaModel === 'airforce'} />
-                      <EngineOption id="groq-llama" label="GROQ LLAMA 3.3" desc="Comunicação fluida em tempo real com baixa latência." active={iaModel === 'groq-llama'} />
-                      <EngineOption id="groq-deepseek" label="GROQ DEEPSEEK R1" desc="Lógica profunda para análise de riscos e casos críticos." active={iaModel === 'groq-deepseek'} />
-                      <EngineOption id="puter" label="PUTER AI" desc="Operação local e edge para privacidade e redundância." active={iaModel === 'puter'} />
+                      <EngineOption id="xai" label="xAI GROK 4.5" desc="Raciocínio sênior de alta fidelidade." active={iaModel === 'xai'} />
+                      <EngineOption id="airforce" label="AIRFORCE DEEPSEEK-V3" desc="Processamento ultra-veloz de dados." active={iaModel === 'airforce'} />
+                      <EngineOption id="groq-llama" label="GROQ LLAMA 3.3" desc="Comunicação fluida em tempo real." active={iaModel === 'groq-llama'} />
+                      <EngineOption id="groq-deepseek" label="GROQ DEEPSEEK R1" desc="Lógica profunda para casos críticos." active={iaModel === 'groq-deepseek'} />
+                      <EngineOption id="puter" label="PUTER AI" desc="Operação local para baixa latência." active={iaModel === 'puter'} />
                     </RadioGroup>
                   </CardContent>
                 </Card>
-              )}
-
-              {activeTab === 'System' && (
-                <div className="space-y-6 animate-in slide-in-from-right-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-foreground mb-4 uppercase tracking-widest">Idioma do Sistema</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <button
-                        onClick={() => handleLanguageChange('pt-BR')}
-                        className={cn(
-                          "flex items-center justify-between p-4 rounded-xl border transition-all",
-                          locale === 'pt' ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent/50'
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">🇧🇷</span>
-                          <div className="text-left">
-                            <div className="font-medium text-sm uppercase">Português (Brasil)</div>
-                            <div className="text-[10px] text-muted-foreground uppercase">Idioma padrão</div>
-                          </div>
-                        </div>
-                        {locale === 'pt' && <div className="text-primary"><Check size={16} /></div>}
-                      </button>
-
-                      <button
-                        onClick={() => handleLanguageChange('en-US')}
-                        className={cn(
-                          "flex items-center justify-between p-4 rounded-xl border transition-all",
-                          locale === 'en' ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent/50'
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">🇺🇸</span>
-                          <div className="text-left">
-                            <div className="font-medium text-sm uppercase">English (United States)</div>
-                            <div className="text-[10px] text-muted-foreground uppercase">International Protocol</div>
-                          </div>
-                        </div>
-                        {locale === 'en' && <div className="text-primary"><Check size={16} /></div>}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-border">
-                    <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-xl">
-                      <div>
-                        <div className="font-medium text-sm uppercase tracking-widest">Fuso Horário Operacional</div>
-                        <div className="text-[10px] text-muted-foreground uppercase mt-1">América/São Paulo (BRT - UTC-3)</div>
-                      </div>
-                      <div className="text-[9px] px-3 py-1 rounded-full bg-muted text-muted-foreground font-black uppercase">
-                        Automático
-                      </div>
-                    </div>
-                  </div>
-                </div>
               )}
             </div>
           </div>
@@ -403,15 +332,12 @@ function NavButton({ active, onClick, icon, label }: { active: boolean, onClick:
 
 function EngineOption({ id, label, desc, active }: { id: string, label: string, desc: string, active: boolean }) {
   return (
-    <label htmlFor={id} className={cn(
-      "flex items-center justify-between p-4 border transition-all cursor-pointer mb-2 rounded-xl",
-      active ? "border-primary bg-primary/10" : "border-white/10 hover:border-white/20 hover:bg-white/[0.015]"
-    )}>
-      <div className="flex items-center gap-4">
-         <RadioGroupItem value={id} id={id} className="border-white/20" />
+    <label htmlFor={id} className={cn("flex items-center justify-between p-6 border-2 transition-all cursor-pointer mb-4 rounded-none", active ? "border-primary bg-primary/5" : "border-border/50")}>
+      <div className="flex items-center gap-5">
+         <RadioGroupItem value={id} id={id} />
          <div>
-           <p className="font-bold text-xs text-white uppercase tracking-tight">{label}</p>
-           <p className="text-[10px] text-white/50 uppercase mt-0.5 leading-tight">{desc}</p>
+           <p className="font-black text-[10px] uppercase tracking-widest">{label}</p>
+           <p className="text-[9px] text-muted-foreground uppercase mt-1 opacity-60">{desc}</p>
          </div>
       </div>
       {active && <Zap size={14} className="text-primary fill-primary animate-pulse" />}
