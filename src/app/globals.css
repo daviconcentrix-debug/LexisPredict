@@ -1,44 +1,71 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* DEFAULT: STARLINK MINIMAL (WHITE) */
+    /* TEMA CLARO - ALTA LEGIBILIDADE WCAG AAA */
     --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --popover-foreground: 222 47% 11%;
     --primary: 191 100% 50%;
-    --primary-foreground: 0 0% 0%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
     --ring: 191 100% 50%;
     --radius: 4px;
 
     --card-opacity: 1;
     --sidebar-opacity: 1;
+    --wallpaper-brightness: 1;
 
     /* SIDEBAR VARIABLES */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 191 100% 50%;
     --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 191 100% 50%;
+  }
+
+  .dark {
+    --background: 222 47% 4%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 6%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 4%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 191 100% 50%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 222 47% 12%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 222 47% 12%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 222 47% 12%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 222 47% 12%;
+    --input: 222 47% 12%;
+    --ring: 191 100% 50%;
+    
+    --sidebar-background: 222 47% 4%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-border: 222 47% 12%;
+    --sidebar-accent: 222 47% 12%;
   }
 }
 
@@ -46,8 +73,14 @@
   * {
     @apply border-border;
   }
+  html {
+    background-image: none;
+    background-size: cover;
+    background-attachment: fixed;
+  }
   body {
-    @apply bg-background text-foreground antialiased transition-all duration-300;
+    @apply bg-background/90 text-foreground antialiased transition-all duration-300;
+    backdrop-filter: brightness(var(--wallpaper-brightness));
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
   }
 }
@@ -70,7 +103,7 @@
   }
 }
 
-/* Starlink Shadow Protocol */
+/* Starlink Precision Protocol */
 .hard-shadow {
   box-shadow: 6px 6px 0px hsla(var(--border), 0.2);
 }
@@ -83,4 +116,18 @@
 .icon-3d-block.black {
   @apply bg-black text-white;
   box-shadow: 4px 4px 0px hsla(var(--foreground), 0.2);
+}
+
+/* Print Overrides for Unified Report */
+@media print {
+  .print-no-bg {
+    background-image: none !important;
+    background-color: white !important;
+  }
+  .print-full-width {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 }

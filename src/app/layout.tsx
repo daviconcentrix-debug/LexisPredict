@@ -37,6 +37,9 @@ export default function RootLayout({
                 const radius = localStorage.getItem('lexisPredict_border_radius');
                 const cardOpacity = localStorage.getItem('lexisPredict_card_opacity');
                 const sidebarOpacity = localStorage.getItem('lexisPredict_sidebar_opacity');
+                const wallpaper = localStorage.getItem('lexisPredict_wallpaper');
+                const wallpaperBrightness = localStorage.getItem('lexisPredict_wallpaper_brightness') || '1';
+                const longReading = localStorage.getItem('lexis_long_reading') === 'true';
 
                 const hexToHsl = (hex) => {
                   if (!hex) return null;
@@ -89,12 +92,22 @@ export default function RootLayout({
                 if (radius) document.documentElement.style.setProperty('--radius', radius + 'px');
                 if (cardOpacity) document.documentElement.style.setProperty('--card-opacity', cardOpacity);
                 if (sidebarOpacity) document.documentElement.style.setProperty('--sidebar-opacity', sidebarOpacity);
+                
+                if (wallpaper) {
+                  document.documentElement.style.backgroundImage = \`url(\${wallpaper})\`;
+                  document.documentElement.style.backgroundSize = 'cover';
+                  document.documentElement.style.backgroundAttachment = 'fixed';
+                  document.documentElement.style.setProperty('--wallpaper-brightness', wallpaperBrightness);
+                }
+                if (longReading) {
+                  document.documentElement.style.filter = 'contrast(1.05) saturate(0.85) sepia(0.2)';
+                }
               } catch (e) {}
             })()
           `}
         </Script>
       </head>
-      <body className="font-sans antialiased bg-background text-foreground selection:bg-primary/20">
+      <body className="font-sans antialiased bg-background text-foreground selection:bg-primary/20 transition-all duration-300">
         <AuthProvider>
           {children}
           <Toaster />

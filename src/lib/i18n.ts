@@ -13,6 +13,7 @@ export const translations = {
     dashboard: "Dashboard",
     cases: "Processos",
     clients: "Clientes",
+    team: "Equipe",
     audit: "Auditoria 3D",
     documents: "Documentos",
     chat: "Consultoria",
@@ -33,7 +34,12 @@ export const translations = {
     statusCritico: "Crítico",
     statusArquivado: "Arquivado",
     statusEncerrado: "Encerrado",
-    statusSemPrazo: "Sem Prazo"
+    statusSemPrazo: "Sem Prazo",
+    roleAdmin: "Administrador",
+    roleOperator: "Operador",
+    roleViewer: "Visualizador",
+    teamTitle: "Gestão de Autoridade",
+    teamSubtitle: "Níveis de acesso e hierarquia do gabinete."
   },
   en: {
     management: "Management",
@@ -42,6 +48,7 @@ export const translations = {
     dashboard: "Dashboard",
     cases: "Legal Cases",
     clients: "Clients",
+    team: "Team",
     audit: "3D Audit",
     documents: "Documents",
     chat: "Advisory Chat",
@@ -62,7 +69,12 @@ export const translations = {
     statusCritico: "Critical",
     statusArquivado: "Archived",
     statusEncerrado: "Closed",
-    statusSemPrazo: "No Deadline"
+    statusSemPrazo: "No Deadline",
+    roleAdmin: "Administrator",
+    roleOperator: "Operator",
+    roleViewer: "Viewer",
+    teamTitle: "Authority Management",
+    teamSubtitle: "Access levels and cabinet hierarchy."
   }
 };
 

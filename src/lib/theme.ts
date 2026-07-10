@@ -1,7 +1,7 @@
 
 /**
- * MOTOR DE ENGENHARIA CROMÁTICA v5500.0 ELITE
- * Gerenciamento de Variáveis de Hardware e Presets Authority Series.
+ * MOTOR DE ENGENHARIA CROMÁTICA v9500.0 ELITE
+ * Gerenciamento de Variáveis de Hardware, Presets Authority Series e Wallpapers.
  * Propriedade de W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -120,7 +120,6 @@ export function applyGlobalTheme(colors: ThemeColors, radius: number, longDurati
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   
-  // Persistência
   localStorage.setItem('lexisPredict_bg_color', colors.background);
   localStorage.setItem('lexisPredict_font_color', colors.foreground);
   localStorage.setItem('lexisPredict_btn_bg_color', colors.primary);
@@ -128,7 +127,6 @@ export function applyGlobalTheme(colors: ThemeColors, radius: number, longDurati
   localStorage.setItem('lexisPredict_secondary_color', colors.secondary);
   localStorage.setItem('lexisPredict_border_radius', radius.toString());
 
-  // Aplicação de Variáveis
   root.style.setProperty('--background', hexToHsl(colors.background));
   root.style.setProperty('--card', hexToHsl(colors.card || colors.background));
   root.style.setProperty('--foreground', hexToHsl(colors.foreground));
@@ -137,14 +135,12 @@ export function applyGlobalTheme(colors: ThemeColors, radius: number, longDurati
   root.style.setProperty('--secondary', hexToHsl(colors.secondary));
   root.style.setProperty('--radius', `${radius}px`);
   
-  // Sidebar Sync
   root.style.setProperty('--sidebar-background', hexToHsl(colors.background));
   root.style.setProperty('--sidebar-foreground', hexToHsl(colors.foreground));
   root.style.setProperty('--sidebar-border', hexToHsl(colors.border));
   root.style.setProperty('--sidebar-primary', hexToHsl(colors.primary));
   root.style.setProperty('--sidebar-accent', hexToHsl(colors.secondary));
 
-  // Long Duration Protocol (Filtro Óptico)
   if (longDuration) {
     root.style.filter = 'contrast(1.05) saturate(0.85) sepia(0.2)';
     localStorage.setItem('lexis_long_reading', 'true');

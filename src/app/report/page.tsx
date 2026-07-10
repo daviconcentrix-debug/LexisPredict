@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -11,19 +10,21 @@ import {
   ShieldCheck, 
   Activity, 
   FileText, 
-  MessageSquare, 
   Copyright, 
-  SearchCheck, 
   Scale, 
-  Users,
   StickyNote,
-  Image as ImageIcon,
-  Edit3
+  Edit3,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle2,
+  Calendar,
+  Lock
 } from 'lucide-react';
 import Link from 'next/link';
 import { fetchRepoCases, fetchRepoNotes } from '@/app/actions/case-actions';
 import { useAuth } from '@/components/auth/auth-provider';
-import Image from 'next/image';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 export default function UnifiedReport() {
   const [cases, setCases] = useState<LegalCase[]>([]);
@@ -56,7 +57,6 @@ export default function UnifiedReport() {
     const total = cases.length;
     const statusCounts = { Vencido: 0, Atenção: 0, 'No Prazo': 0, Arquivado: 0, 'Sem Prazo': 0, 'É Hoje': 0, 'Caso Crítico': 0, 'Encerrado': 0 };
     const tribunalCounts: Record<string, number> = {};
-    const attorneyCounts: Record<string, number> = {};
 
     cases.forEach(c => {
       const situacao = (c.situacao || '').toUpperCase();
@@ -72,209 +72,230 @@ export default function UnifiedReport() {
           statusCounts['Sem Prazo']++;
         }
       }
-
       tribunalCounts[c.tribunal || 'Outros'] = (tribunalCounts[c.tribunal || 'Outros'] || 0) + 1;
-      attorneyCounts[c.advogado || 'Não Atribuído'] = (attorneyCounts[c.advogado || 'Não Atribuído'] || 0) + 1;
     });
 
+    const criticalCount = statusCounts.Vencido + statusCounts['É Hoje'] + statusCounts['Caso Crítico'];
     const topTribunals = Object.entries(tribunalCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
-    const topAttorneys = Object.entries(attorneyCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
-    return { total, statusCounts, topTribunals, topAttorneys };
+    return { total, statusCounts, criticalCount, topTribunals };
   }, [cases]);
-
-  const getPercent = (val: number) => metrics.total ? Math.round((val / metrics.total) * 100) : 0;
 
   if (!mounted || loading || authLoading) {
     return (
-      <div className="p-8 text-center font-mono text-black bg-white min-h-screen flex flex-col items-center justify-center space-y-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white space-y-4">
         <Activity className="animate-spin text-black" size={32} />
-        <p className="font-bold uppercase tracking-widest text-[10px] italic">Sincronizando Dossiê Individual (W1 Capital)...</p>
+        <p className="font-black uppercase tracking-[0.3em] text-[10px]">Compilando Dossiê Estratégico...</p>
       </div>
     );
   }
 
-  const userName = profile?.nome || "Gabinete Técnico";
-  const userRole = profile?.cargo || "Operador";
-  const highRiskCases = cases.filter(c => ['Vencido', 'É Hoje', 'Caso Crítico', 'Atenção'].includes(c.status)).slice(0, 100);
+  const highRiskCases = cases.filter(c => ['Vencido', 'É Hoje', 'Caso Crítico', 'Atenção'].includes(c.status)).slice(0, 50);
 
   return (
-    <div className="min-h-screen bg-white text-black p-8 md:p-12 max-w-5xl mx-auto print:p-0">
-      <div className="flex flex-col gap-6 mb-10 print:hidden">
-        <div className="flex justify-between items-center">
-          <Button variant="outline" asChild size="sm" className="border-black text-black font-black uppercase text-[10px] rounded-none border-2 shadow-[4px_4px_0px_#000] hover:shadow-none transition-all">
-            <Link href="/"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Link>
-          </Button>
-          <Button onClick={() => window.print()} className="bg-black text-white font-black px-8 rounded-none uppercase text-[10px] border-2 border-black shadow-[4px_4px_0px_#000] hover:shadow-none transition-all">
-            <Printer className="mr-2 h-4 w-4" /> Imprimir Dossiê
-          </Button>
-        </div>
-
-        <div className="p-6 bg-gray-50 border-2 border-dashed border-black space-y-4">
-           <div className="flex items-center gap-2 mb-2">
-              <Edit3 size={16} className="text-black" />
-              <p className="text-[10px] font-black uppercase tracking-widest">Parecer Técnico Adicional (Opcional)</p>
-           </div>
-           <Textarea 
-             placeholder="Digite aqui observações gerais, metas ou comentários que devem constar ao final deste relatório..."
-             value={customComment}
-             onChange={(e) => setCustomComment(e.target.value)}
-             className="min-h-[100px] border-2 border-black font-black uppercase text-xs rounded-none bg-white focus-visible:ring-0"
-           />
-           <p className="text-[9px] font-bold text-black/40 uppercase">Este texto será incluído na seção de observações do dossiê impresso.</p>
-        </div>
+    <div className="min-h-screen bg-[#f8f9fb] p-8 md:p-16 max-w-5xl mx-auto print:p-0 print:bg-white print:max-w-none font-sans text-black relative">
+      {/* HEADER CONTROLS */}
+      <div className="flex justify-between items-center mb-12 print:hidden">
+        <Button variant="ghost" asChild className="font-black uppercase text-[10px] hover:bg-black hover:text-white border-2 border-transparent hover:border-black rounded-none">
+          <Link href="/"><ArrowLeft size={14} className="mr-2" /> Voltar</Link>
+        </Button>
+        <Button onClick={() => window.print()} className="bg-black text-white font-black uppercase text-[10px] h-12 px-10 rounded-none shadow-[6px_6px_0px_#ddd] hover:shadow-none transition-all">
+          <Printer size={16} className="mr-2" /> Exportar PDF Forense
+        </Button>
       </div>
 
-      <header className="border-b-4 border-black pb-8 mb-10">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-extrabold uppercase tracking-tighter leading-none">Relatório Jurídico Consolidado</h1>
-            <p className="text-sm font-bold text-gray-700 mt-2 uppercase tracking-wide italic">SaaS Multi-Tenant • {profile?.empresa_id || "W1 CAPITAL"}</p>
+      {/* PARECER TÉCNICO INPUT */}
+      <section className="mb-12 p-6 bg-white border-2 border-dashed border-black/10 space-y-4 print:hidden">
+        <div className="flex items-center gap-2">
+           <Edit3 size={16} />
+           <p className="text-[10px] font-black uppercase tracking-widest">Parecer do Auditor (Opcional)</p>
+        </div>
+        <Textarea 
+          placeholder="INSIRA AQUI AS OBSERVAÇÕES ESTRATÉGICAS PARA O RELATÓRIO..."
+          value={customComment}
+          onChange={(e) => setCustomComment(e.target.value)}
+          className="min-h-[100px] border-2 border-black/5 rounded-none font-black uppercase text-[10px] focus-visible:ring-0 focus-visible:border-black"
+        />
+      </section>
+
+      {/* OFFICIAL REPORT CONTENT */}
+      <div className="report-canvas bg-white shadow-2xl border-t-[16px] border-black p-12 print:shadow-none print:border-t-[8px]">
+        <header className="flex justify-between items-start border-b-2 border-black pb-10 mb-12">
+          <div className="space-y-4">
+            <h1 className="text-4xl font-black uppercase tracking-tighter leading-none">Relatório Jurídico Consolidado</h1>
+            <div className="flex items-center gap-4">
+               <Badge className="bg-black text-white font-black rounded-none px-3 py-1 uppercase text-[10px]">{profile?.empresa_id || "W1 CAPITAL"}</Badge>
+               <span className="text-[10px] font-black uppercase opacity-40 flex items-center gap-2"><Calendar size={12}/> {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+            </div>
           </div>
           <div className="text-right">
-            <p className="text-sm font-black uppercase">{userName}</p>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{userRole}</p>
-          </div>
-        </div>
-      </header>
-
-      <section className="mb-12">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-1.5 bg-black text-white rounded-none border border-black"><SearchCheck size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">1. Indicadores de Saúde do Gabinete</h2>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-          <div className="p-5 bg-gray-50 border-2 border-black rounded-none shadow-[4px_4px_0px_#000]">
-            <p className="text-[9px] font-black text-gray-400 uppercase">Total Sob Gestão</p>
-            <p className="text-3xl font-black">{metrics.total}</p>
-          </div>
-          <div className="p-5 bg-red-50 border-2 border-red-600 rounded-none shadow-[4px_4px_0px_#dc2626]">
-            <p className="text-[9px] font-black text-red-400 uppercase">Alertas Críticos</p>
-            <p className="text-3xl font-black text-red-600">{metrics.statusCounts.Vencido + metrics.statusCounts['É Hoje'] + metrics.statusCounts['Caso Crítico']}</p>
-          </div>
-          <div className="p-5 bg-amber-50 border-2 border-orange-500 rounded-none shadow-[4px_4px_0px_#f97316]">
-            <p className="text-[9px] font-black text-amber-400 uppercase">Em Atenção</p>
-            <p className="text-3xl font-black text-orange-600">{metrics.statusCounts.Atenção}</p>
-          </div>
-          <div className="p-5 bg-green-50 border-2 border-green-600 rounded-none shadow-[4px_4px_0px_#16a34a]">
-            <p className="text-[9px] font-black text-green-400 uppercase">Saudáveis</p>
-            <p className="text-3xl font-black text-green-600">{metrics.statusCounts['No Prazo']}</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="mb-12">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-1.5 bg-black text-white rounded-none border border-black"><FileText size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">2. Triagem de Casos de Alta Prioridade</h2>
-        </div>
-        <div className="border-2 border-black rounded-none overflow-hidden">
-          <table className="w-full text-left text-[10px] border-collapse">
-            <thead className="bg-gray-100 border-b-2 border-black">
-              <tr className="uppercase font-extrabold text-gray-700">
-                <th className="px-5 py-3 border-r border-gray-300">Cliente</th>
-                <th className="px-5 py-3 border-r border-gray-300">Protocolo</th>
-                <th className="px-5 py-3 border-r border-gray-300">Prazo</th>
-                <th className="px-5 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y border-gray-200">
-              {highRiskCases.length > 0 ? highRiskCases.map((c, i) => (
-                <tr key={i}>
-                  <td className="px-5 py-3 font-extrabold uppercase border-r border-gray-200">{c.cliente}</td>
-                  <td className="px-5 py-3 font-mono text-gray-500 border-r border-gray-200">{c.protocolo}</td>
-                  <td className="px-5 py-3 border-r border-gray-200 font-bold">{c.proximoPrazo || '-'}</td>
-                  <td className="px-5 py-3 font-black uppercase">
-                    <span className={['Vencido', 'É Hoje', 'Caso Crítico'].includes(c.status) ? 'text-red-600' : 'text-orange-500'}>
-                      {c.status}
-                    </span>
-                  </td>
-                </tr>
-              )) : (
-                <tr><td colSpan={4} className="px-5 py-10 text-center italic text-gray-400">Nenhum registro de alta prioridade localizado para exportação.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="mb-12 break-inside-avoid">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-1.5 bg-black text-white rounded-none border border-black"><StickyNote size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">3. Evidências & Notas de Gabinete</h2>
-        </div>
-        <div className="space-y-6">
-           {notes.length > 0 ? notes.map((note) => (
-             <div key={note.id} className="p-6 border-2 border-black bg-white shadow-[4px_4px_0px_#000] break-inside-avoid">
-                <div className="flex justify-between items-start mb-4 border-b border-black/10 pb-2">
-                   <h3 className="text-sm font-black uppercase">{note.title}</h3>
-                   <span className="text-[9px] font-bold text-gray-400 uppercase">{note.updatedAt}</span>
-                </div>
-                <div className="flex flex-col md:flex-row gap-6">
-                   <div className="flex-1">
-                      <p className="text-[11px] font-black uppercase leading-relaxed text-black/80 whitespace-pre-wrap">{note.content}</p>
-                   </div>
-                   {note.imageUrl && (
-                      <div className="w-full md:w-48 h-48 relative border-2 border-black shrink-0">
-                         <img src={note.imageUrl} alt="Evidência" className="w-full h-full object-cover" />
-                      </div>
-                   )}
-                </div>
+             <p className="text-xs font-black uppercase">{profile?.nome || "GABINETE TÉCNICO"}</p>
+             <p className="text-[9px] font-black uppercase opacity-40">{profile?.cargo || "OPERADOR"} DE AUDITORIA</p>
+             <div className="mt-4 flex items-center justify-end gap-1.5 text-[9px] font-black uppercase text-green-600">
+                <ShieldCheck size={12} /> AUTHENTICATED SYSTEM
              </div>
-           )) : (
-             <div className="p-10 border-2 border-dashed border-black/20 text-center italic text-gray-400 text-xs uppercase">Nenhuma anotação estratégica anexada a este dossiê.</div>
-           )}
-        </div>
-      </section>
+          </div>
+        </header>
 
-      {customComment && (
-        <section className="mb-12 break-inside-avoid">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-1.5 bg-black text-white rounded-none border border-black"><MessageSquare size={18} /></div>
-            <h2 className="text-lg font-extrabold uppercase tracking-tight">4. Parecer Complementar do Auditor</h2>
-          </div>
-          <div className="p-8 border-4 border-black bg-gray-50 italic text-sm font-black uppercase leading-loose">
-             {customComment}
-          </div>
+        {/* SECTION 1: KPIS */}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
+          <MetricCard label="Total sob Gestão" value={metrics.total} color="border-black" />
+          <MetricCard label="Alertas Críticos" value={metrics.criticalCount} color="border-red-600" textColor="text-red-600" />
+          <MetricCard label="Em Atenção" value={metrics.statusCounts.Atenção} color="border-orange-500" textColor="text-orange-500" />
+          <MetricCard label="Saudáveis" value={metrics.statusCounts['No Prazo'] + metrics.statusCounts['Sem Prazo']} color="border-green-600" textColor="text-green-600" />
         </section>
-      )}
 
-      <section className="mb-12 break-inside-avoid">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-1.5 bg-black text-white rounded-none border border-black"><Scale size={18} /></div>
-          <h2 className="text-lg font-extrabold uppercase tracking-tight">{customComment ? '5' : '4'}. Analytics: Distribuição por Tribunal</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-           <div className="space-y-4">
-              {metrics.topTribunals.map(([name, count]) => (
-                <div key={name} className="space-y-1.5">
-                  <div className="flex justify-between text-[10px] font-black uppercase tracking-wider">
-                    <span>{name}</span>
-                    <span>{count} ({getPercent(count)}%)</span>
-                  </div>
-                  <div className="h-2 w-full bg-gray-100 rounded-none overflow-hidden border border-black/10">
-                    <div className="h-full bg-black" style={{ width: `${getPercent(count)}%` }} />
-                  </div>
-                </div>
-              ))}
+        {/* SECTION 2: CASOS CRÍTICOS */}
+        <section className="mb-16">
+           <div className="flex items-center gap-3 mb-6 border-l-[10px] border-black pl-4">
+              <h2 className="text-xl font-black uppercase tracking-tight">Triagem de Casos Críticos</h2>
            </div>
-           <div className="bg-gray-50 p-6 border-2 border-dashed border-black/20 flex flex-col justify-center text-center space-y-2">
-              <p className="text-[10px] font-black uppercase text-black/40 tracking-widest">Autenticidade de Perfil</p>
-              <p className="text-xs font-black uppercase leading-relaxed">
-                Relatório consolidado para o auditor {userName}. Todas as evidências foram extraídas da base individual W1 Capital.
-              </p>
+           <div className="border-2 border-black overflow-hidden">
+              <table className="w-full text-left text-[9px] font-black uppercase border-collapse">
+                <thead className="bg-[#f3f2f2] border-b-2 border-black">
+                  <tr>
+                    <th className="px-6 py-4 border-r border-black/10">Cliente / Protocolo</th>
+                    <th className="px-6 py-4 border-r border-black/10">Próximo Prazo</th>
+                    <th className="px-6 py-4">Status Operacional</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y-2 divide-black/5">
+                  {highRiskCases.length > 0 ? highRiskCases.map((c, i) => (
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 border-r border-black/10">
+                        <p className="leading-tight">{c.cliente}</p>
+                        <p className="text-[8px] opacity-40 mt-1 font-mono">{c.protocolo}</p>
+                      </td>
+                      <td className="px-6 py-4 border-r border-black/10">{c.proximoPrazo || 'S/ Registro'}</td>
+                      <td className="px-6 py-4">
+                         <span className={cn(
+                           "px-2 py-0.5 rounded-none text-[8px]",
+                           ['Vencido', 'É Hoje', 'Caso Crítico'].includes(c.status) ? "bg-red-600 text-white" : "bg-orange-500 text-white"
+                         )}>{c.status}</span>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan={3} className="px-6 py-20 text-center italic opacity-30">Nenhum registro de alta prioridade localizado.</td></tr>
+                  )}
+                </tbody>
+              </table>
            </div>
-        </div>
-      </section>
+        </section>
 
-      <footer className="mt-20 pt-8 border-t-4 border-black text-center space-y-4">
-        <div className="flex items-center justify-center gap-2 text-[10px] text-black font-black uppercase tracking-widest">
-          <Copyright size={10} /> 2026 W1 Capital.
-        </div>
-        <div className="inline-block px-6 py-2 border-2 border-black bg-white shadow-[4px_4px_0px_#000]">
-           <p className="text-[10px] text-black font-black uppercase tracking-tighter">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</p>
-        </div>
-      </footer>
+        {/* SECTION 3: TRIBUNALS & ANALYTICS */}
+        <section className="mb-16 break-inside-avoid">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              <div>
+                 <div className="flex items-center gap-3 mb-6 border-l-[10px] border-black pl-4">
+                    <h2 className="text-xl font-black uppercase tracking-tight">Distribuição por Tribunal</h2>
+                 </div>
+                 <div className="space-y-4">
+                    {metrics.topTribunals.map(([name, count]) => {
+                      const pct = metrics.total ? Math.round((count / metrics.total) * 100) : 0;
+                      return (
+                        <div key={name} className="space-y-1">
+                           <div className="flex justify-between text-[8px] font-black uppercase tracking-widest">
+                              <span>{name}</span>
+                              <span>{count} ({pct}%)</span>
+                           </div>
+                           <div className="h-2 w-full bg-[#f3f2f2] border border-black/5">
+                              <div className="h-full bg-black" style={{ width: `${pct}%` }} />
+                           </div>
+                        </div>
+                      );
+                    })}
+                 </div>
+              </div>
+              <div className="flex flex-col justify-center items-center text-center p-8 bg-[#f3f2f2] border-4 border-dashed border-black/10 space-y-4">
+                 <ShieldCheck size={48} className="opacity-20" />
+                 <p className="text-[10px] font-black uppercase leading-relaxed tracking-widest">
+                    Este documento é uma representação fidedigna do banco de dados cloud W1 Capital sob a jurisdição do auditor logado.
+                 </p>
+              </div>
+           </div>
+        </section>
+
+        {/* SECTION 4: EVIDÊNCIAS */}
+        {notes.length > 0 && (
+          <section className="mb-16 break-inside-avoid">
+            <div className="flex items-center gap-3 mb-8 border-l-[10px] border-black pl-4">
+              <h2 className="text-xl font-black uppercase tracking-tight">Log de Evidências & Notas</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+               {notes.slice(0, 10).map((note) => (
+                 <div key={note.id} className="p-5 border-2 border-black space-y-4 break-inside-avoid">
+                    <div className="flex justify-between items-start border-b border-black/10 pb-2">
+                       <h3 className="text-[10px] font-black uppercase max-w-[70%]">{note.title}</h3>
+                       <span className="text-[8px] font-black opacity-40">{note.updatedAt}</span>
+                    </div>
+                    <p className="text-[9px] font-black uppercase leading-relaxed text-black/60">{note.content}</p>
+                    {note.imageUrl && (
+                      <div className="border-2 border-black grayscale">
+                         <img src={note.imageUrl} alt="Anexo" className="w-full h-32 object-cover" />
+                      </div>
+                    )}
+                 </div>
+               ))}
+            </div>
+          </section>
+        )}
+
+        {/* CUSTOM PARECER FOOTER */}
+        {customComment && (
+          <section className="mt-16 p-10 bg-black text-white space-y-4 break-inside-avoid">
+             <div className="flex items-center gap-2">
+                <Edit3 size={16} className="text-primary" />
+                <h3 className="text-xs font-black uppercase tracking-[0.2em]">Parecer Complementar</h3>
+             </div>
+             <p className="text-sm font-black uppercase leading-loose italic">{customComment}</p>
+          </section>
+        )}
+
+        <footer className="mt-20 pt-10 border-t-4 border-black text-center space-y-6">
+           <div className="flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.4em]">
+              <Copyright size={10} /> 2026 W1 CAPITAL • ADVANCED LEGAL OPS
+           </div>
+           <div className="inline-block px-12 py-4 border-2 border-black bg-white shadow-[8px_8px_0px_#f3f2f2]">
+              <p className="text-xs font-black uppercase tracking-tighter">Relatório Selado e Auditado por Davi Alves Figueredo</p>
+           </div>
+        </footer>
+      </div>
+
+      <style jsx global>{`
+        @media print {
+          body { background: white !important; }
+          .report-canvas { border: none !important; box-shadow: none !important; p-0 !important; }
+          @page { size: A4; margin: 20mm; }
+          .print-hidden { display: none !important; }
+        }
+        .report-canvas {
+          background-image: radial-gradient(#000 0.5px, transparent 0.5px);
+          background-size: 30px 30px;
+          background-position: center;
+          background-attachment: local;
+        }
+        .report-canvas > * {
+          position: relative;
+          z-index: 1;
+        }
+        .report-canvas::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: white;
+          opacity: 0.96;
+          z-index: 0;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function MetricCard({ label, value, color, textColor = "text-black" }: { label: string, value: number, color: string, textColor?: string }) {
+  return (
+    <div className={cn("p-6 border-2 text-center space-y-2 rounded-none bg-white", color)}>
+       <p className="text-[9px] font-black uppercase opacity-40 tracking-widest">{label}</p>
+       <p className={cn("text-4xl font-black leading-none", textColor)}>{value}</p>
     </div>
   );
 }

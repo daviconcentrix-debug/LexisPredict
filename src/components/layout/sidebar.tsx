@@ -21,7 +21,7 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
-  Globe
+  UserPlus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,7 @@ export function Sidebar() {
   const { profile, signOut } = useAuth();
   
   const t = getTranslation(locale);
+  const isAdmin = profile?.cargo === 'Administrador';
 
   useEffect(() => {
     const savedLocale = localStorage.getItem('lexisPredict_locale') as Locale;
@@ -56,6 +57,7 @@ export function Sidebar() {
         { label: t.dashboard, href: '/', icon: LayoutDashboard },
         { label: t.cases, href: '/cases', icon: Briefcase },
         { label: t.clients, href: '/clients', icon: Users },
+        ...(isAdmin ? [{ label: t.team, href: '/team', icon: UserPlus }] : []),
       ]
     },
     {
@@ -83,13 +85,13 @@ export function Sidebar() {
     <div className="h-full flex flex-col bg-sidebar border-r border-border/50">
       <div className="h-16 flex items-center px-6 border-b border-border/30">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-sm bg-primary flex items-center justify-center">
+          <div className="w-8 h-8 rounded-sm bg-primary flex items-center justify-center shadow-[0_0_15px_rgba(0,209,255,0.3)]">
             <span className="text-black font-bold text-xs">LP</span>
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-bold text-xs tracking-widest uppercase">LexisPredict</span>
-              <span className="text-[9px] text-primary font-bold uppercase tracking-[0.2em]">Elite v3.0</span>
+              <span className="font-bold text-[11px] tracking-widest uppercase">LexisPredict</span>
+              <span className="text-[8px] text-primary font-bold uppercase tracking-[0.2em]">Elite v8.5</span>
             </div>
           )}
         </div>
@@ -99,7 +101,7 @@ export function Sidebar() {
         {navGroups.map((group) => (
           <div key={group.title} className="space-y-1">
             {!collapsed && (
-              <p className="px-3 mb-2 text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-40">
+              <p className="px-3 mb-2 text-[8px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-40">
                 {group.title}
               </p>
             )}
@@ -108,15 +110,15 @@ export function Sidebar() {
                 key={item.label}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-sm transition-all duration-200 group relative",
+                  "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative",
                   pathname === item.href 
-                    ? "bg-secondary text-primary" 
+                    ? "bg-primary/10 text-primary" 
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary/30"
                 )}
               >
-                {pathname === item.href && <div className="nav-active-line" />}
-                <item.icon className={cn("w-4 h-4 shrink-0", pathname === item.href ? "text-primary" : "opacity-60 group-hover:opacity-100")} />
-                {!collapsed && <span className="text-xs font-medium tracking-wide uppercase">{item.label}</span>}
+                {pathname === item.href && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary rounded-full shadow-[0_0_10px_#00D1FF]" />}
+                <item.icon className={cn("w-4 h-4 shrink-0 transition-colors", pathname === item.href ? "text-primary" : "opacity-60 group-hover:opacity-100")} />
+                {!collapsed && <span className="text-[10px] font-bold tracking-wider uppercase">{item.label}</span>}
               </Link>
             ))}
           </div>
@@ -125,13 +127,13 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-border/30 space-y-4">
         {!collapsed && (
-          <div className="flex items-center gap-3 p-2 rounded-sm bg-secondary/30">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-[10px]">
+          <div className="flex items-center gap-3 p-2 rounded-sm bg-secondary/30 border border-border/10">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-[10px] border border-primary/20">
               {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[11px] font-bold uppercase truncate">{profile?.nome || 'User'}</span>
-              <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{profile?.cargo || 'Operator'}</span>
+              <span className="text-[10px] font-bold uppercase truncate text-foreground">{profile?.nome || 'User'}</span>
+              <span className="text-[8px] text-muted-foreground uppercase tracking-widest">{profile?.cargo || 'Operator'}</span>
             </div>
           </div>
         )}
@@ -163,7 +165,7 @@ export function Sidebar() {
       <div className="lg:hidden fixed top-4 left-4 z-[100]">
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="bg-background border-border shadow-lg">
+            <Button variant="outline" size="icon" className="bg-background/80 backdrop-blur-md border-border shadow-lg">
               <Menu size={20} />
             </Button>
           </SheetTrigger>

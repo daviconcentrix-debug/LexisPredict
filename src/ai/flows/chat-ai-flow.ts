@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview Motor de Consultoria Estratégica v850.0 ELITE
+ * @fileOverview Motor de Consultoria Estratégica v9500.0 ELITE
  * Núcleo: Pentade de Motores (xAI, Airforce, 2x Groq, Puter)
  * Proprietário: W1 Capital | Cliente: Get Assessoria Financeira Ltda
  */
@@ -36,7 +36,7 @@ function cleanJsonResponse(text: string): any {
   } catch (e) { return null; }
 }
 
-async function fetchWithTimeout(url: string, options: any, timeout = 12000) {
+async function fetchWithTimeout(url: string, options: any, timeout = 15000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   try {
@@ -117,15 +117,22 @@ export const chatAIFlow = ai.defineFlow(
       { id: 'groq-deepseek', call: callGroqDeepSeek }
     ];
 
-    const model = input.preferredModel || 'xai';
-    const sorted = [engines.find(e => e.id === model) || engines[0], ...engines.filter(e => e.id !== model)].filter(Boolean);
+    const modelId = input.preferredModel || 'xai';
+    const engine = engines.find(e => e.id === modelId) || engines[0];
 
-    for (const engine of sorted) {
+    try {
+      const res = await engine.call(input.pergunta, input.historico || []);
+      if (res && res.resposta) return { resposta: res.resposta, engineUtilizada: engine.id.toUpperCase() };
+    } catch (e) {}
+
+    // Fallback circular de segurança
+    for (const fallback of engines.filter(e => e.id !== modelId)) {
       try {
-        const res = await engine!.call(input.pergunta, input.historico || []);
-        if (res && res.resposta) return { resposta: res.resposta, engineUtilizada: engine!.id.toUpperCase() };
+        const res = await fallback.call(input.pergunta, input.historico || []);
+        if (res && res.resposta) return { resposta: res.resposta, engineUtilizada: fallback.id.toUpperCase() };
       } catch (e) {}
     }
+
     return { resposta: "SISTEMA_INDISPONIVEL_CONTATE_TI", error: true };
   }
 );
