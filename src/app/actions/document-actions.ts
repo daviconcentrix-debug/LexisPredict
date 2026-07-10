@@ -1,16 +1,15 @@
-
 'use server';
+
+/**
+ * MOTOR DE OPERAÇÕES FORENSES v13000.0 ELITE
+ * Estratégia Híbrida: Cascata Neural (Grok/DeepSeek) + Resgate por Regex.
+ * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
+ */
 
 import { renderToBuffer } from '@react-pdf/renderer';
 import React from 'react';
 
-/**
- * MOTOR DE DOCUMENTOS v10500.0 ELITE
- * Processamento robusto de PDFs (Transcrição + Geração) no servidor.
- */
-
-// BANCA DE ADVOGADOS OFICIAL
-const BANCA_DATA = {
+const BANCA_DATA: Record<string, any> = {
   "DIEGO GOMES DIAS": {
     oabs: { "BA": "77510/BA", "CE": "52996-A/CE", "MT": "34044-A/MT", "PI": "22858/PI", "RN": "21766A/RN", "SP": "370.898/SP" },
     endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
@@ -43,36 +42,52 @@ const BANCA_DATA = {
   }
 };
 
-const API_KEYS = {
-  XAI: process.env.XAI_API_KEY || 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE',
-  AIRFORCE: process.env.AIRFORCE_API_KEY || 'sk-air-Rxc7ygo5b0XpkZqUBqwSnhjwS0bZbWFnzwRLjfPtdAbYK6nj',
-};
+const SYSTEM_PROMPT = `Você é especialista em extrair dados de contratos da Get Assessoria Financeira.
+O texto vem MUITO bagunçado (campos colados sem espaço). Você DEVE separar corretamente.
 
-const SYSTEM_PROMPT = `Você é o Arquiteto Jurídico da W1 Capital. Extraia os dados do contrato para gerar uma procuração judicial.
-REGRAS ESTRITAS:
-- Retorne APENAS um JSON válido, sem markdown.
-- Separe corretamente cada campo.
-- Se não encontrar o campo, retorne "".
-- Nome do cliente deve vir completo e em MAIÚSCULAS.
-
-Exemplo de saída:
+RETORNE APENAS JSON PLANO. Sem markdown.
 {
   "cliente": {
-    "nome": "CLEISON DE SOUSA SANTOS",
-    "rg": "47288986",
-    "cpf": "389.801.868-78",
-    "profissao": "GERENTE",
-    "estadoCivil": "CASADO",
-    "email": "cleison.sousa@icloud.com",
-    "telefone": "11 97373-1104",
-    "endereco": "Rua Oito, 52 - Jardim São Marcos - Vargem Grande Paulista - SP - 06732-520"
+    "nome": "",
+    "dataNascimento": "",
+    "rg": "",
+    "cpf": "",
+    "profissao": "",
+    "estadoCivil": "",
+    "email": "",
+    "telefone": "",
+    "endereco": "",
+    "cep": "",
+    "genero": "M"|"F"
   },
   "processos": [{
-    "banco": "ITAU",
+    "banco": "",
+    "cnpjBanco": "",
     "numero": "",
-    "veiculo": "Renault Master 2021"
+    "veiculo": "",
+    "valorFinanciamento": "",
+    "valorParcela": ""
   }]
-}`;
+}
+
+REGRAS:
+1. Separe nome da data de nascimento (ex: SANTOS14/10/1990 -> nome + data).
+2. Separe RG e CPF colados.
+3. Extraia e-mail, telefone e CEP.
+4. Identifique o Banco e Veículo do contrato.`;
+
+function limparTextoContrato(texto: string): string {
+  if (!texto) return "";
+  return texto
+    .replace(/\s+/g, ' ')
+    .replace(/(\r\n|\n|\r)/gm, ' ')
+    .replace(/CONTRATANTEDATA NASCIMENTO/gi, 'CONTRATANTE DATA NASCIMENTO ')
+    .replace(/RGCPF\/ CNPJPROFISSÃOESTADO CIVIL/gi, 'RG CPF PROFISSÃO ESTADO CIVIL ')
+    .replace(/EMAILTELEFONE 1TELEFONE 2/gi, 'EMAIL TELEFONE ')
+    .replace(/ENDEREÇOCEP/gi, 'ENDEREÇO CEP ')
+    .trim()
+    .substring(0, 8000);
+}
 
 function cleanJsonResponse(text: string): any {
   if (!text) return null;
@@ -82,102 +97,156 @@ function cleanJsonResponse(text: string): any {
     if (start !== -1 && end !== -1) {
       return JSON.parse(text.substring(start, end + 1));
     }
+    return JSON.parse(text.trim());
+  } catch {
     return null;
-  } catch { return null; }
+  }
 }
 
-async function callEngine(engine: 'xai' | 'airforce', text: string) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 14000);
+async function callAI(engine: 'xai' | 'airforce', text: string) {
   const url = engine === 'xai' ? 'https://api.x.ai/v1/chat/completions' : 'https://api.airforce/v1/chat/completions';
-  const body = {
-    model: engine === 'xai' ? 'grok-4.5' : 'deepseek-v3',
-    messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO:\n${text}` }],
-    temperature: 0.1,
-    max_tokens: 1800
-  };
+  const model = engine === 'xai' ? 'grok-4.5' : 'deepseek-v3';
+  const key = engine === 'xai' ? 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE' : 'sk-air-Rxc7ygo5b0XpkZqUBqwSnhjwS0bZbWFnzwRLjfPtdAbYK6nj';
+
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${engine === 'xai' ? API_KEYS.XAI : API_KEYS.AIRFORCE}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
+      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO:\n${text}` }],
+        temperature: 0.1,
+        response_format: engine === 'xai' ? { type: 'json_object' } : undefined
+      })
     });
-    clearTimeout(timeout);
-    if (!res.ok) throw new Error(`${engine} error: ${res.status}`);
+    if (!res.ok) return null;
     const data = await res.json();
     return cleanJsonResponse(data?.choices?.[0]?.message?.content || '');
-  } catch (error) { clearTimeout(timeout); throw error; }
-}
-
-export async function extrairDadosProcuracao(input: { text: string; preferredLawyer?: string; preferredState?: string; }) {
-  try {
-    const contractText = input.text || '';
-    if (contractText.trim().length < 50) return { error: true, code: 'TEXTO_INVALIDO', message: 'Texto muito curto' };
-
-    const slicedText = contractText.substring(0, 8000);
-    let parsed: any = null;
-
-    try {
-      console.log('[Triagem] Tentando xAI...');
-      parsed = await callEngine('xai', slicedText);
-    } catch { console.warn('[Triagem] xAI falhou, tentando Airforce...'); }
-
-    if (!parsed || (!parsed.cliente?.nome && !parsed.nome)) {
-      try {
-        parsed = await callEngine('airforce', slicedText);
-      } catch { console.error('[Triagem] Airforce também falhou'); }
-    }
-
-    if (!parsed || (!parsed.cliente?.nome && !parsed.nome)) {
-      return { error: true, code: 'EXTRACAO_FALHOU', message: 'Extração neural falhou. Verifique se o contrato é legível.' };
-    }
-
-    const targetLawyer = input.preferredLawyer || "PABLO MATHEUS SILVA BASTOS PEREIRA";
-    const lawyerInfo = (BANCA_DATA as any)[targetLawyer] || BANCA_DATA["PABLO MATHEUS SILVA BASTOS PEREIRA"];
-    const processosArray = Array.isArray(parsed.processos) ? parsed.processos : [];
-    const finalState = (input.preferredState || processosArray[0]?.estado || "SP").toUpperCase();
-    const selectedOAB = (lawyerInfo.oabs as any)[finalState] || (lawyerInfo.oabs as any)["SP"];
-
-    return {
-      cliente: {
-        nome: (parsed.cliente?.nome || parsed.nome || "NÃO IDENTIFICADO").toUpperCase(),
-        estadoCivil: parsed.cliente?.estadoCivil || parsed.estadoCivil || "casado(a)",
-        profissao: parsed.cliente?.profissao || parsed.profissao || "autônomo(a)",
-        rg: parsed.cliente?.rg || parsed.rg || "---",
-        cpf: parsed.cliente?.cpf || parsed.cpf || "---",
-        endereco: parsed.cliente?.endereco || parsed.endereco || "Não localizado",
-        email: parsed.cliente?.email || parsed.email || "",
-        telefone: parsed.cliente?.telefone || parsed.telefone || "",
-        genero: parsed.cliente?.genero || parsed.genero || 'M',
-      },
-      advogado: {
-        nome: targetLawyer.toUpperCase(),
-        oab: selectedOAB,
-        endereco: lawyerInfo.endereco,
-        email: lawyerInfo.email,
-        cargo: lawyerInfo.genero === 'F' ? 'advogada' : 'advogado',
-      },
-      processos: processosArray.map((p: any) => ({
-        banco: (p.banco || "BANCO").toUpperCase(),
-        numero: p.numero || "S/N",
-        acao: p.acao || 'AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA',
-        estado: finalState
-      }))
-    };
-  } catch (error) { return { error: true, message: 'Erro interno ao processar contrato.' }; }
+  } catch {
+    return null;
+  }
 }
 
 export async function extrairTextoDoPDFAction(formData: FormData) {
   try {
     const file = formData.get('pdf') as File;
-    if (!file) return { error: 'Nenhum arquivo enviado' };
-    const pdfParser = (await import('pdf-parse')).default;
+    if (!file) return { error: "Nenhum arquivo enviado" };
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const data = await pdfParser(buffer);
+    const pdf = (await import('pdf-parse')).default;
+    const data = await pdf(buffer);
     return { success: true, text: data.text };
-  } catch (error) { return { error: 'Falha ao processar arquivo no servidor' }; }
+  } catch (e: any) {
+    return { error: "Falha na transcrição do arquivo." };
+  }
+}
+
+export async function extrairDadosProcuracaoAction(inputText: string, lawyer: string, state: string) {
+  try {
+    const text = limparTextoContrato(inputText);
+    if (text.length < 30) return { error: "Texto muito curto" };
+
+    let parsed: any = null;
+
+    // 1. TENTATIVA NEURAL (CASCATA)
+    console.log("[TRIAGEM] Acionando xAI...");
+    parsed = await callAI('xai', text);
+
+    if (!parsed?.cliente?.nome) {
+      console.warn("[TRIAGEM] xAI falhou, tentando fallback Airforce...");
+      parsed = await callAI('airforce', text);
+    }
+
+    // 2. RESGATE POR REGEX (CASO A IA FALHE EM ESTRUTURAR)
+    if (!parsed?.cliente?.nome) {
+      console.log("[TRIAGEM] Ativando resgate por regex...");
+      const nomeMatch = text.match(/([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ\s]{8,60})(?=\d{2}\/\d{2}\/\d{4}|RG|CPF)/i);
+      const dataMatch = text.match(/(\d{2}\/\d{2}\/\d{4})/);
+      const cpfMatch = text.match(/(\d{3}\.?\d{3}\.?\d{3}-?\d{2})/);
+      const rgMatch = text.match(/(\d{7,9})/);
+      const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+      const telefoneMatch = text.match(/(?:\(?\d{2}\)?\s?)?(?:9\d{4}|\d{4})[-\s]?\d{4}/);
+      const enderecoMatch = text.match(/(Rua|Av\.|Avenida|Alameda)[^,]{5,80}/i);
+      const cepMatch = text.match(/(\d{5}-?\d{3})/);
+      const bancoMatch = text.match(/(Ita[uú]|Bradesco|Santander|Banco do Brasil|Caixa|Nubank|Inter)/i);
+      const veiculoMatch = text.match(/(Renault|Fiat|Volkswagen|Chevrolet|Toyota|Honda|Hyundai|Jeep|Ford)\s+[A-Za-z0-9\s]{3,30}/i);
+
+      parsed = {
+        cliente: {
+          nome: nomeMatch ? nomeMatch[1].trim().toUpperCase() : "",
+          dataNascimento: dataMatch ? dataMatch[1] : "",
+          rg: rgMatch ? rgMatch[1] : "",
+          cpf: cpfMatch ? cpfMatch[1] : "",
+          email: emailMatch ? emailMatch[1].toLowerCase() : "",
+          telefone: telefoneMatch ? telefoneMatch[0] : "",
+          endereco: enderecoMatch ? enderecoMatch[0] : "Não localizado",
+          cep: cepMatch ? cepMatch[1] : "",
+          profissao: "autônomo(a)",
+          estadoCivil: "casado(a)",
+          genero: "M"
+        },
+        processos: [{
+          banco: bancoMatch ? bancoMatch[1].toUpperCase() : "BANCO",
+          cnpjBanco: "",
+          numero: "S/N",
+          veiculo: veiculoMatch ? veiculoMatch[0] : "",
+          valorFinanciamento: "",
+          valorParcela: ""
+        }]
+      };
+    }
+
+    const lawyerInfo = BANCA_DATA[lawyer] || BANCA_DATA["PABLO MATHEUS SILVA BASTOS PEREIRA"];
+    const selectedOAB = lawyerInfo.oabs[state] || lawyerInfo.oabs["SP"];
+
+    const clienteData = parsed.cliente || parsed;
+    const processosRaw = Array.isArray(parsed.processos) ? parsed.processos : [];
+
+    return {
+      success: true,
+      cliente: {
+        nome: (clienteData.nome || "").toUpperCase(),
+        dataNascimento: clienteData.dataNascimento || "",
+        rg: clienteData.rg || "---",
+        cpf: clienteData.cpf || "---",
+        endereco: clienteData.endereco || "Não localizado",
+        cep: clienteData.cep || "",
+        profissao: clienteData.profissao || "autônomo(a)",
+        estadoCivil: clienteData.estadoCivil || "casado(a)",
+        email: clienteData.email || "",
+        telefone: clienteData.telefone || "",
+        genero: clienteData.genero || "M"
+      },
+      advogado: {
+        nome: lawyer.toUpperCase(),
+        oab: selectedOAB,
+        endereco: lawyerInfo.endereco,
+        email: lawyerInfo.email,
+        cargo: lawyerInfo.genero === 'F' ? 'advogada' : 'advogado'
+      },
+      processos: processosRaw.length > 0 ? processosRaw.map((p: any) => ({
+        banco: (p.banco || "BANCO").toUpperCase(),
+        cnpjBanco: p.cnpjBanco || '',
+        numero: p.numero || "S/N",
+        acao: "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA",
+        estado: state,
+        veiculo: p.veiculo || "",
+        valorFinanciamento: p.valorFinanciamento || "",
+        valorParcela: p.valorParcela || ""
+      })) : [{
+        banco: (parsed.processos?.[0]?.banco || "BANCO").toUpperCase(),
+        cnpjBanco: "",
+        numero: "S/N",
+        acao: "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA",
+        estado: state,
+        veiculo: parsed.processos?.[0]?.veiculo || "",
+        valorFinanciamento: "",
+        valorParcela: ""
+      }]
+    };
+  } catch (e) {
+    return { error: "Erro interno no núcleo de triagem." };
+  }
 }
 
 export async function generateProcuracaoPDFAction(data: any) {
@@ -185,5 +254,7 @@ export async function generateProcuracaoPDFAction(data: any) {
     const { ProcuracaoPDF } = await import('@/components/pdf/procuracao-pdf');
     const pdfBuffer = await renderToBuffer(React.createElement(ProcuracaoPDF, { data }));
     return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
-  } catch (error) { return { success: false, error: 'Falha ao gerar o documento' }; }
+  } catch (e: any) {
+    return { error: "Falha ao selar o PDF." };
+  }
 }
