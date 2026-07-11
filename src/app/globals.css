@@ -1,11 +1,9 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* TEMA CLARO - REFORÇADO PARA ALTO CONTRASTE */
     --background: 0 0% 100%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
@@ -27,7 +25,6 @@
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.75rem;
 
-    /* SIDEBAR VARIABLES */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 221.2 83.2% 53.3%;
@@ -75,25 +72,122 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
   }
 }
 
-.report-canvas {
-  background-image: radial-gradient(#000 0.5px, transparent 0.5px);
-  background-size: 30px 30px;
-  background-position: center;
-  background-attachment: local;
+/* =========================================================
+   SOBERANIA VISUAL V2 — FIX GLOBAL DE CONTRASTE
+   ========================================================= */
+
+/* ---------- TEMA EXECUTIVO (Aston Martin) ---------- */
+.theme-executivo {
+  color-scheme: dark !important;
+  background-color: #0a0a0a !important;
+  color: #ffffff !important;
+  
+  /* Sidebar Variables - Força o preto nítido */
+  --sidebar-background: 0 0% 2% !important; /* #050505 */
+  --sidebar-foreground: 0 0% 100% !important;
+  --sidebar-primary: 45 68% 47% !important; /* #c9a227 */
+  --sidebar-accent: 0 0% 7% !important; /* #111111 */
+  --sidebar-border: 0 0% 10% !important;
+  --sidebar-ring: 45 68% 47% !important;
+  
+  --primary: 45 68% 47% !important;
+  --primary-foreground: 0 0% 4% !important;
+}
+
+.theme-executivo body, 
+.theme-executivo html {
+  background-color: #0a0a0a !important;
+  color: #ffffff !important;
+}
+
+/* Mata fundos brancos no tema executivo */
+.theme-executivo .bg-white,
+.theme-executivo .bg-background,
+.theme-executivo .bg-card,
+.theme-executivo .bg-popover,
+.theme-executivo .bg-muted,
+.theme-executivo .bg-secondary,
+.theme-executivo .bg-sidebar,
+.theme-executivo div[class*="bg-white"],
+.theme-executivo main[class*="bg-white"],
+.theme-executivo section[class*="bg-white"],
+.theme-executivo div[class*="bg-slate-50"],
+.theme-executivo div[class*="bg-gray-50"],
+.theme-executivo div[class*="bg-zinc-50"] {
+  background-color: #111111 !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Força a Sidebar em Executivo */
+.theme-executivo aside,
+.theme-executivo .bg-sidebar {
+  background-color: #050505 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Letras Douradas em Títulos e Destaques */
+.theme-executivo h1,
+.theme-executivo h2,
+.theme-executivo .text-primary,
+.theme-executivo .sidebar-title {
+  color: #c9a227 !important;
+}
+
+/* Letras douradas em labels específicas da sidebar */
+.theme-executivo .sidebar-group-title {
+  color: rgba(201, 162, 39, 0.5) !important;
+  font-weight: 900 !important;
+}
+
+/* Garante que o texto NUNCA seja preto em fundos escuros */
+.theme-executivo .text-black,
+.theme-executivo .text-foreground,
+.theme-executivo .text-slate-900,
+.theme-executivo .text-gray-900,
+.theme-executivo .text-zinc-900,
+.theme-executivo span[class*="text-black"],
+.theme-executivo p[class*="text-black"],
+.theme-executivo h1[class*="text-black"],
+.theme-executivo h2[class*="text-black"],
+.theme-executivo h3[class*="text-black"] {
+  color: #ffffff !important;
+}
+
+/* Links ativos dourados no executivo */
+.theme-executivo .bg-primary\/10 {
+  background-color: rgba(201, 162, 39, 0.1) !important;
+  color: #c9a227 !important;
+}
+
+/* Primária Dourada */
+.theme-executivo .bg-primary {
+  background-color: #c9a227 !important;
+  color: #0a0a0a !important;
+}
+
+/* Scrollbar Executivo */
+.theme-executivo ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.theme-executivo ::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+.theme-executivo ::-webkit-scrollbar-thumb {
+  background: #c9a227;
+  border-radius: 3px;
 }
 
 @media print {
   .print-hidden {
     display: none !important;
   }
-  .report-canvas {
-    background-image: none !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 0 !important;
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }

@@ -1,4 +1,3 @@
-
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -6,11 +5,15 @@ import { AuthProvider } from '@/components/auth/auth-provider';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
-  title: 'W1 Capital | LexisPredict Elite SaaS',
-  description: 'Enterprise Legal Management & Risk Analysis Multi-Tenant - Fundador Davi Alves Figueredo',
+  title: 'W1 Capital | Advanced Legal Ops',
+  description: 'Gabinete Jurídico de Alta Performance',
   icons: {
-    icon: 'https://picsum.photos/seed/lexislogo/32/32',
-    apple: 'https://picsum.photos/seed/lexislogo/180/180',
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
 };
 
@@ -29,17 +32,14 @@ export default function RootLayout({
           {`
             (function() {
               try {
+                const theme = localStorage.getItem('lexisPredict_theme') || 'light';
                 const bg = localStorage.getItem('lexisPredict_bg_color');
                 const font = localStorage.getItem('lexisPredict_font_color');
                 const btn = localStorage.getItem('lexisPredict_btn_bg_color');
-                const border = localStorage.getItem('lexisPredict_border_color');
-                const secondary = localStorage.getItem('lexisPredict_secondary_color');
                 const radius = localStorage.getItem('lexisPredict_border_radius');
-                const cardOpacity = localStorage.getItem('lexisPredict_card_opacity');
-                const sidebarOpacity = localStorage.getItem('lexisPredict_sidebar_opacity');
                 const wallpaper = localStorage.getItem('lexisPredict_wallpaper');
-                const wallpaperBrightness = localStorage.getItem('lexisPredict_wallpaper_brightness') || '1';
-                const longReading = localStorage.getItem('lexis_long_reading') === 'true';
+
+                document.documentElement.classList.add('theme-' + theme);
 
                 const hexToHsl = (hex) => {
                   if (!hex) return null;
@@ -62,52 +62,22 @@ export default function RootLayout({
                   return \`\${Math.round(h * 360)} \${Math.round(s * 100)}% \${Math.round(l * 100)}%\`;
                 };
 
-                if (bg) {
-                  const hsl = hexToHsl(bg);
-                  document.documentElement.style.setProperty('--background', hsl);
-                  document.documentElement.style.setProperty('--card', hsl);
-                  document.documentElement.style.setProperty('--sidebar-background', hsl);
-                }
-                if (font) {
-                  const hsl = hexToHsl(font);
-                  document.documentElement.style.setProperty('--foreground', hsl);
-                  document.documentElement.style.setProperty('--card-foreground', hsl);
-                  document.documentElement.style.setProperty('--sidebar-foreground', hsl);
-                }
-                if (btn) {
-                  const hsl = hexToHsl(btn);
-                  document.documentElement.style.setProperty('--primary', hsl);
-                  document.documentElement.style.setProperty('--sidebar-primary', hsl);
-                }
-                if (border) {
-                  const hsl = hexToHsl(border);
-                  document.documentElement.style.setProperty('--border', hsl);
-                  document.documentElement.style.setProperty('--sidebar-border', hsl);
-                }
-                if (secondary) {
-                  const hsl = hexToHsl(secondary);
-                  document.documentElement.style.setProperty('--secondary', hsl);
-                  document.documentElement.style.setProperty('--sidebar-accent', hsl);
-                }
-                if (radius) document.documentElement.style.setProperty('--radius', radius + 'px');
-                if (cardOpacity) document.documentElement.style.setProperty('--card-opacity', cardOpacity);
-                if (sidebarOpacity) document.documentElement.style.setProperty('--sidebar-opacity', sidebarOpacity);
-                
+                const root = document.documentElement;
+                if (bg) root.style.setProperty('--background', hexToHsl(bg));
+                if (font) root.style.setProperty('--foreground', hexToHsl(font));
+                if (btn) root.style.setProperty('--primary', hexToHsl(btn));
+                if (radius) root.style.setProperty('--radius', radius + 'px');
                 if (wallpaper) {
-                  document.documentElement.style.backgroundImage = \`url(\${wallpaper})\`;
-                  document.documentElement.style.backgroundSize = 'cover';
-                  document.documentElement.style.backgroundAttachment = 'fixed';
-                  document.documentElement.style.setProperty('--wallpaper-brightness', wallpaperBrightness);
-                }
-                if (longReading) {
-                  document.documentElement.style.filter = 'contrast(1.05) saturate(0.85) sepia(0.2)';
+                  root.style.backgroundImage = \`url(\${wallpaper})\`;
+                  root.style.backgroundSize = 'cover';
+                  root.style.backgroundAttachment = 'fixed';
                 }
               } catch (e) {}
             })()
           `}
         </Script>
       </head>
-      <body className="font-sans antialiased bg-background text-foreground selection:bg-primary/20 transition-all duration-300">
+      <body className="font-sans antialiased bg-background text-foreground transition-all duration-300">
         <AuthProvider>
           {children}
           <Toaster />

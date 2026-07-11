@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { StatCard } from '@/components/dashboard/stat-card';
+import { buildExecutiveInsight } from "@/lib/performance-engine";
 import { 
   Briefcase, 
   ShieldAlert, 
@@ -14,13 +15,15 @@ import {
   ChevronRight,
   TrendingUp,
   Activity,
-  Cpu
+  Cpu,
+  UserCheck,
+  Zap
 } from 'lucide-react';
-import { LegalCase } from '@/lib/case-logic';
+import { LegalCase, CaseNote } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { fetchRepoCases } from '@/app/actions/case-actions';
+import { fetchRepoCases, fetchRepoNotes } from '@/app/actions/case-actions';
 import Link from 'next/link';
 import { getTranslation, Locale } from '@/lib/i18n';
 import { 
@@ -38,6 +41,7 @@ import {
 
 export default function Dashboard() {
   const [cases, setCases] = useState<LegalCase[]>([]);
+  const [notes, setNotes] = useState<CaseNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [locale, setLocale] = useState<Locale>('pt');
@@ -53,10 +57,12 @@ export default function Dashboard() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const caseData = await fetchRepoCases();
-      if (Array.isArray(caseData)) {
-        setCases(caseData);
-      }
+      const [caseData, notesData] = await Promise.all([
+        fetchRepoCases(),
+        fetchRepoNotes()
+      ]);
+      if (Array.isArray(caseData)) setCases(caseData);
+      if (Array.isArray(notesData)) setNotes(notesData);
     } catch (error) {
       console.log('SYNC_FAIL');
     } finally {
@@ -70,9 +76,10 @@ export default function Dashboard() {
 
   const metrics = useMemo(() => {
     const total = cases.length;
-    const critical = cases.filter(c => c.status === 'Vencido' || c.status === 'Crítico').length;
     const active = cases.filter(c => !['ENCERRADO', 'ARQUIVADO'].includes((c.situacao || '').toUpperCase())).length;
-    const riskScore = total ? Math.round(((critical) / total) * 100) : 0;
+    
+    // Performance Engine Insight
+    const insight = buildExecutiveInsight(cases, notes);
 
     // Data for charts
     const statusData = [
@@ -83,15 +90,15 @@ export default function Dashboard() {
 
     const tribunalCounts: Record<string, number> = {};
     cases.forEach(c => {
-      tribunalCounts[c.tribunal] = (tribunalCounts[c.tribunal] || 0) + 1;
+      tribunalCounts[c.tribunal || "Outros"] = (tribunalCounts[c.tribunal || "Outros"] || 0) + 1;
     });
     const tribunalData = Object.entries(tribunalCounts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
-    return { total, critical, active, riskScore, statusData, tribunalData };
-  }, [cases, t]);
+    return { total, active, statusData, tribunalData, insight };
+  }, [cases, notes, t]);
 
   const urgentQueue = useMemo(() => {
     return cases
@@ -110,7 +117,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-6">
             <h1 className="font-bold text-sm tracking-[0.2em] uppercase">{t.controlPanel}</h1>
             <div className="hidden xl:flex items-center gap-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground border-l border-border/30 pl-6">
-               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> {t.activeTelemetry}
+               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Atividade Nominal
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -126,19 +133,43 @@ export default function Dashboard() {
         </header>
 
         <div className="flex-1 overflow-auto p-8 space-y-10">
+          {/* PERFORMANCE TOP BAR */}
+          <section className="bg-card border border-border/50 rounded-md p-6 flex flex-col md:flex-row justify-between items-center gap-6">
+             <div className="flex items-center gap-6">
+                <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary flex items-center justify-center animate-in zoom-in">
+                   <span className="text-xl font-black">{metrics.insight.summary.performanceScore}</span>
+                </div>
+                <div>
+                   <h2 className="text-sm font-black uppercase tracking-tight">Status de Performance Individual</h2>
+                   <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Gabinete em nível {metrics.insight.summary.performanceLabel}</p>
+                </div>
+             </div>
+             <div className="flex gap-4">
+                <div className="text-right">
+                   <p className="text-[9px] font-bold text-muted-foreground uppercase">Incidentes Externos</p>
+                   <p className="text-lg font-black text-emerald-400">-{metrics.insight.person.notMyFaultCount}</p>
+                </div>
+                <div className="w-[1px] h-10 bg-border/50" />
+                <div className="text-right">
+                   <p className="text-[9px] font-bold text-muted-foreground uppercase">Causas Críticas</p>
+                   <p className="text-lg font-black text-red-500">{metrics.insight.summary.criticalCount}</p>
+                </div>
+             </div>
+          </section>
+
           {/* TOP METRICS GRID */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard title="Total Management" value={loading ? "..." : metrics.total} icon={<Briefcase size={16} />} color="primary" trend="4.2%" trendUp />
-            <StatCard title="Critical Alerts" value={loading ? "..." : metrics.critical} icon={<ShieldAlert size={16} />} color="destructive" />
-            <StatCard title="Health Risk Index" value={loading ? "..." : `${metrics.riskScore}%`} icon={<TrendingUp size={16} />} color="destructive" />
-            <StatCard title="Active Demands" value={loading ? "..." : metrics.active} icon={<FileCheck size={16} />} color="success" trend="1.8%" trendUp />
+            <StatCard title="Total Management" value={loading ? "..." : metrics.total} icon={<Briefcase size={16} />} color="primary" trend="Nominal" trendUp />
+            <StatCard title="Alertas Críticos" value={loading ? "..." : metrics.insight.summary.criticalCount} icon={<ShieldAlert size={16} />} color="destructive" />
+            <StatCard title="Score Resiliência" value={loading ? "..." : `${metrics.insight.summary.performanceScore}%`} icon={<TrendingUp size={16} />} color="primary" />
+            <StatCard title="Demandas Ativas" value={loading ? "..." : metrics.active} icon={<FileCheck size={16} />} color="success" />
           </section>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             {/* CHARTS SECTION */}
             <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
                <section className="bg-card border border-border/50 rounded-md p-6 h-[350px] flex flex-col">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Status Distribution</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Status da Carteira</h3>
                   <div className="flex-1 min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -194,9 +225,9 @@ export default function Dashboard() {
                     <thead>
                       <tr>
                         <th>Tribunal</th>
-                        <th>Account / Client</th>
-                        <th>Protocol Number</th>
-                        <th className="text-right">Operational Status</th>
+                        <th>Conta / Cliente</th>
+                        <th>Protocolo Número</th>
+                        <th className="text-right">Status Operacional</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -236,24 +267,32 @@ export default function Dashboard() {
               <div className="bg-card border border-border/50 rounded-md p-6 space-y-6 relative overflow-hidden group hover:border-primary/30 transition-all">
                 <div className="space-y-4">
                   <div className="w-10 h-10 rounded-sm bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-                    <FileCheck size={20} />
+                    <UserCheck size={20} />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold uppercase tracking-tight">Mission Dossier</h2>
-                    <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed font-medium uppercase tracking-[0.1em]">Consolidated forensic report verified under authority protocols.</p>
+                    <h2 className="text-lg font-bold uppercase tracking-tight">Análise Pessoal</h2>
+                    <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed font-medium uppercase tracking-[0.1em]">Seus pontos de resiliência e alertas de auditoria automatizados.</p>
+                  </div>
+                  <div className="space-y-2 pt-2">
+                     {metrics.insight.person.strengths.slice(0, 2).map((s, i) => (
+                        <div key={i} className="flex gap-2 items-start">
+                           <div className="w-1 h-1 rounded-full bg-emerald-400 mt-1" />
+                           <p className="text-[9px] text-emerald-400 font-bold uppercase">{s}</p>
+                        </div>
+                     ))}
                   </div>
                   <Button variant="default" asChild className="w-full bg-primary text-black font-bold h-11 rounded-sm uppercase text-[10px] tracking-[0.15em] hover:bg-primary/90 transition-all">
-                    <Link href="/report">Access PDF Analytics</Link>
+                    <Link href="/report">Abrir Dossiê Completo</Link>
                   </Button>
                 </div>
               </div>
 
               <div className="bg-card border border-border/50 rounded-md p-6 space-y-6">
-                <h3 className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.25em]">Network Telemetry</h3>
+                <h3 className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.25em]">Culpabilidade Identificada</h3>
                 <div className="space-y-4">
-                  <TelemetryItem label="DataJud Public Node" status="nominal" />
-                  <TelemetryItem label="Cloud Tenant Sync" status="nominal" />
-                  <TelemetryItem label="Neural Resilience" status="elite" />
+                  <TelemetryItem label="Responsabilidade do Advogado" value={metrics.insight.byFault.advogado.length} color="text-amber-400" />
+                  <TelemetryItem label="Responsabilidade do Operador" value={metrics.insight.byFault.operador.length} color="text-red-500" />
+                  <TelemetryItem label="Fatores Externos (Sem Culpa)" value={metrics.insight.byFault.externo.length} color="text-emerald-400" />
                 </div>
               </div>
             </aside>
@@ -261,7 +300,7 @@ export default function Dashboard() {
 
           <footer className="pt-12 pb-8 border-t border-border/30 flex flex-col items-center justify-center gap-4">
             <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.4em] text-muted-foreground/40">
-              <Copyright size={10} /> 2026 W1 Capital • Advanced Ops
+              <Copyright size={10} /> 2026 W1 Capital • Performance Insight
             </div>
           </footer>
         </div>
@@ -270,16 +309,11 @@ export default function Dashboard() {
   );
 }
 
-function TelemetryItem({ label, status }: { label: string, status: 'nominal' | 'elite' }) {
+function TelemetryItem({ label, value, color }: { label: string, value: number, color: string }) {
   return (
     <div className="flex items-center justify-between">
       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{label}</span>
-      <Badge className={cn(
-        "text-[8px] font-bold rounded-sm px-2 py-0.5 border-none",
-        status === 'nominal' ? "bg-green-500/20 text-green-400" : "bg-primary text-black"
-      )}>
-        {status.toUpperCase()}
-      </Badge>
+      <span className={cn("text-sm font-black", color)}>{value}</span>
     </div>
   );
 }

@@ -1,13 +1,14 @@
 'use server';
 
 /**
- * MOTOR DE OPERAÇÕES FORENSES v13000.0 ELITE
+ * MOTOR DE OPERAÇÕES FORENSES v24000.0 ELITE
  * Estratégia Híbrida: Cascata Neural (Grok/DeepSeek) + Resgate por Regex.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
 import { renderToBuffer } from '@react-pdf/renderer';
 import React from 'react';
+import pdf from 'pdf-parse';
 
 const BANCA_DATA: Record<string, any> = {
   "DIEGO GOMES DIAS": {
@@ -42,14 +43,14 @@ const BANCA_DATA: Record<string, any> = {
   }
 };
 
-const SYSTEM_PROMPT = `Você é especialista em extrair dados de contratos da Get Assessoria Financeira.
-O texto vem MUITO bagunçado (campos colados sem espaço). Você DEVE separar corretamente.
+const SYSTEM_PROMPT = `Você é especialista em extrair dados de contratos jurídicos para a W1 Capital.
+IGNORE VEÍCULOS, OBJETOS OU VALORES DE PARCELAS. Foque apenas na identificação do cliente e dos dados do processo.
+A DATA DE NASCIMENTO DEVE SER SEMPRE RETORNADA VAZIA ("").
 
 RETORNE APENAS JSON PLANO. Sem markdown.
 {
   "cliente": {
     "nome": "",
-    "dataNascimento": "",
     "rg": "",
     "cpf": "",
     "profissao": "",
@@ -58,36 +59,15 @@ RETORNE APENAS JSON PLANO. Sem markdown.
     "telefone": "",
     "endereco": "",
     "cep": "",
-    "genero": "M"|"F"
+    "genero": "M"|"F",
+    "dataNascimento": ""
   },
   "processos": [{
     "banco": "",
     "cnpjBanco": "",
-    "numero": "",
-    "veiculo": "",
-    "valorFinanciamento": "",
-    "valorParcela": ""
+    "numero": ""
   }]
-}
-
-REGRAS:
-1. Separe nome da data de nascimento (ex: SANTOS14/10/1990 -> nome + data).
-2. Separe RG e CPF colados.
-3. Extraia e-mail, telefone e CEP.
-4. Identifique o Banco e Veículo do contrato.`;
-
-function limparTextoContrato(texto: string): string {
-  if (!texto) return "";
-  return texto
-    .replace(/\s+/g, ' ')
-    .replace(/(\r\n|\n|\r)/gm, ' ')
-    .replace(/CONTRATANTEDATA NASCIMENTO/gi, 'CONTRATANTE DATA NASCIMENTO ')
-    .replace(/RGCPF\/ CNPJPROFISSÃOESTADO CIVIL/gi, 'RG CPF PROFISSÃO ESTADO CIVIL ')
-    .replace(/EMAILTELEFONE 1TELEFONE 2/gi, 'EMAIL TELEFONE ')
-    .replace(/ENDEREÇOCEP/gi, 'ENDEREÇO CEP ')
-    .trim()
-    .substring(0, 8000);
-}
+}`;
 
 function cleanJsonResponse(text: string): any {
   if (!text) return null;
@@ -97,7 +77,7 @@ function cleanJsonResponse(text: string): any {
     if (start !== -1 && end !== -1) {
       return JSON.parse(text.substring(start, end + 1));
     }
-    return JSON.parse(text.trim());
+    return null;
   } catch {
     return null;
   }
@@ -128,94 +108,54 @@ async function callAI(engine: 'xai' | 'airforce', text: string) {
 }
 
 export async function extrairTextoDoPDFAction(formData: FormData) {
+  const file = formData.get('pdf') as File;
+  if (!file) return { success: false, error: "Arquivo não detectado." };
+  
   try {
-    const file = formData.get('pdf') as File;
-    if (!file) return { error: "Nenhum arquivo enviado" };
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const pdf = (await import('pdf-parse')).default;
+    const buffer = Buffer.from(await file.arrayBuffer());
     const data = await pdf(buffer);
     return { success: true, text: data.text };
   } catch (e: any) {
-    return { error: "Falha na transcrição do arquivo." };
+    console.error('PDF Parse Error:', e);
+    return { success: false, error: "Falha na leitura neural do PDF." };
   }
 }
 
 export async function extrairDadosProcuracaoAction(inputText: string, lawyer: string, state: string) {
   try {
-    const text = limparTextoContrato(inputText);
-    if (text.length < 30) return { error: "Texto muito curto" };
-
-    let parsed: any = null;
-
-    // 1. TENTATIVA NEURAL (CASCATA)
-    console.log("[TRIAGEM] Acionando xAI...");
-    parsed = await callAI('xai', text);
-
+    let parsed: any = await callAI('xai', inputText);
     if (!parsed?.cliente?.nome) {
-      console.warn("[TRIAGEM] xAI falhou, tentando fallback Airforce...");
-      parsed = await callAI('airforce', text);
+      parsed = await callAI('airforce', inputText);
     }
 
-    // 2. RESGATE POR REGEX (CASO A IA FALHE EM ESTRUTURAR)
     if (!parsed?.cliente?.nome) {
-      console.log("[TRIAGEM] Ativando resgate por regex...");
-      const nomeMatch = text.match(/([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ\s]{8,60})(?=\d{2}\/\d{2}\/\d{4}|RG|CPF)/i);
-      const dataMatch = text.match(/(\d{2}\/\d{2}\/\d{4})/);
-      const cpfMatch = text.match(/(\d{3}\.?\d{3}\.?\d{3}-?\d{2})/);
-      const rgMatch = text.match(/(\d{7,9})/);
-      const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
-      const telefoneMatch = text.match(/(?:\(?\d{2}\)?\s?)?(?:9\d{4}|\d{4})[-\s]?\d{4}/);
-      const enderecoMatch = text.match(/(Rua|Av\.|Avenida|Alameda)[^,]{5,80}/i);
-      const cepMatch = text.match(/(\d{5}-?\d{3})/);
-      const bancoMatch = text.match(/(Ita[uú]|Bradesco|Santander|Banco do Brasil|Caixa|Nubank|Inter)/i);
-      const veiculoMatch = text.match(/(Renault|Fiat|Volkswagen|Chevrolet|Toyota|Honda|Hyundai|Jeep|Ford)\s+[A-Za-z0-9\s]{3,30}/i);
-
       parsed = {
         cliente: {
-          nome: nomeMatch ? nomeMatch[1].trim().toUpperCase() : "",
-          dataNascimento: dataMatch ? dataMatch[1] : "",
-          rg: rgMatch ? rgMatch[1] : "",
-          cpf: cpfMatch ? cpfMatch[1] : "",
-          email: emailMatch ? emailMatch[1].toLowerCase() : "",
-          telefone: telefoneMatch ? telefoneMatch[0] : "",
-          endereco: enderecoMatch ? enderecoMatch[0] : "Não localizado",
-          cep: cepMatch ? cepMatch[1] : "",
+          nome: "NÃO IDENTIFICADO",
+          dataNascimento: "",
+          rg: "---",
+          cpf: "---",
+          email: "",
+          telefone: "",
+          endereco: "Não localizado",
+          cep: "",
           profissao: "autônomo(a)",
           estadoCivil: "casado(a)",
           genero: "M"
         },
-        processos: [{
-          banco: bancoMatch ? bancoMatch[1].toUpperCase() : "BANCO",
-          cnpjBanco: "",
-          numero: "S/N",
-          veiculo: veiculoMatch ? veiculoMatch[0] : "",
-          valorFinanciamento: "",
-          valorParcela: ""
-        }]
+        processos: [{ banco: "BANCO", cnpjBanco: "", numero: "S/N" }]
       };
     }
 
     const lawyerInfo = BANCA_DATA[lawyer] || BANCA_DATA["PABLO MATHEUS SILVA BASTOS PEREIRA"];
     const selectedOAB = lawyerInfo.oabs[state] || lawyerInfo.oabs["SP"];
 
-    const clienteData = parsed.cliente || parsed;
-    const processosRaw = Array.isArray(parsed.processos) ? parsed.processos : [];
-
     return {
       success: true,
       cliente: {
-        nome: (clienteData.nome || "").toUpperCase(),
-        dataNascimento: clienteData.dataNascimento || "",
-        rg: clienteData.rg || "---",
-        cpf: clienteData.cpf || "---",
-        endereco: clienteData.endereco || "Não localizado",
-        cep: clienteData.cep || "",
-        profissao: clienteData.profissao || "autônomo(a)",
-        estadoCivil: clienteData.estadoCivil || "casado(a)",
-        email: clienteData.email || "",
-        telefone: clienteData.telefone || "",
-        genero: clienteData.genero || "M"
+        ...parsed.cliente,
+        nome: (parsed.cliente?.nome || "").toUpperCase(),
+        dataNascimento: "" // SOBERANIA HUMANA: Sempre vazio na extração
       },
       advogado: {
         nome: lawyer.toUpperCase(),
@@ -224,25 +164,13 @@ export async function extrairDadosProcuracaoAction(inputText: string, lawyer: st
         email: lawyerInfo.email,
         cargo: lawyerInfo.genero === 'F' ? 'advogada' : 'advogado'
       },
-      processos: processosRaw.length > 0 ? processosRaw.map((p: any) => ({
+      processos: (parsed.processos || []).map((p: any) => ({
         banco: (p.banco || "BANCO").toUpperCase(),
-        cnpjBanco: p.cnpjBanco || '',
+        cnpjBanco: p.cnpjBanco || "",
         numero: p.numero || "S/N",
         acao: "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA",
-        estado: state,
-        veiculo: p.veiculo || "",
-        valorFinanciamento: p.valorFinanciamento || "",
-        valorParcela: p.valorParcela || ""
-      })) : [{
-        banco: (parsed.processos?.[0]?.banco || "BANCO").toUpperCase(),
-        cnpjBanco: "",
-        numero: "S/N",
-        acao: "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA",
-        estado: state,
-        veiculo: parsed.processos?.[0]?.veiculo || "",
-        valorFinanciamento: "",
-        valorParcela: ""
-      }]
+        estado: state
+      }))
     };
   } catch (e) {
     return { error: "Erro interno no núcleo de triagem." };
@@ -255,6 +183,7 @@ export async function generateProcuracaoPDFAction(data: any) {
     const pdfBuffer = await renderToBuffer(React.createElement(ProcuracaoPDF, { data }));
     return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
   } catch (e: any) {
+    console.error('PDF Gen Error:', e);
     return { error: "Falha ao selar o PDF." };
   }
 }
