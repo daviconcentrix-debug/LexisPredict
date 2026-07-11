@@ -76,97 +76,88 @@
 }
 
 /* =========================================================
-   SOBERANIA VISUAL V2 — FIX GLOBAL DE CONTRASTE
+   SOBERANIA VISUAL V4 — FIX DE CONTRASTE EXECUTIVO
    ========================================================= */
 
-/* ---------- TEMA EXECUTIVO (Aston Martin) ---------- */
 .theme-executivo {
   color-scheme: dark !important;
-  background-color: #0a0a0a !important;
-  color: #ffffff !important;
-  
-  /* Sidebar Variables - Força o preto nítido */
-  --sidebar-background: 0 0% 2% !important; /* #050505 */
-  --sidebar-foreground: 0 0% 100% !important;
-  --sidebar-primary: 45 68% 47% !important; /* #c9a227 */
-  --sidebar-accent: 0 0% 7% !important; /* #111111 */
-  --sidebar-border: 0 0% 10% !important;
-  --sidebar-ring: 45 68% 47% !important;
-  
-  --primary: 45 68% 47% !important;
-  --primary-foreground: 0 0% 4% !important;
+  --background: 0 0% 4%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 7%;
+  --card-foreground: 0 0% 100%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 0 0% 100%;
+  --primary: 45 68% 47%;
+  --primary-foreground: 0 0% 4%;
+  --secondary: 0 0% 10%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 10%;
+  --muted-foreground: 0 0% 65%;
+  --accent: 45 68% 47%;
+  --accent-foreground: 0 0% 100%;
+  --border: 0 0% 15%;
+  --input: 0 0% 15%;
+  --ring: 45 68% 47%;
+
+  --sidebar-background: 0 0% 2%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-primary: 45 68% 47%;
+  --sidebar-accent: 0 0% 7%;
+  --sidebar-border: 0 0% 10%;
+  --sidebar-ring: 45 68% 47%;
 }
 
-.theme-executivo body, 
-.theme-executivo html {
-  background-color: #0a0a0a !important;
-  color: #ffffff !important;
-}
-
-/* Mata fundos brancos no tema executivo */
+/* Mata fundos claros no tema executivo usando seletores semânticos */
 .theme-executivo .bg-white,
 .theme-executivo .bg-background,
 .theme-executivo .bg-card,
-.theme-executivo .bg-popover,
 .theme-executivo .bg-muted,
 .theme-executivo .bg-secondary,
-.theme-executivo .bg-sidebar,
-.theme-executivo div[class*="bg-white"],
-.theme-executivo main[class*="bg-white"],
-.theme-executivo section[class*="bg-white"],
-.theme-executivo div[class*="bg-slate-50"],
-.theme-executivo div[class*="bg-gray-50"],
-.theme-executivo div[class*="bg-zinc-50"] {
+.theme-executivo .bg-slate-50,
+.theme-executivo .bg-gray-50,
+.theme-executivo .bg-zinc-50,
+.theme-executivo .bg-neutral-50,
+.theme-executivo .bg-gray-100,
+.theme-executivo .bg-slate-100,
+.theme-executivo .bg-zinc-100 {
   background-color: #111111 !important;
   color: #ffffff !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-/* Força a Sidebar em Executivo */
-.theme-executivo aside,
-.theme-executivo .bg-sidebar {
-  background-color: #050505 !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-
-/* Letras Douradas em Títulos e Destaques */
-.theme-executivo h1,
-.theme-executivo h2,
-.theme-executivo .text-primary,
-.theme-executivo .sidebar-title {
-  color: #c9a227 !important;
-}
-
-/* Letras douradas em labels específicas da sidebar */
-.theme-executivo .sidebar-group-title {
-  color: rgba(201, 162, 39, 0.5) !important;
-  font-weight: 900 !important;
-}
-
-/* Garante que o texto NUNCA seja preto em fundos escuros */
+/* Força texto invisível para branco */
 .theme-executivo .text-black,
-.theme-executivo .text-foreground,
 .theme-executivo .text-slate-900,
 .theme-executivo .text-gray-900,
-.theme-executivo .text-zinc-900,
-.theme-executivo span[class*="text-black"],
-.theme-executivo p[class*="text-black"],
-.theme-executivo h1[class*="text-black"],
-.theme-executivo h2[class*="text-black"],
-.theme-executivo h3[class*="text-black"] {
+.theme-executivo .text-zinc-900 {
   color: #ffffff !important;
 }
 
-/* Links ativos dourados no executivo */
-.theme-executivo .bg-primary\/10 {
-  background-color: rgba(201, 162, 39, 0.1) !important;
+/* Títulos Dourados */
+.theme-executivo h1,
+.theme-executivo h2,
+.theme-executivo .sidebar-title,
+.theme-executivo .text-primary {
   color: #c9a227 !important;
 }
 
-/* Primária Dourada */
-.theme-executivo .bg-primary {
-  background-color: #c9a227 !important;
-  color: #0a0a0a !important;
+.theme-executivo .sidebar-group-title {
+  color: rgba(201, 162, 39, 0.6) !important;
+  font-weight: 900 !important;
+}
+
+/* Inputs no Executivo */
+.theme-executivo input,
+.theme-executivo textarea,
+.theme-executivo select {
+  background-color: #050505 !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.theme-executivo input::placeholder,
+.theme-executivo textarea::placeholder {
+  color: rgba(255, 255, 255, 0.3) !important;
 }
 
 /* Scrollbar Executivo */

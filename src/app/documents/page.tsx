@@ -105,7 +105,7 @@ export default function DocumentGenerator() {
       const res = await extrairDadosProcuracaoAction(inputText, selectedLawyer, selectedState);
       if (res.success) {
         setExtractedData(res);
-        setStep(2);
+        setStep( step + 1);
         toast({ title: "Triagem Neural Concluída" });
       } else {
         setApiError(res.error || "Falha na triagem neural.");
@@ -162,13 +162,13 @@ export default function DocumentGenerator() {
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <header className="h-16 border-b border-border bg-card flex items-center justify-between px-8 shrink-0 z-40">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 pl-10 lg:pl-0">
             <div className="icon-3d-wrapper">
               <div className="icon-3d-block black w-10 h-10 rounded-sm">
                 <Shield size={20} className="text-white" />
               </div>
             </div>
-            <h1 className="font-black text-xl uppercase tracking-tighter">Gerador de Procurações Elite</h1>
+            <h1 className="font-black text-xl uppercase tracking-tighter text-foreground">Gerador de Procurações Elite</h1>
           </div>
           <div className="flex items-center gap-3">
              <Badge variant="outline" className="border-primary text-primary font-black uppercase text-[10px]">v24.0 Elite</Badge>
@@ -179,7 +179,7 @@ export default function DocumentGenerator() {
           {step === 1 && (
             <div className="space-y-8 animate-in fade-in duration-500">
               {apiError && (
-                <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 rounded-none shadow-[8px_8px_0px_#000]">
+                <Alert variant="destructive" className="border-2 border-destructive bg-destructive/10 rounded-none shadow-[8px_8px_0px_rgba(0,0,0,0.1)]">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle className="font-black uppercase text-xs">Erro de Triagem</AlertTitle>
                   <AlertDescription className="text-[10px] font-bold uppercase">{apiError}</AlertDescription>
@@ -188,7 +188,7 @@ export default function DocumentGenerator() {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
-                  <Card className="bg-card border-2 border-border rounded-none shadow-[8px_8px_0px_rgba(0,0,0,0.1)]">
+                  <Card className="bg-card border-2 border-border rounded-none shadow-[8px_8px_0px_rgba(0,0,0,0.05)]">
                     <CardHeader className="bg-primary text-primary-foreground py-3">
                       <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                         1. Configuração de Gabinete
@@ -197,9 +197,9 @@ export default function DocumentGenerator() {
                     <CardContent className="p-6 space-y-6">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label className="uppercase text-[10px] font-black">Advogado Responsável</Label>
+                          <Label className="uppercase text-[10px] font-black text-foreground opacity-60">Advogado Responsável</Label>
                           <Select value={selectedLawyer} onValueChange={(val) => { setSelectedLawyer(val); setSelectedState(''); }}>
-                            <SelectTrigger className="w-full border-2 border-border h-12 font-black uppercase text-[11px] rounded-none bg-background">
+                            <SelectTrigger className="w-full border-2 border-border h-12 font-black uppercase text-[11px] rounded-none bg-background text-foreground">
                               <SelectValue placeholder="SELECIONE..." />
                             </SelectTrigger>
                             <SelectContent className="bg-card border-2 border-border rounded-none">
@@ -210,9 +210,9 @@ export default function DocumentGenerator() {
                           </Select>
                         </div>
                         <div className={cn("space-y-2", !selectedLawyer && "opacity-30 pointer-events-none")}>
-                          <Label className="uppercase text-[10px] font-black">Estado (OAB)</Label>
+                          <Label className="uppercase text-[10px] font-black text-foreground opacity-60">Estado (OAB)</Label>
                           <Select value={selectedState} onValueChange={setSelectedState} disabled={!selectedLawyer}>
-                            <SelectTrigger className="w-full border-2 border-border h-12 font-black uppercase text-[11px] rounded-none bg-background">
+                            <SelectTrigger className="w-full border-2 border-border h-12 font-black uppercase text-[11px] rounded-none bg-background text-foreground">
                               <SelectValue placeholder="ESTADO..." />
                             </SelectTrigger>
                             <SelectContent className="bg-card border-2 border-border rounded-none">
@@ -226,19 +226,19 @@ export default function DocumentGenerator() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-card border-2 border-border rounded-none shadow-[8px_8px_0px_rgba(0,0,0,0.1)]">
+                  <Card className="bg-card border-2 border-border rounded-none shadow-[8px_8px_0px_rgba(0,0,0,0.05)]">
                     <CardContent className="p-6 space-y-4">
-                      <Label className="uppercase text-[10px] font-black">2. Texto do Contrato</Label>
+                      <Label className="uppercase text-[10px] font-black text-foreground opacity-60">2. Texto do Contrato</Label>
                       <Textarea 
                         placeholder="COLE O TEXTO DO CONTRATO AQUI OU FAÇA O UPLOAD DO PDF..."
-                        className="min-h-[300px] border-2 border-border font-black uppercase text-[11px] rounded-none resize-none leading-relaxed bg-background"
+                        className="min-h-[300px] border-2 border-border font-black uppercase text-[11px] rounded-none resize-none leading-relaxed bg-background text-foreground placeholder:opacity-30"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
                       />
                       <Button 
                         onClick={handleExtract} 
                         disabled={loading}
-                        className="w-full h-14 bg-primary text-primary-foreground font-black uppercase text-xs rounded-none border-2 border-primary hover:opacity-90 transition-all shadow-[6px_6px_0px_rgba(0,0,0,0.2)]"
+                        className="w-full h-14 bg-primary text-primary-foreground font-black uppercase text-xs rounded-none border-2 border-primary hover:opacity-90 transition-all shadow-[6px_6px_0px_rgba(0,0,0,0.1)]"
                       >
                         {loading ? <><Loader2 className="animate-spin mr-2" /> Processando...</> : <><Zap size={16} className="mr-2" /> Extrair & Iniciar Gabinete</>}
                       </Button>
@@ -247,12 +247,12 @@ export default function DocumentGenerator() {
                 </div>
 
                 <div className="space-y-6">
-                  <Card className="bg-card border-2 border-border rounded-none shadow-[8px_8px_0px_rgba(0,0,0,0.1)]">
+                  <Card className="bg-card border-2 border-border rounded-none shadow-[8px_8px_0px_rgba(0,0,0,0.05)]">
                     <CardHeader className="bg-muted border-b-2 border-border py-3">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Upload size={14} /> Leitura PDF</CardTitle>
+                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 text-foreground"><Upload size={14} className="text-primary" /> Leitura PDF</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
-                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-border p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-muted transition-all">
+                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-border p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-muted/50 transition-all text-foreground">
                         {fileLoading ? <Loader2 className="animate-spin" size={32} /> : <FileUp size={48} className="opacity-20 mb-4" />}
                         <p className="text-[10px] font-black uppercase opacity-40">Arraste o PDF aqui</p>
                         <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
@@ -268,107 +268,107 @@ export default function DocumentGenerator() {
             <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
               <div className="flex items-center justify-between border-b-2 border-border pb-4">
                 <div className="flex items-center gap-3">
-                  <Edit3 size={20} />
-                  <h2 className="text-xl font-black uppercase tracking-tight">Revisão de Dados Extraídos</h2>
+                  <Edit3 size={20} className="text-primary" />
+                  <h2 className="text-xl font-black uppercase tracking-tight text-foreground">Revisão de Dados Extraídos</h2>
                 </div>
-                <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-border rounded-none">Voltar</Button>
+                <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-border rounded-none text-foreground hover:bg-muted">Voltar</Button>
               </div>
 
-              <Card className="bg-amber-50 border-2 border-amber-200 rounded-none p-4 flex gap-4 items-start force-dark-text">
-                <AlertCircle className="text-amber-600 shrink-0" />
+              <Card className="bg-primary/5 border-2 border-primary/20 rounded-none p-4 flex gap-4 items-start">
+                <AlertCircle className="text-primary shrink-0" />
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase text-amber-800 tracking-wider">Aviso de Compliance</p>
-                  <p className="text-xs text-amber-700 font-medium leading-relaxed">
-                    A <b>Data de Nascimento</b> deve ser inserida manualmente abaixo (Soberania Humana). O <b>CNPJ do Banco</b> é capturado para triagem e constará no PDF final se preenchido.
+                  <p className="text-[10px] font-black uppercase text-primary tracking-wider">Aviso de Compliance</p>
+                  <p className="text-xs text-foreground/80 font-medium leading-relaxed">
+                    A <b>Data de Nascimento</b> deve ser inserida manualmente abaixo (Soberania Humana). O <b>CNPJ do Banco</b> consta no PDF final se preenchido.
                   </p>
                 </div>
               </Card>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className="bg-card border-2 border-border rounded-none shadow-[6px_6px_0px_rgba(0,0,0,0.1)]">
+                <Card className="bg-card border-2 border-border rounded-none shadow-[6px_6px_0px_rgba(0,0,0,0.05)]">
                   <CardHeader className="bg-muted border-b-2 border-border py-3">
-                    <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><User size={14} /> Dados do Outorgante</CardTitle>
+                    <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 text-foreground"><User size={14} className="text-primary" /> Dados do Outorgante</CardTitle>
                   </CardHeader>
                   <CardContent className="p-6 space-y-6">
                     <div className="grid gap-1">
-                      <Label className="text-[9px] font-black uppercase">Nome Completo</Label>
-                      <Input value={extractedData.cliente.nome} onChange={(e) => updateField('cliente', 'nome', e.target.value)} className="border-border font-black uppercase rounded-none bg-background" />
+                      <Label className="text-[9px] font-black uppercase text-foreground/60">Nome Completo</Label>
+                      <Input value={extractedData.cliente.nome} onChange={(e) => updateField('cliente', 'nome', e.target.value)} className="border-border font-black uppercase rounded-none bg-background text-foreground" />
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-1">
-                        <Label className="text-[9px] font-black uppercase">CPF</Label>
-                        <Input value={extractedData.cliente.cpf} onChange={(e) => updateField('cliente', 'cpf', e.target.value)} className="border-border font-black rounded-none bg-background" />
+                        <Label className="text-[9px] font-black uppercase text-foreground/60">CPF</Label>
+                        <Input value={extractedData.cliente.cpf} onChange={(e) => updateField('cliente', 'cpf', e.target.value)} className="border-border font-black rounded-none bg-background text-foreground" />
                       </div>
                       <div className="grid gap-1">
-                        <Label className="text-[9px] font-black uppercase">RG</Label>
-                        <Input value={extractedData.cliente.rg} onChange={(e) => updateField('cliente', 'rg', e.target.value)} className="border-border font-black rounded-none bg-background" />
+                        <Label className="text-[9px] font-black uppercase text-foreground/60">RG</Label>
+                        <Input value={extractedData.cliente.rg} onChange={(e) => updateField('cliente', 'rg', e.target.value)} className="border-border font-black rounded-none bg-background text-foreground" />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-1">
                         <Label className="text-[9px] font-black uppercase flex items-center gap-1.5 text-primary"><CalendarDays size={10} /> Data de Nascimento</Label>
-                        <Input type="date" value={extractedData.cliente.dataNascimento || ""} onChange={(e) => updateField('cliente', 'dataNascimento', e.target.value)} className="border-border font-black rounded-none h-10 bg-background" />
-                        <p className="text-[8px] font-bold opacity-60 uppercase">Inserção Obrigatória</p>
+                        <Input type="date" value={extractedData.cliente.dataNascimento || ""} onChange={(e) => updateField('cliente', 'dataNascimento', e.target.value)} className="border-border font-black rounded-none h-10 bg-background text-foreground" />
+                        <p className="text-[8px] font-bold opacity-60 uppercase text-foreground">Inserção Obrigatória</p>
                       </div>
                       <div className="grid gap-1">
-                        <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><MapPin size={10} /> CEP</Label>
-                        <Input value={extractedData.cliente.cep} onChange={(e) => updateField('cliente', 'cep', e.target.value)} className="border-border font-black rounded-none bg-background" placeholder="00000-000" />
+                        <Label className="text-[9px] font-black uppercase flex items-center gap-1.5 text-foreground/60"><MapPin size={10} /> CEP</Label>
+                        <Input value={extractedData.cliente.cep} onChange={(e) => updateField('cliente', 'cep', e.target.value)} className="border-border font-black rounded-none bg-background text-foreground" placeholder="00000-000" />
                       </div>
                     </div>
 
                     <div className="grid gap-1">
-                      <Label className="text-[9px] font-black uppercase">Endereço Completo</Label>
-                      <Input value={extractedData.cliente.endereco} onChange={(e) => updateField('cliente', 'endereco', e.target.value)} className="border-border font-black uppercase rounded-none bg-background" />
+                      <Label className="text-[9px] font-black uppercase text-foreground/60">Endereço Completo</Label>
+                      <Input value={extractedData.cliente.endereco} onChange={(e) => updateField('cliente', 'endereco', e.target.value)} className="border-border font-black uppercase rounded-none bg-background text-foreground" />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-1">
-                        <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Mail size={10} /> Email</Label>
-                        <Input type="email" value={extractedData.cliente.email} onChange={(e) => updateField('cliente', 'email', e.target.value)} className="border-border font-black lowercase rounded-none bg-background" />
+                        <Label className="text-[9px] font-black uppercase flex items-center gap-1.5 text-foreground/60"><Mail size={10} /> Email</Label>
+                        <Input type="email" value={extractedData.cliente.email} onChange={(e) => updateField('cliente', 'email', e.target.value)} className="border-border font-black lowercase rounded-none bg-background text-foreground" />
                       </div>
                       <div className="grid gap-1">
-                        <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Phone size={10} /> Telefone</Label>
-                        <Input value={extractedData.cliente.telefone} onChange={(e) => updateField('cliente', 'telefone', e.target.value)} className="border-border font-black rounded-none bg-background" />
+                        <Label className="text-[9px] font-black uppercase flex items-center gap-1.5 text-foreground/60"><Phone size={10} /> Telefone</Label>
+                        <Input value={extractedData.cliente.telefone} onChange={(e) => updateField('cliente', 'telefone', e.target.value)} className="border-border font-black rounded-none bg-background text-foreground" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
                 <div className="space-y-6">
-                  <Card className="bg-card border-2 border-border rounded-none shadow-[6px_6px_0px_rgba(0,0,0,0.1)]">
+                  <Card className="bg-card border-2 border-border rounded-none shadow-[6px_6px_0px_rgba(0,0,0,0.05)]">
                     <CardHeader className="bg-muted border-b-2 border-border py-3">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados Processuais</CardTitle>
+                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 text-foreground"><Building2 size={14} className="text-primary" /> Dados Processuais</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
                       {extractedData.processos.map((p: any, i: number) => (
-                        <div key={i} className="p-5 bg-muted/30 border-2 border-dashed border-border space-y-4">
+                        <div key={i} className="p-5 bg-muted/20 border-2 border-dashed border-border space-y-4">
                            <div className="grid gap-1">
-                             <Label className="text-[9px] font-black uppercase">Instituição Financeira (Banco)</Label>
+                             <Label className="text-[9px] font-black uppercase text-foreground/60">Instituição Financeira (Banco)</Label>
                              <Input value={p.banco} onChange={(e) => {
                                const newProcessos = [...extractedData.processos];
                                newProcessos[i].banco = e.target.value;
                                setExtractedData({...extractedData, processos: newProcessos});
-                             }} className="border-border font-black uppercase rounded-none bg-background" />
+                             }} className="border-border font-black uppercase rounded-none bg-background text-foreground" />
                            </div>
                            
                            <div className="grid grid-cols-2 gap-4">
                              <div className="grid gap-1">
-                               <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Hash size={10} /> CNPJ do Banco</Label>
+                               <Label className="text-[9px] font-black uppercase flex items-center gap-1.5 text-foreground/60"><Hash size={10} /> CNPJ do Banco</Label>
                                <Input value={p.cnpjBanco} onChange={(e) => {
                                  const newProcessos = [...extractedData.processos];
                                  newProcessos[i].cnpjBanco = e.target.value;
                                  setExtractedData({...extractedData, processos: newProcessos});
-                               }} className="border-border font-black rounded-none bg-background" placeholder="00.000.000/0000-00" />
+                               }} className="border-border font-black rounded-none bg-background text-foreground" placeholder="00.000.000/0000-00" />
                              </div>
                              <div className="grid gap-1">
-                               <Label className="text-[9px] font-black uppercase">Processo (CNJ)</Label>
+                               <Label className="text-[9px] font-black uppercase text-foreground/60">Processo (CNJ)</Label>
                                <Input value={p.numero} onChange={(e) => {
                                  const newProcessos = [...extractedData.processos];
                                  newProcessos[i].numero = e.target.value;
                                  setExtractedData({...extractedData, processos: newProcessos});
-                               }} className="border-border font-black uppercase rounded-none bg-background font-mono" />
+                               }} className="border-border font-black uppercase rounded-none bg-background font-mono text-foreground" />
                              </div>
                            </div>
                         </div>
@@ -376,7 +376,7 @@ export default function DocumentGenerator() {
                     </CardContent>
                   </Card>
 
-                  <Button onClick={handleSeal} disabled={loading} className="w-full h-14 bg-primary text-primary-foreground font-black uppercase text-xs rounded-none border-2 border-primary hover:opacity-90 transition-all shadow-[6px_6px_0px_rgba(0,0,0,0.2)]">
+                  <Button onClick={handleSeal} disabled={loading} className="w-full h-14 bg-primary text-primary-foreground font-black uppercase text-xs rounded-none border-2 border-primary hover:opacity-90 transition-all shadow-[6px_6px_0px_rgba(0,0,0,0.15)]">
                     {loading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
                     Selar & Exportar PDF
                   </Button>
