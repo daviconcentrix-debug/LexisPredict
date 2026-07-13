@@ -2,17 +2,15 @@
 'use server';
 
 /**
- * MOTOR DE INGESTÃO MASSIVA v46000.0 ELITE
- * Processamento ultra-robusto com mapeamento total de colunas.
- * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
+ * MOTOR DE INGESTÃO MASSIVA v50000.0 ELITE
+ * Processamento ultra-robusto focado em Supabase.
+ * Inserção massiva com mapeamento de colunas SQL.
  */
 
 import { parse } from 'csv-parse/sync';
 import { supabase } from '@/lib/supabase';
-import { cookies } from 'next/headers';
-import { calcularStatus, calcularRisco, parseBrazilianDate, formatDateToISO } from '@/lib/case-logic';
+import { calcularStatus, calcularRisco, formatDateToISO } from '@/lib/case-logic';
 
-// Helper para converter ISO para DD/MM/YYYY (exibição no frontend)
 function toBR(dateISO: string | null): string {
   if (!dateISO) return '';
   const parts = dateISO.split('-');
@@ -48,28 +46,22 @@ export async function importarCSVAction(formData: FormData) {
       skip_records_with_error: true
     });
 
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('lexis_user_email')?.value;
-    const { data: auth } = await supabase.auth.getUser();
-    const authUser = auth.user;
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { error: 'Sessão expirada. Realize login novamente.' };
 
-    if (!userEmail && !authUser) return { error: 'Sessão expirada. Realize login novamente.' };
-
-    let query = supabase.from('usuarios').select('empresa_id, auth_user_id');
-    if (userEmail) query = query.eq('email', userEmail.toLowerCase().trim());
-    else if (authUser) query = query.eq('auth_user_id', authUser.id);
-
-    const { data: profile } = await query.maybeSingle();
+    const { data: profile } = await supabase.from('usuarios')
+      .select('empresa_id, auth_user_id')
+      .eq('auth_user_id', authUser.id)
+      .maybeSingle();
     
-    // Se não tiver perfil, tenta usar o ID do auth como fallback para empresa genérica ou nula
     const empresa_id = profile?.empresa_id || null;
-    const created_by = profile?.auth_user_id || authUser?.id;
+    const created_by = authUser.id;
 
     const payload: any[] = [];
     let skipped = 0;
 
     for (const row of records) {
-      // Normalização de chaves para evitar falhas de trim
+      // Normalização de chaves para evitar problemas de espaços no CSV
       const cleanRow: Record<string, string> = {};
       Object.keys(row).forEach(key => {
         cleanRow[key.trim().toUpperCase()] = row[key];
@@ -96,7 +88,7 @@ export async function importarCSVAction(formData: FormData) {
       const risco = calcularRisco(observacoes, statusInterno, situacao);
       const diasFaltando = calcularDiasFaltando(proximo_retorno_iso);
 
-      // Objeto DADOS no formato que o Frontend espera (Chaves específicas)
+      // Objeto oficial que o app usa
       const casoDados = {
         id: protocolo,
         tipo: 'NOVO',
@@ -111,7 +103,7 @@ export async function importarCSVAction(formData: FormData) {
         ultimoRetorno: toBR(ultimo_retorno_iso || ''),
         statusManual: 'Automatico',
         diasFaltando: diasFaltando,
-        tribunal: 'Outros', // Será recalculado pelo motor no frontend ou aqui
+        tribunal: 'Outros',
         linkConsulta: `https://www.google.com/search?q=consulta+processo+judicial+${protocolo}`,
         riscoIA: '',
         parecerIA: '',
@@ -131,36 +123,32 @@ export async function importarCSVAction(formData: FormData) {
         status: status,
         risco: risco,
         status_interno: statusInterno,
-        ultima_movimentacao: formatDateToISO(cleanRow['DATA MOVIMENTAÇÃO'] || cleanRow['DATA MOVIMENTACAO']),
         escritorio: casoDados.escritorio,
         advogado: casoDados.advogado,
-        data_distribuicao: formatDateToISO(cleanRow['DISTRIB.'] || cleanRow['DISTRIB']),
-        produtos: casoDados.produtos,
-        telefone: casoDados.telefone
+        telefone: casoDados.telefone,
+        produtos: casoDados.produtos
       });
     }
 
     if (payload.length === 0) return { error: 'Nenhum registro válido localizado no CSV.' };
 
-    // Ingestão massiva atômica
+    // Gravação Massiva Atômica
     const { data: inserted, error: insertError } = await supabase
       .from('processos')
       .insert(payload)
       .select('id');
 
     if (insertError) {
-      console.error('[DB] Falha na Gravação Massiva:', insertError.message);
-      return { error: `Erro técnico: ${insertError.message}` };
+      return { error: `Falha na gravação: ${insertError.message}` };
     }
 
     return {
       success: true,
       count: inserted?.length || payload.length,
-      message: `Sucesso! Importados: ${inserted?.length || payload.length} | Pulados: ${skipped} | Total detectado: ${records.length}`
+      message: `Sucesso! Importados: ${inserted?.length || payload.length} | Pulados: ${skipped}`
     };
 
   } catch (err: any) {
-    console.error('[ImportAction] Erro Crítico:', err);
-    return { error: 'Falha fatal no motor de triagem. Verifique o formato do arquivo.' };
+    return { error: 'Falha fatal no motor de triagem.' };
   }
 }

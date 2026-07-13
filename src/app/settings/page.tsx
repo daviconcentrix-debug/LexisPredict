@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -16,7 +17,6 @@ import {
   Upload,
   ShieldCheck,
   Loader2,
-  ImageIcon,
   X,
   Link as LinkIcon
 } from 'lucide-react';
@@ -47,7 +47,6 @@ export default function SettingsPage() {
   const [customWpUrl, setCustomWpUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Custom theme states
   const [bgColor, setBgColor] = useState('#FFFFFF');
   const [fontColor, setFontColor] = useState('#0A0A0A');
   const [primaryColor, setPrimaryColor] = useState('#00D1FF');
@@ -164,7 +163,7 @@ export default function SettingsPage() {
         <header className="h-16 border-b border-border bg-card flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
              <h1 className="font-black text-sm tracking-[0.2em] uppercase text-foreground">Gabinete Mission Control</h1>
-             <Badge variant="outline" className="border-primary text-primary text-[9px] uppercase font-black tracking-[0.3em]">Elite v32.0</Badge>
+             <Badge variant="outline" className="border-primary text-primary text-[9px] uppercase font-black tracking-[0.3em]">Elite v50.0</Badge>
           </div>
           <div className="flex items-center gap-3">
              <Button 
@@ -244,7 +243,14 @@ export default function SettingsPage() {
                             customWpUrl === wp.url ? "border-primary scale-[0.98]" : "border-border/40 hover:border-primary/50"
                           )}
                         >
-                          <Image src={wp.url} alt={wp.name} fill className="object-cover" />
+                          <Image 
+                            src={wp.url} 
+                            alt={wp.name} 
+                            fill 
+                            sizes="(max-width: 768px) 50vw, 25vw"
+                            priority={wp.id === 'carbon'}
+                            className="object-cover" 
+                          />
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                             <span className="text-[8px] font-black text-white uppercase">{wp.name}</span>
                           </div>
