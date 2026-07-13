@@ -1,40 +1,32 @@
+
 /**
- * MOTOR DE LÓGICA JURÍDICA PURA (v56000.0 ELITE)
- * Cálculos matemáticos de prazos e normalização de status.
+ * MOTOR DE LÓGICA JURÍDICA PURA (v900.0 ELITE)
+ * Cálculos matemáticos de prazos, triagem de CNJ e normalização de status.
+ * Propriedade de W1 Capital | Fundador: Davi Alves Figueredo
  */
 
-export type CaseStatus = 
-  | 'Vencido' 
-  | 'É Hoje' 
-  | 'Atenção' 
-  | 'Próximo' 
-  | 'No Prazo' 
-  | 'Sem Prazo' 
-  | 'Encerrado' 
-  | 'Caso Crítico';
-
-export type RiskLevel = 'Crítico' | 'Atenção' | 'Normal';
-
-export interface LegalCase {
+export type LegalCase = {
   id: string;
-  db_id?: string;
   cliente: string;
   protocolo: string;
-  telefone?: string;
-  escritorio?: string;
   advogado: string;
   situacao: string;
-  statusInterno?: string;
-  ultimoRetorno?: string;
   proximoPrazo: string;
-  observacao: string;
-  status: CaseStatus;
-  risco: RiskLevel;
+  tribunal: string;
+  status: 'Vencido' | 'Atenção' | 'No Prazo' | 'Arquivado' | 'Sem Prazo' | 'É Hoje' | 'Caso Crítico' | 'Encerrado';
   diasFaltando: number | null;
   linkConsulta: string;
-  tribunal: string;
-  statusManual?: string;
-}
+  tipo?: string;
+  telefone?: string;
+  atendente?: string;
+  scoreIA?: number;
+  riscoIA?: string;
+  parecerIA?: string;
+  origemPlanilha?: string;
+  ultimoRetorno?: string;
+  observacao?: string;
+  statusManual?: 'Caso Crítico' | 'Atenção' | 'Encerrado' | 'Arquivado' | 'Automatico';
+};
 
 export type CaseNote = {
   id: string;
@@ -45,73 +37,118 @@ export type CaseNote = {
   updatedAt: string;
 };
 
-export function parseBrazilianDate(value: string | null | undefined): Date | null {
-  if (!value || value.trim() === '' || value === '#VALUE!' || value === '-') return null;
-  const cleaned = value.trim().split(' ')[0];
-  const match = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!match) return null;
-  const day = parseInt(match[1], 10);
-  const month = parseInt(match[2], 10) - 1;
-  const year = parseInt(match[3], 10);
-  const date = new Date(year, month, day);
-  return isNaN(date.getTime()) ? null : date;
-}
+export const TRIBUNAIS_CNJ: Record<string, { tribunal: string; url: string }> = {
+  "8.01": { tribunal: "TJAC", url: "https://esaj.tjac.jus.br/cpopg/open.do" },
+  "8.02": { tribunal: "TJAL", url: "https://www2.tjal.jus.br/cpopg/open.do" },
+  "8.04": { tribunal: "TJAM", url: "https://consultas.tjam.jus.br/cpopg/" },
+  "8.05": { tribunal: "TJBA", url: "https://consultapublicapje.tjba.jus.br/pje/ConsultaPublica/listView.seam" },
+  "8.06": { tribunal: "TJCE", url: "https://esaj.tjce.jus.br/cpopg/open.do" },
+  "8.07": { tribunal: "TJDFT", url: "https://pje.tjdft.jus.br/pje/ConsultaPublica/listView.seam" },
+  "8.08": { tribunal: "TJES", url: "https://pje.tjes.jus.br/pje/ConsultaPublica/listView.seam" },
+  "8.09": { tribunal: "TJGO", url: "https://projudi.tjgo.jus.br/BuscaProcessoPublica" },
+  "8.10": { tribunal: "TJMA", url: "https://pje.tjma.jus.br/pje/ConsultaPublica/listView.seam" },
+  "8.11": { tribunal: "TJMT", url: "https://pje.tjmt.jus.br/pje/ConsultaPublica/listView.seam" },
+  "8.12": { tribunal: "TJMS", url: "https://esaj.tjms.jus.br/cpopg/open.do" },
+  "8.13": { tribunal: "TJMG", url: "https://pje.tjmg.jus.br/pje/ConsultaPublica/listView.seam" },
+  "8.14": { tribunal: "TJPA", url: "https://pje.tjpa.jus.br/pje/ConsultaPublica/listView.seam" },
+  "8.15": { tribunal: "TJPB", url: "https://pje.tjpb.jus.br/pje/ConsultaPublica/listView.seam" },
+  "8.16": { tribunal: "TJPR", url: "https://projudi.tjpr.jus.br/projudi/" },
+  "8.17": { tribunal: "TJPE", url: "https://pje.tjpe.jus.br/1g/ConsultaPublica/listView.seam" },
+  "8.18": { tribunal: "TJPI", url: "https://pje.tjpi.jus.br/1g/ConsultaPublica/listView.seam" },
+  "8.19": { tribunal: "TJRJ", url: "https://www3.tjrj.jus.br/consultaprocessual/" },
+  "8.20": { tribunal: "TJRN", url: "https://pje.tjrn.jus.br/pje/ConsultaPublica/listView.seam" },
+  "8.21": { tribunal: "TJRS", url: "https://www.tjrs.jus.br/novo/processos-e-servicos/consulta-processual/" },
+  "8.22": { tribunal: "TJRO", url: "https://pje.tjro.jus.br/pje/ConsultaPublica/listView.seam" },
+  "8.23": { tribunal: "TJRR", url: "https://projudi.tjrr.jus.br/projudi/" },
+  "8.24": { tribunal: "TJSC", url: "https://eproc1g.tjsc.jus.br/eproc/externo_controlador.php?acao=consulta_publica" },
+  "8.25": { tribunal: "TJSE", url: "https://www.tjse.jus.br/portal/processos/consultas-processuais" },
+  "8.26": { tribunal: "TJSP", url: "https://esaj.tjsp.jus.br/cpopg/open.do" },
+  "8.27": { tribunal: "TJTO", url: "https://eproc.tjto.jus.br/eprocV2_prod/externo_controlador.php?acao=consulta_publica" },
+  "4.01": { tribunal: "TRF1", url: "https://pje1g.trf1.jus.br/consultapublica/ConsultaPublica/listView.seam" },
+  "4.02": { tribunal: "TRF2", url: "https://eproc.trf2.jus.br/eproc.php?acao=consulta_publica" },
+  "4.03": { tribunal: "TRF3", url: "https://pje1g.trf3.jus.br/pje/ConsultaPublica/listView.seam" },
+  "4.04": { tribunal: "TRF4", url: "https://eproc.trf2trf4/externo_controlador.php?acao=consulta_publica" },
+  "4.05": { tribunal: "TRF5", url: "https://pje.trf5.jus.br/pje/ConsultaPublica/listView.seam" },
+  "4.06": { tribunal: "TRF6", url: "https://pje1g.trf6.jus.br/pje/ConsultaPublica/listView.seam" }
+};
 
-export function formatDateToISO(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const date = typeof value === 'string' && value.includes('/') ? parseBrazilianDate(value) : new Date(value);
-  if (!date || isNaN(date.getTime())) return null;
-  return date.toISOString().split('T')[0];
-}
-
-export function calcularStatus(proximoRetorno: string | null | undefined, situacao: string | null | undefined): CaseStatus {
-  const situacaoUpper = (situacao || '').toUpperCase();
-  if (['ENCERRADO', 'EXTINTO', 'BAIXA', 'IMPROCEDENTE', 'CANCELADA', 'TRANSITADO'].some(t => situacaoUpper.includes(t))) return 'Encerrado';
-
-  const dataProximo = parseBrazilianDate(proximoRetorno);
-  if (!dataProximo) return 'Sem Prazo';
-
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-  dataProximo.setHours(0, 0, 0, 0);
-
-  const diffDays = Math.floor((dataProximo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) return 'Vencido';
-  if (diffDays === 0) return 'É Hoje';
-  if (diffDays <= 3) return 'Atenção';
-  if (diffDays <= 7) return 'Próximo';
-  return 'No Prazo';
-}
-
-export function calcularRisco(obs?: string | null, status?: string | null, sit?: string | null): RiskLevel {
-  const texto = `${obs || ''} ${status || ''} ${sit || ''}`.toUpperCase();
-  if (['INDEFERIDA', 'EXTINTO', 'IMPROCEDENTE', 'BLOQUEOU', 'SUCUMBÊNCIA'].some(p => texto.includes(p))) return 'Crítico';
-  if (['CONCLUSO', 'AGUARDANDO', 'CUSTAS', 'DILAÇÃO', 'PRAZO'].some(p => texto.includes(p))) return 'Atenção';
-  return 'Normal';
-}
-
+/**
+ * FUNÇÃO PURA PARA NORMALIZAÇÃO DE CASOS JURÍDICOS
+ */
 export function processarCaso(linha: Record<string, string>): LegalCase {
-  const situacao = (linha['SITUAÇÃO'] || linha['SITUACAO'] || 'EM ANDAMENTO').trim();
-  const proximoRaw = linha['PRÓXIMO RETORNO'] || linha['PROXIMO RETORNO'] || linha['PRÓXIMO PRAZO'] || '';
-  const observacao = linha['OBSERVAÇÕES'] || linha['OBSERVACOES'] || linha['OBSERVACAO'] || '';
-  
-  const status = calcularStatus(proximoRaw, situacao);
-  const risco = calcularRisco(observacao, linha['STATUS'], situacao);
+  const situacao = (linha.SITUACAO || linha.SITUAÇÃO || '').toUpperCase();
+  let status: LegalCase['status'] = 'Sem Prazo';
+  let diasFaltando: number | null = null;
+  const dataPrazoOriginal = linha['PRÓXIMO PRAZO'] || linha['PRAZO'] || linha.RETORNO || linha.VENCIMENTO || '';
+
+  if (dataPrazoOriginal) {
+    const parts = dataPrazoOriginal.split('/');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      const dataPrazo = new Date(year, month, day);
+      
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      dataPrazo.setHours(0, 0, 0, 0);
+
+      const diffTime = dataPrazo.getTime() - hoje.getTime();
+      diasFaltando = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diasFaltando < 0) {
+        status = 'Vencido';
+      } else if (diasFaltando === 0) {
+        status = 'É Hoje';
+      } else if (diasFaltando <= 7) {
+        status = 'Atenção';
+      } else {
+        status = 'No Prazo';
+      }
+    }
+  }
+
+  // Prioridade 1: Arquivados
+  if (['ENCERRADO', 'SUSPENSO', 'ARQUIVADO'].some(s => situacao.includes(s))) {
+    status = 'Arquivado';
+  } 
+
+  // Prioridade 2: Status Manual Sobrescrito
+  const statusManual = linha.STATUS_MANUAL;
+  if (statusManual && statusManual !== 'Automatico' && statusManual !== '') {
+    status = statusManual as any;
+  }
+
+  // Identificação Neural de Tribunais (Baseada em Padrão CNJ)
+  let tribunal = 'Outros';
+  let url = 'https://www.google.com/search?q=consulta+processo+judicial';
+  const cnjLimpo = (linha.PROTOCOLO || linha.PROCESSO || '').replace(/[^0-9.-]/g, '');
+  const cnjRegex = /\d{7}-\d{2}\.\d{4}\.(\d\.\d{2})\.\d{4}/;
+  const match = cnjLimpo.match(cnjRegex);
+
+  if (match && TRIBUNAIS_CNJ[match[1]]) {
+    tribunal = TRIBUNAIS_CNJ[match[1]].tribunal;
+    url = TRIBUNAIS_CNJ[match[1]].url;
+  } else if (linha.TRIBUNAL) {
+    tribunal = linha.TRIBUNAL;
+  }
 
   return {
-    id: linha['PROTOCOLO'] || linha['PROCESSO'] || Math.random().toString(36).substr(2, 9),
-    cliente: (linha['CLIENTE'] || linha['NOME'] || 'DESCONHECIDO').toUpperCase(),
-    advogado: (linha['ADVOGADO RESPONSÁVEL'] || linha['ADVOGADO'] || 'NÃO ATRIBUÍDO').toUpperCase(),
-    protocolo: linha['PROTOCOLO'] || linha['PROCESSO'] || 'S/N',
-    situacao: situacao,
-    proximoPrazo: proximoRaw,
+    id: cnjLimpo || `AUTO-${Math.random().toString(36).substr(2, 9)}`,
+    cliente: (linha.CLIENTE || linha.NOME || 'DESCONHECIDO').toUpperCase(),
+    advogado: (linha['ADVOGADO RESPONSÁVEL'] || linha.ADVOGADO || linha.RESPONSÁVEL || 'NÃO ATRIBUÍDO').toUpperCase(),
+    protocolo: cnjLimpo || linha.PROTOCOLO || 'S/N',
+    situacao: situacao || 'EM ANDAMENTO',
+    proximoPrazo: dataPrazoOriginal,
+    tribunal,
     status,
-    risco,
-    diasFaltando: null,
-    linkConsulta: `https://www.google.com/search?q=processo+${linha['PROTOCOLO']}`,
-    tribunal: linha['TRIBUNAL'] || 'Outros',
-    observacao: observacao,
-    telefone: linha['TELEFONE'] || ''
+    diasFaltando,
+    linkConsulta: url,
+    tipo: linha.TIPO || 'GERAL',
+    telefone: linha.TELEFONE || '',
+    atendente: linha.ATENDENTE || '',
+    ultimoRetorno: linha.ULTIMO_RETORNO || linha['ÚLTIMO RETORNO'] || undefined,
+    observacao: linha.OBSERVACAO || linha.OBSERVAÇÃO || '',
+    statusManual: linha.STATUS_MANUAL as any
   };
 }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -101,7 +102,7 @@ export default function WhatsAppHub() {
     try {
       const res = await perguntarIA({
         pergunta: prompts[agent],
-        preferredModel: localStorage.getItem('lexisPredict_preferred_ia') || 'xai',
+        preferredModel: localStorage.getItem('lexisPredict_preferred_ia') || 'openrouter',
         deepThinking: true
       });
       setAiResponse(res.resposta);
@@ -128,70 +129,70 @@ export default function WhatsAppHub() {
   };
 
   return (
-    <div className="flex h-screen bg-background font-sans text-foreground relative z-10 overflow-hidden">
+    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative z-20">
-        <header className="h-16 lg:h-16 border-b border-border bg-card flex items-center justify-between px-6 lg:px-8 shrink-0 z-40">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <header className="h-16 lg:h-16 border-b border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-between px-6 lg:px-8 shrink-0 z-40">
           <div className="flex items-center gap-4 pl-10 lg:pl-0">
             <div className="icon-3d-wrapper scale-75 lg:scale-100">
               <div className="icon-3d-block black w-10 h-10 rounded-sm">
                 <MessageCircle size={20} className="text-white" />
               </div>
             </div>
-            <h1 className="font-black text-sm lg:text-xl text-foreground uppercase tracking-tighter truncate max-w-[150px] lg:max-w-none">Terminal WhatsApp</h1>
+            <h1 className="font-black text-sm lg:text-xl text-black uppercase tracking-tighter truncate max-w-[150px] lg:max-w-none">Terminal WhatsApp</h1>
           </div>
           <div className="flex items-center gap-3">
-             <Button variant="ghost" size="sm" onClick={loadData} className="hidden sm:flex h-9 text-foreground font-black hover:bg-primary hover:text-primary-foreground border-2 border-border transition-all uppercase text-[10px] px-6 bg-background">
+             <Button variant="ghost" size="sm" onClick={loadData} className="hidden sm:flex h-9 text-black font-black hover:bg-black hover:text-white border-2 border-black transition-all uppercase text-[10px] px-6 bg-white">
               <RefreshCcw className={cn("w-3.5 h-3.5 mr-2", loading && "animate-spin")} /> Sincronizar
             </Button>
-            <Badge variant="outline" className="text-primary font-black border-primary border-2 px-2 lg:px-3 py-1 uppercase text-[8px] lg:text-[10px]">
-              <Zap size={10} className="mr-1.5 fill-current" /> API Ativa
+            <Badge variant="outline" className="text-black font-black border-black border-2 px-2 lg:px-3 py-1 uppercase text-[8px] lg:text-[10px]">
+              <Zap size={10} className="mr-1.5 text-yellow-500 fill-yellow-500" /> API Ativa
             </Badge>
           </div>
         </header>
 
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-          {/* PAINEL ESQUERDO: CONTATOS */}
+          {/* PAINEL ESQUERDO: CONTATOS (OCULTO NO MOBILE SE CONTATO SELECIONADO) */}
           <aside className={cn(
-            "w-full lg:w-80 border-r-2 border-border bg-card flex flex-col shrink-0 overflow-hidden transition-all",
+            "w-full lg:w-80 border-r-2 border-black bg-white flex flex-col shrink-0 overflow-hidden transition-all",
             selectedContact ? "hidden lg:flex" : "flex"
           )}>
-            <div className="p-4 border-b-2 border-border bg-muted/30">
+            <div className="p-4 border-b-2 border-black bg-[#f8f9fb]">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
                 <Input 
                   placeholder="FILTRAR AGENDA..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10 border-border border-2 h-10 text-[10px] font-black focus-visible:ring-0 text-foreground uppercase bg-background rounded-none"
+                  className="pl-10 border-black border-2 h-10 text-[10px] font-black focus-visible:ring-0 text-black uppercase bg-white rounded-none"
                 />
               </div>
             </div>
             <ScrollArea className="flex-1">
-              <div className="divide-y-2 divide-border">
+              <div className="divide-y-2 divide-black/5">
                 {contacts.length > 0 ? contacts.map((contact) => (
                   <button 
                     key={contact.id} 
                     onClick={() => { setSelectedContact(contact); setAiResponse(''); }}
                     className={cn(
-                      "w-full p-4 flex items-center gap-3 hover:bg-primary/10 group transition-all text-left border-l-4",
-                      selectedContact?.id === contact.id ? "bg-primary/20 border-l-primary" : "bg-transparent border-l-transparent"
+                      "w-full p-4 flex items-center gap-3 hover:bg-black group transition-all text-left border-l-4",
+                      selectedContact?.id === contact.id ? "bg-black border-l-black" : "bg-white border-l-transparent"
                     )}
                   >
                     <div className={cn(
-                      "w-10 h-10 border-2 border-border flex items-center justify-center shrink-0 transition-colors",
-                      selectedContact?.id === contact.id ? "bg-primary text-primary-foreground border-primary" : "bg-muted"
+                      "w-10 h-10 border-2 border-black flex items-center justify-center shrink-0 transition-colors",
+                      selectedContact?.id === contact.id ? "bg-white" : "bg-[#f3f2f2]"
                     )}>
-                      <User size={20} className={selectedContact?.id === contact.id ? "text-primary-foreground" : "text-foreground"} />
+                      <User size={20} className="text-black" />
                     </div>
                     <div className="min-w-0">
-                      <p className={cn("text-[11px] font-black uppercase truncate", selectedContact?.id === contact.id ? "text-primary" : "text-foreground")}>{contact.nome}</p>
-                      <p className="text-[9px] font-mono text-foreground/40">{contact.telefone}</p>
+                      <p className={cn("text-[11px] font-black uppercase truncate", selectedContact?.id === contact.id ? "text-white" : "text-black")}>{contact.nome}</p>
+                      <p className={cn("text-[9px] font-mono", selectedContact?.id === contact.id ? "text-white/60" : "text-black/40")}>{contact.telefone}</p>
                     </div>
-                    {selectedContact?.id === contact.id && <ChevronRight className="ml-auto text-primary" size={14} />}
+                    {selectedContact?.id === contact.id && <ChevronRight className="ml-auto text-white" size={14} />}
                   </button>
                 )) : (
-                  <div className="p-8 text-center opacity-40 text-foreground">
+                  <div className="p-8 text-center opacity-40">
                     <p className="text-[10px] font-black uppercase italic">Nenhum contato localizado.</p>
                   </div>
                 )}
@@ -201,55 +202,56 @@ export default function WhatsAppHub() {
 
           {/* PAINEL CENTRAL: CONSOLE DE IA */}
           <section className={cn(
-            "flex-1 bg-background flex flex-col overflow-hidden relative",
+            "flex-1 bg-[#f3f2f2] flex flex-col overflow-hidden relative",
             !selectedContact ? "hidden lg:flex" : "flex"
           )}>
              {selectedContact ? (
                <>
                  <div className="flex-1 flex flex-col p-4 lg:p-6 overflow-hidden">
-                    <Button variant="ghost" onClick={() => setSelectedContact(null)} className="lg:hidden mb-4 self-start text-foreground font-black uppercase text-[10px]">
+                    {/* MOBILE BACK BUTTON */}
+                    <Button variant="ghost" onClick={() => setSelectedContact(null)} className="lg:hidden mb-4 self-start text-black font-black uppercase text-[10px]">
                       <ChevronLeft size={16} className="mr-1" /> Voltar para Agenda
                     </Button>
 
-                    <Card className="flex-1 border-2 border-border rounded-none shadow-lg flex flex-col overflow-hidden bg-card">
-                       <CardHeader className="bg-primary text-primary-foreground py-3 px-6 flex flex-row items-center justify-between shrink-0">
+                    <Card className="flex-1 border-2 border-black rounded-none shadow-[8px_8px_0px_#000] flex flex-col overflow-hidden bg-white">
+                       <CardHeader className="bg-black text-white py-3 px-6 flex flex-row items-center justify-between shrink-0">
                           <div className="flex items-center gap-3">
-                             <Sparkles size={16} className="fill-current" />
+                             <Sparkles size={16} className="text-yellow-400" />
                              <CardTitle className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest">Atendimento IA</CardTitle>
                           </div>
-                          <Badge variant="outline" className="hidden sm:block border-primary-foreground/20 text-primary-foreground text-[8px] font-black uppercase">Agente Ativo</Badge>
+                          <Badge variant="outline" className="hidden sm:block border-white/20 text-white text-[8px] font-black uppercase">Agente Ativo</Badge>
                        </CardHeader>
                        
-                       <CardContent className="flex-1 flex flex-col p-4 lg:p-6 space-y-4 lg:space-y-6 min-h-0 text-foreground">
+                       <CardContent className="flex-1 flex flex-col p-4 lg:p-6 space-y-4 lg:space-y-6 min-h-0">
                           <div className="grid grid-cols-3 gap-2 lg:gap-3 shrink-0">
                              <Button 
                                 variant="outline" 
                                 onClick={() => handleGenerateAI('legal')} 
-                                className="h-9 lg:h-10 border-2 border-border font-black uppercase text-[8px] lg:text-[9px] hover:bg-primary hover:text-primary-foreground transition-all rounded-none px-1 text-foreground"
+                                className="h-9 lg:h-10 border-2 border-black font-black uppercase text-[8px] lg:text-[9px] hover:bg-black hover:text-white transition-all rounded-none px-1"
                              >
                                 <Scale size={12} className="mr-1 lg:mr-2" /> Jurídico
                              </Button>
                              <Button 
                                 variant="outline" 
                                 onClick={() => handleGenerateAI('comercial')} 
-                                className="h-9 lg:h-10 border-2 border-border font-black uppercase text-[8px] lg:text-[9px] hover:bg-primary hover:text-primary-foreground transition-all rounded-none px-1 text-foreground"
+                                className="h-9 lg:h-10 border-2 border-black font-black uppercase text-[8px] lg:text-[9px] hover:bg-black hover:text-white transition-all rounded-none px-1"
                              >
                                 <Sparkles size={12} className="mr-1 lg:mr-2" /> Comercial
                              </Button>
                              <Button 
                                 variant="outline" 
                                 onClick={() => handleGenerateAI('financeiro')} 
-                                className="h-9 lg:h-10 border-2 border-border font-black uppercase text-[8px] lg:text-[9px] hover:bg-primary hover:text-primary-foreground transition-all rounded-none px-1 text-foreground"
+                                className="h-9 lg:h-10 border-2 border-black font-black uppercase text-[8px] lg:text-[9px] hover:bg-black hover:text-white transition-all rounded-none px-1"
                              >
                                 <Zap size={12} className="mr-1 lg:mr-2" /> Financeiro
                              </Button>
                           </div>
 
-                          <div className="flex-1 bg-muted/20 border-2 border-dashed border-border p-4 flex flex-col relative min-h-0">
+                          <div className="flex-1 bg-[#f8f9fb] border-2 border-dashed border-black/20 p-4 flex flex-col relative min-h-0">
                              {isGenerating ? (
-                               <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex flex-col items-center justify-center space-y-3 z-10">
-                                  <Loader2 className="animate-spin text-primary" size={32} />
-                                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground">Redigindo...</p>
+                               <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center space-y-3 z-10">
+                                  <Loader2 className="animate-spin text-black" size={32} />
+                                  <p className="text-[10px] font-black uppercase tracking-[0.2em]">Redigindo...</p>
                                </div>
                              ) : null}
                              
@@ -257,7 +259,7 @@ export default function WhatsAppHub() {
                                 value={aiResponse}
                                 onChange={(e) => setAiResponse(e.target.value)}
                                 placeholder="A IA IRÁ REDIGIR A RESPOSTA AQUI..."
-                                className="w-full h-full bg-transparent border-none resize-none text-[11px] lg:text-sm font-black uppercase leading-relaxed text-foreground focus:ring-0 placeholder:opacity-20"
+                                className="w-full h-full bg-transparent border-none resize-none text-[11px] lg:text-sm font-black uppercase leading-relaxed text-black focus:ring-0 placeholder:text-black/10"
                              />
                           </div>
 
@@ -266,7 +268,7 @@ export default function WhatsAppHub() {
                                <Button 
                                   disabled={!aiResponse || isSending}
                                   onClick={handleSendAPI}
-                                  className="flex-1 h-12 bg-primary text-primary-foreground border-2 border-primary font-black uppercase text-[10px] hover:opacity-90 transition-all shadow-md rounded-none"
+                                  className="flex-1 h-12 bg-black text-white border-2 border-black font-black uppercase text-[10px] hover:bg-white hover:text-black transition-all shadow-[4px_4px_0px_#000] hover:shadow-none rounded-none"
                                >
                                   {isSending ? <Loader2 className="animate-spin mr-2" /> : <Send size={16} className="mr-2" />}
                                   Enviar API
@@ -274,12 +276,23 @@ export default function WhatsAppHub() {
                                <Button 
                                   asChild
                                   variant="outline"
-                                  className="flex-1 h-12 border-2 border-border font-black uppercase text-[10px] hover:bg-muted transition-all shadow-md rounded-none bg-background text-foreground"
+                                  className="flex-1 h-12 border-2 border-black font-black uppercase text-[10px] hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none rounded-none bg-white"
                                >
                                   <a href={formatWhatsAppLink(selectedContact.telefone, aiResponse)} target="_blank" rel="noopener noreferrer">
-                                     <MessageCircle size={16} className="mr-2 text-primary" /> Chat Pessoal
+                                     <MessageCircle size={16} className="mr-2" /> Chat Pessoal
                                   </a>
                                </Button>
+                             </div>
+                             
+                             <div className="hidden sm:flex bg-blue-50 border border-blue-200 p-3 gap-3 items-start">
+                                <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                                <div className="space-y-1">
+                                  <p className="text-[9px] font-black text-blue-900 uppercase">Aviso:</p>
+                                  <p className="text-[8px] font-bold text-blue-700 uppercase leading-tight">
+                                    O <b>Disparo API</b> usa chave YCloud Profissional. 
+                                    Para <b>WhatsApp pessoal</b>, use <b>Chat Manual</b>.
+                                  </p>
+                                </div>
                              </div>
                           </div>
                        </CardContent>
@@ -287,7 +300,7 @@ export default function WhatsAppHub() {
                  </div>
                </>
              ) : (
-               <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-6 opacity-30 text-foreground">
+               <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-6 opacity-30">
                   <div className="icon-3d-wrapper">
                     <div className="icon-3d-block black w-20 h-20 lg:w-24 lg:h-24 rounded-none">
                       <Bot size={48} className="text-white" />
@@ -301,30 +314,30 @@ export default function WhatsAppHub() {
              )}
           </section>
 
-          {/* PAINEL DIREITO: DOSSIÊ */}
+          {/* PAINEL DIREITO: DOSSIÊ (OCULTO NO MOBILE POR PADRÃO) */}
           {selectedContact && (
-            <aside className="hidden xl:flex w-96 border-l-2 border-border bg-card flex col shrink-0 overflow-hidden shadow-2xl">
-               <div className="p-6 bg-muted/30 border-b-2 border-border">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40 mb-1">Dossiê de Atendimento</h3>
-                  <h2 className="text-lg font-black uppercase leading-tight text-foreground">{selectedContact.nome}</h2>
+            <aside className="hidden xl:flex w-96 border-l-2 border-black bg-white flex-col shrink-0 overflow-hidden shadow-2xl">
+               <div className="p-6 bg-[#f8f9fb] border-b-2 border-black">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 mb-1">Dossiê de Atendimento</h3>
+                  <h2 className="text-lg font-black uppercase leading-tight">{selectedContact.nome}</h2>
                </div>
                
                <ScrollArea className="flex-1 p-6">
                   <div className="space-y-8">
                      <section className="space-y-4">
-                        <Label className="text-[9px] font-black uppercase tracking-widest bg-primary text-primary-foreground px-2 py-0.5">Contexto Procedural</Label>
+                        <Label className="text-[9px] font-black uppercase tracking-widest bg-black text-white px-2 py-0.5">Contexto Procedural</Label>
                         <div className="space-y-3">
-                           <InfoItem icon={<FileText size={12} className="text-primary"/>} label="Protocolo CNJ" value={selectedContact.protocolo} />
-                           <InfoItem icon={<Scale size={12} className="text-primary"/>} label="Tribunal" value={selectedContact.tribunal} />
-                           <InfoItem icon={<Clock size={12} className="text-primary"/>} label="Status Atual" value={selectedContact.status} />
-                           <InfoItem icon={<User size={12} className="text-primary"/>} label="Responsável" value={selectedContact.advogado} />
+                           <InfoItem icon={<FileText size={12}/>} label="Protocolo CNJ" value={selectedContact.protocolo} />
+                           <InfoItem icon={<Scale size={12}/>} label="Tribunal" value={selectedContact.tribunal} />
+                           <InfoItem icon={<Clock size={12}/>} label="Status Atual" value={selectedContact.status} />
+                           <InfoItem icon={<User size={12}/>} label="Responsável" value={selectedContact.advogado} />
                         </div>
                      </section>
 
                      <section className="space-y-4">
-                        <Label className="text-[9px] font-black uppercase tracking-widest bg-primary text-primary-foreground px-2 py-0.5">Notas Estratégicas</Label>
-                        <div className="p-4 bg-muted/20 border-2 border-border rounded-none">
-                           <p className="text-[10px] font-black uppercase leading-relaxed text-foreground/60 italic">
+                        <Label className="text-[9px] font-black uppercase tracking-widest bg-black text-white px-2 py-0.5">Notas Estratégicas</Label>
+                        <div className="p-4 bg-[#f3f2f2] border-2 border-black rounded-none">
+                           <p className="text-[10px] font-black uppercase leading-relaxed text-black/60 italic">
                              {selectedContact.observacao || 'SEM NOTAS ADICIONAIS.'}
                            </p>
                         </div>
@@ -332,8 +345,8 @@ export default function WhatsAppHub() {
                   </div>
                </ScrollArea>
 
-               <footer className="p-6 border-t-2 border-border bg-muted/30">
-                  <p className="text-[8px] font-black uppercase text-center text-foreground/40">
+               <footer className="p-6 border-t-2 border-black bg-[#f8f9fb]">
+                  <p className="text-[8px] font-black uppercase text-center text-black/40">
                     Sincronizado v160.0 Elite
                   </p>
                </footer>
@@ -341,11 +354,11 @@ export default function WhatsAppHub() {
           )}
         </div>
 
-        <footer className="h-10 border-t border-border bg-card flex items-center justify-center gap-4 lg:gap-6 text-[8px] lg:text-[10px] text-foreground/40 font-black uppercase tracking-[0.2em] shrink-0 z-40">
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-4 lg:gap-6 text-[8px] lg:text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0">
           <div className="flex items-center gap-2">
             <Copyright size={10} /> 2026 W1 Capital.
           </div>
-          <span className="hidden sm:inline uppercase font-black text-primary">Relatório Consolidado • DAVI ALVES FIGUEREDO</span>
+          <span className="hidden sm:inline uppercase font-black">Relatório Consolidado • DAVI ALVES FIGUEREDO</span>
         </footer>
       </main>
     </div>
@@ -355,12 +368,12 @@ export default function WhatsAppHub() {
 function InfoItem({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) {
   return (
     <div className="flex items-center gap-3">
-       <div className="w-7 h-7 bg-muted/50 border border-border flex items-center justify-center shrink-0">
+       <div className="w-7 h-7 bg-[#f3f2f2] border border-black flex items-center justify-center shrink-0">
           {icon}
        </div>
        <div className="min-w-0">
-          <p className="text-[8px] font-black text-foreground/40 uppercase leading-none mb-0.5">{label}</p>
-          <p className="text-[10px] font-black text-foreground uppercase truncate">{value}</p>
+          <p className="text-[8px] font-black text-black/40 uppercase leading-none mb-0.5">{label}</p>
+          <p className="text-[10px] font-black text-black uppercase truncate">{value}</p>
        </div>
     </div>
   );

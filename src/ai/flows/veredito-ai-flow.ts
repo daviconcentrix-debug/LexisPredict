@@ -1,9 +1,8 @@
 'use server';
 /**
- * @fileOverview Motor de Auditoria 3D v850.0 ELITE
+ * @fileOverview Motor de Auditoria 3D v800.0 ELITE
  * Núcleo: Pentade de Motores Neurais (xAI, Airforce, Groq Llama, Groq DeepSeek)
  * Proprietário: W1 Capital | Cliente: Get Assessoria Financeira Ltda
- * Estabilizado para evitar erro 500 via Fallback Silencioso.
  */
 
 import {ai} from '@/ai/genkit';
@@ -50,12 +49,11 @@ async function fetchWithTimeout(url: string, options: any, timeout = 12000) {
 }
 
 async function callXAI(datajud: any) {
-  // Nota Técnica: grok-4.5 ainda não é um modelo válido na API pública. Usando grok-2 como alias estável.
   const res = await fetchWithTimeout('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${API_KEYS.XAI}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'grok-2-1212',
+      model: 'grok-4.5',
       messages: [{ role: 'system', content: SYSTEM_INSTRUCTIONS }, { role: 'user', content: `DADOS: ${JSON.stringify(datajud).substring(0, 8000)}` }],
       response_format: { type: 'json_object' }
     })
@@ -111,30 +109,23 @@ async function callGroqDeepSeek(datajud: any) {
 export const vereditoAIFlow = ai.defineFlow(
   { name: 'vereditoAIFlow', inputSchema: z.any(), outputSchema: z.any() },
   async input => {
-    try {
-      const dataJudData = await fetchDataJud(input.cnj);
-      const engines = [
-        { id: 'xai', call: callXAI },
-        { id: 'airforce', call: callAirforce },
-        { id: 'groq-llama', call: callGroqLlama },
-        { id: 'groq-deepseek', call: callGroqDeepSeek }
-      ];
-      const model = input.preferredModel || 'xai';
-      const sorted = [engines.find(e => e.id === model) || engines[0], ...engines.filter(e => e.id !== model)].filter(Boolean);
+    const dataJudData = await fetchDataJud(input.cnj);
+    const engines = [
+      { id: 'xai', call: callXAI },
+      { id: 'airforce', call: callAirforce },
+      { id: 'groq-llama', call: callGroqLlama },
+      { id: 'groq-deepseek', call: callGroqDeepSeek }
+    ];
+    const model = input.preferredModel || 'xai';
+    const sorted = [engines.find(e => e.id === model) || engines[0], ...engines.filter(e => e.id !== model)].filter(Boolean);
 
-      for (const engine of sorted) {
-        try {
-          const result = await engine!.call(dataJudData);
-          if (result && result.resumoTecnico) return { ...result, dataJudRaw: dataJudData, engineUtilizada: engine!.id.toUpperCase(), success: true };
-        } catch (e) {
-          console.warn(`Engine ${engine?.id} falhou, tentando próxima...`);
-        }
-      }
-      return { success: false, error: "Nenhum motor neural respondeu a tempo." };
-    } catch (criticalError: any) {
-      console.error("[VereditoFlow] Falha Crítica:", criticalError.message);
-      return { success: false, error: criticalError.message || "Erro interno no núcleo de auditoria." };
+    for (const engine of sorted) {
+      try {
+        const result = await engine!.call(dataJudData);
+        if (result && result.resumoTecnico) return { ...result, dataJudRaw: dataJudData, engineUtilizada: engine!.id.toUpperCase() };
+      } catch (e) {}
     }
+    return { resumoTecnico: "", error: true };
   }
 );
 

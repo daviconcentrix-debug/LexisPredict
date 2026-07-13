@@ -1,68 +1,45 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
+    /* DEFAULT: MINIMAL STEEL (WHITE) */
     --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 191 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 32% 91.4%;
-    --input: 214.3 32% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.75rem;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 191 100% 50%;
+    --radius: 4px;
 
+    --card-opacity: 1;
+    --sidebar-opacity: 1;
+    --wallpaper-brightness: 1;
+
+    /* SIDEBAR VARIABLES */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 221.2 83.2% 53.3%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 96.1%;
-    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+    --sidebar-primary: 191 100% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 221.2 83.2% 53.3%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-
-    --sidebar-background: 222.2 84% 4.9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217.2 91.2% 59.8%;
-    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 191 100% 50%;
   }
 }
 
@@ -70,79 +47,61 @@
   * {
     @apply border-border;
   }
+  html {
+    background-image: none;
+    background-size: cover;
+    background-attachment: fixed;
+  }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background/90 text-foreground antialiased transition-all duration-300;
+    backdrop-filter: brightness(var(--wallpaper-brightness));
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
   }
 }
 
-/* =========================================================
-   SOBERANIA VISUAL V5 — CONTRASTE EXECUTIVO BLINDADO
-   ========================================================= */
-
-.theme-executivo {
-  color-scheme: dark !important;
-  --background: 0 0% 4%;
-  --foreground: 0 0% 100%;
-  --card: 0 0% 7%;
-  --card-foreground: 0 0% 100%;
-  --popover: 0 0% 7%;
-  --popover-foreground: 0 0% 100%;
-  --primary: 45 68% 47%;
-  --primary-foreground: 0 0% 4%;
-  --secondary: 0 0% 10%;
-  --secondary-foreground: 0 0% 100%;
-  --muted: 0 0% 10%;
-  --muted-foreground: 0 0% 65%;
-  --accent: 45 68% 47%;
-  --accent-foreground: 0 0% 100%;
-  --border: 0 0% 15%;
-  --input: 0 0% 15%;
-  --ring: 45 68% 47%;
-  --destructive: 0 84.2% 60.2%;
-
-  --sidebar-background: 0 0% 2%;
-  --sidebar-foreground: 0 0% 100%;
-  --sidebar-primary: 45 68% 47%;
-  --sidebar-accent: 0 0% 7%;
-  --sidebar-border: 0 0% 10%;
-  --sidebar-ring: 45 68% 47%;
+@layer components {
+  .bg-card {
+    background-color: hsla(var(--card), var(--card-opacity));
+  }
+  .bg-sidebar {
+    background-color: hsla(var(--sidebar-background), var(--sidebar-opacity));
+  }
+  .mission-control-table {
+    @apply w-full text-left border-collapse text-[11px];
+  }
+  .mission-control-table th {
+    @apply px-4 py-3 bg-secondary/50 text-muted-foreground font-bold uppercase tracking-widest border-b border-border;
+  }
+  .mission-control-table td {
+    @apply px-4 py-3 border-b border-border/10 align-middle font-medium;
+  }
 }
 
-/* Força fundos escuros no tema executivo */
-.theme-executivo .bg-white,
-.theme-executivo .bg-background,
-.theme-executivo .bg-card,
-.theme-executivo .bg-muted,
-.theme-executivo .bg-secondary {
-  background-color: #0f0f0f !important;
-  color: #ffffff !important;
+/* Starlink Precision Protocol */
+.hard-shadow {
+  box-shadow: 6px 6px 0px hsla(var(--border), 0.2);
 }
 
-/* Corretor de Texto Destrutivo (Logout) */
-.theme-executivo .text-destructive {
-  color: #ff4d4d !important;
+.icon-3d-block {
+  @apply flex items-center justify-center transition-all duration-300;
+  box-shadow: 4px 4px 0px hsla(var(--primary), 0.1);
 }
 
-/* Títulos e Elementos de Autoridade */
-.theme-executivo h1,
-.theme-executivo h2,
-.theme-executivo .text-primary {
-  color: #c9a227 !important;
+.icon-3d-block.black {
+  @apply bg-black text-white;
+  box-shadow: 4px 4px 0px hsla(var(--foreground), 0.2);
 }
 
-.theme-executivo input,
-.theme-executivo textarea {
-  background-color: #050505 !important;
-  color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
+/* Print Overrides for Unified Report */
 @media print {
-  .print-hidden {
-    display: none !important;
+  .print-no-bg {
+    background-image: none !important;
+    background-color: white !important;
   }
-  body {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+  .print-full-width {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 }

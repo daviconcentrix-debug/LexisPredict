@@ -1,6 +1,7 @@
+
 /**
- * MOTOR DE ENGENHARIA CROMÁTICA v24000.0 ELITE
- * Gerenciamento de Variáveis de Hardware e Soberania de Contraste.
+ * MOTOR DE ENGENHARIA CROMÁTICA v9500.0 ELITE
+ * Gerenciamento de Variáveis de Hardware, Presets Authority Series e Wallpapers.
  * Propriedade de W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -19,28 +20,12 @@ export type ThemePreset = {
   name: string;
   colors: ThemeColors;
   radius: number;
-  description?: string;
 };
 
 export const AUTHORITY_PRESETS: ThemePreset[] = [
   {
-    id: 'executive-aston',
-    name: 'Executivo Aston',
-    description: 'Preto Matte & Dourado Champagne. Autoridade máxima.',
-    radius: 0,
-    colors: {
-      background: '#0A0A0A',
-      foreground: '#FFFFFF',
-      primary: '#C9A227',
-      border: '#1F1F1F',
-      secondary: '#111111',
-      card: '#111111',
-      accent: '#C9A227'
-    }
-  },
-  {
     id: 'minimal-steel',
-    name: 'Padrão (Claro)',
+    name: 'Minimal Steel (Default)',
     radius: 4,
     colors: {
       background: '#FFFFFF',
@@ -54,7 +39,7 @@ export const AUTHORITY_PRESETS: ThemePreset[] = [
   },
   {
     id: 'midnight-pro',
-    name: 'Noturno Pro',
+    name: 'Midnight Professional',
     radius: 4,
     colors: {
       background: '#020617',
@@ -64,6 +49,48 @@ export const AUTHORITY_PRESETS: ThemePreset[] = [
       secondary: '#0F172A',
       card: '#0F172A',
       accent: '#22D3EE'
+    }
+  },
+  {
+    id: 'charcoal-authority',
+    name: 'Charcoal Authority',
+    radius: 6,
+    colors: {
+      background: '#0F172A',
+      foreground: '#F8FAFC',
+      primary: '#3B82F6',
+      border: '#334155',
+      secondary: '#1E2937',
+      card: '#1E2937',
+      accent: '#3B82F6'
+    }
+  },
+  {
+    id: 'obsidian-prestige',
+    name: 'Obsidian Prestige',
+    radius: 0,
+    colors: {
+      background: '#050505',
+      foreground: '#F1F5F9',
+      primary: '#00D1FF',
+      border: '#1F2937',
+      secondary: '#111111',
+      card: '#0A0A0A',
+      accent: '#00D1FF'
+    }
+  },
+  {
+    id: 'slate-corporate',
+    name: 'Slate Corporate',
+    radius: 8,
+    colors: {
+      background: '#F1F5F9',
+      foreground: '#0F172A',
+      primary: '#2563EB',
+      border: '#CBD5E1',
+      secondary: '#E2E8F0',
+      card: '#FFFFFF',
+      accent: '#2563EB'
     }
   }
 ];
@@ -89,43 +116,36 @@ export function hexToHsl(hex: string): string {
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
-export function applyGlobalTheme(preset: ThemePreset) {
-  if (typeof document === 'undefined' || !preset || !preset.id) return;
-  const root = document.documentElement;
-  const { colors, radius, id } = preset;
-
-  const themeName = id.includes('minimal') ? 'light' : id.includes('aston') ? 'executivo' : 'dark';
-  
-  localStorage.setItem('lexisPredict_theme', themeName);
-  localStorage.setItem('lexisPredict_bg_color', colors.background);
-  localStorage.setItem('lexisPredict_font_color', colors.foreground);
-  localStorage.setItem('lexisPredict_btn_bg_color', colors.primary);
-  localStorage.setItem('lexisPredict_border_radius', radius.toString());
-
-  root.classList.remove('theme-light', 'theme-dark', 'theme-executivo');
-  root.classList.add('theme-' + themeName);
-
-  root.style.setProperty('--background', hexToHsl(colors.background));
-  root.style.setProperty('--foreground', hexToHsl(colors.foreground));
-  root.style.setProperty('--primary', hexToHsl(colors.primary));
-  root.style.setProperty('--card', hexToHsl(colors.card));
-  root.style.setProperty('--border', hexToHsl(colors.border));
-  root.style.setProperty('--secondary', hexToHsl(colors.secondary));
-  root.style.setProperty('--radius', `${radius}px`);
-}
-
-export function applyWallpaper(url: string) {
+export function applyGlobalTheme(colors: ThemeColors, radius: number, longDuration: boolean = false) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   
-  if (url && url.trim() !== '') {
-    localStorage.setItem('lexisPredict_wallpaper', url);
-    root.style.backgroundImage = `url(${url})`;
-    root.style.backgroundSize = 'cover';
-    root.style.backgroundAttachment = 'fixed';
-    root.style.backgroundPosition = 'center';
+  localStorage.setItem('lexisPredict_bg_color', colors.background);
+  localStorage.setItem('lexisPredict_font_color', colors.foreground);
+  localStorage.setItem('lexisPredict_btn_bg_color', colors.primary);
+  localStorage.setItem('lexisPredict_border_color', colors.border);
+  localStorage.setItem('lexisPredict_secondary_color', colors.secondary);
+  localStorage.setItem('lexisPredict_border_radius', radius.toString());
+
+  root.style.setProperty('--background', hexToHsl(colors.background));
+  root.style.setProperty('--card', hexToHsl(colors.card || colors.background));
+  root.style.setProperty('--foreground', hexToHsl(colors.foreground));
+  root.style.setProperty('--primary', hexToHsl(colors.primary));
+  root.style.setProperty('--border', hexToHsl(colors.border));
+  root.style.setProperty('--secondary', hexToHsl(colors.secondary));
+  root.style.setProperty('--radius', `${radius}px`);
+  
+  root.style.setProperty('--sidebar-background', hexToHsl(colors.background));
+  root.style.setProperty('--sidebar-foreground', hexToHsl(colors.foreground));
+  root.style.setProperty('--sidebar-border', hexToHsl(colors.border));
+  root.style.setProperty('--sidebar-primary', hexToHsl(colors.primary));
+  root.style.setProperty('--sidebar-accent', hexToHsl(colors.secondary));
+
+  if (longDuration) {
+    root.style.filter = 'contrast(1.05) saturate(0.85) sepia(0.2)';
+    localStorage.setItem('lexis_long_reading', 'true');
   } else {
-    localStorage.removeItem('lexisPredict_wallpaper');
-    root.style.backgroundImage = 'none';
+    root.style.filter = 'none';
+    localStorage.setItem('lexis_long_reading', 'false');
   }
 }

@@ -6,413 +6,312 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { 
   Cpu,
   Palette,
-  Check,
+  Globe,
+  RotateCcw,
   Zap,
-  Layout,
-  Crown,
-  Moon,
-  Sun,
-  Database,
-  Download,
-  Upload,
-  ShieldCheck,
+  CheckCircle2,
+  AlertTriangle,
+  Monitor,
+  Sparkles,
   Loader2,
+  Layout,
+  ImageIcon,
+  Upload,
+  Link as LinkIcon,
   X,
-  Link as LinkIcon
+  ShieldCheck,
+  MousePointer2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { cn, getIdealTextColor, getAccessibilityRating } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { AUTHORITY_PRESETS, applyGlobalTheme, applyWallpaper } from '@/lib/theme';
-import { cn } from '@/lib/utils';
-import { generateFullBackupAction, restoreBackupAction } from '@/app/actions/case-actions';
-import Image from 'next/image';
-
-const PREDEFINED_WALLPAPERS = [
-  { id: 'carbon', name: 'Carbon Fiber', url: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop' },
-  { id: 'desk', name: 'Executive Desk', url: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?q=80&w=2070&auto=format&fit=crop' },
-  { id: 'library', name: 'Legal Library', url: 'https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=2070&auto=format&fit=crop' },
-  { id: 'abstract', name: 'Noir Abstract', url: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2070&auto=format&fit=crop' }
-];
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Locale } from '@/lib/i18n';
+import { AUTHORITY_PRESETS, applyGlobalTheme } from '@/lib/theme';
+import { generateNeuralTheme } from '@/ai/flows/theme-architect-flow';
 
 export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState('Style');
   const [iaModel, setIaModel] = useState('xai');
-  const [locale, setLocale] = useState('pt');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [customWpUrl, setCustomWpUrl] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [locale, setLocale] = useState<Locale>('pt');
   
+  const [themePrompt, setThemePrompt] = useState('');
+  const [isGeneratingTheme, setIsGeneratingTheme] = useState(false);
+
+  const [longReadingMode, setLongReadingMode] = useState(false);
+  const [cardOpacity, setCardOpacity] = useState(1);
+  const [sidebarOpacity, setSidebarOpacity] = useState(1);
+  const [borderRadius, setBorderRadius] = useState(4);
+  const [wallpaper, setWallpaper] = useState('');
+  const [wallpaperBrightness, setWallpaperBrightness] = useState(1);
+
   const [bgColor, setBgColor] = useState('#FFFFFF');
   const [fontColor, setFontColor] = useState('#0A0A0A');
-  const [primaryColor, setPrimaryColor] = useState('#00D1FF');
-  const [radius, setRadius] = useState(4);
+  const [btnBgColor, setBtnBgColor] = useState('#00D1FF');
+  const [borderColor, setBorderColor] = useState('#E5E7EB');
+  const [secondaryColor, setSecondaryColor] = useState('#F3F4F6');
 
+  const [contrastRating, setContrastRating] = useState<'AAA' | 'AA' | 'FAIL'>('AAA');
   const { toast } = useToast();
+  const wallpaperInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMounted(true);
-    setIaModel(localStorage.getItem('lexisPredict_preferred_ia') || 'xai');
-    setLocale(localStorage.getItem('lexisPredict_locale') || 'pt');
-    
-    setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#FFFFFF');
-    setFontColor(localStorage.getItem('lexisPredict_font_color') || '#0A0A0A');
-    setPrimaryColor(localStorage.getItem('lexisPredict_btn_bg_color') || '#00D1FF');
-    setRadius(parseInt(localStorage.getItem('lexisPredict_border_radius') || '4'));
-    setCustomWpUrl(localStorage.getItem('lexisPredict_wallpaper') || '');
+    const loadSettings = () => {
+      setIaModel(localStorage.getItem('lexisPredict_preferred_ia') || 'xai');
+      setLocale((localStorage.getItem('lexisPredict_locale') as any) || 'pt');
+      setCardOpacity(parseFloat(localStorage.getItem('lexisPredict_card_opacity') || '1'));
+      setSidebarOpacity(parseFloat(localStorage.getItem('lexisPredict_sidebar_opacity') || '1'));
+      setBorderRadius(parseInt(localStorage.getItem('lexisPredict_border_radius') || '4'));
+      setLongReadingMode(localStorage.getItem('lexis_long_reading') === 'true');
+      setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#FFFFFF');
+      setFontColor(localStorage.getItem('lexisPredict_font_color') || '#0A0A0A');
+      setBtnBgColor(localStorage.getItem('lexisPredict_btn_bg_color') || '#00D1FF');
+      setBorderColor(localStorage.getItem('lexisPredict_border_color') || '#E5E7EB');
+      setSecondaryColor(localStorage.getItem('lexisPredict_secondary_color') || '#F3F4F6');
+      setWallpaper(localStorage.getItem('lexisPredict_wallpaper') || '');
+      setWallpaperBrightness(parseFloat(localStorage.getItem('lexisPredict_wallpaper_brightness') || '1'));
+    };
+    loadSettings();
   }, []);
 
-  const handleLanguageChange = (lang: string) => {
-    setLocale(lang);
-    localStorage.setItem('lexisPredict_locale', lang);
-    toast({ title: "Idioma Alterado", description: "Sincronizando ambiente..." });
-    setTimeout(() => window.location.reload(), 800);
-  };
+  useEffect(() => {
+    if (mounted) {
+      setContrastRating(getAccessibilityRating(bgColor, fontColor));
+    }
+  }, [bgColor, fontColor, mounted]);
 
-  const handlePresetChange = (preset: any) => {
-    if (!preset) return;
-    setBgColor(preset.colors.background);
-    setFontColor(preset.colors.foreground);
-    setPrimaryColor(preset.colors.primary);
-    setRadius(preset.radius);
-    applyGlobalTheme(preset);
-    toast({ title: `${preset.name} Ativado`, description: preset.description });
-  };
-
-  const handleWallpaperChange = (url: string) => {
-    applyWallpaper(url);
-    setCustomWpUrl(url);
-    toast({ title: url ? "Wallpaper Aplicado" : "Wallpaper Removido" });
-  };
-
-  const handleManualApply = () => {
-    const customColors = {
-      background: bgColor,
-      foreground: fontColor,
-      primary: primaryColor,
-      border: bgColor === '#FFFFFF' ? '#E5E7EB' : '#1F2937',
-      secondary: bgColor === '#FFFFFF' ? '#F3F4F6' : '#111111',
-      card: bgColor,
-      accent: primaryColor
-    };
+  const handleApplyNeuralTheme = async () => {
+    if (!themePrompt.trim() || isGeneratingTheme) return;
+    setIsGeneratingTheme(true);
     
-    const customPreset = {
-      id: 'custom-manual',
-      name: 'Custom Hardware',
-      colors: customColors,
-      radius: radius
-    };
-    
-    applyGlobalTheme(customPreset);
-    toast({ title: "Configuração Manual Aplicada" });
-  };
-
-  const handleExportBackup = async () => {
-    setIsProcessing(true);
     try {
-      const backup = await generateFullBackupAction();
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `LexisPredict_Backup_${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      toast({ title: "Backup Gerado", description: "Repositório exportado com sucesso." });
-    } catch (e) {
-      toast({ title: "Falha no Backup", variant: "destructive" });
+      const theme = await generateNeuralTheme(themePrompt);
+      
+      setBgColor(theme.background);
+      setFontColor(theme.foreground);
+      setBtnBgColor(theme.primary);
+      setSecondaryColor(theme.secondary);
+      setBorderColor(theme.border);
+      setBorderRadius(theme.radius);
+
+      applyGlobalTheme({
+        background: theme.background,
+        foreground: theme.foreground,
+        primary: theme.primary,
+        secondary: theme.secondary,
+        border: theme.border,
+        card: theme.background,
+        accent: theme.primary
+      }, theme.radius, longReadingMode);
+
+      toast({ title: "Atmosfera Neural Aplicada", description: theme.description });
+      setThemePrompt('');
+    } catch (e: any) {
+      toast({ title: "Motor Neural Instável", description: "Ativando modo de segurança...", variant: "destructive" });
     } finally {
-      setIsProcessing(false);
+      setIsGeneratingTheme(false);
     }
   };
 
-  const handleImportBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handlePresetChange = (preset: typeof AUTHORITY_PRESETS[0]) => {
+    setBgColor(preset.colors.background);
+    setFontColor(preset.colors.foreground);
+    setBtnBgColor(preset.colors.primary);
+    setBorderColor(preset.colors.border);
+    setSecondaryColor(preset.colors.secondary);
+    setBorderRadius(preset.radius);
 
-    setIsProcessing(true);
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        const result = await restoreBackupAction(json.data);
-        if (result.success) {
-          toast({ title: "Base Restaurada", description: "Sincronizando gabinete..." });
-          setTimeout(() => window.location.reload(), 1500);
-        } else {
-          throw new Error(result.message);
-        }
-      } catch (err: any) {
-        toast({ title: "Falha na Importação", description: "Arquivo corrompido ou inválido.", variant: "destructive" });
-      } finally {
-        setIsProcessing(false);
-      }
-    };
-    reader.readAsText(file);
+    applyGlobalTheme(preset.colors, preset.radius, longReadingMode);
+    toast({ title: `${preset.name} Ativado` });
+  };
+
+  const handleLocalWallpaperUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        updateManualSetting('lexisPredict_wallpaper', result, setWallpaper);
+        toast({ title: "Atmosfera Local Sincronizada" });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const updateManualSetting = (key: string, value: any, setter: any) => {
+    setter(value);
+    localStorage.setItem(key, String(value));
+    
+    if (key.includes('color')) {
+      const colors = {
+        background: key === 'lexisPredict_bg_color' ? value : bgColor,
+        foreground: key === 'lexisPredict_font_color' ? value : fontColor,
+        primary: key === 'lexisPredict_btn_bg_color' ? value : btnBgColor,
+        border: key === 'lexisPredict_border_color' ? value : borderColor,
+        secondary: key === 'lexisPredict_secondary_color' ? value : secondaryColor,
+        card: key === 'lexisPredict_bg_color' ? value : bgColor,
+        accent: key === 'lexisPredict_btn_bg_color' ? value : btnBgColor,
+      };
+      applyGlobalTheme(colors, borderRadius, longReadingMode);
+    }
+
+    if (key === 'lexisPredict_border_radius') document.documentElement.style.setProperty('--radius', `${value}px`);
+    if (key === 'lexisPredict_card_opacity') document.documentElement.style.setProperty('--card-opacity', String(value));
+    if (key === 'lexisPredict_sidebar_opacity') document.documentElement.style.setProperty('--sidebar-opacity', String(value));
+    if (key === 'lexisPredict_wallpaper') {
+       document.documentElement.style.backgroundImage = value ? `url(${value})` : 'none';
+       document.documentElement.style.backgroundSize = 'cover';
+       document.documentElement.style.backgroundAttachment = 'fixed';
+    }
+    if (key === 'lexisPredict_wallpaper_brightness') document.documentElement.style.setProperty('--wallpaper-brightness', String(value));
   };
 
   if (!mounted) return null;
 
   return (
-    <div className="flex h-screen bg-background font-sans text-foreground relative z-10">
+    <div className="flex h-screen bg-background/90 font-sans text-foreground">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        <header className="h-16 border-b border-border bg-card flex items-center justify-between px-8 shrink-0 z-40">
-          <div className="flex items-center gap-4">
-             <h1 className="font-black text-sm tracking-[0.2em] uppercase text-foreground">Gabinete Mission Control</h1>
-             <Badge variant="outline" className="border-primary text-primary text-[9px] uppercase font-black tracking-[0.3em]">Elite v50.0</Badge>
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        <header className="h-16 border-b border-border/30 bg-background/80 backdrop-blur-xl flex items-center justify-between px-8 shrink-0 z-40">
+          <div className="flex items-center gap-6">
+            <h1 className="font-bold text-sm tracking-[0.2em] uppercase">Gabinete Mission Control</h1>
+            <Badge variant="outline" className="border-primary text-primary text-[9px] uppercase font-bold tracking-[0.3em] px-3 py-1">Elite v9.5</Badge>
           </div>
-          <div className="flex items-center gap-3">
-             <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleExportBackup} 
-                disabled={isProcessing}
-                className="hidden sm:flex h-9 border-2 border-primary text-primary font-black uppercase text-[10px] px-6 hover:bg-primary hover:text-primary-foreground transition-all"
-             >
-                {isProcessing ? <Loader2 className="animate-spin mr-2" /> : <Download size={14} className="mr-2" />}
-                Quick Backup
-             </Button>
-             <Button variant="ghost" size="icon" onClick={() => window.location.reload()} className="text-foreground hover:bg-primary hover:text-primary-foreground border-2 border-border h-10 w-10">
-                <Zap size={16} />
-             </Button>
-          </div>
+          <Button variant="ghost" size="sm" onClick={() => handlePresetChange(AUTHORITY_PRESETS[0])} className="text-[10px] font-bold uppercase tracking-widest hover:text-primary">
+            <RotateCcw size={12} className="mr-2" /> Reset Factory
+          </Button>
         </header>
 
         <div className="flex-1 overflow-auto p-8 max-w-6xl mx-auto w-full">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-            <aside className="space-y-2">
+            <aside className="space-y-1">
               <NavButton active={activeTab === 'Style'} onClick={() => setActiveTab('Style')} icon={<Palette size={14}/>} label="Hardware Visual" />
+              <NavButton active={activeTab === 'Wallpaper'} onClick={() => setActiveTab('Wallpaper')} icon={<ImageIcon size={14}/>} label="Atmosfera (Fundo)" />
               <NavButton active={activeTab === 'Engine'} onClick={() => setActiveTab('Engine')} icon={<Cpu size={14}/>} label="Núcleo Neural" />
-              <NavButton active={activeTab === 'System'} onClick={() => setActiveTab('System')} icon={<Database size={14}/>} label="Infraestrutura" />
+              <NavButton active={activeTab === 'System'} onClick={() => setActiveTab('System')} icon={<Globe size={14}/>} label="Localização" />
             </aside>
 
-            <div className="md:col-span-3 space-y-12 pb-20">
+            <div className="md:col-span-3 space-y-12 pb-24">
               {activeTab === 'Style' && (
                 <div className="space-y-12 animate-in fade-in duration-500">
-                  <section className="space-y-6">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 text-foreground">Seletor de Autoridade (Presets)</Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                       <button 
-                        onClick={() => handlePresetChange(AUTHORITY_PRESETS.find(p => p.id === 'executive-aston'))}
-                        className="group relative p-6 bg-[#0a0a0a] border-2 border-[#c9a227]/20 hover:border-[#c9a227] transition-all text-left overflow-hidden rounded-none"
-                       >
-                          <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-100 transition-opacity">
-                            <Crown className="text-[#c9a227]" size={20} />
-                          </div>
-                          <h4 className="text-[#c9a227] font-black text-xs uppercase tracking-widest mb-1">Executivo</h4>
-                          <p className="text-white/40 text-[9px] uppercase font-bold">Matte & Dourado</p>
-                       </button>
-
-                       <button 
-                        onClick={() => handlePresetChange(AUTHORITY_PRESETS.find(p => p.id === 'minimal-steel'))}
-                        className="group relative p-6 bg-white border-2 border-gray-100 hover:border-blue-400 transition-all text-left rounded-none"
-                       >
-                          <div className="absolute top-0 right-0 p-3 opacity-20">
-                            <Sun className="text-gray-400" size={16} />
-                          </div>
-                          <h4 className="text-black font-black text-xs uppercase tracking-widest mb-1">Padrão</h4>
-                          <p className="text-black/40 text-[9px] uppercase font-bold">Aço Minimalista</p>
-                       </button>
-
-                       <button 
-                        onClick={() => handlePresetChange(AUTHORITY_PRESETS.find(p => p.id === 'midnight-pro'))}
-                        className="group relative p-6 bg-[#020617] border-2 border-indigo-500/20 hover:border-indigo-500 transition-all text-left rounded-none"
-                       >
-                          <div className="absolute top-0 right-0 p-3 opacity-20">
-                            <Moon className="text-indigo-400" size={16} />
-                          </div>
-                          <h4 className="text-indigo-400 font-black text-xs uppercase tracking-widest mb-1">Nocturno</h4>
-                          <p className="text-white/40 text-[9px] uppercase font-bold">Deep Indigo</p>
-                       </button>
-                    </div>
-                  </section>
-
-                  <section className="space-y-6">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 text-foreground">Wallpaper de Gabinete</Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                      {PREDEFINED_WALLPAPERS.map((wp) => (
-                        <button 
-                          key={wp.id} 
-                          onClick={() => handleWallpaperChange(wp.url)}
-                          className={cn(
-                            "relative aspect-video border-2 overflow-hidden transition-all rounded-none",
-                            customWpUrl === wp.url ? "border-primary scale-[0.98]" : "border-border/40 hover:border-primary/50"
-                          )}
-                        >
-                          <Image 
-                            src={wp.url} 
-                            alt={wp.name} 
-                            fill 
-                            sizes="(max-width: 768px) 50vw, 25vw"
-                            priority={wp.id === 'carbon'}
-                            className="object-cover" 
-                          />
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                            <span className="text-[8px] font-black text-white uppercase">{wp.name}</span>
-                          </div>
-                          {customWpUrl === wp.url && (
-                            <div className="absolute top-1 right-1 bg-primary text-primary-foreground p-0.5">
-                              <Check size={10} />
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="relative flex-1">
-                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40 w-4 h-4" />
+                  <Card className="bg-black border-2 border-primary/20 rounded-none">
+                    <CardHeader className="py-4 border-b border-primary/10">
+                      <CardTitle className="text-xs font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
+                        <Sparkles size={16} /> Neural Theme Architect
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <div className="flex gap-4">
                         <Input 
-                          placeholder="URL DO WALLPAPER CUSTOMIZADO..." 
-                          value={customWpUrl} 
-                          onChange={(e) => setCustomWpUrl(e.target.value)} 
-                          className="pl-10 h-12 border-2 border-border font-black uppercase text-[10px] rounded-none bg-background" 
+                          placeholder="EX: LEWIS HAMILTON NA FERRARI..." 
+                          value={themePrompt}
+                          onChange={(e) => setThemePrompt(e.target.value)}
+                          className="bg-zinc-900 border-zinc-800 text-white font-black uppercase text-[10px] h-12 rounded-none focus-visible:ring-primary"
+                          onKeyDown={(e) => e.key === 'Enter' && handleApplyNeuralTheme()}
                         />
+                        <Button onClick={handleApplyNeuralTheme} disabled={isGeneratingTheme || !themePrompt.trim()} className="h-12 px-10 bg-primary text-black font-black uppercase text-[10px] rounded-none">
+                          {isGeneratingTheme ? <Loader2 className="animate-spin" /> : <Sparkles size={16} />}
+                        </Button>
                       </div>
-                      <Button onClick={() => handleWallpaperChange(customWpUrl)} className="bg-primary text-primary-foreground font-black uppercase h-12 px-8 rounded-none">Aplicar</Button>
-                      <Button variant="ghost" onClick={() => handleWallpaperChange('')} className="border-2 border-border h-12 px-4 rounded-none text-foreground"><X size={16} /></Button>
+                    </CardContent>
+                  </Card>
+
+                  <section className="space-y-4">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Live Telemetry Preview</Label>
+                    <div className="p-12 bg-[#f3f2f2] border-2 border-border/50 relative overflow-hidden flex items-center justify-center min-h-[380px]">
+                        {wallpaper && (
+                          <div className="absolute inset-0 z-0 bg-cover bg-center pointer-events-none" style={{ backgroundImage: `url(${wallpaper})`, filter: `brightness(${wallpaperBrightness})` }} />
+                        )}
+                        <div style={{ borderRadius: `${borderRadius}px`, opacity: cardOpacity }} className="w-full max-w-md p-8 border border-border bg-card shadow-2xl relative z-10 transition-all">
+                           <div className="flex items-center gap-4 mb-8">
+                              <div className="w-10 h-10 flex items-center justify-center bg-primary rounded-none">
+                                 <Layout size={20} className="text-primary-foreground" />
+                              </div>
+                              <div>
+                                 <h4 className="font-black uppercase text-xs tracking-tight text-foreground">Gabinete Real-Time</h4>
+                                 <Badge className={cn("text-[8px] font-black uppercase mt-1", contrastRating === 'FAIL' ? "bg-red-600" : "bg-primary text-black")}>
+                                    Contraste {contrastRating}
+                                 </Badge>
+                              </div>
+                           </div>
+                           <div className="flex gap-4">
+                              <Button className="flex-1 h-10 text-[9px] font-black uppercase bg-primary text-primary-foreground rounded-none">Primary Action</Button>
+                              <Button variant="outline" className="flex-1 h-10 text-[9px] font-black uppercase border-border text-foreground rounded-none hover:bg-secondary">Secondary Action</Button>
+                           </div>
+                        </div>
                     </div>
                   </section>
 
                   <section className="space-y-6">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 text-foreground">Custom Hardware Overrides</Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 bg-card p-6 border-2 border-border rounded-none shadow-md">
-                       <div className="space-y-4">
-                          <div className="grid gap-2">
-                            <Label className="text-[9px] uppercase font-bold">Fundo (Background)</Label>
-                            <div className="flex gap-2">
-                              <Input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-12 h-10 p-1" />
-                              <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="font-mono text-xs bg-background" />
-                            </div>
-                          </div>
-                          <div className="grid gap-2">
-                            <Label className="text-[9px] uppercase font-bold">Destaque (Primary)</Label>
-                            <div className="flex gap-2">
-                              <Input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-12 h-10 p-1" />
-                              <Input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="font-mono text-xs bg-background" />
-                            </div>
-                          </div>
-                       </div>
-                       <div className="space-y-4">
-                          <div className="grid gap-2">
-                            <Label className="text-[9px] uppercase font-bold flex items-center gap-2"><Layout size={12}/> Raio de Borda (Radius: {radius}px)</Label>
-                            <Input type="range" min="0" max="24" value={radius} onChange={(e) => setRadius(parseInt(e.target.value))} className="accent-primary" />
-                          </div>
-                          <Button onClick={handleManualApply} className="w-full bg-primary text-primary-foreground font-black uppercase text-[10px] h-12 mt-4 transition-all rounded-none shadow-[4px_4px_0px_#000]">
-                             Aplicar Modificações
-                          </Button>
-                       </div>
+                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Authority Series Presets</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                       {AUTHORITY_PRESETS.map((p) => (
+                         <button key={p.id} onClick={() => handlePresetChange(p)} className={cn("p-4 border-2 transition-all flex flex-col items-center gap-3 rounded-none bg-card", bgColor === p.colors.background ? "border-primary ring-2 ring-primary/10" : "border-border/50")}>
+                            <div className="w-8 h-8 rounded-full border border-black/5" style={{ backgroundColor: p.colors.background }}></div>
+                            <span className="text-[8px] font-black uppercase tracking-widest">{p.name.split(' ')[0]}</span>
+                         </button>
+                       ))}
                     </div>
                   </section>
+                </div>
+              )}
+
+              {activeTab === 'Wallpaper' && (
+                <div className="space-y-12 animate-in slide-in-from-right-4">
+                  <Card className="bg-card border-border/50 rounded-none">
+                    <CardHeader className="py-6 border-b border-border/30">
+                      <CardTitle className="text-xs font-black uppercase tracking-[0.3em]">Atmosfera de Gabinete</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-8 space-y-10">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                         <div className="space-y-6">
+                            <Label className="text-[10px] font-black uppercase opacity-60">Upload de Imagem Local</Label>
+                            <div onClick={() => wallpaperInputRef.current?.click()} className="border-2 border-dashed border-border/50 p-10 flex flex-col items-center justify-center cursor-pointer hover:bg-secondary/30 transition-all rounded-none group">
+                              <Upload size={24} className="mb-2 opacity-40 group-hover:text-primary transition-all" />
+                              <p className="text-[9px] font-black uppercase">Sincronizar Arquivo</p>
+                              <input type="file" accept="image/*" className="hidden" ref={wallpaperInputRef} onChange={handleLocalWallpaperUpload} />
+                            </div>
+                         </div>
+                         <div className="space-y-6">
+                            <Label className="text-[10px] font-black uppercase opacity-60">URL Customizada</Label>
+                            <Input value={wallpaper.startsWith('data:') ? 'IMAGEM LOCAL ATIVA' : wallpaper} onChange={(e) => updateManualSetting('lexisPredict_wallpaper', e.target.value, setWallpaper)} placeholder="HTTPS://..." className="bg-secondary/20 border-border h-11 text-[10px] font-black uppercase" />
+                            <div className="space-y-2">
+                               <div className="flex justify-between text-[10px] font-black uppercase">
+                                  <span>Brilho da Atmosfera</span>
+                                  <span>{Math.round(wallpaperBrightness * 100)}%</span>
+                               </div>
+                               <Slider value={[wallpaperBrightness]} onValueChange={([v]) => updateManualSetting('lexisPredict_wallpaper_brightness', v, setWallpaperBrightness)} min={0.1} max={1.2} step={0.01} />
+                            </div>
+                         </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
 
               {activeTab === 'Engine' && (
-                <div className="bg-card border-2 border-border rounded-none p-8 animate-in slide-in-from-right-4 shadow-xl">
-                  <div className="mb-8">
-                    <h3 className="text-sm font-black text-foreground uppercase tracking-widest flex items-center gap-2"><Cpu size={18} className="text-primary" /> Pentade Neural Mission Control</h3>
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold mt-1">Selecione o motor de IA principal para as operações de gabinete.</p>
-                  </div>
-                  <RadioGroup value={iaModel} onValueChange={(val) => { setIaModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); }}>
-                    <EngineOption id="xai" label="xAI GROK 4.5" desc="Raciocínio sênior de alta fidelidade." active={iaModel === 'xai'} />
-                    <EngineOption id="airforce" label="AIRFORCE DEEPSEEK-V3" desc="Processamento ultra-veloz de dados." active={iaModel === 'airforce'} />
-                    <EngineOption id="groq-llama" label="GROQ LLAMA 3.3" desc="Comunicação fluida em tempo real." active={iaModel === 'groq-llama'} />
-                    <EngineOption id="groq-deepseek" label="GROQ DEEPSEEK R1" desc="Lógica profunda para análise forense." active={iaModel === 'groq-deepseek'} />
-                  </RadioGroup>
-                </div>
-              )}
-
-              {activeTab === 'System' && (
-                <div className="space-y-8 animate-in slide-in-from-right-4">
-                   <div className="bg-card border-2 border-border p-8 rounded-none shadow-xl space-y-8">
-                      <div className="space-y-2">
-                        <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Database size={18} className="text-primary" /> Infraestrutura de Dados</h3>
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Gestão de redundância e backups do gabinete.</p>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                         <div className="p-6 bg-muted/30 border-2 border-dashed border-border space-y-4">
-                            <div className="w-10 h-10 bg-primary/20 text-primary flex items-center justify-center border border-primary/20">
-                               <Download size={20} />
-                            </div>
-                            <h4 className="font-black text-[11px] uppercase">Exportação Forense</h4>
-                            <p className="text-[9px] text-muted-foreground uppercase leading-relaxed font-bold">Baixe um arquivo JSON com todos os processos e notas estratégicas para backup offline.</p>
-                            <Button 
-                              onClick={handleExportBackup} 
-                              disabled={isProcessing}
-                              className="w-full h-10 bg-primary text-primary-foreground font-black uppercase text-[9px] rounded-none"
-                            >
-                               {isProcessing ? <Loader2 className="animate-spin mr-2" /> : <Download size={14} className="mr-2" />}
-                               Gerar Backup Global
-                            </Button>
-                         </div>
-
-                         <div className="p-6 bg-muted/30 border-2 border-dashed border-border space-y-4">
-                            <div className="w-10 h-10 bg-emerald-500/20 text-emerald-500 flex items-center justify-center border border-emerald-500/20">
-                               <Upload size={20} />
-                            </div>
-                            <h4 className="font-black text-[11px] uppercase">Restauração de Base</h4>
-                            <p className="text-[9px] text-muted-foreground uppercase leading-relaxed font-bold">Injete um arquivo de backup anterior para restaurar o estado completo do gabinete.</p>
-                            <input type="file" accept=".json" className="hidden" ref={fileInputRef} onChange={handleImportBackup} />
-                            <Button 
-                              variant="outline" 
-                              onClick={() => fileInputRef.current?.click()}
-                              disabled={isProcessing}
-                              className="w-full h-10 border-2 border-border font-black uppercase text-[9px] rounded-none hover:bg-primary hover:text-primary-foreground transition-all"
-                            >
-                               {isProcessing ? <Loader2 className="animate-spin mr-2" /> : <Upload size={14} className="mr-2" />}
-                               Restaurar do Arquivo
-                            </Button>
-                         </div>
-                      </div>
-
-                      <div className="p-6 bg-primary/5 border-2 border-primary/20 flex gap-4 items-center">
-                         <ShieldCheck className="text-primary" size={24} />
-                         <div>
-                            <p className="text-[10px] font-black uppercase text-primary">Compliance de Dados W1 Capital</p>
-                            <p className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5">Seus dados são isolados por tenant e protegidos por criptografia em repouso no Supabase.</p>
-                         </div>
-                      </div>
-                   </div>
-
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <button
-                          onClick={() => handleLanguageChange('pt')}
-                          className={cn(
-                            "flex items-center justify-between p-5 border-2 transition-all rounded-none text-left bg-card shadow-md",
-                            locale === 'pt' ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
-                          )}
-                        >
-                          <div className="flex items-center gap-4">
-                            <span className="text-2xl">🇧🇷</span>
-                            <div>
-                              <p className="text-[10px] font-black uppercase text-foreground">Português (Brasil)</p>
-                              <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Idioma Nativo</p>
-                            </div>
-                          </div>
-                          {locale === 'pt' && <Check size={16} className="text-primary" />}
-                        </button>
-                        <button
-                          onClick={() => handleLanguageChange('en')}
-                          className={cn(
-                            "flex items-center justify-between p-5 border-2 transition-all rounded-none text-left bg-card shadow-md",
-                            locale === 'en' ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
-                          )}
-                        >
-                          <div className="flex items-center gap-4">
-                            <span className="text-2xl">🇺🇸</span>
-                            <div>
-                              <p className="text-[10px] font-black uppercase text-foreground">English (US)</p>
-                              <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">International Protocol</p>
-                            </div>
-                          </div>
-                          {locale === 'en' && <Check size={16} className="text-primary" />}
-                        </button>
-                      </div>
-                </div>
+                <Card className="bg-card border-border/50 rounded-none animate-in slide-in-from-right-4">
+                  <CardHeader className="py-8 border-b border-border/30">
+                    <CardTitle className="text-xs font-black uppercase tracking-[0.3em]">Pentade Neural Mission Control</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-8">
+                    <RadioGroup value={iaModel} onValueChange={(val) => { setIaModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); }}>
+                      <EngineOption id="xai" label="xAI GROK 4.5" desc="Raciocínio sênior de alta fidelidade." active={iaModel === 'xai'} />
+                      <EngineOption id="airforce" label="AIRFORCE DEEPSEEK-V3" desc="Processamento ultra-veloz de dados." active={iaModel === 'airforce'} />
+                      <EngineOption id="groq-llama" label="GROQ LLAMA 3.3" desc="Comunicação fluida em tempo real." active={iaModel === 'groq-llama'} />
+                      <EngineOption id="groq-deepseek" label="GROQ DEEPSEEK R1" desc="Lógica profunda para casos críticos." active={iaModel === 'groq-deepseek'} />
+                      <EngineOption id="puter" label="PUTER AI" desc="Operação local para baixa latência." active={iaModel === 'puter'} />
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
               )}
             </div>
           </div>
@@ -422,32 +321,26 @@ export default function SettingsPage() {
   );
 }
 
-function NavButton({ active, onClick, icon, label }: any) {
+function NavButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) {
   return (
-    <Button 
-      variant="ghost" 
-      onClick={onClick} 
-      className={cn(
-        "w-full justify-start rounded-none font-black uppercase text-[10px] tracking-[0.2em] h-12 transition-all", 
-        active ? "bg-primary text-primary-foreground shadow-md border-l-4 border-primary-foreground" : "text-muted-foreground hover:bg-muted"
-      )}
-    >
+    <Button variant="ghost" onClick={onClick} className={cn("w-full justify-start rounded-none font-black uppercase text-[10px] tracking-[0.2em] h-12 transition-all relative border-none", active ? "bg-primary text-black shadow-lg" : "text-muted-foreground hover:bg-secondary/30")}>
+      {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-black" />}
       <span className="mr-4">{icon}</span> {label}
     </Button>
   );
 }
 
-function EngineOption({ id, label, desc, active }: any) {
+function EngineOption({ id, label, desc, active }: { id: string, label: string, desc: string, active: boolean }) {
   return (
-    <label htmlFor={id} className={cn("flex items-center justify-between p-5 border-2 transition-all cursor-pointer mb-3 rounded-none bg-background hover:border-primary", active ? "border-primary bg-primary/5" : "border-border/50")}>
+    <label htmlFor={id} className={cn("flex items-center justify-between p-6 border-2 transition-all cursor-pointer mb-4 rounded-none", active ? "border-primary bg-primary/5" : "border-border/50")}>
       <div className="flex items-center gap-5">
-         <RadioGroupItem value={id} id={id} className="border-primary" />
-         <div className="text-left">
-           <p className="font-black text-[10px] uppercase tracking-widest text-foreground">{label}</p>
-           <p className="text-[9px] text-muted-foreground uppercase font-bold mt-1">{desc}</p>
+         <RadioGroupItem value={id} id={id} />
+         <div>
+           <p className="font-black text-[10px] uppercase tracking-widest">{label}</p>
+           <p className="text-[9px] text-muted-foreground uppercase mt-1 opacity-60">{desc}</p>
          </div>
       </div>
-      {active && <Zap size={14} className="text-primary fill-current" />}
+      {active && <Zap size={14} className="text-primary fill-primary animate-pulse" />}
     </label>
   );
 }
