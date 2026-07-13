@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -81,18 +82,6 @@ export default function AnalyticsPage() {
     window.print();
   };
 
-  if (!mounted) {
-    return (
-      <div className="flex h-screen bg-[#f3f2f2] font-sans text-black overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 flex flex-col h-screen overflow-hidden">
-           <header className="h-16 border-b border-[#dddbda] bg-white px-8" />
-           <div className="flex-1 p-8" />
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black">
       <Sidebar />
@@ -115,7 +104,7 @@ export default function AnalyticsPage() {
         <div className="flex-1 overflow-auto p-8 space-y-8 max-w-7xl mx-auto w-full print:p-0">
           <div className="hidden print:block mb-8 border-b pb-4">
             <h1 className="text-2xl font-black text-black uppercase">Relatório de Gestão Analítica</h1>
-            <p className="text-sm text-black/60 font-bold uppercase tracking-widest">Extraído em: {new Date().toLocaleDateString()}</p>
+            <p className="text-sm text-black/60 font-bold uppercase tracking-widest">Extraído em: {mounted ? new Date().toLocaleDateString() : '...'}</p>
           </div>
 
           <section className="bg-white border border-[#dddbda] rounded-sm p-8 shadow-sm print:bg-white print:border-gray-200 group hover:bg-black transition-all cursor-default">
