@@ -11,7 +11,7 @@ import {
   RefreshCcw,
   Copyright
 } from 'lucide-react';
-import { LegalCase } from '@/lib/case-logic';
+import { LegalCase, distribuirPorTribunal } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,6 @@ export default function AnalyticsPage() {
   const metrics = useMemo(() => {
     const total = cases.length;
     const statusCounts = { Vencido: 0, Atenção: 0, 'No Prazo': 0, Arquivado: 0, 'Sem Prazo': 0 };
-    const tribunalCounts: Record<string, number> = {};
     const attorneyCounts: Record<string, number> = {};
 
     cases.forEach(c => {
@@ -55,13 +54,11 @@ export default function AnalyticsPage() {
           statusCounts['Sem Prazo']++;
         }
       }
-
-      tribunalCounts[c.tribunal] = (tribunalCounts[c.tribunal] || 0) + 1;
       attorneyCounts[c.advogado] = (attorneyCounts[c.advogado] || 0) + 1;
     });
 
-    const topTribunals = Object.entries(tribunalCounts)
-      .sort((a, b) => b[1] - a[1])
+    const topTribunals = distribuirPorTribunal(cases)
+      .map(item => [item.tribunal, item.total] as [string, number])
       .slice(0, 5);
 
     const topAttorneys = Object.entries(attorneyCounts)

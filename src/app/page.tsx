@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -7,13 +8,11 @@ import {
   Briefcase, 
   ShieldAlert, 
   RefreshCcw, 
-  FileDown, 
   FileCheck,
   Copyright,
   TrendingUp,
-  Cpu
 } from 'lucide-react';
-import { LegalCase } from '@/lib/case-logic';
+import { LegalCase, distribuirPorTribunal } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { fetchRepoCases } from '@/app/actions/case-actions';
@@ -75,14 +74,8 @@ export default function Dashboard() {
       { name: t.statusPrazo, value: cases.filter(c => c.status === 'No Prazo').length, color: '#22c55e' },
     ].filter(d => d.value > 0);
 
-    const tribunalCounts: Record<string, number> = {};
-    cases.forEach(c => {
-      const trib = c.tribunal || 'Outros';
-      tribunalCounts[trib] = (tribunalCounts[trib] || 0) + 1;
-    });
-    const tribunalData = Object.entries(tribunalCounts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
+    const tribunalData = distribuirPorTribunal(cases)
+      .map(item => ({ name: item.tribunal, count: item.total }))
       .slice(0, 5);
 
     return { total, critical, active, riskScore, statusData, tribunalData };
