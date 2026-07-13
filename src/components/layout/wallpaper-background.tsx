@@ -1,67 +1,71 @@
-'use client';
-/**
- * @fileOverview Camada de Atmosfera Orbital v1.0
- * Gerencia o carregamento resiliente do wallpaper sem Hydration Mismatch.
- */
+'use client'
 
-import { useEffect, useState } from 'react';
-import { browserStorage } from '@/lib/browser-storage';
+import { useEffect, useState, useCallback } from 'react'
+import { browserStorage } from '@/lib/browser-storage'
 
 export function WallpaperBackground() {
-  const [url, setUrl] = useState<string | null>(null);
+  const [url, setUrl] = useState<string | null>(null)
 
-  const loadWallpaper = async () => {
+  const load = useCallback(async () => {
+    let objectUrl: string | null = null
     try {
-      // 1. Prioridade: localStorage (URL direta ou Base64)
-      const fromLs = localStorage.getItem('lexisPredict_wallpaper');
+      const fromLs =
+        localStorage.getItem('lexisPredict_wallpaper') ||
+        localStorage.getItem('wallpaper') ||
+        localStorage.getItem('main_wallpaper_url')
+
       if (fromLs) {
-        setUrl(fromLs);
-        return;
+        setUrl(fromLs)
+        return
       }
 
-      // 2. Fallback: IndexedDB (Blobs grandes)
-      const keys = ['main_wallpaper_blob', 'wallpaper', 'starlink-atmosphere'];
-      for (const key of keys) {
-        const asset = await browserStorage.getAsset(key);
+      for (const key of [
+        'main_wallpaper_blob',
+        'side_wallpaper_blob',
+        'wallpaper',
+        'main_wallpaper',
+      ]) {
+        const asset = await browserStorage.getAsset(key)
         if (asset instanceof Blob) {
-          const objectUrl = URL.createObjectURL(asset);
-          setUrl(objectUrl);
-          return;
+          objectUrl = URL.createObjectURL(asset)
+          setUrl(objectUrl)
+          return
         }
-        if (typeof asset === 'string' && asset) {
-          setUrl(asset);
-          return;
+        if (typeof asset === 'string' && asset.length > 0) {
+          setUrl(asset)
+          return
         }
       }
-      
-      setUrl(null);
+
+      setUrl(null)
     } catch (e) {
-      console.error('[WallpaperBackground] Erro na sincronia visual:', e);
+      console.error('[WallpaperBackground]', e)
+      setUrl(null)
     }
-  };
+  }, [])
 
   useEffect(() => {
-    loadWallpaper();
+    load()
+    const onChange = () => load()
+    window.addEventListener('lexis-wallpaper-changed', onChange)
+    return () => window.removeEventListener('lexis-wallpaper-changed', onChange)
+  }, [load])
 
-    // Ouvinte para atualizações em tempo real nas configurações
-    window.addEventListener('lexis-wallpaper-changed', loadWallpaper);
-    return () => window.removeEventListener('lexis-wallpaper-changed', loadWallpaper);
-  }, []);
-
-  // No primeiro render (SSR), retornamos null para ser idêntico ao server
-  if (!url) return null;
+  // SSR + 1º render: null → sem hydration mismatch
+  if (!url) return null
 
   return (
     <div
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-0 -z-10 w-full h-full"
+      aria-hidden
+      className="pointer-events-none fixed inset-0"
       style={{
-        backgroundImage: `url("${url}")`,
+        zIndex: 0,
+        backgroundImage: `url(${url})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
         backgroundAttachment: 'fixed',
       }}
     />
-  );
+  )
 }
