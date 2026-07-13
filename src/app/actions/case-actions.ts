@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getStoredCases, saveStoredCases, getStoredNotes, saveStoredNotes } from '@/lib/server-db';
@@ -41,13 +42,11 @@ export async function deleteCaseSecureAction(caseId: string, password: string) {
   }
 
   try {
-    // 2. Soft Delete (Update deleted_at)
-    // Nota: Como os dados estão dentro do campo 'dados' (JSON), 
-    // atualizamos a linha no banco marcando-a para ser ignorada no fetch.
+    // 2. Soft Delete (Update deleted_at) utilizando a coluna 'id' padrão
     const { error } = await supabase
       .from('processos')
       .update({ deleted_at: new Date().toISOString() })
-      .eq('protocolo_ref', caseId);
+      .eq('id', caseId);
 
     if (error) throw error;
 

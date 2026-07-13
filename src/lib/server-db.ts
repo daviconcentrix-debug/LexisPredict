@@ -1,3 +1,4 @@
+
 'use server';
 
 import { supabase, isSupabaseConfigured, UserProfile } from './supabase';
@@ -5,7 +6,7 @@ import { LegalCase, CaseNote } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v1000.0 ELITE)
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v1100.0 ELITE)
  * Camada de Abstração para isolamento de Banco de Dados e Lógica SaaS.
  * Propriedade de W1 Capital | Fundador: Davi Alves Figueredo
  */
@@ -41,7 +42,7 @@ export async function getStoredCases(): Promise<LegalCase[]> {
     let query = supabase.from('processos')
       .select('dados, created_by')
       .eq('empresa_id', empresa_id)
-      .is('deleted_at', null); // FILTRO DE SEGURANÇA: Ignora deletados
+      .is('deleted_at', null);
 
     // ISOLAMENTO SaaS: Operador vê apenas o dele, Admin vê tudo da empresa.
     if (cargo !== 'Administrador') {
@@ -68,21 +69,25 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 
   try {
     const uniqueMap = new Map();
-    cases.forEach(c => { if(c && c.protocolo) uniqueMap.set(c.protocolo, c); });
+    cases.forEach(c => { 
+      if(c && (c.id || c.protocolo)) {
+        // Usa o ID gerado ou o protocolo como chave de unicidade
+        uniqueMap.set(c.id || c.protocolo, c);
+      }
+    });
     
     const payload = Array.from(uniqueMap.values()).map(c => ({ 
+      id: c.id, // Utiliza a coluna ID padrão do banco
       dados: c, 
       empresa_id: empresa_id, 
-      created_by: auth_id,
-      protocolo_ref: c.protocolo 
+      created_by: auth_id
     }));
 
-    // UPSERT: Em vez de deletar tudo, atualizamos o que existe e inserimos o novo.
-    // Isso evita o erro de "sumir tudo" em caso de falha no meio do processo.
     if (payload.length > 0) {
+      // Upsert baseado no ID e Empresa ID para garantir isolamento e atualização
       const { error } = await supabase
         .from('processos')
-        .upsert(payload, { onConflict: 'protocolo_ref, empresa_id' });
+        .upsert(payload, { onConflict: 'id' });
       
       if (error) throw error;
     }
