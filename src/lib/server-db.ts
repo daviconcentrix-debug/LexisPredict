@@ -32,12 +32,12 @@ export async function getStoredCases(): Promise<LegalCase[]> {
   }
 
   try {
-    // NÃO usar deleted_at (coluna não existe na tabela)
+    // IMPORTANTE: NÃO usar deleted_at (coluna não existe)
     let query = supabase
       .from('processos')
       .select('*')
 
-    // Admin e operadores da empresa veem os processos da empresa
+    // Admin vê tudo da empresa. Outros veem o que criaram + da empresa
     if (empresa_id) {
       query = query.or(`empresa_id.eq.${empresa_id},created_by.eq.${auth_id}`)
     } else {
@@ -59,6 +59,7 @@ export async function getStoredCases(): Promise<LegalCase[]> {
         ...dados,
         db_id: item.id?.toString(),
         id: (dados as any)?.protocolo || item.id?.toString(),
+        // Garante campos importantes
         cliente: (dados as any)?.cliente || '',
         protocolo: (dados as any)?.protocolo || '',
         status: (dados as any)?.status || item.status || 'Sem Prazo',
@@ -69,10 +70,6 @@ export async function getStoredCases(): Promise<LegalCase[]> {
         advogado: (dados as any)?.advogado || item.advogado || '',
         escritorio: (dados as any)?.escritorio || item.escritorio || '',
         telefone: (dados as any)?.telefone || item.telefone || '',
-        situacao: (dados as any)?.situacao || '',
-        diasFaltando: (dados as any)?.diasFaltando ?? null,
-        tribunal: (dados as any)?.tribunal || 'Outros',
-        linkConsulta: (dados as any)?.linkConsulta || '',
       } as LegalCase
     })
   } catch (error) {
@@ -133,7 +130,7 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 
 export async function getStoredNotes(): Promise<CaseNote[]> {
   const supabase = await createClient()
-  const { auth_id, empresa_id } = await getUserContext()
+  const { auth_id, empresa_id, cargo } = await getUserContext()
   if (!auth_id) return []
   
   try {
