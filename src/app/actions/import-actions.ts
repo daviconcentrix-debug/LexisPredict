@@ -1,9 +1,8 @@
-
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
 import { parse } from 'csv-parse/sync'
-import { LegalCase, processarCaso, formatDateToISO } from '@/lib/case-logic'
+import { LegalCase, calcularStatus, calcularRisco, formatDateToISO } from '@/lib/case-logic'
 import { revalidatePath } from 'next/cache'
 
 export async function importarCSVAction(formData: FormData) {
@@ -34,32 +33,52 @@ export async function importarCSVAction(formData: FormData) {
     if (!empresa_id) return { error: 'Usuário sem empresa vinculada' }
 
     const payload = records.map((row: any) => {
-      // Normalização de chaves para o processarCaso
       const cleanRow: any = {}
-      Object.keys(row).forEach(k => {
-        const cleanKey = k.trim().toUpperCase();
-        cleanRow[cleanKey] = row[k];
-      })
+      Object.keys(row).forEach(k => cleanRow[k.trim().toUpperCase()] = row[k])
 
-      // Identifica cliente e protocolo para validação básica
-      const cliente = (cleanRow['CLIENTE'] || cleanRow['NOME'] || '').trim()
-      const protocolo = (cleanRow['PROTOCOLO'] || cleanRow['PROCESSO'] || cleanRow['NÚMERO'] || '').trim()
+      const cliente = (cleanRow['CLIENTE'] || '').trim()
+      const protocolo = (cleanRow['PROTOCOLO'] || cleanRow['PROCESSO'] || '').trim()
 
       if (!cliente || !protocolo) return null
 
-      // Utiliza o motor central de processamento para detecção de tribunal e status
-      const dados = processarCaso(cleanRow);
+      const situacao = cleanRow['SITUAÇÃO'] || ''
+      const statusInterno = cleanRow['STATUS'] || ''
+      const observacao = cleanRow['OBSERVAÇÕES'] || ''
+      const ultimoRetorno = cleanRow['RETORNO'] || ''
+      const proximoPrazo = cleanRow['PRÓXIMO RETORNO'] || cleanRow['PRAZO'] || ''
+
+      const status = calcularStatus(proximoPrazo, situacao)
+      const risco = calcularRisco(observacao, statusInterno, situacao)
+
+      const dados: LegalCase = {
+        id: protocolo,
+        cliente,
+        protocolo,
+        telefone: cleanRow['TELEFONE'] || '',
+        advogado: cleanRow['ADVOGADO RESPONSÁVEL'] || cleanRow['ADVOGADO'] || '',
+        escritorio: cleanRow['ESCRITÓRIO'] || '',
+        situacao,
+        statusInterno,
+        observacao,
+        ultimoRetorno,
+        proximoPrazo,
+        status,
+        risco,
+        tribunal: 'Outros',
+        linkConsulta: '',
+        produtos: cleanRow['PRODUTOS'] || '',
+      }
 
       return {
         dados,
         empresa_id,
         created_by: user.id,
-        ultimo_retorno: formatDateToISO(dados.ultimoRetorno),
-        proximo_retorno: formatDateToISO(dados.proximoPrazo),
-        observacoes: dados.observacao,
-        status: dados.status,
-        risco: dados.risco,
-        status_interno: dados.statusInterno,
+        ultimo_retorno: formatDateToISO(ultimoRetorno),
+        proximo_retorno: formatDateToISO(proximoPrazo),
+        observacoes: observacao,
+        status,
+        risco,
+        status_interno: statusInterno,
         escritorio: dados.escritorio,
         advogado: dados.advogado,
         telefone: dados.telefone,
