@@ -60,18 +60,28 @@ export default function ImportPage() {
         return;
       }
       setFileToUpload(selected);
-      // Geração de preview básica local
+      
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target?.result as string;
-        const lines = text.split(/\r?\n/).slice(0, 51);
-        const headers = lines[0].split(',').map(h => h.trim().toUpperCase());
+        // Aumentado para 300 linhas para o preview
+        const lines = text.split(/\r?\n/).slice(0, 301);
+        if (lines.length === 0) return;
+
+        const headers = lines[0].split(',').map(h => h.trim().toUpperCase().replace(/"/g, ''));
         const tempCases: LegalCase[] = [];
+        
         for(let i=1; i < lines.length; i++) {
-            const currentLine = lines[i].split(',');
+            if (!lines[i].trim()) continue;
+            const currentLine = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
             const rowData: Record<string, string> = {};
-            headers.forEach((h, index) => { rowData[h] = currentLine[index] || ''; });
-            if(rowData['CLIENTE'] || rowData['PROTOCOLO']) tempCases.push(processarCaso(rowData));
+            headers.forEach((h, index) => { 
+              if (h) rowData[h] = currentLine[index] || ''; 
+            });
+            
+            if(rowData['CLIENTE'] || rowData['PROTOCOLO']) {
+              tempCases.push(processarCaso(rowData));
+            }
         }
         setPreview(tempCases);
         setStep('preview');
@@ -114,7 +124,7 @@ export default function ImportPage() {
         <header className="h-16 border-b border-border bg-card flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4 pl-10 lg:pl-0">
             <h1 className="font-black text-xl text-foreground uppercase tracking-tight">Ingestão Estratégica</h1>
-            <Badge variant="outline" className="border-primary text-primary font-black uppercase text-[10px]">Cloud Repository</Badge>
+            <Badge variant="outline" className="border-primary text-primary font-black uppercase text-[10px]">Mass Ingestion v45</Badge>
           </div>
           <div className="flex items-center gap-4">
              {step === 'preview' && (
@@ -139,7 +149,7 @@ export default function ImportPage() {
                   </div>
                   <h2 className="text-3xl font-black uppercase tracking-tighter text-foreground">Migração de Gabinete</h2>
                   <p className="text-muted-foreground text-sm font-black uppercase leading-relaxed">
-                    Carregue seu relatório CSV mestre. O motor LexisPredict irá calcular prazos, níveis de risco e identificar tribunais automaticamente.
+                    Carregue seu relatório CSV mestre. O motor LexisPredict irá processar todos os casos de uma só vez, calculando riscos e prazos.
                   </p>
                </div>
 
@@ -148,15 +158,15 @@ export default function ImportPage() {
                   parsing && "pointer-events-none"
                 )}>
                   <Upload className="text-primary w-16 h-16 mb-6 opacity-40 group-hover:opacity-100 transition-opacity" />
-                  <h3 className="text-foreground font-black text-xl mb-2 uppercase">Selecionar CSV de Gabinete</h3>
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">FORMATO CSV • CODIFICAÇÃO UTF-8</p>
+                  <h3 className="text-foreground font-black text-xl mb-2 uppercase">Selecionar CSV (200+ Casos)</h3>
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">FORMATO CSV • ALTA PERFORMANCE</p>
                   <input type="file" accept=".csv" className="hidden" onChange={handleFileSelect} />
                 </label>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-10">
-                   <Feature icon={<TrendingUp />} title="Prazos" desc="Cálculo automático de retorno baseado em PRÓXIMO RETORNO." />
-                   <Feature icon={<AlertTriangle />} title="Análise Semântica" desc="Detecção de risco crítico em observações e situação." />
-                   <Feature icon={<ShieldCheck />} title="Isolamento" desc="Os dados são isolados e protegidos por criptografia SaaS." />
+                   <Feature icon={<TrendingUp />} title="Prazos Atômicos" desc="Cálculo simultâneo de retorno para centenas de registros." />
+                   <Feature icon={<AlertTriangle />} title="Escaneamento" desc="Identificação de termos críticos em todo o lote importado." />
+                   <Feature icon={<ShieldCheck />} title="Integridade" desc="Dados selados diretamente na infraestrutura Supabase." />
                 </div>
             </div>
           ) : (
@@ -171,10 +181,10 @@ export default function ImportPage() {
 
                <div className="bg-card border-2 border-border rounded-none shadow-xl overflow-hidden">
                   <div className="bg-muted p-4 flex items-center justify-between border-b-2 border-border">
-                     <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-foreground"><Eye size={16} className="text-primary" /> Preview de Auditoria (Top 50)</h3>
-                     <Badge className="bg-primary text-primary-foreground text-[10px] uppercase rounded-none">Aguardando Selo</Badge>
+                     <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-foreground"><Eye size={16} className="text-primary" /> Pré-Visualização Massiva (Top 300)</h3>
+                     <Badge className="bg-primary text-primary-foreground text-[10px] uppercase rounded-none">Pronto para Sincronia</Badge>
                   </div>
-                  <div className="max-h-[500px] overflow-auto">
+                  <div className="max-h-[600px] overflow-auto">
                     <Table>
                       <TableHeader className="bg-muted/50 sticky top-0 z-20">
                         <TableRow>
@@ -185,7 +195,7 @@ export default function ImportPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {preview.slice(0, 50).map((c, i) => (
+                        {preview.map((c, i) => (
                           <TableRow key={i} className="hover:bg-muted/30 transition-colors border-border/10">
                             <TableCell>
                                <div className="flex flex-col">
