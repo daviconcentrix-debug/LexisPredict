@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
@@ -52,6 +51,7 @@ function CasesContent() {
   const [obsDialogOpen, setObsDialogOpen] = useState<string | null>(null);
   const [editingCase, setEditingCase] = useState<LegalCase | null>(null);
   const { isAdmin, isOperador } = useAdmin();
+  const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
 
   const [formState, setFormState] = useState({
@@ -81,6 +81,7 @@ function CasesContent() {
   }, []);
 
   useEffect(() => {
+    setMounted(true);
     loadData();
   }, [loadData]);
 
@@ -184,10 +185,12 @@ function CasesContent() {
     );
   }, [cases, search]);
 
+  if (!mounted) return null;
+
   return (
-    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
+    <div className="flex h-screen bg-transparent font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative">
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative glass-panel">
         <header className="h-16 lg:h-16 border-b border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-between px-6 lg:px-8 shrink-0 z-40">
           <div className="flex items-center gap-4 pl-10 lg:pl-0">
             <h1 className="font-black text-lg lg:text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default tracking-tighter truncate max-w-[150px] lg:max-w-none">

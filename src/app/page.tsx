@@ -7,11 +7,9 @@ import {
   Briefcase, 
   ShieldAlert, 
   RefreshCcw, 
-  FileDown, 
   FileCheck,
   Copyright,
-  TrendingUp,
-  Cpu
+  TrendingUp
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -88,7 +86,18 @@ export default function Dashboard() {
     return { total, critical, active, riskScore, statusData, tribunalData };
   }, [cases, t]);
 
-  if (!mounted) return null;
+  // Renderiza shell estável durante hidratação para evitar mismatch
+  if (!mounted) {
+    return (
+      <div className="flex h-screen bg-background font-sans text-foreground overflow-hidden">
+        <Sidebar />
+        <main className="flex-1 flex flex-col h-screen overflow-hidden">
+          <header className="h-16 border-b border-border/30 bg-background/80 backdrop-blur-xl px-8" />
+          <div className="flex-1 p-8 space-y-10" />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-background font-sans text-foreground overflow-hidden">

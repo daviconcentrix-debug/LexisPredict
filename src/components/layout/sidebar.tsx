@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -35,12 +34,14 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>('pt');
+  const [mounted, setMounted] = useState(false);
   const { profile, signOut } = useAuth();
   
   const t = getTranslation(locale);
   const isAdmin = profile?.cargo === 'Administrador';
 
   useEffect(() => {
+    setMounted(true);
     const savedLocale = localStorage.getItem('lexisPredict_locale') as Locale;
     if (savedLocale) setLocale(savedLocale);
   }, []);
@@ -82,16 +83,16 @@ export function Sidebar() {
   ];
 
   const SidebarContent = () => (
-    <div className="h-full flex flex-col bg-sidebar border-r border-border/50">
+    <div className="h-full flex flex-col glass-sidebar border-r border-border/50 bg-white">
       <div className="h-16 flex items-center px-6 border-b border-border/30">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-sm bg-primary flex items-center justify-center shadow-[0_0_15px_rgba(0,209,255,0.3)]">
-            <span className="text-black font-bold text-xs">LP</span>
+          <div className="w-8 h-8 rounded-sm bg-black flex items-center justify-center shadow-lg">
+            <span className="text-white font-bold text-xs">LP</span>
           </div>
-          {!collapsed && (
+          {!collapsed && mounted && (
             <div className="flex flex-col">
-              <span className="font-bold text-[11px] tracking-widest uppercase">LexisPredict</span>
-              <span className="text-[8px] text-primary font-bold uppercase tracking-[0.2em]">Elite v8.5</span>
+              <span className="font-bold text-[11px] tracking-widest uppercase text-black">LexisPredict</span>
+              <span className="text-[8px] text-black font-bold uppercase tracking-[0.2em] opacity-60">Elite v16.0</span>
             </div>
           )}
         </div>
@@ -100,7 +101,7 @@ export function Sidebar() {
       <div className="flex-1 py-6 px-3 space-y-8 overflow-y-auto">
         {navGroups.map((group) => (
           <div key={group.title} className="space-y-1">
-            {!collapsed && (
+            {!collapsed && mounted && (
               <p className="px-3 mb-2 text-[8px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-40">
                 {group.title}
               </p>
@@ -112,13 +113,13 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative",
                   pathname === item.href 
-                    ? "bg-primary/10 text-primary" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/30"
+                    ? "bg-black/5 text-black" 
+                    : "text-muted-foreground hover:text-black hover:bg-black/5"
                 )}
               >
-                {pathname === item.href && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary rounded-full shadow-[0_0_10px_#00D1FF]" />}
-                <item.icon className={cn("w-4 h-4 shrink-0 transition-colors", pathname === item.href ? "text-primary" : "opacity-60 group-hover:opacity-100")} />
-                {!collapsed && <span className="text-[10px] font-bold tracking-wider uppercase">{item.label}</span>}
+                {pathname === item.href && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-black rounded-full shadow-sm" />}
+                <item.icon className={cn("w-4 h-4 shrink-0 transition-colors", pathname === item.href ? "text-black" : "opacity-60 group-hover:opacity-100")} />
+                {!collapsed && mounted && <span className="text-[10px] font-bold tracking-wider uppercase">{item.label}</span>}
               </Link>
             ))}
           </div>
@@ -126,14 +127,14 @@ export function Sidebar() {
       </div>
 
       <div className="p-4 border-t border-border/30 space-y-4">
-        {!collapsed && (
-          <div className="flex items-center gap-3 p-2 rounded-sm bg-secondary/30 border border-border/10">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-[10px] border border-primary/20">
-              {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
+        {!collapsed && mounted && profile && (
+          <div className="flex items-center gap-3 p-2 rounded-sm bg-black/5 border border-black/5">
+            <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-[10px] border border-black">
+              {profile.nome?.substring(0, 2).toUpperCase() || '??'}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[10px] font-bold uppercase truncate text-foreground">{profile?.nome || 'User'}</span>
-              <span className="text-[8px] text-muted-foreground uppercase tracking-widest">{profile?.cargo || 'Operator'}</span>
+              <span className="text-[10px] font-bold uppercase truncate text-black">{profile.nome || 'User'}</span>
+              <span className="text-[8px] text-muted-foreground uppercase tracking-widest">{profile.cargo || 'Operator'}</span>
             </div>
           </div>
         )}
@@ -151,7 +152,7 @@ export function Sidebar() {
             variant="ghost" 
             size="icon" 
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex h-8 w-8 text-muted-foreground hover:text-primary"
+            className="hidden lg:flex h-8 w-8 text-muted-foreground hover:text-black"
           >
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </Button>
@@ -160,12 +161,16 @@ export function Sidebar() {
     </div>
   );
 
+  if (!mounted) {
+    return <aside className="hidden lg:flex h-screen w-64 bg-white border-r border-border/50 shrink-0" />;
+  }
+
   return (
     <>
       <div className="lg:hidden fixed top-4 left-4 z-[100]">
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="bg-background/80 backdrop-blur-md border-border shadow-lg">
+            <Button variant="outline" size="icon" className="bg-white/80 backdrop-blur-md border-border shadow-lg">
               <Menu size={20} />
             </Button>
           </SheetTrigger>

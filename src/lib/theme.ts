@@ -1,6 +1,5 @@
-
 /**
- * MOTOR DE ENGENHARIA CROMÁTICA v14000.0 ELITE
+ * MOTOR DE ENGENHARIA CROMÁTICA v15000.0 ELITE
  * Gerenciamento de Variáveis de Hardware, Presets Authority Series e Wallpapers.
  * Propriedade de W1 Capital | Fundador: Davi Alves Figueredo
  */
@@ -13,6 +12,7 @@ export type ThemeColors = {
   secondary: string;
   card: string;
   accent: string;
+  wallpaper?: string;
 };
 
 export type ThemePreset = {
@@ -116,7 +116,13 @@ export function hexToHsl(hex: string): string {
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
-export function applyGlobalTheme(colors: ThemeColors, radius: number, longDuration: boolean = false) {
+export function applyGlobalTheme(
+  colors: ThemeColors, 
+  radius: number, 
+  bgOpacity: number = 1, 
+  sidebarOpacity: number = 1,
+  glassBlur: number = 0
+) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   
@@ -126,6 +132,9 @@ export function applyGlobalTheme(colors: ThemeColors, radius: number, longDurati
   localStorage.setItem('lexisPredict_border_color', colors.border);
   localStorage.setItem('lexisPredict_secondary_color', colors.secondary);
   localStorage.setItem('lexisPredict_border_radius', radius.toString());
+  localStorage.setItem('lexisPredict_bg_opacity', bgOpacity.toString());
+  localStorage.setItem('lexisPredict_sidebar_opacity', sidebarOpacity.toString());
+  localStorage.setItem('lexisPredict_glass_blur', glassBlur.toString());
 
   root.style.setProperty('--background', hexToHsl(colors.background));
   root.style.setProperty('--card', hexToHsl(colors.card || colors.background));
@@ -135,17 +144,18 @@ export function applyGlobalTheme(colors: ThemeColors, radius: number, longDurati
   root.style.setProperty('--secondary', hexToHsl(colors.secondary));
   root.style.setProperty('--radius', `${radius}px`);
   
+  root.style.setProperty('--bg-opacity', bgOpacity.toString());
+  root.style.setProperty('--sidebar-opacity', sidebarOpacity.toString());
+  root.style.setProperty('--glass-blur', `${glassBlur}px`);
+  
   root.style.setProperty('--sidebar-background', hexToHsl(colors.background));
   root.style.setProperty('--sidebar-foreground', hexToHsl(colors.foreground));
   root.style.setProperty('--sidebar-border', hexToHsl(colors.border));
   root.style.setProperty('--sidebar-primary', hexToHsl(colors.primary));
   root.style.setProperty('--sidebar-accent', hexToHsl(colors.secondary));
 
-  if (longDuration) {
-    root.style.filter = 'contrast(1.05) saturate(0.85) sepia(0.2)';
-    localStorage.setItem('lexis_long_reading', 'true');
-  } else {
-    root.style.filter = 'none';
-    localStorage.setItem('lexis_long_reading', 'false');
+  if (colors.wallpaper) {
+    root.style.setProperty('--lexis-wallpaper', `url("${colors.wallpaper}")`);
+    localStorage.setItem('lexisPredict_wallpaper', colors.wallpaper);
   }
 }

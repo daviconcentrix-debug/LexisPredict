@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -14,18 +13,21 @@ import {
   Star,
   ShieldCheck,
   RefreshCcw,
-  Copyright
+  Copyright,
+  Waves,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
 import { AUTHORITY_PRESETS, applyGlobalTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { browserStorage } from '@/lib/browser-storage';
 
 export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
@@ -38,6 +40,9 @@ export default function SettingsPage() {
   const [primaryColor, setPrimaryColor] = useState('#00D1FF');
   const [wallpaper, setWallpaper] = useState('');
   const [radius, setRadius] = useState(4);
+  const [bgOpacity, setBgOpacity] = useState(100);
+  const [sidebarOpacity, setSidebarOpacity] = useState(100);
+  const [glassBlur, setGlassBlur] = useState(0);
 
   const { toast } = useToast();
 
@@ -51,6 +56,9 @@ export default function SettingsPage() {
     setPrimaryColor(localStorage.getItem('lexisPredict_btn_bg_color') || '#00D1FF');
     setWallpaper(localStorage.getItem('lexisPredict_wallpaper') || '');
     setRadius(parseInt(localStorage.getItem('lexisPredict_border_radius') || '4'));
+    setBgOpacity(parseFloat(localStorage.getItem('lexisPredict_bg_opacity') || '1') * 100);
+    setSidebarOpacity(parseFloat(localStorage.getItem('lexisPredict_sidebar_opacity') || '1') * 100);
+    setGlassBlur(parseInt(localStorage.getItem('lexisPredict_glass_blur') || '0'));
   }, []);
 
   const handleLanguageChange = (lang: string) => {
@@ -65,49 +73,55 @@ export default function SettingsPage() {
     setFontColor(preset.colors.foreground);
     setPrimaryColor(preset.colors.primary);
     setRadius(preset.radius);
-    applyGlobalTheme(preset.colors, preset.radius, false);
+    applyGlobalTheme(preset.colors, preset.radius, bgOpacity / 100, sidebarOpacity / 100, glassBlur);
     toast({ title: `${preset.name} Ativado` });
   };
 
   const handleWallpaperSelect = (url: string) => {
     setWallpaper(url);
     localStorage.setItem('lexisPredict_wallpaper', url);
-    document.documentElement.style.backgroundImage = `url(${url})`;
-    document.documentElement.style.backgroundSize = 'cover';
-    document.documentElement.style.backgroundAttachment = 'fixed';
+    window.dispatchEvent(new Event('lexis-wallpaper-changed'));
     toast({ title: "Atmosfera Sincronizada" });
   };
 
+  const handleResetWallpaper = async () => {
+    localStorage.removeItem('lexisPredict_wallpaper');
+    await browserStorage.removeAsset('main_wallpaper_blob');
+    setWallpaper('');
+    window.dispatchEvent(new Event('lexis-wallpaper-changed'));
+    toast({ title: "Atmosfera Resetada", description: "Fundo padrão restaurado." });
+  };
+
   const handleManualApply = () => {
-    const customColors = {
+    const customColors: any = {
       background: bgColor,
       foreground: fontColor,
       primary: primaryColor,
       border: bgColor === '#FFFFFF' ? '#E5E7EB' : '#1F2937',
       secondary: bgColor === '#FFFFFF' ? '#F3F4F6' : '#111111',
       card: bgColor,
-      accent: primaryColor
+      accent: primaryColor,
+      wallpaper: wallpaper
     };
-    applyGlobalTheme(customColors, radius);
-    if (wallpaper) {
-      localStorage.setItem('lexisPredict_wallpaper', wallpaper);
-      document.documentElement.style.backgroundImage = `url(${wallpaper})`;
-    } else {
-      localStorage.removeItem('lexisPredict_wallpaper');
-      document.documentElement.style.backgroundImage = 'none';
-    }
+    applyGlobalTheme(customColors, radius, bgOpacity / 100, sidebarOpacity / 100, glassBlur);
+    window.dispatchEvent(new Event('lexis-wallpaper-changed'));
     toast({ title: "Hardware Visual Aplicado" });
   };
 
-  if (!mounted) return null;
+  if (!mounted) return (
+    <div className="flex h-screen bg-black font-sans text-white">
+      <Sidebar />
+      <main className="flex-1 p-8" />
+    </div>
+  );
 
   const starlinkImages = PlaceHolderImages.filter(img => img.id.startsWith('starlink'));
 
   return (
-    <div className="flex h-screen bg-background font-sans text-foreground">
+    <div className="flex h-screen bg-transparent font-sans text-foreground overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-16 border-b border-border/30 bg-background/80 backdrop-blur-xl flex items-center justify-between px-8 shrink-0">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden glass-panel">
+        <header className="h-16 border-b border-border/30 flex items-center justify-between px-8 shrink-0 bg-white/50 backdrop-blur-md">
           <div className="flex items-center gap-4">
             <h1 className="font-bold text-sm tracking-[0.2em] uppercase">Gabinete Mission Control</h1>
             <Badge variant="outline" className="border-primary text-primary text-[9px] uppercase font-bold tracking-[0.3em]">Elite v16.0</Badge>
@@ -130,10 +144,9 @@ export default function SettingsPage() {
             <div className="md:col-span-3 space-y-12 pb-20">
               {activeTab === 'Style' && (
                 <div className="space-y-12 animate-in fade-in duration-500">
-                  {/* MOCKUP PREVIEW CRÍTICO */}
                   <section className="space-y-4">
                     <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Live Telemetry Preview</Label>
-                    <div className="bg-card border-2 border-border p-8 rounded-none shadow-2xl relative overflow-hidden">
+                    <div className="glass-card border-2 border-border p-8 rounded-none shadow-2xl relative overflow-hidden">
                        <div className="flex items-center justify-between mb-8">
                           <div className="flex items-center gap-3">
                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: primaryColor }} />
@@ -146,7 +159,7 @@ export default function SettingsPage() {
                           <div className="p-5 border border-border bg-background/50 space-y-4">
                              <p className="text-[9px] font-bold uppercase opacity-60">Control Component</p>
                              <div className="space-y-2">
-                               <Button className="w-full h-10 font-black uppercase text-[10px] rounded-none" style={{ backgroundColor: primaryColor, color: bgColor === '#FFFFFF' ? '#000' : '#FFF' }}>
+                               <Button className="w-full h-10 font-black uppercase text-[10px] rounded-none" style={{ backgroundColor: primaryColor, color: '#FFF' }}>
                                  Primary Action
                                </Button>
                                <Button variant="outline" className="w-full h-10 font-black uppercase text-[10px] border-2 rounded-none hover:bg-secondary">
@@ -157,9 +170,8 @@ export default function SettingsPage() {
                           <div className="p-5 border border-border bg-background/50 space-y-4">
                              <p className="text-[9px] font-bold uppercase opacity-60">Status Telemetry</p>
                              <div className="flex gap-2">
-                                <Badge className="bg-red-600 text-white text-[8px] uppercase rounded-none">Vencido</Badge>
-                                <Badge className="bg-orange-500 text-white text-[8px] uppercase rounded-none">Atenção</Badge>
-                                <Badge className="bg-green-600 text-white text-[8px] uppercase rounded-none">No Prazo</Badge>
+                                <Badge className="bg-red-600 text-white text-[8px] uppercase rounded-none border-none">Vencido</Badge>
+                                <Badge className="bg-orange-500 text-white text-[8px] uppercase rounded-none border-none">Atenção</Badge>
                              </div>
                              <div className="h-2 w-full bg-secondary overflow-hidden">
                                 <div className="h-full w-[65%]" style={{ backgroundColor: primaryColor }} />
@@ -178,7 +190,7 @@ export default function SettingsPage() {
                             onClick={() => handlePresetChange(p)} 
                             className={cn(
                                 "p-4 border-2 transition-all flex flex-col items-center gap-3 bg-card rounded-none group",
-                                bgColor === p.colors.background ? "border-primary" : "border-border/50 hover:border-primary/50"
+                                bgColor === p.colors.background ? "border-primary shadow-lg" : "border-border/50 hover:border-primary/50"
                             )}
                          >
                             <div className="w-8 h-8 rounded-full border border-border relative overflow-hidden" style={{ backgroundColor: p.colors.background }}>
@@ -216,6 +228,24 @@ export default function SettingsPage() {
                   </section>
 
                   <section className="space-y-6">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Transparência & Glassmorphism</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 bg-card p-6 border-2 border-border rounded-none shadow-xl">
+                      <div className="space-y-4">
+                        <Label className="text-[9px] uppercase font-bold flex items-center gap-2 text-primary"><Waves size={12}/> Opacidade Fundo: {bgOpacity}%</Label>
+                        <Slider value={[bgOpacity]} max={100} min={0} step={1} onValueChange={(val) => setBgOpacity(val[0])} className="accent-primary" />
+                      </div>
+                      <div className="space-y-4">
+                        <Label className="text-[9px] uppercase font-bold flex items-center gap-2 text-primary"><Layout size={12}/> Opacidade Sidebar: {sidebarOpacity}%</Label>
+                        <Slider value={[sidebarOpacity]} max={100} min={0} step={1} onValueChange={(val) => setSidebarOpacity(val[0])} className="accent-primary" />
+                      </div>
+                      <div className="space-y-4">
+                        <Label className="text-[9px] uppercase font-bold flex items-center gap-2 text-primary"><RefreshCcw size={12}/> Glass Blur: {glassBlur}px</Label>
+                        <Slider value={[glassBlur]} max={24} min={0} step={1} onValueChange={(val) => setGlassBlur(val[0])} className="accent-primary" />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Custom Engine Overrides</Label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 bg-card p-6 border-2 border-border rounded-none shadow-xl">
                        <div className="space-y-4">
@@ -233,13 +263,6 @@ export default function SettingsPage() {
                               <Input value={fontColor} onChange={(e) => setFontColor(e.target.value)} className="font-mono text-xs rounded-none border-2 border-black" />
                             </div>
                           </div>
-                          <div className="grid gap-2">
-                            <Label className="text-[9px] uppercase font-bold">Accent (Primary)</Label>
-                            <div className="flex gap-2">
-                              <Input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-12 h-10 p-1 rounded-none border-2 border-black" />
-                              <Input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="font-mono text-xs rounded-none border-2 border-black" />
-                            </div>
-                          </div>
                        </div>
                        <div className="space-y-4">
                           <div className="grid gap-2">
@@ -250,9 +273,14 @@ export default function SettingsPage() {
                             <Label className="text-[9px] uppercase font-bold flex items-center gap-2"><Layout size={12}/> Border Radius: {radius}px</Label>
                             <Input type="range" min="0" max="24" value={radius} onChange={(e) => setRadius(parseInt(e.target.value))} className="accent-black" />
                           </div>
-                          <Button onClick={handleManualApply} className="w-full bg-black text-white hover:bg-white hover:text-black border-2 border-black font-black uppercase text-[10px] h-12 mt-4 transition-all shadow-[6px_6px_0px_#00D1FF] hover:shadow-none">
-                             Apply System Changes
-                          </Button>
+                          <div className="flex gap-2 mt-4">
+                            <Button onClick={handleManualApply} className="flex-1 bg-black text-white hover:bg-white hover:text-black border-2 border-black font-black uppercase text-[10px] h-12 transition-all shadow-[4px_4px_0px_#00D1FF] hover:shadow-none rounded-none">
+                               Apply System Changes
+                            </Button>
+                            <Button variant="outline" onClick={handleResetWallpaper} className="h-12 border-2 border-black font-black uppercase text-[10px] hover:bg-red-600 hover:text-white transition-all rounded-none bg-white">
+                               <Trash2 size={16} />
+                            </Button>
+                          </div>
                        </div>
                     </div>
                   </section>
@@ -320,7 +348,7 @@ export default function SettingsPage() {
           </div>
         </div>
         
-        <footer className="h-10 border-t border-border/30 bg-background/80 backdrop-blur-md flex items-center justify-center gap-6 text-[10px] text-muted-foreground/50 font-bold uppercase tracking-[0.3em] shrink-0">
+        <footer className="h-10 border-t border-border/30 glass-panel flex items-center justify-center gap-6 text-[10px] text-muted-foreground/50 font-bold uppercase tracking-[0.3em] shrink-0">
           <div className="flex items-center gap-2"><Copyright size={10} /> 2026 W1 Capital.</div>
           <span className="w-1 h-1 bg-muted-foreground/20 rounded-full" />
           <span>Advanced Performance Engine</span>

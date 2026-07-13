@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/components/auth/auth-provider';
+import { ThemeHydrator } from '@/components/layout/theme-hydrator';
+import { WallpaperBackground } from '@/components/layout/wallpaper-background';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
@@ -30,11 +32,10 @@ export default function RootLayout({
                 const bg = localStorage.getItem('lexisPredict_bg_color');
                 const font = localStorage.getItem('lexisPredict_font_color');
                 const btn = localStorage.getItem('lexisPredict_btn_bg_color');
-                const border = localStorage.getItem('lexisPredict_border_color');
-                const secondary = localStorage.getItem('lexisPredict_secondary_color');
                 const radius = localStorage.getItem('lexisPredict_border_radius');
-                const wallpaper = localStorage.getItem('lexisPredict_wallpaper');
-                const longReading = localStorage.getItem('lexis_long_reading') === 'true';
+                const bgOpacity = localStorage.getItem('lexisPredict_bg_opacity') || '1';
+                const sidebarOpacity = localStorage.getItem('lexisPredict_sidebar_opacity') || '1';
+                const glassBlur = localStorage.getItem('lexisPredict_glass_blur') || '0';
 
                 const hexToHsl = (hex) => {
                   if (!hex) return null;
@@ -57,41 +58,38 @@ export default function RootLayout({
                   return \`\${Math.round(h * 360)} \${Math.round(s * 100)}% \${Math.round(l * 100)}%\`;
                 };
 
+                const root = document.documentElement;
+
                 if (bg) {
                   const hsl = hexToHsl(bg);
-                  document.documentElement.style.setProperty('--background', hsl);
-                  document.documentElement.style.setProperty('--card', hsl);
+                  root.style.setProperty('--background', hsl);
+                  root.style.setProperty('--card', hsl);
                 }
                 if (font) {
                   const hsl = hexToHsl(font);
-                  document.documentElement.style.setProperty('--foreground', hsl);
+                  root.style.setProperty('--foreground', hsl);
                 }
                 if (btn) {
                   const hsl = hexToHsl(btn);
-                  document.documentElement.style.setProperty('--primary', hsl);
+                  root.style.setProperty('--primary', hsl);
                 }
-                if (border) {
-                  const hsl = hexToHsl(border);
-                  document.documentElement.style.setProperty('--border', hsl);
-                }
-                if (radius) document.documentElement.style.setProperty('--radius', radius + 'px');
+                if (radius) root.style.setProperty('--radius', radius + 'px');
                 
-                if (wallpaper) {
-                  document.documentElement.style.backgroundImage = \`url(\${wallpaper})\`;
-                  document.documentElement.style.backgroundSize = 'cover';
-                  document.documentElement.style.backgroundAttachment = 'fixed';
-                }
-                if (longReading) {
-                  document.documentElement.style.filter = 'contrast(1.05) saturate(0.85) sepia(0.2)';
-                }
+                root.style.setProperty('--bg-opacity', bgOpacity);
+                root.style.setProperty('--sidebar-opacity', sidebarOpacity);
+                root.style.setProperty('--glass-blur', glassBlur + 'px');
               } catch (e) {}
             })()
           `}
         </Script>
       </head>
-      <body className="font-sans antialiased bg-background text-foreground selection:bg-primary/20 transition-all duration-300">
+      <body className="font-sans antialiased selection:bg-primary/20 transition-all duration-300 bg-black min-h-screen" suppressHydrationWarning>
         <AuthProvider>
-          {children}
+          <ThemeHydrator />
+          <WallpaperBackground />
+          <div className="relative z-10 min-h-screen">
+            {children}
+          </div>
           <Toaster />
         </AuthProvider>
       </body>

@@ -1,11 +1,9 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* TEMA CLARO - REFORÇADO PARA ALTO CONTRASTE */
     --background: 0 0% 100%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
@@ -27,15 +25,9 @@
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.75rem;
 
-    /* SIDEBAR VARIABLES */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 221.2 83.2% 53.3%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 96.1%;
-    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 221.2 83.2% 53.3%;
+    --bg-opacity: 1;
+    --sidebar-opacity: 1;
+    --glass-blur: 0px;
   }
 
   .dark {
@@ -58,14 +50,6 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
-
-    --sidebar-background: 222.2 84% 4.9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217.2 91.2% 59.8%;
-    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
   }
 }
 
@@ -74,26 +58,38 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
+    background-color: transparent;
+    color: hsl(var(--foreground));
+    @apply antialiased min-h-screen relative;
   }
 }
 
-.report-canvas {
-  background-image: radial-gradient(#000 0.5px, transparent 0.5px);
-  background-size: 30px 30px;
-  background-position: center;
-  background-attachment: local;
+/* Glassmorphism Dinâmico */
+.glass-panel {
+  background-color: hsla(var(--background), var(--bg-opacity)) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  transition: background-color 0.3s ease, backdrop-filter 0.3s ease;
+}
+
+.glass-card {
+  background-color: hsla(var(--card), var(--bg-opacity)) !important;
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.glass-sidebar {
+  background-color: hsla(var(--background), var(--sidebar-opacity)) !important;
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.lexis-long-reading {
+  filter: saturate(1.3) contrast(1.1) !important;
 }
 
 @media print {
   .print-hidden {
     display: none !important;
   }
-  .report-canvas {
-    background-image: none !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 0 !important;
+  body {
+    background-color: white !important;
   }
 }
