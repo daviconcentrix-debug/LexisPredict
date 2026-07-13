@@ -123,9 +123,9 @@ export function Sidebar() {
         ))}
       </div>
 
-      <div className="p-4 border-t border-border/30 space-y-4">
+      <div className="p-4 border-t border-border/30 space-y-4 bg-muted/10">
         {!collapsed && (
-          <div className="flex items-center gap-3 p-2 rounded-none bg-secondary/30 border border-border/10">
+          <div className="flex items-center gap-3 p-2 rounded-none bg-secondary/30 border border-border/10 mb-2">
             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-[10px] border border-primary/20">
               {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
             </div>
@@ -136,20 +136,24 @@ export function Sidebar() {
           </div>
         )}
         
-        <div className="flex items-center justify-between">
+        <div className="space-y-1">
           <Button 
             variant="ghost" 
-            size="icon" 
             onClick={handleLogout}
-            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className={cn(
+              "w-full flex items-center gap-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 font-black uppercase text-[10px] tracking-widest transition-all h-10",
+              collapsed ? "justify-center px-0" : "justify-start px-3"
+            )}
           >
-            <LogOut size={14} />
+            <LogOut size={16} className="text-destructive" />
+            {!collapsed && <span className="text-destructive font-black">Encerrar Sessão</span>}
           </Button>
+
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex h-8 w-8 text-muted-foreground hover:text-primary"
+            className="hidden lg:flex w-full items-center justify-center h-8 text-muted-foreground hover:text-primary mt-2"
           >
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </Button>

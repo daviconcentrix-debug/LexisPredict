@@ -1,5 +1,5 @@
 /**
- * MOTOR DE LÓGICA JURÍDICA PURA (v1000.0 ELITE)
+ * MOTOR DE LÓGICA JURÍDICA PURA (v1800.0 ELITE)
  * Cálculos matemáticos de prazos, triagem de CNJ e normalização de status.
  * Propriedade de W1 Capital | Fundador: Davi Alves Figueredo
  */
@@ -18,6 +18,7 @@ export type RiskLevel = 'Crítico' | 'Atenção' | 'Normal';
 
 export interface LegalCase {
   id: string;
+  db_id?: number | string;
   cliente: string;
   protocolo: string;
   telefone?: string;
@@ -28,7 +29,7 @@ export interface LegalCase {
   statusInterno?: string;
   ultimaMovimentacao?: string;
   ultimoRetorno?: string;
-  proximoPrazo: string; // Mapeado para "PRÓXIMO RETORNO"
+  proximoPrazo: string;
   observacao: string;
   produtos?: string;
   status: CaseStatus;
@@ -89,50 +90,95 @@ export function parseBrazilianDate(value: string | null | undefined): Date | nul
   return isNaN(date.getTime()) ? null : date;
 }
 
+export function formatDateToISO(value: string | null | undefined): string | null {
+  const date = parseBrazilianDate(value);
+  if (!date) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function calcularStatus(
+  proximoRetorno: string | null | undefined,
+  situacao: string | null | undefined
+): CaseStatus {
+  const situacaoUpper = (situacao || '').toUpperCase();
+  const termosEncerrado = ['ENCERRADO', 'EXTINTO', 'BAIXA DEFINITIVAMENTE', 'IMPROCEDENTE', 'CANCELADA', 'TRANSITADO'];
+  
+  if (termosEncerrado.some(t => situacaoUpper.includes(t))) {
+    return 'Encerrado';
+  }
+
+  const dataProximo = parseBrazilianDate(proximoRetorno);
+  if (!dataProximo) return 'Sem Prazo';
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  dataProximo.setHours(0, 0, 0, 0);
+
+  const diffTime = dataProximo.getTime() - hoje.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return 'Vencido';
+  if (diffDays === 0) return 'É Hoje';
+  if (diffDays <= 3) return 'Atenção';
+  if (diffDays <= 7) return 'Próximo';
+
+  return 'No Prazo';
+}
+
+export function calcularRisco(
+  observacoes?: string | null,
+  statusInterno?: string | null,
+  situacao?: string | null
+): RiskLevel {
+  const texto = `${observacoes || ''} ${statusInterno || ''} ${situacao || ''}`.toUpperCase();
+
+  const palavrasCriticas = [
+    'INDEFERIDA', 'EXTINTO', 'IMPROCEDENTE', 'CLIENTE NÃO RESPONDE',
+    'NÃO PAGOU AS CUSTAS', 'CARTA DE DESISTÊNCIA', 'SUMI', 'BLOQUEOU',
+    'SUCUMBÊNCIA', 'BAIXA DEFINITIVAMENTE', 'CANCELADA DISTRIBUIÇÃO',
+    'CLIENTE SUMI', 'NÃO QUER ENVOLVIMENTO', 'TRANSITADO E JULGADO',
+    'ARQUIVADO DEFINITIVAMENTE', 'EXTINTO POR AUSÊNCIA'
+  ];
+
+  const palavrasAtencao = [
+    'CONCLUSO', 'AGUARDANDO', 'DOCUMENTAÇÃO', 'CUSTAS', 'DILAÇÃO',
+    'REDISTRIBUIÇÃO', 'SUBSTABELECIMENTO', 'JG INDEFERIDA',
+    'EMENDA', 'PROVAS', 'AUDIÊNCIA', 'CONTESTAÇÃO', 'RÉPLICA',
+    'MANIFESTAÇÃO', 'PRAZO'
+  ];
+
+  if (palavrasCriticas.some(p => texto.includes(p))) return 'Crítico';
+  if (palavrasAtencao.some(p => texto.includes(p))) return 'Atenção';
+
+  return 'Normal';
+}
+
 export function processarCaso(linha: Record<string, string>): LegalCase {
   const situacao = (linha['SITUAÇÃO'] || linha['SITUACAO'] || '').toUpperCase();
-  const proximoPrazoRaw = linha['PRÓXIMO PRAZO'] || linha['PROXIMO PRAZO'] || linha['PRÓXIMO RETORNO'] || linha['PROXIMO RETORNO'] || '';
+  const proximoPrazoRaw = linha['PRÓXIMO RETORNO'] || linha['PROXIMO RETORNO'] || linha['PRÓXIMO PRAZO'] || '';
   const observacoes = linha['OBSERVAÇÕES'] || linha['OBSERVACOES'] || '';
   const statusInterno = linha['STATUS'] || '';
   
-  let status: CaseStatus = 'Sem Prazo';
-  let diasFaltando: number | null = null;
+  let status = calcularStatus(proximoPrazoRaw, situacao);
+  const risco = calcularRisco(observacoes, statusInterno, situacao);
 
-  // 1. Cálculo de Status Cronológico
   const dataProximo = parseBrazilianDate(proximoPrazoRaw);
+  let diasFaltando: number | null = null;
   if (dataProximo) {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
     dataProximo.setHours(0, 0, 0, 0);
     const diffTime = dataProximo.getTime() - hoje.getTime();
-    diasFaltando = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diasFaltando < 0) status = 'Vencido';
-    else if (diasFaltando === 0) status = 'É Hoje';
-    else if (diasFaltando <= 3) status = 'Atenção';
-    else if (diasFaltando <= 7) status = 'Próximo';
-    else status = 'No Prazo';
+    diasFaltando = Math.floor(diffTime / (1000 * 60 * 60 * 24));
   }
 
-  // 2. Prioridade: Encerrados
-  const termosEncerrado = ['ENCERRADO', 'EXTINTO', 'BAIXA DEFINITIVAMENTE', 'IMPROCEDENTE', 'CANCELADA', 'TRANSITADO'];
-  if (termosEncerrado.some(t => situacao.includes(t))) {
-    status = 'Encerrado';
-  }
-
-  // 3. Análise de Risco Semântica
-  const textoAuditado = `${observacoes} ${statusInterno} ${situacao}`.toUpperCase();
-  const palavrasCriticas = ['INDEFERIDA', 'EXTINTO', 'IMPROCEDENTE', 'CLIENTE NÃO RESPONDE', 'NÃO PAGOU', 'CARTA DE DESISTÊNCIA', 'BLOQUEOU', 'SUCUMBÊNCIA', 'CANCELADA'];
-  
-  let risco: RiskLevel = 'Normal';
-  if (palavrasCriticas.some(p => textoAuditado.includes(p))) {
-    risco = 'Crítico';
+  if (risco === 'Crítico' && status !== 'Encerrado') {
     status = 'Caso Crítico';
-  } else if (['CONCLUSO', 'AGUARDANDO', 'DOCUMENTAÇÃO', 'CUSTAS', 'DILAÇÃO', 'JG INDEFERIDA'].some(p => textoAuditado.includes(p))) {
-    risco = 'Atenção';
   }
 
-  // 4. Identificação de Tribunal
   let tribunal = 'Outros';
   let url = 'https://www.google.com/search?q=consulta+processo+judicial';
   const cnjLimpo = (linha['PROTOCOLO'] || linha['PROCESSO'] || '').replace(/[^0-9.-]/g, '');
@@ -145,7 +191,7 @@ export function processarCaso(linha: Record<string, string>): LegalCase {
   }
 
   return {
-    id: cnjLimpo || `AUTO-${Math.random().toString(36).substr(2, 9)}`,
+    id: `AUTO-${Math.random().toString(36).substr(2, 9)}`,
     cliente: (linha['CLIENTE'] || linha['NOME'] || 'DESCONHECIDO').toUpperCase(),
     advogado: (linha['ADVOGADO RESPONSÁVEL'] || linha['ADVOGADO'] || 'NÃO ATRIBUÍDO').toUpperCase(),
     protocolo: cnjLimpo || linha['PROTOCOLO'] || 'S/N',

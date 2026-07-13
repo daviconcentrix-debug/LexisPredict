@@ -76,7 +76,7 @@
 }
 
 /* =========================================================
-   SOBERANIA VISUAL V4 — FIX DE CONTRASTE EXECUTIVO
+   SOBERANIA VISUAL V5 — CONTRASTE EXECUTIVO BLINDADO
    ========================================================= */
 
 .theme-executivo {
@@ -98,6 +98,7 @@
   --border: 0 0% 15%;
   --input: 0 0% 15%;
   --ring: 45 68% 47%;
+  --destructive: 0 84.2% 60.2%;
 
   --sidebar-background: 0 0% 2%;
   --sidebar-foreground: 0 0% 100%;
@@ -107,70 +108,33 @@
   --sidebar-ring: 45 68% 47%;
 }
 
-/* Mata fundos claros no tema executivo usando seletores semânticos */
+/* Força fundos escuros no tema executivo */
 .theme-executivo .bg-white,
 .theme-executivo .bg-background,
 .theme-executivo .bg-card,
 .theme-executivo .bg-muted,
-.theme-executivo .bg-secondary,
-.theme-executivo .bg-slate-50,
-.theme-executivo .bg-gray-50,
-.theme-executivo .bg-zinc-50,
-.theme-executivo .bg-neutral-50,
-.theme-executivo .bg-gray-100,
-.theme-executivo .bg-slate-100,
-.theme-executivo .bg-zinc-100 {
-  background-color: #111111 !important;
-  color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-/* Força texto invisível para branco */
-.theme-executivo .text-black,
-.theme-executivo .text-slate-900,
-.theme-executivo .text-gray-900,
-.theme-executivo .text-zinc-900 {
+.theme-executivo .bg-secondary {
+  background-color: #0f0f0f !important;
   color: #ffffff !important;
 }
 
-/* Títulos Dourados */
+/* Corretor de Texto Destrutivo (Logout) */
+.theme-executivo .text-destructive {
+  color: #ff4d4d !important;
+}
+
+/* Títulos e Elementos de Autoridade */
 .theme-executivo h1,
 .theme-executivo h2,
-.theme-executivo .sidebar-title,
 .theme-executivo .text-primary {
   color: #c9a227 !important;
 }
 
-.theme-executivo .sidebar-group-title {
-  color: rgba(201, 162, 39, 0.6) !important;
-  font-weight: 900 !important;
-}
-
-/* Inputs no Executivo */
 .theme-executivo input,
-.theme-executivo textarea,
-.theme-executivo select {
+.theme-executivo textarea {
   background-color: #050505 !important;
   color: #ffffff !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.theme-executivo input::placeholder,
-.theme-executivo textarea::placeholder {
-  color: rgba(255, 255, 255, 0.3) !important;
-}
-
-/* Scrollbar Executivo */
-.theme-executivo ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.theme-executivo ::-webkit-scrollbar-track {
-  background: #0a0a0a;
-}
-.theme-executivo ::-webkit-scrollbar-thumb {
-  background: #c9a227;
-  border-radius: 3px;
 }
 
 @media print {
