@@ -1,27 +1,25 @@
+
 'use server';
 
-import { parse } from 'csv-parse/sync';
 import { createClient } from '@/lib/supabase/server';
+import { parse } from 'csv-parse/sync';
 import { calcularStatus, calcularRisco, formatDateToISO } from '@/lib/case-logic';
 
 function toBR(dateISO: string | null): string {
   if (!dateISO) return '';
   const parts = dateISO.split('-');
-  if (parts.length !== 3) return '';
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
-function calcularDiasFaltando(proximoISO: string | null): number | null {
-  if (!proximoISO) return null;
+function calcularDias(iso: string | null): number | null {
+  if (!iso) return null;
   try {
-    const [y, m, d] = proximoISO.split('-').map(Number);
-    const dataProximo = new Date(y, m - 1, d);
+    const [y, m, d] = iso.split('-').map(Number);
+    const data = new Date(y, m - 1, d);
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    return Math.floor((dataProximo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-  } catch {
-    return null;
-  }
+    return Math.floor((data.getTime() - hoje.getTime()) / 86400000);
+  } catch { return null; }
 }
 
 export async function importarCSVAction(formData: FormData) {
@@ -30,127 +28,89 @@ export async function importarCSVAction(formData: FormData) {
     if (!file) return { error: 'Nenhum arquivo detectado.' };
 
     const text = await file.text();
-
-    const records = parse(text, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-      relax_column_count: true,
-      bom: true,
-      skip_records_with_error: true,
-    });
+    const records = parse(text, { columns: true, skip_empty_lines: true, trim: true, relax_column_count: true, bom: true });
 
     const supabase = await createClient();
-
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (authError || !authUser) {
-      return { error: 'Sessão expirada. Faça login novamente.' };
-    }
+    if (!user) return { error: 'Sessão expirada. Faça login novamente.' };
 
     const { data: profile } = await supabase
       .from('usuarios')
-      .select('empresa_id, auth_user_id')
-      .eq('auth_user_id', authUser.id)
+      .select('empresa_id')
+      .eq('auth_user_id', user.id)
       .maybeSingle();
 
     const empresa_id = profile?.empresa_id || 'd37fd4bb-1c71-4dca-b97e-292355918d39';
-    const created_by = authUser.id;
+    const created_by = user.id;
 
     const payload: any[] = [];
-    let skipped = 0;
 
     for (const row of records) {
-      const cleanRow: Record<string, string> = {};
-      Object.keys(row).forEach((key) => {
-        cleanRow[key.trim().toUpperCase()] = row[key];
-      });
+      const cleanRow: any = {};
+      Object.keys(row).forEach(k => cleanRow[k.trim().toUpperCase()] = row[k]);
 
       const cliente = (cleanRow['CLIENTE'] || cleanRow['NOME'] || '').trim();
       const protocolo = (cleanRow['PROTOCOLO'] || cleanRow['PROCESSO'] || '').trim();
 
-      if (!cliente || !protocolo) {
-        skipped++;
-        continue;
-      }
+      if (!cliente || !protocolo) continue;
 
       const situacao = (cleanRow['SITUAÇÃO'] || cleanRow['SITUACAO'] || '').trim();
-      const statusInterno = (cleanRow['STATUS'] || '').trim();
-      const observacoes = (cleanRow['OBSERVAÇÕES'] || cleanRow['OBSERVACOES'] || cleanRow['OBSERVACAO'] || '').trim();
-      const ultimoRaw = cleanRow['RETORNO'] || cleanRow['ULTIMO RETORNO'] || cleanRow['ULTIMORETORNO'] || '';
-      const proximoRaw = cleanRow['PRÓXIMO RETORNO'] || cleanRow['PROXIMO RETORNO'] || cleanRow['PRAZO'] || cleanRow['PROXIMOPRAZO'] || '';
+      const statusInt = (cleanRow['STATUS'] || '').trim();
+      const obs = (cleanRow['OBSERVAÇÕES'] || cleanRow['OBSERVACOES'] || '').trim();
+      const proximoRaw = cleanRow['PRÓXIMO RETORNO'] || cleanRow['PROXIMO RETORNO'] || cleanRow['PRAZO'] || '';
 
-      const ultimo_retorno_iso = formatDateToISO(ultimoRaw);
-      const proximo_retorno_iso = formatDateToISO(proximoRaw);
+      const proximo_iso = formatDateToISO(proximoRaw);
+      const ultimo_iso = formatDateToISO(cleanRow['RETORNO'] || '');
 
       const status = calcularStatus(proximoRaw, situacao);
-      const risco = calcularRisco(observacoes, statusInterno, situacao);
-      const diasFaltando = calcularDiasFaltando(proximo_retorno_iso);
+      const risco = calcularRisco(obs, statusInt, situacao);
+      const dias = calcularDias(proximo_iso);
 
       const casoDados = {
         id: protocolo,
         tipo: 'NOVO',
-        status: status,
+        status,
         cliente: cliente.toUpperCase(),
-        protocolo: protocolo,
+        protocolo,
         telefone: (cleanRow['TELEFONE'] || '').trim() || null,
         advogado: (cleanRow['ADVOGADO RESPONSÁVEL'] || cleanRow['ADVOGADO'] || 'Não Atribuído').trim(),
         situacao: situacao || 'EM ANDAMENTO',
-        observacao: observacoes,
-        proximoPrazo: toBR(proximo_retorno_iso),
-        ultimoRetorno: toBR(ultimo_retorno_iso),
+        observacao: obs,
+        proximoPrazo: toBR(proximo_iso),
+        ultimoRetorno: toBR(ultimo_iso),
         statusManual: 'Automatico',
-        diasFaltando: diasFaltando,
+        diasFaltando: dias,
         tribunal: (cleanRow['TRIBUNAL'] || 'Outros').trim(),
-        linkConsulta: `https://www.google.com/search?q=consulta+processo+judicial+${protocolo}`,
-        riscoIA: '',
-        parecerIA: '',
-        atendente: (cleanRow['ASSISTENTE'] || '').trim() || '',
-        escritorio: (cleanRow['ESCRITÓRIO'] || cleanRow['ESCRITORIO'] || '').trim() || null,
-        produtos: (cleanRow['PRODUTOS'] || '').trim() || null,
-        risco: risco,
+        linkConsulta: `https://www.google.com/search?q=processo+${protocolo}`,
+        risco,
       };
 
       payload.push({
         dados: casoDados,
-        empresa_id: empresa_id,
-        created_by: created_by,
-        ultimo_retorno: ultimo_retorno_iso,
-        proximo_retorno: proximo_retorno_iso,
-        observacoes: observacoes || null,
-        status: status,
-        risco: risco,
-        status_interno: statusInterno || null,
-        escritorio: casoDados.escritorio,
+        empresa_id,
+        created_by,
+        ultimo_retorno: ultimo_iso,
+        proximo_retorno: proximo_iso,
+        observacoes: obs || null,
+        status,
+        risco,
+        status_interno: statusInt || null,
+        escritorio: (cleanRow['ESCRITÓRIO'] || '').trim() || null,
         advogado: casoDados.advogado,
         telefone: casoDados.telefone,
-        produtos: casoDados.produtos,
       });
     }
 
-    if (payload.length === 0) {
-      return { error: 'Nenhum registro válido localizado no CSV.', skipped };
-    }
+    if (payload.length === 0) return { error: 'CSV sem registros válidos.' };
 
-    const { data: inserted, error: insertError } = await supabase
-      .from('processos')
-      .insert(payload)
-      .select('id');
+    const { data, error } = await supabase.from('processos').insert(payload).select('id');
 
-    if (insertError) {
-      console.error('[IMPORT ERROR]', insertError);
-      return { error: `Falha na gravação: ${insertError.message}` };
-    }
+    if (error) return { error: `Falha na gravação: ${error.message}` };
 
-    return {
-      success: true,
-      count: inserted?.length || payload.length,
-      skipped,
-      message: `Sucesso! Importados: ${inserted?.length || payload.length} | Pulados: ${skipped}`,
-    };
+    return { success: true, count: data?.length || payload.length, message: `Importação Concluída: ${data?.length || payload.length} processos sincronizados.` };
 
   } catch (err: any) {
-    console.error('[IMPORT FATAL]', err);
-    return { error: err.message || 'Falha fatal no motor de triagem.' };
+    return { error: err.message || 'Erro crítico na ingestão.' };
   }
 }

@@ -1,55 +1,50 @@
+
 'use client';
 
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
+/**
+ * SENTINELA DE SESSÃO v2.0
+ * Monitora a saúde do token e limpa o cache apenas em deslogue real.
+ */
 export function SessionCleaner() {
   const router = useRouter();
 
   useEffect(() => {
-    async function checkAndCleanSession() {
+    async function checkSession() {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-
-        if (error || !session) {
-          console.warn('[SessionCleaner] Sessão inválida detectada. Limpando...');
-          
-          await supabase.auth.signOut({ scope: 'local' });
-          
-          Object.keys(localStorage).forEach(key => {
-            if (
-              key.startsWith('sb-') ||
-              key.includes('supabase') ||
-              key.includes('lexis_') ||
-              key === 'supabase.auth.token'
-            ) {
-              localStorage.removeItem(key);
-            }
-          });
-
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        // Se não houver sessão e não estivermos no login, redirecionamos.
+        if (!session) {
           const path = window.location.pathname;
           if (!path.includes('/login') && !path.includes('/signup')) {
+            console.warn('[SessionCleaner] Sessão ausente. Redirecionando...');
             router.push('/login');
           }
         }
       } catch (err) {
-        console.error('[SessionCleaner] Erro grave:', err);
-        localStorage.clear();
+        console.error('[SessionCleaner] Erro de validação:', err);
       }
     }
 
-    checkAndCleanSession();
+    checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
-        console.log('[SessionCleaner] Deslogado com sucesso, cache limpo.');
+        localStorage.removeItem('supabase.auth.token');
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-') || key.includes('lexis_')) {
+            localStorage.removeItem(key);
+          }
+        });
+        router.push('/login');
       }
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, [router]);
 
   return null;

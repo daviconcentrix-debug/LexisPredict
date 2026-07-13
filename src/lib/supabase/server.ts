@@ -1,6 +1,11 @@
+
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+/**
+ * MOTOR DE IDENTIDADE SSR (W1 CAPITAL)
+ * Garante que as Server Actions reconheçam a sessão do usuário logado.
+ */
 export async function createClient() {
   const cookieStore = await cookies()
 
@@ -17,7 +22,9 @@ export async function createClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
-          } catch {}
+          } catch {
+            // Ignorado em Server Components
+          }
         },
       },
     }
