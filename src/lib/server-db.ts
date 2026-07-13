@@ -24,7 +24,7 @@ async function getUserContext() {
 
 export async function getStoredCases(): Promise<LegalCase[]> {
   const supabase = await createClient()
-  const { auth_id, empresa_id, cargo } = await getUserContext()
+  const { auth_id, empresa_id } = await getUserContext()
   
   if (!auth_id) return []
 
@@ -32,18 +32,20 @@ export async function getStoredCases(): Promise<LegalCase[]> {
     let query = supabase
       .from('processos')
       .select('*')
-      .is('deleted_at', null)
 
-    if (cargo === 'Administrador' && empresa_id) {
-      query = query.eq('empresa_id', empresa_id)
+    // Visibilidade Aberta: Empresa OU Criador. Removido deleted_at (não existe)
+    if (empresa_id) {
+      query = query.or(`empresa_id.eq.${empresa_id},created_by.eq.${auth_id}`)
     } else {
       query = query.eq('created_by', auth_id)
     }
 
     const { data, error } = await query.order('id', { ascending: false })
     
+    console.log('[getStoredCases] auth_id:', auth_id, 'empresa_id:', empresa_id, 'total:', data?.length)
+
     if (error) {
-      console.error('[getStoredCases]', error)
+      console.error('[getStoredCases Error]', error)
       return []
     }
     

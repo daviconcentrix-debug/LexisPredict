@@ -1,10 +1,5 @@
 'use server';
 
-/**
- * MOTOR DE INGESTÃO MASSIVA - VERSÃO CORRIGIDA v65
- * Usa o cliente server correto do Supabase SSR
- */
-
 import { parse } from 'csv-parse/sync';
 import { createClient } from '@/lib/supabase/server';
 import { calcularStatus, calcularRisco, formatDateToISO } from '@/lib/case-logic';
@@ -45,7 +40,6 @@ export async function importarCSVAction(formData: FormData) {
       skip_records_with_error: true,
     });
 
-    // ========== CLIENTE SERVER CORRETO SSR ==========
     const supabase = await createClient();
 
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
@@ -54,7 +48,6 @@ export async function importarCSVAction(formData: FormData) {
       return { error: 'Sessão expirada. Faça login novamente.' };
     }
 
-    // Busca perfil
     const { data: profile } = await supabase
       .from('usuarios')
       .select('empresa_id, auth_user_id')
