@@ -1,116 +1,104 @@
+'use server'
 
-'use server';
-
-import { createClient } from '@/lib/supabase/server';
-import { parse } from 'csv-parse/sync';
-import { calcularStatus, calcularRisco, formatDateToISO } from '@/lib/case-logic';
-
-function toBR(dateISO: string | null): string {
-  if (!dateISO) return '';
-  const parts = dateISO.split('-');
-  return `${parts[2]}/${parts[1]}/${parts[0]}`;
-}
-
-function calcularDias(iso: string | null): number | null {
-  if (!iso) return null;
-  try {
-    const [y, m, d] = iso.split('-').map(Number);
-    const data = new Date(y, m - 1, d);
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    return Math.floor((data.getTime() - hoje.getTime()) / 86400000);
-  } catch { return null; }
-}
+import { createClient } from '@/lib/supabase/server'
+import { parse } from 'csv-parse/sync'
+import { LegalCase, calcularStatus, calcularRisco, formatDateToISO } from '@/lib/case-logic'
+import { revalidatePath } from 'next/cache'
 
 export async function importarCSVAction(formData: FormData) {
   try {
-    const file = formData.get('file') as File;
-    if (!file) return { error: 'Nenhum arquivo detectado.' };
+    const file = formData.get('file') as File
+    if (!file) return { error: 'Nenhum arquivo enviado' }
 
-    const text = await file.text();
-    const records = parse(text, { columns: true, skip_empty_lines: true, trim: true, relax_column_count: true, bom: true });
-
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const text = await file.text()
     
-    if (!user) return { error: 'Sessão expirada. Faça login novamente.' };
+    const records = parse(text, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      relax_column_count: true,
+    })
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Sessão expirada' }
 
     const { data: profile } = await supabase
       .from('usuarios')
       .select('empresa_id')
       .eq('auth_user_id', user.id)
-      .maybeSingle();
+      .maybeSingle()
 
-    const empresa_id = profile?.empresa_id || 'd37fd4bb-1c71-4dca-b97e-292355918d39';
-    const created_by = user.id;
+    const empresa_id = profile?.empresa_id
+    if (!empresa_id) return { error: 'Usuário sem empresa vinculada' }
 
-    const payload: any[] = [];
+    const payload = records.map((row: any) => {
+      const cleanRow: any = {}
+      Object.keys(row).forEach(k => cleanRow[k.trim().toUpperCase()] = row[k])
 
-    for (const row of records) {
-      const cleanRow: any = {};
-      Object.keys(row).forEach(k => cleanRow[k.trim().toUpperCase()] = row[k]);
+      const cliente = (cleanRow['CLIENTE'] || '').trim()
+      const protocolo = (cleanRow['PROTOCOLO'] || cleanRow['PROCESSO'] || '').trim()
 
-      const cliente = (cleanRow['CLIENTE'] || cleanRow['NOME'] || '').trim();
-      const protocolo = (cleanRow['PROTOCOLO'] || cleanRow['PROCESSO'] || '').trim();
+      if (!cliente || !protocolo) return null
 
-      if (!cliente || !protocolo) continue;
+      const situacao = cleanRow['SITUAÇÃO'] || ''
+      const statusInterno = cleanRow['STATUS'] || ''
+      const observacao = cleanRow['OBSERVAÇÕES'] || ''
+      const ultimoRetorno = cleanRow['RETORNO'] || ''
+      const proximoPrazo = cleanRow['PRÓXIMO RETORNO'] || cleanRow['PRAZO'] || ''
 
-      const situacao = (cleanRow['SITUAÇÃO'] || cleanRow['SITUACAO'] || '').trim();
-      const statusInt = (cleanRow['STATUS'] || '').trim();
-      const obs = (cleanRow['OBSERVAÇÕES'] || cleanRow['OBSERVACOES'] || '').trim();
-      const proximoRaw = cleanRow['PRÓXIMO RETORNO'] || cleanRow['PROXIMO RETORNO'] || cleanRow['PRAZO'] || '';
+      const status = calcularStatus(proximoPrazo, situacao)
+      const risco = calcularRisco(observacao, statusInterno, situacao)
 
-      const proximo_iso = formatDateToISO(proximoRaw);
-      const ultimo_iso = formatDateToISO(cleanRow['RETORNO'] || '');
-
-      const status = calcularStatus(proximoRaw, situacao);
-      const risco = calcularRisco(obs, statusInt, situacao);
-      const dias = calcularDias(proximo_iso);
-
-      const casoDados = {
+      const dados: LegalCase = {
         id: protocolo,
-        tipo: 'NOVO',
-        status,
-        cliente: cliente.toUpperCase(),
+        cliente,
         protocolo,
-        telefone: (cleanRow['TELEFONE'] || '').trim() || null,
-        advogado: (cleanRow['ADVOGADO RESPONSÁVEL'] || cleanRow['ADVOGADO'] || 'Não Atribuído').trim(),
-        situacao: situacao || 'EM ANDAMENTO',
-        observacao: obs,
-        proximoPrazo: toBR(proximo_iso),
-        ultimoRetorno: toBR(ultimo_iso),
-        statusManual: 'Automatico',
-        diasFaltando: dias,
-        tribunal: (cleanRow['TRIBUNAL'] || 'Outros').trim(),
-        linkConsulta: `https://www.google.com/search?q=processo+${protocolo}`,
-        risco,
-      };
-
-      payload.push({
-        dados: casoDados,
-        empresa_id,
-        created_by,
-        ultimo_retorno: ultimo_iso,
-        proximo_retorno: proximo_iso,
-        observacoes: obs || null,
+        telefone: cleanRow['TELEFONE'] || '',
+        advogado: cleanRow['ADVOGADO RESPONSÁVEL'] || cleanRow['ADVOGADO'] || '',
+        escritorio: cleanRow['ESCRITÓRIO'] || '',
+        situacao,
+        statusInterno,
+        observacao,
+        ultimoRetorno,
+        proximoPrazo,
         status,
         risco,
-        status_interno: statusInt || null,
-        escritorio: (cleanRow['ESCRITÓRIO'] || '').trim() || null,
-        advogado: casoDados.advogado,
-        telefone: casoDados.telefone,
-      });
+        tribunal: 'Outros',
+        linkConsulta: '',
+        produtos: cleanRow['PRODUTOS'] || '',
+      }
+
+      return {
+        dados,
+        empresa_id,
+        created_by: user.id,
+        ultimo_retorno: formatDateToISO(ultimoRetorno),
+        proximo_retorno: formatDateToISO(proximoPrazo),
+        observacoes: observacao,
+        status,
+        risco,
+        status_interno: statusInterno,
+        escritorio: dados.escritorio,
+        advogado: dados.advogado,
+        telefone: dados.telefone,
+        produtos: dados.produtos,
+      }
+    }).filter(Boolean)
+
+    if (payload.length === 0) return { error: 'Nenhum registro válido encontrado' }
+
+    const BATCH_SIZE = 50
+    for (let i = 0; i < payload.length; i += BATCH_SIZE) {
+      const batch = payload.slice(i, i + BATCH_SIZE)
+      const { error } = await supabase.from('processos').insert(batch)
+      if (error) throw error
     }
 
-    if (payload.length === 0) return { error: 'CSV sem registros válidos.' };
-
-    const { data, error } = await supabase.from('processos').insert(payload).select('id');
-
-    if (error) return { error: `Falha na gravação: ${error.message}` };
-
-    return { success: true, count: data?.length || payload.length, message: `Importação Concluída: ${data?.length || payload.length} processos sincronizados.` };
-
-  } catch (err: any) {
-    return { error: err.message || 'Erro crítico na ingestão.' };
+    revalidatePath('/cases')
+    return { success: true, count: payload.length }
+  } catch (e: any) {
+    console.error('[Import Action]', e)
+    return { error: e.message }
   }
 }

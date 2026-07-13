@@ -1,4 +1,3 @@
-
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -7,10 +6,9 @@ import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'W1 Capital | LexisPredict Elite SaaS',
-  description: 'Enterprise Legal Management & Risk Analysis Multi-Tenant - Fundador Davi Alves Figueredo',
+  description: 'Enterprise Legal Management & Risk Analysis Multi-Tenant',
   icons: {
     icon: 'https://picsum.photos/seed/lexislogo/32/32',
-    apple: 'https://picsum.photos/seed/lexislogo/180/180',
   },
 };
 
@@ -35,10 +33,7 @@ export default function RootLayout({
                 const border = localStorage.getItem('lexisPredict_border_color');
                 const secondary = localStorage.getItem('lexisPredict_secondary_color');
                 const radius = localStorage.getItem('lexisPredict_border_radius');
-                const cardOpacity = localStorage.getItem('lexisPredict_card_opacity');
-                const sidebarOpacity = localStorage.getItem('lexisPredict_sidebar_opacity');
                 const wallpaper = localStorage.getItem('lexisPredict_wallpaper');
-                const wallpaperBrightness = localStorage.getItem('lexisPredict_wallpaper_brightness') || '1';
                 const longReading = localStorage.getItem('lexis_long_reading') === 'true';
 
                 const hexToHsl = (hex) => {
@@ -66,38 +61,25 @@ export default function RootLayout({
                   const hsl = hexToHsl(bg);
                   document.documentElement.style.setProperty('--background', hsl);
                   document.documentElement.style.setProperty('--card', hsl);
-                  document.documentElement.style.setProperty('--sidebar-background', hsl);
                 }
                 if (font) {
                   const hsl = hexToHsl(font);
                   document.documentElement.style.setProperty('--foreground', hsl);
-                  document.documentElement.style.setProperty('--card-foreground', hsl);
-                  document.documentElement.style.setProperty('--sidebar-foreground', hsl);
                 }
                 if (btn) {
                   const hsl = hexToHsl(btn);
                   document.documentElement.style.setProperty('--primary', hsl);
-                  document.documentElement.style.setProperty('--sidebar-primary', hsl);
                 }
                 if (border) {
                   const hsl = hexToHsl(border);
                   document.documentElement.style.setProperty('--border', hsl);
-                  document.documentElement.style.setProperty('--sidebar-border', hsl);
-                }
-                if (secondary) {
-                  const hsl = hexToHsl(secondary);
-                  document.documentElement.style.setProperty('--secondary', hsl);
-                  document.documentElement.style.setProperty('--sidebar-accent', hsl);
                 }
                 if (radius) document.documentElement.style.setProperty('--radius', radius + 'px');
-                if (cardOpacity) document.documentElement.style.setProperty('--card-opacity', cardOpacity);
-                if (sidebarOpacity) document.documentElement.style.setProperty('--sidebar-opacity', sidebarOpacity);
                 
                 if (wallpaper) {
                   document.documentElement.style.backgroundImage = \`url(\${wallpaper})\`;
                   document.documentElement.style.backgroundSize = 'cover';
                   document.documentElement.style.backgroundAttachment = 'fixed';
-                  document.documentElement.style.setProperty('--wallpaper-brightness', wallpaperBrightness);
                 }
                 if (longReading) {
                   document.documentElement.style.filter = 'contrast(1.05) saturate(0.85) sepia(0.2)';

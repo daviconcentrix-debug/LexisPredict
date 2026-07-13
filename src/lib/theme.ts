@@ -38,6 +38,20 @@ export const AUTHORITY_PRESETS: ThemePreset[] = [
     }
   },
   {
+    id: 'executive-gold',
+    name: 'Executive Edition',
+    radius: 0,
+    colors: {
+      background: '#050505',
+      foreground: '#F1F5F9',
+      primary: '#C5A021',
+      border: '#1F2937',
+      secondary: '#111111',
+      card: '#0A0A0A',
+      accent: '#C5A021'
+    }
+  },
+  {
     id: 'midnight-pro',
     name: 'Midnight Professional',
     radius: 4,
@@ -77,20 +91,6 @@ export const AUTHORITY_PRESETS: ThemePreset[] = [
       secondary: '#111111',
       card: '#0A0A0A',
       accent: '#00D1FF'
-    }
-  },
-  {
-    id: 'slate-corporate',
-    name: 'Slate Corporate',
-    radius: 8,
-    colors: {
-      background: '#F1F5F9',
-      foreground: '#0F172A',
-      primary: '#2563EB',
-      border: '#CBD5E1',
-      secondary: '#E2E8F0',
-      card: '#FFFFFF',
-      accent: '#2563EB'
     }
   }
 ];

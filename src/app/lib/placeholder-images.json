@@ -6,6 +6,24 @@
       "description": "Logotipo oficial Lexis Predict com balança e elementos técnicos",
       "imageUrl": "https://picsum.photos/seed/lexislogo/512/512",
       "imageHint": "law logo"
+    },
+    {
+      "id": "starlink-1",
+      "description": "Orbital Constellation Atmosphere",
+      "imageUrl": "https://picsum.photos/seed/starlink1/1920/1080",
+      "imageHint": "starlink orbit"
+    },
+    {
+      "id": "starlink-2",
+      "description": "Rocket Propulsion Signature",
+      "imageUrl": "https://picsum.photos/seed/starlink2/1920/1080",
+      "imageHint": "spacex launch"
+    },
+    {
+      "id": "starlink-3",
+      "description": "Aeronautical Tech Geometry",
+      "imageUrl": "https://picsum.photos/seed/starlink3/1920/1080",
+      "imageHint": "tech space"
     }
   ]
 }
