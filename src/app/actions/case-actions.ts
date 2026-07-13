@@ -1,9 +1,8 @@
-
 'use server';
 
 import { getStoredCases, saveStoredCases, getStoredNotes, saveStoredNotes } from '@/lib/server-db';
 import { LegalCase, CaseNote } from '@/lib/case-logic';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 
 export async function fetchRepoCases() {
@@ -23,17 +22,17 @@ export async function syncRepoNotes(notes: CaseNote[]) {
 }
 
 /**
- * EXCLUSÃO SEGURA COM VERIFICAÇÃO DE SENHA
+ * EXCLUSÃO SEGURA COM VERIFICAÇÃO DE SENHA (SSR)
  */
 export async function deleteCaseSecureAction(caseId: string, password: string) {
-  const cookieStore = await cookies();
-  const email = cookieStore.get('lexis_user_email')?.value;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!email) return { success: false, message: "Sessão expirada." };
+  if (!user) return { success: false, message: "Sessão expirada." };
 
   // 1. Validar Senha via Supabase Auth
   const { error: authError } = await supabase.auth.signInWithPassword({
-    email: email.toLowerCase().trim(),
+    email: user.email!,
     password: password
   });
 
@@ -42,7 +41,7 @@ export async function deleteCaseSecureAction(caseId: string, password: string) {
   }
 
   try {
-    // 2. Soft Delete (Update deleted_at) utilizando a coluna 'id' padrão
+    // 2. Soft Delete
     const { error } = await supabase
       .from('processos')
       .update({ deleted_at: new Date().toISOString() })

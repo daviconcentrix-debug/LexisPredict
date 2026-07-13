@@ -1,9 +1,8 @@
-
 'use server';
 
 /**
- * MOTOR DE INGESTÃO MASSIVA - VERSÃO CORRIGIDA
- * Usa o cliente server correto do Supabase
+ * MOTOR DE INGESTÃO MASSIVA - VERSÃO CORRIGIDA v65
+ * Usa o cliente server correto do Supabase SSR
  */
 
 import { parse } from 'csv-parse/sync';
@@ -46,7 +45,7 @@ export async function importarCSVAction(formData: FormData) {
       skip_records_with_error: true,
     });
 
-    // ========== CLIENTE SERVER CORRETO ==========
+    // ========== CLIENTE SERVER CORRETO SSR ==========
     const supabase = await createClient();
 
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
@@ -69,7 +68,6 @@ export async function importarCSVAction(formData: FormData) {
     let skipped = 0;
 
     for (const row of records) {
-      // Normaliza as chaves do CSV
       const cleanRow: Record<string, string> = {};
       Object.keys(row).forEach((key) => {
         cleanRow[key.trim().toUpperCase()] = row[key];
@@ -96,7 +94,6 @@ export async function importarCSVAction(formData: FormData) {
       const risco = calcularRisco(observacoes, statusInterno, situacao);
       const diasFaltando = calcularDiasFaltando(proximo_retorno_iso);
 
-      // Objeto no formato que o app realmente usa
       const casoDados = {
         id: protocolo,
         tipo: 'NOVO',
@@ -111,7 +108,7 @@ export async function importarCSVAction(formData: FormData) {
         ultimoRetorno: toBR(ultimo_retorno_iso),
         statusManual: 'Automatico',
         diasFaltando: diasFaltando,
-        tribunal: 'Outros',
+        tribunal: (cleanRow['TRIBUNAL'] || 'Outros').trim(),
         linkConsulta: `https://www.google.com/search?q=consulta+processo+judicial+${protocolo}`,
         riscoIA: '',
         parecerIA: '',
@@ -122,7 +119,6 @@ export async function importarCSVAction(formData: FormData) {
       };
 
       payload.push({
-        // NÃO manda o campo id → deixa o Supabase gerar o bigint
         dados: casoDados,
         empresa_id: empresa_id,
         created_by: created_by,
@@ -143,7 +139,6 @@ export async function importarCSVAction(formData: FormData) {
       return { error: 'Nenhum registro válido localizado no CSV.', skipped };
     }
 
-    // ========== GRAVAÇÃO DIRETA (tudo de uma vez) ==========
     const { data: inserted, error: insertError } = await supabase
       .from('processos')
       .insert(payload)
@@ -151,10 +146,7 @@ export async function importarCSVAction(formData: FormData) {
 
     if (insertError) {
       console.error('[IMPORT ERROR]', insertError);
-      return { 
-        error: `Falha na gravação: ${insertError.message}`,
-        tentou: payload.length 
-      };
+      return { error: `Falha na gravação: ${insertError.message}` };
     }
 
     return {

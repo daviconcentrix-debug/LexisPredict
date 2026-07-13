@@ -1,8 +1,4 @@
 'use client';
-/**
- * ESTE ARQUIVO FOI CRIADO PARA LIMPAR SESSÕES QUEBRADAS NO CLIENTE.
- * Execução real ocorre via useEffect no navegador para sanear o localStorage.
- */
 
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -16,14 +12,11 @@ export function SessionCleaner() {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
 
-        // Se der erro de refresh token ou sessão inválida
         if (error || !session) {
           console.warn('[SessionCleaner] Sessão inválida detectada. Limpando...');
           
-          // Limpa tudo localmente
           await supabase.auth.signOut({ scope: 'local' });
           
-          // Limpa localStorage relacionado ao Supabase e ao App
           Object.keys(localStorage).forEach(key => {
             if (
               key.startsWith('sb-') ||
@@ -35,7 +28,6 @@ export function SessionCleaner() {
             }
           });
 
-          // Se não estiver na página de login ou signup, força redirecionamento
           const path = window.location.pathname;
           if (!path.includes('/login') && !path.includes('/signup')) {
             router.push('/login');
@@ -43,7 +35,6 @@ export function SessionCleaner() {
         }
       } catch (err) {
         console.error('[SessionCleaner] Erro grave:', err);
-        // Em caso de falha catastrófica, reseta o hardware de cache
         localStorage.clear();
       }
     }
