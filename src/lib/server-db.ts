@@ -24,38 +24,59 @@ async function getUserContext() {
 
 export async function getStoredCases(): Promise<LegalCase[]> {
   const supabase = await createClient()
-  const { auth_id, empresa_id } = await getUserContext()
+  const { auth_id, empresa_id, cargo } = await getUserContext()
   
-  if (!auth_id) return []
+  if (!auth_id) {
+    console.log('[getStoredCases] Sem usuário logado')
+    return []
+  }
 
   try {
+    // NÃO usar deleted_at (coluna não existe na tabela)
     let query = supabase
       .from('processos')
       .select('*')
 
-    // Visibilidade Aberta: Empresa OU Criador. Removido deleted_at (não existe)
+    // Admin e operadores da empresa veem os processos da empresa
     if (empresa_id) {
       query = query.or(`empresa_id.eq.${empresa_id},created_by.eq.${auth_id}`)
     } else {
       query = query.eq('created_by', auth_id)
     }
 
-    const { data, error } = await query.order('id', { ascending: false })
+    const { data, error } = await query.order('id', { ascending: false }).limit(1000)
     
-    console.log('[getStoredCases] auth_id:', auth_id, 'empresa_id:', empresa_id, 'total:', data?.length)
-
     if (error) {
-      console.error('[getStoredCases Error]', error)
+      console.error('[getStoredCases] ERRO SQL:', error)
       return []
     }
+
+    console.log('[getStoredCases] Encontrados:', data?.length, '| auth:', auth_id, '| empresa:', empresa_id)
     
-    return (data || []).map(item => ({
-      ...(item.dados as LegalCase),
-      db_id: item.id.toString(),
-      id: (item.dados as any)?.protocolo || item.id.toString()
-    }))
+    return (data || []).map(item => {
+      const dados = (item.dados && typeof item.dados === 'object') ? item.dados : {}
+      return {
+        ...dados,
+        db_id: item.id?.toString(),
+        id: (dados as any)?.protocolo || item.id?.toString(),
+        cliente: (dados as any)?.cliente || '',
+        protocolo: (dados as any)?.protocolo || '',
+        status: (dados as any)?.status || item.status || 'Sem Prazo',
+        risco: (dados as any)?.risco || item.risco || 'Normal',
+        proximoPrazo: (dados as any)?.proximoPrazo || '',
+        ultimoRetorno: (dados as any)?.ultimoRetorno || '',
+        observacao: (dados as any)?.observacao || item.observacoes || '',
+        advogado: (dados as any)?.advogado || item.advogado || '',
+        escritorio: (dados as any)?.escritorio || item.escritorio || '',
+        telefone: (dados as any)?.telefone || item.telefone || '',
+        situacao: (dados as any)?.situacao || '',
+        diasFaltando: (dados as any)?.diasFaltando ?? null,
+        tribunal: (dados as any)?.tribunal || 'Outros',
+        linkConsulta: (dados as any)?.linkConsulta || '',
+      } as LegalCase
+    })
   } catch (error) {
-    console.error(error)
+    console.error('[getStoredCases] Exception:', error)
     return []
   }
 }
@@ -89,6 +110,7 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
         produtos: c.produtos || null,
       }
 
+      // Só manda id se for número válido (bigint)
       if (c.db_id && !isNaN(Number(c.db_id))) {
         item.id = Number(c.db_id)
       }
@@ -111,14 +133,14 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 
 export async function getStoredNotes(): Promise<CaseNote[]> {
   const supabase = await createClient()
-  const { auth_id, empresa_id, cargo } = await getUserContext()
+  const { auth_id, empresa_id } = await getUserContext()
   if (!auth_id) return []
   
   try {
     let query = supabase.from('notes').select('*')
     
-    if (cargo === 'Administrador' && empresa_id) {
-      query = query.eq('empresa_id', empresa_id)
+    if (empresa_id) {
+      query = query.or(`empresa_id.eq.${empresa_id},created_by.eq.${auth_id}`)
     } else {
       query = query.eq('created_by', auth_id)
     }
