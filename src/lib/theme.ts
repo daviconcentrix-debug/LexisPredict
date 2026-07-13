@@ -1,6 +1,6 @@
 
 /**
- * MOTOR DE ENGENHARIA CROMÁTICA v9500.0 ELITE
+ * MOTOR DE ENGENHARIA CROMÁTICA v14000.0 ELITE
  * Gerenciamento de Variáveis de Hardware, Presets Authority Series e Wallpapers.
  * Propriedade de W1 Capital | Fundador: Davi Alves Figueredo
  */
