@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -56,17 +55,18 @@ export default function AnalyticsPage() {
         }
       }
 
-      tribunalCounts[c.tribunal] = (tribunalCounts[c.tribunal] || 0) + 1;
-      attorneyCounts[c.advogado] = (attorneyCounts[c.advogado] || 0) + 1;
+      const trib = c.tribunal || 'Outros';
+      tribunalCounts[trib] = (tribunalCounts[trib] || 0) + 1;
+      attorneyCounts[c.advogado || 'NÃO ATRIBUÍDO'] = (attorneyCounts[c.advogado || 'NÃO ATRIBUÍDO'] || 0) + 1;
     });
 
     const topTribunals = Object.entries(tribunalCounts)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
+      .slice(0, 10);
 
     const topAttorneys = Object.entries(attorneyCounts)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
+      .slice(0, 10);
 
     return { 
       total, 
@@ -82,6 +82,8 @@ export default function AnalyticsPage() {
     window.print();
   };
 
+  if (!mounted) return <div className="h-screen bg-[#f3f2f2]" />;
+
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black">
       <Sidebar />
@@ -96,7 +98,7 @@ export default function AnalyticsPage() {
               <FileDown size={14} className="mr-2" /> Exportar Dossiê
             </Button>
             <Button variant="ghost" size="icon" onClick={() => window.location.reload()} className="text-black hover:bg-black hover:text-white">
-              <RefreshCcw size={16} />
+              <RefreshCcw size={16} className={cn(loading && "animate-spin")} />
             </Button>
           </div>
         </header>
@@ -104,7 +106,7 @@ export default function AnalyticsPage() {
         <div className="flex-1 overflow-auto p-8 space-y-8 max-w-7xl mx-auto w-full print:p-0">
           <div className="hidden print:block mb-8 border-b pb-4">
             <h1 className="text-2xl font-black text-black uppercase">Relatório de Gestão Analítica</h1>
-            <p className="text-sm text-black/60 font-bold uppercase tracking-widest">Extraído em: {mounted ? new Date().toLocaleDateString() : '...'}</p>
+            <p className="text-sm text-black/60 font-bold uppercase tracking-widest">Extraído em: {new Date().toLocaleDateString()}</p>
           </div>
 
           <section className="bg-white border border-[#dddbda] rounded-sm p-8 shadow-sm print:bg-white print:border-gray-200 group hover:bg-black transition-all cursor-default">
