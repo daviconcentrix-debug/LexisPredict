@@ -1,71 +1,62 @@
-'use client'
+'use client';
 
-import { useEffect, useState, useCallback } from 'react'
-import { browserStorage } from '@/lib/browser-storage'
+import { useEffect, useState, useCallback } from 'react';
+import { browserStorage } from '@/lib/browser-storage';
+
+/**
+ * @fileOverview Camada de Atmosfera Orbital (v2.0)
+ * Renderiza o wallpaper em uma camada dedicada para evitar erros de hidratação.
+ */
 
 export function WallpaperBackground() {
-  const [url, setUrl] = useState<string | null>(null)
+  const [url, setUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    let objectUrl: string | null = null
     try {
-      const fromLs =
-        localStorage.getItem('lexisPredict_wallpaper') ||
-        localStorage.getItem('wallpaper') ||
-        localStorage.getItem('main_wallpaper_url')
-
+      const fromLs = localStorage.getItem('lexisPredict_wallpaper') || 
+                     localStorage.getItem('wallpaper');
       if (fromLs) {
-        setUrl(fromLs)
-        return
+        setUrl(fromLs);
+        return;
       }
 
-      for (const key of [
-        'main_wallpaper_blob',
-        'side_wallpaper_blob',
-        'wallpaper',
-        'main_wallpaper',
-      ]) {
-        const asset = await browserStorage.getAsset(key)
+      const keys = ['main_wallpaper_blob', 'wallpaper', 'starlink-atmosphere'];
+      for (const key of keys) {
+        const asset = await browserStorage.getAsset(key);
         if (asset instanceof Blob) {
-          objectUrl = URL.createObjectURL(asset)
-          setUrl(objectUrl)
-          return
+          setUrl(URL.createObjectURL(asset));
+          return;
         }
         if (typeof asset === 'string' && asset.length > 0) {
-          setUrl(asset)
-          return
+          setUrl(asset);
+          return;
         }
       }
-
-      setUrl(null)
+      setUrl(null);
     } catch (e) {
-      console.error('[WallpaperBackground]', e)
-      setUrl(null)
+      setUrl(null);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    load()
-    const onChange = () => load()
-    window.addEventListener('lexis-wallpaper-changed', onChange)
-    return () => window.removeEventListener('lexis-wallpaper-changed', onChange)
-  }, [load])
+    load();
+    window.addEventListener('lexis-wallpaper-changed', load);
+    return () => window.removeEventListener('lexis-wallpaper-changed', load);
+  }, [load]);
 
-  // SSR + 1º render: null → sem hydration mismatch
-  if (!url) return null
+  if (!url) return null;
 
   return (
     <div
-      aria-hidden
-      className="pointer-events-none fixed inset-0"
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 -z-10 w-full h-full"
       style={{
-        zIndex: 0,
-        backgroundImage: `url(${url})`,
+        backgroundImage: `url("${url}")`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
         backgroundAttachment: 'fixed',
       }}
     />
-  )
+  );
 }

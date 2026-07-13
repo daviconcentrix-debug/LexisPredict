@@ -1,5 +1,10 @@
 import { browserStorage } from "@/lib/browser-storage";
 
+/**
+ * @fileOverview Motor de Engenharia de Hardware Visual (v1.0)
+ * Gerencia a aplicação e persistência de opacidade, blur e atmosferas.
+ */
+
 export function setCssOpacityVars(
   bgOpacity01: number,
   sidebarOpacity01: number,
@@ -36,9 +41,7 @@ export async function resetWallpaper() {
   try {
     await browserStorage.removeAsset("main_wallpaper_blob");
     await browserStorage.removeAsset("side_wallpaper_blob");
-  } catch {
-    /* ignore */
-  }
+  } catch (e) {}
   window.dispatchEvent(new Event("lexis-wallpaper-changed"));
 }
 
@@ -53,7 +56,7 @@ export async function saveWallpaperFile(file: File): Promise<string> {
         if (dataUrl) {
           localStorage.setItem("lexisPredict_wallpaper", dataUrl);
         }
-      } catch {
+      } catch (e) {
         localStorage.removeItem("lexisPredict_wallpaper");
       }
       window.dispatchEvent(new Event("lexis-wallpaper-changed"));
@@ -65,10 +68,15 @@ export async function saveWallpaperFile(file: File): Promise<string> {
 }
 
 export function loadVisualStateFromStorage() {
+  if (typeof localStorage === 'undefined') return {
+    bgOpacity01: 0.85,
+    sidebarOpacity01: 0.9,
+    glassBlur: 8,
+    wallpaper: ""
+  };
+
   const bg = parseFloat(localStorage.getItem("lexisPredict_bg_opacity") || "0.85");
-  const side = parseFloat(
-    localStorage.getItem("lexisPredict_sidebar_opacity") || "0.9"
-  );
+  const side = parseFloat(localStorage.getItem("lexisPredict_sidebar_opacity") || "0.9");
   const blur = parseFloat(localStorage.getItem("lexisPredict_glass_blur") || "8");
   const wallpaper = localStorage.getItem("lexisPredict_wallpaper") || "";
 

@@ -124,7 +124,7 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative",
                   pathname === item.href
-                    ? "bg-foreground/5 text-foreground"
+                    ? "bg-foreground/10 text-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                 )}
               >
@@ -189,7 +189,6 @@ export function Sidebar() {
     </div>
   );
 
-  // Skeleton idêntico no server/client (sem labels de i18n)
   if (!mounted) {
     return (
       <aside className="hidden lg:flex h-screen w-64 glass-sidebar border-r border-border/50 shrink-0" />
@@ -212,7 +211,7 @@ export function Sidebar() {
           <SheetContent side="left" className="p-0 border-r border-border w-72 glass-sidebar">
             <SheetHeader className="sr-only">
               <SheetTitle>Menu</SheetTitle>
-              <SheetDescription>Navegação</SheetDescription>
+              <SheetDescription>Navegação do Gabinete</SheetDescription>
             </SheetHeader>
             <SidebarContent />
           </SheetContent>
