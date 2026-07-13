@@ -2,25 +2,17 @@
 'use server';
 
 /**
- * MOTOR DE INGESTÃO MASSIVA v45000.0 ELITE
- * Processamento Ultra-Robusto com Ingestão de Alta Capacidade.
+ * MOTOR DE INGESTÃO MASSIVA v46000.0 ELITE
+ * Processamento ultra-robusto com mapeamento total de colunas.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
 import { parse } from 'csv-parse/sync';
 import { supabase } from '@/lib/supabase';
 import { cookies } from 'next/headers';
+import { calcularStatus, calcularRisco, parseBrazilianDate, formatDateToISO } from '@/lib/case-logic';
 
-// ====================== HELPERS DE LOGICA ======================
-function parseBrazilianDate(value: string | null | undefined): string | null {
-  if (!value || value.trim() === '' || value === '-' || value === '#VALUE!') return null;
-  const cleaned = value.trim();
-  const match = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!match) return null;
-  const [, day, month, year] = match;
-  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-}
-
+// Helper para converter ISO para DD/MM/YYYY (exibição no frontend)
 function toBR(dateISO: string | null): string {
   if (!dateISO) return '';
   const parts = dateISO.split('-');
@@ -41,31 +33,6 @@ function calcularDiasFaltando(proximoISO: string | null): number | null {
   }
 }
 
-function calcularStatus(proximoISO: string | null, situacao: string | null): string {
-  const sit = (situacao || '').toUpperCase();
-  const termosEncerrado = ['ENCERRADO', 'EXTINTO', 'BAIXA DEFINITIVAMENTE', 'IMPROCEDENTE', 'CANCELADA', 'TRANSITADO'];
-  if (termosEncerrado.some(t => sit.includes(t))) return 'Encerrado';
-  
-  if (!proximoISO) return 'Sem Prazo';
-  const dias = calcularDiasFaltando(proximoISO);
-  if (dias === null) return 'Sem Prazo';
-  if (dias < 0) return 'Vencido';
-  if (dias === 0) return 'É Hoje';
-  if (dias <= 3) return 'Atenção';
-  if (dias <= 7) return 'Próximo';
-  return 'No Prazo';
-}
-
-function calcularRisco(observacoes: string | null, statusInterno: string | null, situacao: string | null): string {
-  const texto = `${observacoes || ''} ${statusInterno || ''} ${situacao || ''}`.toUpperCase();
-  const criticas = ['INDEFERIDA', 'EXTINTO', 'IMPROCEDENTE', 'CLIENTE NÃO RESPONDE', 'NÃO PAGOU AS CUSTAS', 'CARTA DE DESISTÊNCIA', 'SUMI', 'BLOQUEOU', 'SUCUMBÊNCIA', 'BAIXA DEFINITIVAMENTE', 'CANCELADA DISTRIBUIÇÃO', 'CLIENTE SUMI', 'NÃO QUER ENVOLVIMENTO', 'ARQUIVADO DEFINITIVAMENTE'];
-  const atencao = ['CONCLUSO', 'AGUARDANDO', 'DOCUMENTAÇÃO', 'CUSTAS', 'DILAÇÃO', 'REDISTRIBUIÇÃO', 'SUBSTABELECIMENTO', 'JG INDEFERIDA', 'EMENDA', 'PROVAS', 'AUDIÊNCIA', 'CONTESTAÇÃO', 'RÉPLICA'];
-
-  if (criticas.some(p => texto.includes(p))) return 'Crítico';
-  if (atencao.some(p => texto.includes(p))) return 'Atenção';
-  return 'Normal';
-}
-
 export async function importarCSVAction(formData: FormData) {
   try {
     const file = formData.get('file') as File;
@@ -84,29 +51,32 @@ export async function importarCSVAction(formData: FormData) {
     const cookieStore = await cookies();
     const userEmail = cookieStore.get('lexis_user_email')?.value;
     const { data: auth } = await supabase.auth.getUser();
-    const user = auth.user;
+    const authUser = auth.user;
 
-    if (!userEmail && !user) return { error: 'Sessão expirada. Realize login novamente.' };
+    if (!userEmail && !authUser) return { error: 'Sessão expirada. Realize login novamente.' };
 
     let query = supabase.from('usuarios').select('empresa_id, auth_user_id');
     if (userEmail) query = query.eq('email', userEmail.toLowerCase().trim());
-    else if (user) query = query.eq('auth_user_id', user.id);
+    else if (authUser) query = query.eq('auth_user_id', authUser.id);
 
     const { data: profile } = await query.maybeSingle();
-    if (!profile) return { error: 'Perfil de gabinete não localizado.' };
+    
+    // Se não tiver perfil, tenta usar o ID do auth como fallback para empresa genérica ou nula
+    const empresa_id = profile?.empresa_id || null;
+    const created_by = profile?.auth_user_id || authUser?.id;
 
     const payload: any[] = [];
     let skipped = 0;
 
     for (const row of records) {
-      // Normalização de chaves para evitar falhas de trim em nomes de colunas
+      // Normalização de chaves para evitar falhas de trim
       const cleanRow: Record<string, string> = {};
       Object.keys(row).forEach(key => {
         cleanRow[key.trim().toUpperCase()] = row[key];
       });
 
-      const cliente = (cleanRow['CLIENTE'] || '').trim();
-      const protocolo = (cleanRow['PROTOCOLO'] || '').trim();
+      const cliente = (cleanRow['CLIENTE'] || cleanRow['NOME'] || '').trim();
+      const protocolo = (cleanRow['PROTOCOLO'] || cleanRow['PROCESSO'] || '').trim();
 
       if (!cliente || !protocolo) {
         skipped++;
@@ -116,16 +86,17 @@ export async function importarCSVAction(formData: FormData) {
       const situacao = (cleanRow['SITUAÇÃO'] || cleanRow['SITUACAO'] || '').trim();
       const statusInterno = (cleanRow['STATUS'] || '').trim();
       const observacoes = (cleanRow['OBSERVAÇÕES'] || cleanRow['OBSERVACOES'] || '').trim();
-      const ultimoRaw = cleanRow['RETORNO'] || '';
-      const proximoRaw = cleanRow['PRÓXIMO RETORNO'] || cleanRow['PROXIMO RETORNO'] || '';
+      const ultimoRaw = cleanRow['RETORNO'] || cleanRow['ULTIMO RETORNO'] || '';
+      const proximoRaw = cleanRow['PRÓXIMO RETORNO'] || cleanRow['PROXIMO RETORNO'] || cleanRow['PRAZO'] || '';
 
-      const ultimo_retorno_iso = parseBrazilianDate(ultimoRaw);
-      const proximo_retorno_iso = parseBrazilianDate(proximoRaw);
+      const ultimo_retorno_iso = formatDateToISO(ultimoRaw);
+      const proximo_retorno_iso = formatDateToISO(proximoRaw);
 
-      const status = calcularStatus(proximo_retorno_iso, situacao);
+      const status = calcularStatus(proximoRaw, situacao);
       const risco = calcularRisco(observacoes, statusInterno, situacao);
       const diasFaltando = calcularDiasFaltando(proximo_retorno_iso);
 
+      // Objeto DADOS no formato que o Frontend espera (Chaves específicas)
       const casoDados = {
         id: protocolo,
         tipo: 'NOVO',
@@ -136,11 +107,11 @@ export async function importarCSVAction(formData: FormData) {
         advogado: (cleanRow['ADVOGADO RESPONSÁVEL'] || cleanRow['ADVOGADO'] || 'Não Atribuído').trim(),
         situacao: situacao,
         observacao: observacoes,
-        proximoPrazo: toBR(proximo_retorno_iso),
-        ultimoRetorno: toBR(ultimo_retorno_iso),
+        proximoPrazo: toBR(proximo_retorno_iso || ''),
+        ultimoRetorno: toBR(ultimo_retorno_iso || ''),
         statusManual: 'Automatico',
         diasFaltando: diasFaltando,
-        tribunal: 'Outros',
+        tribunal: 'Outros', // Será recalculado pelo motor no frontend ou aqui
         linkConsulta: `https://www.google.com/search?q=consulta+processo+judicial+${protocolo}`,
         riscoIA: '',
         parecerIA: '',
@@ -152,44 +123,44 @@ export async function importarCSVAction(formData: FormData) {
 
       payload.push({
         dados: casoDados,
-        empresa_id: profile.empresa_id,
-        created_by: profile.auth_user_id,
+        empresa_id: empresa_id,
+        created_by: created_by,
         ultimo_retorno: ultimo_retorno_iso,
         proximo_retorno: proximo_retorno_iso,
         observacoes: observacoes,
-        status,
-        risco,
+        status: status,
+        risco: risco,
         status_interno: statusInterno,
-        ultima_movimentacao: parseBrazilianDate(cleanRow['DATA MOVIMENTAÇÃO'] || cleanRow['DATA MOVIMENTACAO']),
+        ultima_movimentacao: formatDateToISO(cleanRow['DATA MOVIMENTAÇÃO'] || cleanRow['DATA MOVIMENTACAO']),
         escritorio: casoDados.escritorio,
         advogado: casoDados.advogado,
-        data_distribuicao: parseBrazilianDate(cleanRow['DISTRIB.'] || cleanRow['DISTRIB']),
+        data_distribuicao: formatDateToISO(cleanRow['DISTRIB.'] || cleanRow['DISTRIB']),
         produtos: casoDados.produtos,
         telefone: casoDados.telefone
       });
     }
 
-    if (payload.length === 0) return { error: 'Nenhum registro íntegro no CSV.' };
+    if (payload.length === 0) return { error: 'Nenhum registro válido localizado no CSV.' };
 
-    // Ingestão Massiva Direta (Alta Performance)
+    // Ingestão massiva atômica
     const { data: inserted, error: insertError } = await supabase
       .from('processos')
       .insert(payload)
       .select('id');
 
     if (insertError) {
-      console.error('[DB] Falha na Gravação:', insertError.message);
+      console.error('[DB] Falha na Gravação Massiva:', insertError.message);
       return { error: `Erro técnico: ${insertError.message}` };
     }
 
     return {
       success: true,
       count: inserted?.length || payload.length,
-      message: `Sucesso! Importados: ${inserted?.length || payload.length} | Pulados: ${skipped} | Total: ${records.length}`
+      message: `Sucesso! Importados: ${inserted?.length || payload.length} | Pulados: ${skipped} | Total detectado: ${records.length}`
     };
 
   } catch (err: any) {
     console.error('[ImportAction] Erro Crítico:', err);
-    return { error: 'Falha fatal no motor de triagem.' };
+    return { error: 'Falha fatal no motor de triagem. Verifique o formato do arquivo.' };
   }
 }
