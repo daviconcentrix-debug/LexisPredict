@@ -2,13 +2,12 @@
 'use server';
 
 /**
- * MOTOR DE INGESTÃO MASSIVA v50000.0 ELITE
- * Processamento ultra-robusto focado em Supabase.
- * Inserção massiva com mapeamento de colunas SQL.
+ * MOTOR DE INGESTÃO MASSIVA - VERSÃO CORRIGIDA
+ * Usa o cliente server correto do Supabase
  */
 
 import { parse } from 'csv-parse/sync';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 import { calcularStatus, calcularRisco, formatDateToISO } from '@/lib/case-logic';
 
 function toBR(dateISO: string | null): string {
@@ -37,33 +36,42 @@ export async function importarCSVAction(formData: FormData) {
     if (!file) return { error: 'Nenhum arquivo detectado.' };
 
     const text = await file.text();
+
     const records = parse(text, {
       columns: true,
       skip_empty_lines: true,
       trim: true,
       relax_column_count: true,
       bom: true,
-      skip_records_with_error: true
+      skip_records_with_error: true,
     });
 
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) return { error: 'Sessão expirada. Realize login novamente.' };
+    // ========== CLIENTE SERVER CORRETO ==========
+    const supabase = await createClient();
 
-    const { data: profile } = await supabase.from('usuarios')
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !authUser) {
+      return { error: 'Sessão expirada. Faça login novamente.' };
+    }
+
+    // Busca perfil
+    const { data: profile } = await supabase
+      .from('usuarios')
       .select('empresa_id, auth_user_id')
       .eq('auth_user_id', authUser.id)
       .maybeSingle();
-    
-    const empresa_id = profile?.empresa_id || null;
+
+    const empresa_id = profile?.empresa_id || 'd37fd4bb-1c71-4dca-b97e-292355918d39';
     const created_by = authUser.id;
 
     const payload: any[] = [];
     let skipped = 0;
 
     for (const row of records) {
-      // Normalização de chaves para evitar problemas de espaços no CSV
+      // Normaliza as chaves do CSV
       const cleanRow: Record<string, string> = {};
-      Object.keys(row).forEach(key => {
+      Object.keys(row).forEach((key) => {
         cleanRow[key.trim().toUpperCase()] = row[key];
       });
 
@@ -77,9 +85,9 @@ export async function importarCSVAction(formData: FormData) {
 
       const situacao = (cleanRow['SITUAÇÃO'] || cleanRow['SITUACAO'] || '').trim();
       const statusInterno = (cleanRow['STATUS'] || '').trim();
-      const observacoes = (cleanRow['OBSERVAÇÕES'] || cleanRow['OBSERVACOES'] || '').trim();
-      const ultimoRaw = cleanRow['RETORNO'] || cleanRow['ULTIMO RETORNO'] || '';
-      const proximoRaw = cleanRow['PRÓXIMO RETORNO'] || cleanRow['PROXIMO RETORNO'] || cleanRow['PRAZO'] || '';
+      const observacoes = (cleanRow['OBSERVAÇÕES'] || cleanRow['OBSERVACOES'] || cleanRow['OBSERVACAO'] || '').trim();
+      const ultimoRaw = cleanRow['RETORNO'] || cleanRow['ULTIMO RETORNO'] || cleanRow['ULTIMORETORNO'] || '';
+      const proximoRaw = cleanRow['PRÓXIMO RETORNO'] || cleanRow['PROXIMO RETORNO'] || cleanRow['PRAZO'] || cleanRow['PROXIMOPRAZO'] || '';
 
       const ultimo_retorno_iso = formatDateToISO(ultimoRaw);
       const proximo_retorno_iso = formatDateToISO(proximoRaw);
@@ -88,67 +96,76 @@ export async function importarCSVAction(formData: FormData) {
       const risco = calcularRisco(observacoes, statusInterno, situacao);
       const diasFaltando = calcularDiasFaltando(proximo_retorno_iso);
 
-      // Objeto oficial que o app usa
+      // Objeto no formato que o app realmente usa
       const casoDados = {
         id: protocolo,
         tipo: 'NOVO',
         status: status,
         cliente: cliente.toUpperCase(),
         protocolo: protocolo,
-        telefone: (cleanRow['TELEFONE'] || '').trim(),
+        telefone: (cleanRow['TELEFONE'] || '').trim() || null,
         advogado: (cleanRow['ADVOGADO RESPONSÁVEL'] || cleanRow['ADVOGADO'] || 'Não Atribuído').trim(),
-        situacao: situacao,
+        situacao: situacao || 'EM ANDAMENTO',
         observacao: observacoes,
-        proximoPrazo: toBR(proximo_retorno_iso || ''),
-        ultimoRetorno: toBR(ultimo_retorno_iso || ''),
+        proximoPrazo: toBR(proximo_retorno_iso),
+        ultimoRetorno: toBR(ultimo_retorno_iso),
         statusManual: 'Automatico',
         diasFaltando: diasFaltando,
         tribunal: 'Outros',
         linkConsulta: `https://www.google.com/search?q=consulta+processo+judicial+${protocolo}`,
         riscoIA: '',
         parecerIA: '',
-        atendente: (cleanRow['ASSISTENTE'] || '').trim(),
-        escritorio: (cleanRow['ESCRITÓRIO'] || cleanRow['ESCRITORIO'] || '').trim(),
-        produtos: (cleanRow['PRODUTOS'] || '').trim(),
-        risco: risco
+        atendente: (cleanRow['ASSISTENTE'] || '').trim() || '',
+        escritorio: (cleanRow['ESCRITÓRIO'] || cleanRow['ESCRITORIO'] || '').trim() || null,
+        produtos: (cleanRow['PRODUTOS'] || '').trim() || null,
+        risco: risco,
       };
 
       payload.push({
+        // NÃO manda o campo id → deixa o Supabase gerar o bigint
         dados: casoDados,
         empresa_id: empresa_id,
         created_by: created_by,
         ultimo_retorno: ultimo_retorno_iso,
         proximo_retorno: proximo_retorno_iso,
-        observacoes: observacoes,
+        observacoes: observacoes || null,
         status: status,
         risco: risco,
-        status_interno: statusInterno,
+        status_interno: statusInterno || null,
         escritorio: casoDados.escritorio,
         advogado: casoDados.advogado,
         telefone: casoDados.telefone,
-        produtos: casoDados.produtos
+        produtos: casoDados.produtos,
       });
     }
 
-    if (payload.length === 0) return { error: 'Nenhum registro válido localizado no CSV.' };
+    if (payload.length === 0) {
+      return { error: 'Nenhum registro válido localizado no CSV.', skipped };
+    }
 
-    // Gravação Massiva Atômica
+    // ========== GRAVAÇÃO DIRETA (tudo de uma vez) ==========
     const { data: inserted, error: insertError } = await supabase
       .from('processos')
       .insert(payload)
       .select('id');
 
     if (insertError) {
-      return { error: `Falha na gravação: ${insertError.message}` };
+      console.error('[IMPORT ERROR]', insertError);
+      return { 
+        error: `Falha na gravação: ${insertError.message}`,
+        tentou: payload.length 
+      };
     }
 
     return {
       success: true,
       count: inserted?.length || payload.length,
-      message: `Sucesso! Importados: ${inserted?.length || payload.length} | Pulados: ${skipped}`
+      skipped,
+      message: `Sucesso! Importados: ${inserted?.length || payload.length} | Pulados: ${skipped}`,
     };
 
   } catch (err: any) {
-    return { error: 'Falha fatal no motor de triagem.' };
+    console.error('[IMPORT FATAL]', err);
+    return { error: err.message || 'Falha fatal no motor de triagem.' };
   }
 }

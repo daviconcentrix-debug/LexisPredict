@@ -2,19 +2,12 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/components/auth/auth-provider';
+import { SessionCleaner } from '@/components/auth/session-cleaner';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'W1 Capital | Advanced Legal Ops',
   description: 'Gabinete Jurídico de Alta Performance',
-  icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
-    ],
-    apple: "/apple-touch-icon.png",
-  },
 };
 
 export default function RootLayout({
@@ -25,9 +18,6 @@ export default function RootLayout({
   return (
     <html lang="pt-br" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
         <Script id="theme-loader" strategy="beforeInteractive">
           {`
             (function() {
@@ -59,7 +49,7 @@ export default function RootLayout({
                     }
                     h /= 6;
                   }
-                  return \`\${Math.round(h * 360)} \${Math.round(s * 100)}% \${Math.round(l * 100)}%\`;
+                  return Math.round(h * 360) + ' ' + Math.round(s * 100) + '% ' + Math.round(l * 100) + '%';
                 };
 
                 const root = document.documentElement;
@@ -80,6 +70,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body className="font-sans antialiased bg-background text-foreground transition-all duration-300 min-h-screen">
+        <SessionCleaner />
         <AuthProvider>
           {children}
           <Toaster />
