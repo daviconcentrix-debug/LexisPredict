@@ -67,17 +67,19 @@ export default function RootLayout({
                 if (font) root.style.setProperty('--foreground', hexToHsl(font));
                 if (btn) root.style.setProperty('--primary', hexToHsl(btn));
                 if (radius) root.style.setProperty('--radius', radius + 'px');
+                
                 if (wallpaper) {
-                  root.style.backgroundImage = \`url(\${wallpaper})\`;
+                  root.style.backgroundImage = 'url(' + wallpaper + ')';
                   root.style.backgroundSize = 'cover';
                   root.style.backgroundAttachment = 'fixed';
+                  root.style.backgroundPosition = 'center';
                 }
               } catch (e) {}
             })()
           `}
         </Script>
       </head>
-      <body className="font-sans antialiased bg-background text-foreground transition-all duration-300">
+      <body className="font-sans antialiased bg-background text-foreground transition-all duration-300 min-h-screen">
         <AuthProvider>
           {children}
           <Toaster />

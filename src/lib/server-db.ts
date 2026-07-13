@@ -1,4 +1,3 @@
-
 'use server';
 
 import { supabase, isSupabaseConfigured, UserProfile } from './supabase';
@@ -6,7 +5,7 @@ import { LegalCase, CaseNote } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v900.0 ELITE)
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v1000.0 ELITE)
  * Camada de Abstração para isolamento de Banco de Dados e Lógica SaaS.
  * Propriedade de W1 Capital | Fundador: Davi Alves Figueredo
  */
@@ -31,7 +30,7 @@ async function getUserContext() {
 }
 
 /**
- * BUSCA DE PROCESSOS COM ISOLAMENTO DE TENANT
+ * BUSCA DE PROCESSOS COM ISOLAMENTO DE TENANT E SOFT DELETE
  */
 export async function getStoredCases(): Promise<LegalCase[]> {
   if (!isSupabaseConfigured) return [];
@@ -39,7 +38,10 @@ export async function getStoredCases(): Promise<LegalCase[]> {
   if (!auth_id || !empresa_id) return [];
 
   try {
-    let query = supabase.from('processos').select('dados, created_by').eq('empresa_id', empresa_id);
+    let query = supabase.from('processos')
+      .select('dados, created_by')
+      .eq('empresa_id', empresa_id)
+      .is('deleted_at', null); // FILTRO DE SEGURANÇA: Ignora deletados
 
     // ISOLAMENTO SaaS: Operador vê apenas o dele, Admin vê tudo da empresa.
     if (cargo !== 'Administrador') {
@@ -57,7 +59,7 @@ export async function getStoredCases(): Promise<LegalCase[]> {
 }
 
 /**
- * SINCRONIZAÇÃO EM LOTE COM UPSERT INTELIGENTE
+ * SINCRONIZAÇÃO EM LOTE COM UPSERT INTELIGENTE E SEGURANÇA
  */
 export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: boolean; message: string }> {
   if (!isSupabaseConfigured) return { success: false, message: "Erro de Configuração." };
@@ -65,21 +67,23 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
   if (!empresa_id || !auth_id) return { success: false, message: "Sessão expirada." };
 
   try {
-    // Filtragem de duplicatas no lote antes do envio
     const uniqueMap = new Map();
     cases.forEach(c => { if(c && c.protocolo) uniqueMap.set(c.protocolo, c); });
+    
     const payload = Array.from(uniqueMap.values()).map(c => ({ 
       dados: c, 
       empresa_id: empresa_id, 
       created_by: auth_id,
-      protocolo_ref: c.protocolo // Campo para facilitar buscas no PostgreSQL
+      protocolo_ref: c.protocolo 
     }));
 
-    // Limpeza de registros anteriores do usuário para refresh total (Estratégia Elite)
-    await supabase.from('processos').delete().eq('created_by', auth_id);
-    
+    // UPSERT: Em vez de deletar tudo, atualizamos o que existe e inserimos o novo.
+    // Isso evita o erro de "sumir tudo" em caso de falha no meio do processo.
     if (payload.length > 0) {
-      const { error } = await supabase.from('processos').insert(payload);
+      const { error } = await supabase
+        .from('processos')
+        .upsert(payload, { onConflict: 'protocolo_ref, empresa_id' });
+      
       if (error) throw error;
     }
     
@@ -134,6 +138,7 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
   if (!empresa_id || !auth_id) return { success: false };
 
   try {
+    // Sincronização segura de notas
     await supabase.from('notes').delete().eq('created_by', auth_id);
     if (notes && notes.length > 0) {
       const dbNotes = notes.map(n => ({

@@ -94,7 +94,6 @@ export function applyGlobalTheme(preset: ThemePreset) {
   const root = document.documentElement;
   const { colors, radius, id } = preset;
 
-  // Fix: Safe detection of theme name from ID
   const themeName = id.includes('minimal') ? 'light' : id.includes('aston') ? 'executivo' : 'dark';
   
   localStorage.setItem('lexisPredict_theme', themeName);
@@ -113,4 +112,20 @@ export function applyGlobalTheme(preset: ThemePreset) {
   root.style.setProperty('--border', hexToHsl(colors.border));
   root.style.setProperty('--secondary', hexToHsl(colors.secondary));
   root.style.setProperty('--radius', `${radius}px`);
+}
+
+export function applyWallpaper(url: string) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  
+  if (url && url.trim() !== '') {
+    localStorage.setItem('lexisPredict_wallpaper', url);
+    root.style.backgroundImage = `url(${url})`;
+    root.style.backgroundSize = 'cover';
+    root.style.backgroundAttachment = 'fixed';
+    root.style.backgroundPosition = 'center';
+  } else {
+    localStorage.removeItem('lexisPredict_wallpaper');
+    root.style.backgroundImage = 'none';
+  }
 }
