@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -82,16 +81,16 @@ export function Sidebar() {
   ];
 
   const SidebarContent = () => (
-    <div className="h-full flex flex-col bg-sidebar border-r border-border/50">
+    <div className="h-full flex flex-col bg-sidebar border-r border-border/50 transition-colors duration-300">
       <div className="h-16 flex items-center px-6 border-b border-border/30">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-sm bg-primary flex items-center justify-center shadow-[0_0_15px_rgba(0,209,255,0.3)]">
-            <span className="text-black font-bold text-xs">LP</span>
+          <div className="w-8 h-8 rounded-sm bg-primary flex items-center justify-center shadow-[0_0_15px_rgba(201,162,39,0.3)]">
+            <span className="text-black font-black text-xs">LP</span>
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-bold text-[11px] tracking-widest uppercase">LexisPredict</span>
-              <span className="text-[8px] text-primary font-bold uppercase tracking-[0.2em]">Elite v8.5</span>
+              <span className="font-black text-[11px] tracking-widest uppercase">LexisPredict</span>
+              <span className="text-[8px] text-primary font-black uppercase tracking-[0.2em]">Elite v8.5</span>
             </div>
           )}
         </div>
@@ -101,7 +100,7 @@ export function Sidebar() {
         {navGroups.map((group) => (
           <div key={group.title} className="space-y-1">
             {!collapsed && (
-              <p className="px-3 mb-2 text-[8px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-40">
+              <p className="px-3 mb-2 text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-40 sidebar-group-title">
                 {group.title}
               </p>
             )}
@@ -110,48 +109,51 @@ export function Sidebar() {
                 key={item.label}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative",
+                  "flex items-center gap-3 px-3 py-2 rounded-none transition-all duration-200 group relative font-black uppercase",
                   pathname === item.href 
-                    ? "bg-primary/10 text-primary" 
+                    ? "bg-primary/10 text-primary border-l-2 border-primary" 
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary/30"
                 )}
               >
-                {pathname === item.href && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary rounded-full shadow-[0_0_10px_#00D1FF]" />}
                 <item.icon className={cn("w-4 h-4 shrink-0 transition-colors", pathname === item.href ? "text-primary" : "opacity-60 group-hover:opacity-100")} />
-                {!collapsed && <span className="text-[10px] font-bold tracking-wider uppercase">{item.label}</span>}
+                {!collapsed && <span className="text-[10px] tracking-widest">{item.label}</span>}
               </Link>
             ))}
           </div>
         ))}
       </div>
 
-      <div className="p-4 border-t border-border/30 space-y-4">
+      <div className="p-4 border-t border-border/30 space-y-4 bg-muted/10">
         {!collapsed && (
-          <div className="flex items-center gap-3 p-2 rounded-sm bg-secondary/30 border border-border/10">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-[10px] border border-primary/20">
+          <div className="flex items-center gap-3 p-2 rounded-none bg-secondary/30 border border-border/10 mb-2">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-[10px] border border-primary/20">
               {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[10px] font-bold uppercase truncate text-foreground">{profile?.nome || 'User'}</span>
+              <span className="text-[10px] font-black uppercase truncate text-foreground">{profile?.nome || 'User'}</span>
               <span className="text-[8px] text-muted-foreground uppercase tracking-widest">{profile?.cargo || 'Operator'}</span>
             </div>
           </div>
         )}
         
-        <div className="flex items-center justify-between">
+        <div className="space-y-1">
           <Button 
             variant="ghost" 
-            size="icon" 
             onClick={handleLogout}
-            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className={cn(
+              "w-full flex items-center gap-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 font-black uppercase text-[10px] tracking-widest transition-all h-10",
+              collapsed ? "justify-center px-0" : "justify-start px-3"
+            )}
           >
-            <LogOut size={14} />
+            <LogOut size={16} className="text-destructive" />
+            {!collapsed && <span className="text-destructive font-black">Encerrar Sessão</span>}
           </Button>
+
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex h-8 w-8 text-muted-foreground hover:text-primary"
+            className="hidden lg:flex w-full items-center justify-center h-8 text-muted-foreground hover:text-primary mt-2"
           >
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </Button>

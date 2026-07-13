@@ -1,11 +1,9 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* TEMA CLARO - REFORÇADO PARA ALTO CONTRASTE */
     --background: 0 0% 100%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
@@ -27,7 +25,6 @@
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.75rem;
 
-    /* SIDEBAR VARIABLES */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 221.2 83.2% 53.3%;
@@ -75,25 +72,77 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
   }
 }
 
-.report-canvas {
-  background-image: radial-gradient(#000 0.5px, transparent 0.5px);
-  background-size: 30px 30px;
-  background-position: center;
-  background-attachment: local;
+/* =========================================================
+   SOBERANIA VISUAL V5 — CONTRASTE EXECUTIVO BLINDADO
+   ========================================================= */
+
+.theme-executivo {
+  color-scheme: dark !important;
+  --background: 0 0% 4%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 7%;
+  --card-foreground: 0 0% 100%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 0 0% 100%;
+  --primary: 45 68% 47%;
+  --primary-foreground: 0 0% 4%;
+  --secondary: 0 0% 10%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 10%;
+  --muted-foreground: 0 0% 65%;
+  --accent: 45 68% 47%;
+  --accent-foreground: 0 0% 100%;
+  --border: 0 0% 15%;
+  --input: 0 0% 15%;
+  --ring: 45 68% 47%;
+  --destructive: 0 84.2% 60.2%;
+
+  --sidebar-background: 0 0% 2%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-primary: 45 68% 47%;
+  --sidebar-accent: 0 0% 7%;
+  --sidebar-border: 0 0% 10%;
+  --sidebar-ring: 45 68% 47%;
+}
+
+/* Força fundos escuros no tema executivo */
+.theme-executivo .bg-white,
+.theme-executivo .bg-background,
+.theme-executivo .bg-card,
+.theme-executivo .bg-muted,
+.theme-executivo .bg-secondary {
+  background-color: #0f0f0f !important;
+  color: #ffffff !important;
+}
+
+/* Corretor de Texto Destrutivo (Logout) */
+.theme-executivo .text-destructive {
+  color: #ff4d4d !important;
+}
+
+/* Títulos e Elementos de Autoridade */
+.theme-executivo h1,
+.theme-executivo h2,
+.theme-executivo .text-primary {
+  color: #c9a227 !important;
+}
+
+.theme-executivo input,
+.theme-executivo textarea {
+  background-color: #050505 !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 @media print {
   .print-hidden {
     display: none !important;
   }
-  .report-canvas {
-    background-image: none !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 0 !important;
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }

@@ -1,68 +1,93 @@
-'use server'
 
-import { 
-  getStoredCases, 
-  saveStoredCases, 
-  getStoredNotes, 
-  saveStoredNotes,
-  getUserContext 
-} from '@/lib/server-db'
-import { LegalCase, CaseNote, calcularStatus, calcularRisco, formatDateToISO } from '@/lib/case-logic'
-import { revalidatePath } from 'next/cache'
+'use server';
 
-/**
- * Busca todos os processos da empresa do usuário logado.
- */
+import { getStoredCases, saveStoredCases, getStoredNotes, saveStoredNotes } from '@/lib/server-db';
+import { LegalCase, CaseNote } from '@/lib/case-logic';
+import { supabase } from '@/lib/supabase';
+import { cookies } from 'next/headers';
+
 export async function fetchRepoCases() {
-  return await getStoredCases()
+  return await getStoredCases();
 }
 
-/**
- * Sincroniza uma lista de processos (usado na importação e edição).
- */
 export async function syncRepoCases(cases: LegalCase[]) {
-  const result = await saveStoredCases(cases)
-  if (result.success) {
-    revalidatePath('/cases')
-    revalidatePath('/')
-  }
-  return result
+  return await saveStoredCases(cases);
 }
 
-/**
- * Salva ou atualiza um único caso.
- */
-export async function upsertCaseAction(formData: any) {
-  const status = calcularStatus(formData.proximoPrazo, formData.situacao)
-  const risco = calcularRisco(formData.observacao, formData.statusInterno, formData.situacao)
-  
-  const caseData: LegalCase = {
-    ...formData,
-    status,
-    risco
-  }
-
-  const result = await saveStoredCases([caseData])
-  if (result.success) revalidatePath('/cases')
-  return result
-}
-
-/**
- * Busca notas de evidência da empresa.
- */
 export async function fetchRepoNotes() {
-  return await getStoredNotes()
-}
-
-/**
- * Sincroniza a lista de notas.
- */
-export async function syncRepoNotesAction(notes: CaseNote[]) {
-  const result = await saveStoredNotes(notes)
-  if (result.success) revalidatePath('/notes')
-  return result
+  return await getStoredNotes();
 }
 
 export async function syncRepoNotes(notes: CaseNote[]) {
-  return await syncRepoNotesAction(notes)
+  return await saveStoredNotes(notes);
+}
+
+/**
+ * EXCLUSÃO SEGURA COM VERIFICAÇÃO DE SENHA
+ */
+export async function deleteCaseSecureAction(caseId: string, password: string) {
+  const cookieStore = await cookies();
+  const email = cookieStore.get('lexis_user_email')?.value;
+
+  if (!email) return { success: false, message: "Sessão expirada." };
+
+  // 1. Validar Senha via Supabase Auth
+  const { error: authError } = await supabase.auth.signInWithPassword({
+    email: email.toLowerCase().trim(),
+    password: password
+  });
+
+  if (authError) {
+    return { success: false, message: "Senha incorreta. Operação abortada." };
+  }
+
+  try {
+    // 2. Soft Delete (Update deleted_at) utilizando a coluna 'id' padrão
+    const { error } = await supabase
+      .from('processos')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', caseId);
+
+    if (error) throw error;
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, message: err.message };
+  }
+}
+
+/**
+ * GERA BACKUP COMPLETO (JSON)
+ */
+export async function generateFullBackupAction() {
+  const [cases, notes] = await Promise.all([
+    getStoredCases(),
+    getStoredNotes()
+  ]);
+
+  return {
+    exportedAt: new Date().toISOString(),
+    data: {
+      cases,
+      notes
+    }
+  };
+}
+
+/**
+ * RESTAURA BACKUP
+ */
+export async function restoreBackupAction(data: any) {
+  try {
+    if (!data.cases || !data.notes) throw new Error("Formato de backup inválido.");
+    
+    await Promise.all([
+      saveStoredCases(data.cases),
+      saveStoredNotes(data.notes)
+    ]);
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, message: err.message };
+  }
 }

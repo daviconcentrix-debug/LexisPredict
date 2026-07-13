@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
@@ -28,7 +27,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
 
   const loadProfile = async (userId: string) => {
-    // Semáforo de Sincronização: Impede execuções redundantes
     if (syncLockRef.current === userId && profile) return profile;
     syncLockRef.current = userId;
 
@@ -39,12 +37,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .eq('auth_user_id', userId)
         .maybeSingle();
       
-      if (profileError) return null;
+      if (profileError) {
+        console.warn("[Auth] Perfil não localizado ou erro de conexão.");
+        return null;
+      }
 
       if (profileData) {
         setProfile(profileData as UserProfile);
-        
-        // Sincroniza identidade com cookie para Server Actions
         if (profileData.email) {
            document.cookie = `lexis_user_email=${profileData.email}; path=/; max-age=31536000; samesite=lax`;
         }
@@ -58,23 +57,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const fetchSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        if (mounted && session?.user) {
           setUser(session.user);
           await loadProfile(session.user.id);
         }
       } catch (e) {
-        // Silencioso em produção
+        // Silencioso em caso de erro de refresh token no Studio
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     fetchSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
       if (session?.user) {
         setUser(session.user);
         if (event === 'SIGNED_IN' || !profile) {
@@ -85,18 +90,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setProfile(null);
         syncLockRef.current = null;
         
-        // Limpar cookies de identidade
         document.cookie = "lexis_user_email=; path=/; max-age=0";
-        document.cookie = "lexis_master_email=; path=/; max-age=0";
-        document.cookie = "lexis_master_unlock=; path=/; max-age=0";
-
         if (!['/login', '/signup'].includes(pathname)) {
           router.push('/login');
         }
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [pathname, router]);
 
   const signOut = async () => {
