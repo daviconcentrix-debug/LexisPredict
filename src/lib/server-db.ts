@@ -6,9 +6,8 @@ import { LegalCase, CaseNote } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v900.0 ELITE)
- * Camada de Abstração para isolamento de Banco de Dados e Lógica SaaS.
- * Propriedade de W1 Capital | Fundador: Davi Alves Figueredo
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v1400.0 ELITE)
+ * Estratégia Idempotente: Proteção contra Duplicidade e Isolamento SaaS.
  */
 
 async function getUserContext() {
@@ -30,80 +29,73 @@ async function getUserContext() {
   };
 }
 
-/**
- * BUSCA DE PROCESSOS COM ISOLAMENTO DE TENANT
- */
 export async function getStoredCases(): Promise<LegalCase[]> {
   if (!isSupabaseConfigured) return [];
-  const { auth_id, empresa_id, cargo } = await getUserContext();
-  if (!auth_id || !empresa_id) return [];
+  const { empresa_id } = await getUserContext();
+  if (!empresa_id) return [];
 
   try {
-    let query = supabase.from('processos').select('dados, created_by').eq('empresa_id', empresa_id);
+    const { data, error } = await supabase
+      .from('processos')
+      .select('dados')
+      .eq('empresa_id', empresa_id)
+      .order('id', { ascending: false });
 
-    // ISOLAMENTO SaaS: Operador vê apenas o dele, Admin vê tudo da empresa.
-    if (cargo !== 'Administrador') {
-      query = query.eq('created_by', auth_id);
-    }
-
-    const { data, error } = await query.order('id', { ascending: false });
     if (error) throw error;
-    
     return data ? data.map(item => item.dados as LegalCase) : [];
   } catch (error) {
-    console.error('[DB] Fetch Cases Fail:', error);
+    console.error('[DB] Fetch Fail:', error);
     return [];
   }
 }
 
-/**
- * SINCRONIZAÇÃO EM LOTE COM UPSERT INTELIGENTE
- */
 export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: boolean; message: string }> {
   if (!isSupabaseConfigured) return { success: false, message: "Erro de Configuração." };
   const { auth_id, empresa_id } = await getUserContext();
   if (!empresa_id || !auth_id) return { success: false, message: "Sessão expirada." };
 
   try {
-    // Filtragem de duplicatas no lote antes do envio
+    // Deduplicação preventiva no lado do servidor
     const uniqueMap = new Map();
-    cases.forEach(c => { if(c && c.protocolo) uniqueMap.set(c.protocolo, c); });
+    cases.forEach(c => { 
+      if(c && c.id) uniqueMap.set(c.id, c); 
+    });
+    
     const payload = Array.from(uniqueMap.values()).map(c => ({ 
+      id_unico: `${empresa_id}-${c.id}`, // Chave de conflito composta
       dados: c, 
       empresa_id: empresa_id, 
       created_by: auth_id,
-      protocolo_ref: c.protocolo // Campo para facilitar buscas no PostgreSQL
+      protocolo_ref: c.protocolo
     }));
 
-    // Limpeza de registros anteriores do usuário para refresh total (Estratégia Elite)
-    await supabase.from('processos').delete().eq('created_by', auth_id);
-    
-    if (payload.length > 0) {
-      const { error } = await supabase.from('processos').insert(payload);
-      if (error) throw error;
-    }
-    
-    return { success: true, message: "Base sincronizada com sucesso." };
+    if (payload.length === 0) return { success: true, message: "Vazio." };
+
+    // UPSERT: Atualiza se existir id_unico, insere se for novo. 
+    // Impede a criação de "milhares" de cópias repetidas.
+    const { error } = await supabase
+      .from('processos')
+      .upsert(payload, { onConflict: 'id_unico' });
+
+    if (error) throw error;
+    return { success: true, message: "Sincronia Idempotente concluída." };
   } catch (error: any) {
-    console.error('[DB] Sync Error:', error);
     return { success: false, message: error.message };
   }
 }
 
-/**
- * GESTÃO DE EVIDÊNCIAS E NOTAS
- */
 export async function getStoredNotes(): Promise<CaseNote[]> {
-  const { auth_id, empresa_id, cargo } = await getUserContext();
-  if (!auth_id || !empresa_id) return [];
+  const { empresa_id } = await getUserContext();
+  if (!empresa_id) return [];
 
   try {
-    let query = supabase.from('notes').select('*').eq('empresa_id', empresa_id);
-    if (cargo !== 'Administrador') query = query.eq('created_by', auth_id);
+    const { data, error } = await supabase
+      .from('notes')
+      .select('*')
+      .eq('empresa_id', empresa_id)
+      .order('created_at', { ascending: false });
 
-    const { data, error } = await query.order('created_at', { ascending: false });
     if (error) throw error;
-    
     return data ? data.map(item => {
       let imageUrl;
       let displayContent = item.content || '';
@@ -134,16 +126,14 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
   if (!empresa_id || !auth_id) return { success: false };
 
   try {
-    await supabase.from('notes').delete().eq('created_by', auth_id);
-    if (notes && notes.length > 0) {
-      const dbNotes = notes.map(n => ({
-        title: n.title || 'Nota',
-        content: n.imageUrl ? JSON.stringify({ text: n.content, imageUrl: n.imageUrl }) : n.content,
-        empresa_id: empresa_id,
-        created_by: auth_id
-      }));
-      await supabase.from('notes').insert(dbNotes);
-    }
+    const dbNotes = notes.map(n => ({
+      title: n.title || 'Nota',
+      content: n.imageUrl ? JSON.stringify({ text: n.content, imageUrl: n.imageUrl }) : n.content,
+      empresa_id: empresa_id,
+      created_by: auth_id
+    }));
+    
+    await supabase.from('notes').upsert(dbNotes);
     return { success: true };
   } catch (error) {
     return { success: false };

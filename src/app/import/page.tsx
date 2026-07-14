@@ -1,19 +1,19 @@
 
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   Upload, 
   FileSpreadsheet, 
-  X,
+  FileText,
   CheckCircle2,
   AlertCircle,
   Eye,
   Database,
-  ArrowRight,
   ShieldCheck,
-  Copyright
+  Copyright,
+  Zap
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,8 @@ import { useToast } from '@/hooks/use-toast';
 import { syncRepoCases, fetchRepoCases } from '@/app/actions/case-actions';
 import { cn } from '@/lib/utils';
 import { useAdmin } from '@/hooks/use-admin';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from '@/components/ui/textarea';
 import {
   Table,
   TableBody,
@@ -34,6 +36,7 @@ import {
 
 export default function ImportPage() {
   const [file, setFile] = useState<File | null>(null);
+  const [textInput, setTextInput] = useState('');
   const [parsing, setParsing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [preview, setPreview] = useState<LegalCase[]>([]);
@@ -44,7 +47,6 @@ export default function ImportPage() {
   const { toast } = useToast();
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isOperador) return;
     const selected = e.target.files?.[0];
     if (selected) {
       if (!selected.name.endsWith('.csv')) {
@@ -59,89 +61,113 @@ export default function ImportPage() {
   const parseFile = async (file: File) => {
     setParsing(true);
     setProgress(0);
-    
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         const text = event.target?.result as string;
-        const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
-        
-        if (lines.length < 2) {
-          toast({ title: "Arquivo Vazio", description: "O CSV não contém registros.", variant: "destructive" });
-          setParsing(false);
-          return;
-        }
-
-        const separator = lines[0].includes(';') ? ';' : ',';
-        const headers = lines[0].split(separator).map(h => h.trim().toUpperCase());
-        
-        const parsedCases: LegalCase[] = [];
-        const totalRows = lines.length - 1;
-
-        for (let i = 1; i < lines.length; i++) {
-          const currentLine = lines[i].split(separator);
-          const rowData: Record<string, string> = {};
-          headers.forEach((h, index) => {
-            rowData[h] = currentLine[index] ? currentLine[index].trim() : '';
-          });
-          
-          const processed = processarCaso(rowData);
-          parsedCases.push(processed);
-          
-          if (i % 50 === 0 || i === totalRows) {
-            setProgress(Math.round((i / totalRows) * 100));
-            // Pequeno delay para garantir que o React renderize o progresso
-            await new Promise(r => setTimeout(r, 1));
-          }
-        }
-
-        setPreview(parsedCases);
-        setStats({
-          total: parsedCases.length,
-          critical: parsedCases.filter(c => c.status === 'Vencido').length,
-          tribunals: new Set(parsedCases.map(c => c.tribunal)).size
-        });
-        setStep('preview');
-        setParsing(false);
+        await processRawText(text);
       } catch (err) {
-        toast({ title: "Falha no Parsing", description: "Verifique se o CSV está em UTF-8.", variant: "destructive" });
+        toast({ title: "Falha no Parsing", variant: "destructive" });
         setParsing(false);
       }
     };
     reader.readAsText(file);
   };
 
+  const handleTextImport = async () => {
+    if (!textInput.trim()) return;
+    setParsing(true);
+    await processRawText(textInput);
+  };
+
+  const processRawText = async (text: string) => {
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if (lines.length < 1) {
+      toast({ title: "Entrada Vazia", variant: "destructive" });
+      setParsing(false);
+      return;
+    }
+
+    const parsedCases: LegalCase[] = [];
+    const totalRows = lines.length;
+
+    // Tenta detectar se é o formato de dump do banco (coluna "dados" com JSON)
+    const isDumpFormat = text.includes('dados') && text.includes('"{""id"":');
+
+    for (let i = 0; i < lines.length; i++) {
+      let rowData: any = {};
+      
+      if (isDumpFormat) {
+        // Regex para capturar o JSON dentro da linha do dump
+        // O dump costuma vir como: id,created_at,"{""key"": ""val""}",...
+        const jsonMatch = lines[i].match(/"({.+})"/);
+        if (jsonMatch) {
+          try {
+            // Remove o escape das aspas duplas internas
+            const rawJson = jsonMatch[1].replace(/""/g, '"');
+            rowData = JSON.parse(rawJson);
+          } catch (e) {
+            continue;
+          }
+        } else {
+          continue;
+        }
+      } else {
+        // Parser CSV básico para a primeira linha como cabeçalho
+        if (i === 0) continue; 
+        const separator = lines[0].includes(';') ? ';' : ',';
+        const headers = lines[0].split(separator).map(h => h.trim().toUpperCase());
+        const currentLine = lines[i].split(separator);
+        headers.forEach((h, index) => {
+          rowData[h] = currentLine[index] ? currentLine[index].trim() : '';
+        });
+      }
+
+      if (Object.keys(rowData).length > 0) {
+        const processed = processarCaso(rowData);
+        parsedCases.push(processed);
+      }
+      
+      if (i % 50 === 0) {
+        setProgress(Math.round((i / totalRows) * 100));
+        await new Promise(r => setTimeout(r, 1));
+      }
+    }
+
+    setPreview(parsedCases);
+    setStats({
+      total: parsedCases.length,
+      critical: parsedCases.filter(c => c.risco === 'Crítico').length,
+      tribunals: new Set(parsedCases.map(c => c.tribunal)).size
+    });
+    setStep('preview');
+    setParsing(false);
+  };
+
   const commitToStorage = async () => {
     if (!isOperador || preview.length === 0) return;
-    
     try {
       const existing = await fetchRepoCases();
       const existingArray = Array.isArray(existing) ? existing : [];
       
-      // Fusão Inteligente: Protege registros existentes, prioriza importação nova
+      // Fusão Idempotente baseada no ID estável
       const caseMap = new Map();
-      existingArray.forEach(c => caseMap.set(c.protocolo, c));
-      preview.forEach(c => caseMap.set(c.protocolo, c));
+      existingArray.forEach(c => caseMap.set(c.id, c));
+      preview.forEach(c => caseMap.set(c.id, c));
       
-      const combined = Array.from(caseMap.values());
-      const result = await syncRepoCases(combined);
-      
+      const result = await syncRepoCases(Array.from(caseMap.values()));
       if (result.success) {
-        toast({
-          title: "Sincronia Global Concluída",
-          description: `${preview.length} registros foram injetados no Cloud CRM.`,
-        });
+        toast({ title: "Sincronia Concluída", description: `${preview.length} registros processados.` });
         resetImport();
-      } else {
-        toast({ title: "Falha na Gravação", description: result.message, variant: "destructive" });
       }
     } catch (err) {
-      toast({ title: "Erro de Infraestrutura", description: "Falha ao conectar com o servidor.", variant: "destructive" });
+      toast({ title: "Erro de Infraestrutura", variant: "destructive" });
     }
   };
 
   const resetImport = () => {
     setFile(null);
+    setTextInput('');
     setPreview([]);
     setStep('upload');
     setProgress(0);
@@ -153,12 +179,7 @@ export default function ImportPage() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
-            <div className="icon-3d-wrapper">
-              <div className="icon-3d-block black w-10 h-10 rounded-none border-2 border-black flex items-center justify-center p-1">
-                 <FileSpreadsheet className="text-white w-5 h-5" />
-              </div>
-            </div>
-            <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Ingestão de Dados v900.0</h1>
+            <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Ingestão de Dados</h1>
             <Badge variant="outline" className="border-black text-black font-black uppercase text-[10px]">Cloud Repository</Badge>
           </div>
           <div className="flex items-center gap-4">
@@ -177,55 +198,72 @@ export default function ImportPage() {
 
         <div className="flex-1 overflow-auto p-8 max-w-6xl mx-auto w-full">
           {step === 'upload' ? (
-            <div className="space-y-8 animate-in fade-in duration-500">
-               <div className="text-center space-y-4 mb-12">
-                  <h2 className="text-3xl font-black uppercase tracking-tighter">Motor de Migração SaaS</h2>
+            <Tabs defaultValue="csv" className="space-y-8 animate-in fade-in duration-500">
+               <div className="text-center space-y-4 mb-8">
+                  <h2 className="text-3xl font-black uppercase tracking-tighter">Unidade de Migração</h2>
                   <p className="text-black/60 max-w-2xl mx-auto text-sm font-black uppercase leading-relaxed">
-                    Carregue seu relatório CSV. O sistema realizará a triagem automática de tribunais, calculará prazos e preparará os dados para o monitoramento em nuvem.
+                    Carregue ou cole seus dados. O sistema corrigirá automaticamente erros de escrita e detectará tribunais.
                   </p>
                </div>
 
-               <label className={cn(
-                  "group border-4 border-dashed border-black/10 rounded-none p-24 flex flex-col items-center justify-center transition-all bg-white hover:bg-black hover:border-white cursor-pointer relative overflow-hidden shadow-xl",
-                  parsing && "pointer-events-none"
-                )}>
-                  {parsing ? (
-                    <div className="space-y-6 w-full max-w-md text-center">
-                       <p className="font-black text-black group-hover:text-white uppercase text-sm animate-pulse">Lendo Estruturas Neurais...</p>
-                       <Progress value={progress} className="h-3 bg-gray-100 border-2 border-black [&>div]:bg-black group-hover:border-white group-hover:[&>div]:bg-white" />
-                       <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white/40">{progress}% PROCESSADO</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="p-8 bg-[#f3f2f2] rounded-none mb-6 group-hover:bg-white transition-all border-2 border-black">
-                        <Upload className="text-black w-16 h-16" />
-                      </div>
-                      <h3 className="text-black group-hover:text-white font-black text-xl mb-2 uppercase">Selecionar Planilha de Gabinete</h3>
-                      <p className="text-xs text-black/40 group-hover:text-white/40 font-black uppercase tracking-widest">FORMATO CSV • CODIFICAÇÃO UTF-8</p>
-                    </>
-                  )}
-                  <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
-                </label>
+               <TabsList className="grid w-full grid-cols-2 bg-gray-200 rounded-none p-1 border-2 border-black">
+                  <TabsTrigger value="csv" className="rounded-none font-black uppercase text-xs data-[state=active]:bg-black data-[state=active]:text-white">Planilha CSV</TabsTrigger>
+                  <TabsTrigger value="text" className="rounded-none font-black uppercase text-xs data-[state=active]:bg-black data-[state=active]:text-white">Texto de Gabinete</TabsTrigger>
+               </TabsList>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-12">
-                   <FeatureBox icon={<ShieldCheck size={20}/>} title="Tenant Isolation" desc="Seus dados são criptografados e isolados por ID de Empresa." />
-                   <FeatureBox icon={<Database size={20}/>} title="Deduplicação" desc="Processos com o mesmo protocolo são mesclados automaticamente." />
-                   <FeatureBox icon={<AlertCircle size={20}/>} title="Validação Forense" desc="O sistema detecta erros de formatação no CNJ em tempo real." />
-                </div>
-            </div>
+               <TabsContent value="csv">
+                  <label className={cn(
+                    "group border-4 border-dashed border-black/10 rounded-none p-24 flex flex-col items-center justify-center transition-all bg-white hover:bg-black hover:border-white cursor-pointer relative overflow-hidden shadow-xl",
+                    parsing && "pointer-events-none"
+                  )}>
+                    {parsing ? (
+                      <div className="space-y-6 w-full max-w-md text-center">
+                        <p className="font-black text-black group-hover:text-white uppercase text-sm animate-pulse">Lendo Estruturas Neurais...</p>
+                        <Progress value={progress} className="h-3 bg-gray-100 border-2 border-black [&>div]:bg-black group-hover:border-white group-hover:[&>div]:bg-white" />
+                        <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white/40">{progress}% PROCESSADO</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="p-8 bg-[#f3f2f2] rounded-none mb-6 group-hover:bg-white transition-all border-2 border-black">
+                          <Upload className="text-black w-16 h-16" />
+                        </div>
+                        <h3 className="text-black group-hover:text-white font-black text-xl mb-2 uppercase">Selecionar CSV</h3>
+                        <p className="text-xs text-black/40 group-hover:text-white/40 font-black uppercase tracking-widest">UTF-8 • SANEAMENTO AUTOMÁTICO</p>
+                      </>
+                    )}
+                    <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
+                  </label>
+               </TabsContent>
+
+               <TabsContent value="text" className="space-y-4">
+                  <Textarea 
+                    placeholder="COLE O TEXTO DO RELATÓRIO OU DUMP DO BANCO AQUI..."
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    className="min-h-[300px] border-2 border-black font-black uppercase text-[11px] rounded-none resize-none leading-relaxed bg-white"
+                  />
+                  <Button 
+                    onClick={handleTextImport} 
+                    disabled={parsing || !textInput.trim()}
+                    className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]"
+                  >
+                    {parsing ? <><Zap className="animate-spin mr-2" /> Processando...</> : <><Database size={16} className="mr-2" /> Ingestão via Texto</>}
+                  </Button>
+               </TabsContent>
+            </Tabs>
           ) : (
             <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  <StatItem label="Total de Registros" value={stats.total} />
+                  <StatItem label="Total Detectado" value={stats.total} />
                   <StatItem label="Tribunais Únicos" value={stats.tribunals} />
                   <StatItem label="Alertas Críticos" value={stats.critical} color="text-red-600" />
-                  <StatItem label="Integridade" value="100%" color="text-green-600" />
+                  <StatItem label="Higiene Visual" value="CORRIGIDA" color="text-green-600" />
                </div>
 
                <div className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] overflow-hidden">
                   <div className="bg-black text-white p-4 flex items-center justify-between">
-                     <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2"><Eye size={16} /> Preview de Ingestão (Lote {stats.total})</h3>
-                     <Badge variant="outline" className="text-white border-white font-black text-[9px] uppercase">Aguardando Confirmação</Badge>
+                     <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2"><Eye size={16} /> Preview de Higiene (Lote {stats.total})</h3>
+                     <Badge variant="outline" className="text-white border-white font-black text-[9px] uppercase">Codificação Corrigida</Badge>
                   </div>
                   <div className="max-h-[500px] overflow-auto">
                     <Table>
@@ -237,7 +275,7 @@ export default function ImportPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {preview.slice(0, 50).map((c, i) => (
+                        {preview.slice(0, 100).map((c, i) => (
                           <TableRow key={i} className="hover:bg-black group transition-colors">
                             <TableCell>
                                <div className="flex flex-col">
@@ -250,7 +288,7 @@ export default function ImportPage() {
                             </TableCell>
                             <TableCell>
                                <div className="flex flex-col">
-                                  <span className={cn("text-[9px] font-black uppercase", c.status === 'Vencido' ? "text-red-600 group-hover:text-red-400" : "group-hover:text-white")}>{c.status}</span>
+                                  <span className={cn("text-[9px] font-black uppercase", c.risco === 'Crítico' ? "text-red-600 group-hover:text-red-400" : "group-hover:text-white")}>{c.status}</span>
                                   <span className="text-[8px] font-bold text-black/40 group-hover:text-white/40">{c.proximoPrazo || 'S/ Prazo'}</span>
                                </div>
                             </TableCell>
@@ -258,11 +296,6 @@ export default function ImportPage() {
                         ))}
                       </TableBody>
                     </Table>
-                    {preview.length > 50 && (
-                      <div className="p-4 text-center border-t-2 border-black bg-gray-50 italic text-[10px] font-black uppercase">
-                        Exibindo apenas os primeiros 50 registros de {stats.total}.
-                      </div>
-                    )}
                   </div>
                </div>
             </div>
@@ -273,7 +306,6 @@ export default function ImportPage() {
           <div className="flex items-center gap-2">
             <Copyright size={10} /> 2026 W1 Capital.
           </div>
-          <span className="w-1 h-1 bg-black rounded-full opacity-30" />
           <span className="uppercase">Relatório Consolidado • DAVI ALVES FIGUEREDO</span>
         </footer>
       </main>
@@ -286,16 +318,6 @@ function StatItem({ label, value, color = "text-black" }: { label: string, value
     <div className="bg-white border-2 border-black p-5 shadow-[4px_4px_0px_#000]">
        <p className="text-[9px] font-black text-black/40 uppercase mb-1 tracking-widest">{label}</p>
        <p className={cn("text-2xl font-black uppercase", color)}>{value}</p>
-    </div>
-  );
-}
-
-function FeatureBox({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
-  return (
-    <div className="bg-white/50 border-2 border-dashed border-black/10 p-6 space-y-3 hover:border-black transition-all">
-       <div className="w-10 h-10 bg-black text-white flex items-center justify-center">{icon}</div>
-       <h4 className="font-black text-xs uppercase">{title}</h4>
-       <p className="text-[10px] font-bold text-black/40 uppercase leading-relaxed">{desc}</p>
     </div>
   );
 }
