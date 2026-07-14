@@ -19,7 +19,8 @@ import {
   User,
   Repeat,
   Info,
-  ChevronRight
+  ChevronRight,
+  Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -74,7 +75,6 @@ export default function SubstabelecimentoGenerator() {
   const [fileLoading, setFileLoading] = useState(false);
   const [inputText, setInputText] = useState('');
   
-  // Estados para os Advogados
   const [advLeaving, setAdvLeaving] = useState('');
   const [advEntering, setAdvEntering] = useState('');
   const [selectedState, setSelectedState] = useState('SP');
@@ -377,23 +377,56 @@ export default function SubstabelecimentoGenerator() {
                       </div>
                     </CardContent>
                   </Card>
-
-                  <div className="bg-blue-50 border-2 border-blue-200 p-4 flex gap-3 items-start">
-                    <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase text-blue-900">Nota de Protocolo:</p>
-                      <p className="text-[8px] font-bold text-blue-700 uppercase leading-tight">
-                        Este documento solicita a <b>exclusão</b> do advogado cedente da contracapa dos autos, cumprindo o Art. 272, §5º do CPC.
-                      </p>
-                    </div>
-                  </div>
-
-                  <Button onClick={handleSeal} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
-                    {loading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
-                    Selar & Exportar Substabelecimento
-                  </Button>
                 </div>
               </div>
+
+              {/* PREVISÃO VISUAL DO DOCUMENTO */}
+              <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] overflow-hidden">
+                <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3 flex flex-row items-center justify-between">
+                  <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Eye size={14} /> Visualização do Documento</CardTitle>
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-[8px] font-black uppercase">Preview</Badge>
+                </CardHeader>
+                <CardContent className="p-12 text-black font-serif text-[12pt] leading-relaxed bg-white">
+                  <h1 className="text-center font-bold text-lg mb-8 uppercase tracking-widest">Substabelecimento</h1>
+                  <p className="text-center font-bold text-md mb-16">(sem reserva de poderes)</p>
+
+                  <p className="text-justify mb-16 indent-12">
+                    O <strong>{extractedData.substabelecente.nome.toUpperCase()}</strong>, brasileiro, {extractedData.substabelecente.estadoCivil}, advogado, inscrito na <strong>{extractedData.substabelecente.oabCompleta}</strong>, <strong>SUBSTABELECE SEM RESERVA DE PODERES</strong> na pessoa do <strong>{extractedData.substabelecido.nome.toUpperCase()}</strong>, inscrito na <strong>{extractedData.substabelecido.oabCompleta}</strong>, os poderes conferidos por <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, <strong>PARA A PROMOÇÃO DE {extractedData.processo.acao.toUpperCase()}</strong>, processo de n.º <strong>{extractedData.processo.numero}</strong> por meio do instrumento outrora outorgado, requerendo a exclusão do advogado substabelecente <strong>{extractedData.substabelecente.nome.toUpperCase()}</strong> sob <strong>{extractedData.substabelecente.oabCurta}</strong> da contracapa dos autos, bem como de qualquer outro meio de intimação do processo, sendo assim que <strong>todas as futuras intimações passem a ser exclusivamente dirigidas ao substabelecido</strong>, <strong>{extractedData.substabelecido.nome.toUpperCase()}</strong> sob <strong>{extractedData.substabelecido.oabCurta}</strong>, nos termos do artigo 272, §5º, do CPC, sob pena de nulidade.
+                  </p>
+
+                  <div className="text-center mb-24 mt-16">
+                    <p>{extractedData.comarca}, {extractedData.dataExtenso}</p>
+                  </div>
+
+                  <div className="flex flex-col items-center text-center space-y-16">
+                    <div className="w-1/2 flex flex-col items-center">
+                      <div className="w-full border-t border-black mb-2"></div>
+                      <p className="font-bold uppercase">{extractedData.substabelecente.nome}</p>
+                      <p className="font-bold">{extractedData.substabelecente.oabCurta}</p>
+                    </div>
+                    <div className="w-1/2 flex flex-col items-center">
+                      <div className="w-full border-t border-black mb-2"></div>
+                      <p className="font-bold uppercase">{extractedData.substabelecido.nome}</p>
+                      <p className="font-bold">{extractedData.substabelecido.oabCurta}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="bg-blue-50 border-2 border-blue-200 p-4 flex gap-3 items-start">
+                <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-[9px] font-black uppercase text-blue-900">Nota de Protocolo:</p>
+                  <p className="text-[8px] font-bold text-blue-700 uppercase leading-tight">
+                    Este documento solicita a <b>exclusão</b> do advogado cedente da contracapa dos autos, cumprindo o Art. 272, §5º do CPC.
+                  </p>
+                </div>
+              </div>
+
+              <Button onClick={handleSeal} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
+                {loading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
+                Selar & Exportar Substabelecimento
+              </Button>
             </div>
           )}
         </div>
