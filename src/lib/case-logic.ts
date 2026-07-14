@@ -101,22 +101,18 @@ export function formatDateToISO(dateStr: string | null | undefined): string | nu
   if (!dateStr) return null;
   const raw = String(dateStr).trim();
   
-  // Ignora marcadores comuns de data nula ou inválida
   if (raw === "" || raw === "-" || raw === "0" || raw === "00/00/0000" || 
       raw.toLowerCase() === "undefined" || raw.toLowerCase() === "null") {
     return null;
   }
 
-  // Se já for ISO YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     return raw;
   }
 
-  // Parser para DD/MM/AAAA ou AAAA/MM/DD ou variações com ponto/espaço
   const parts = raw.split(/[\/\-\.\s,]+/).filter(p => p.length > 0);
   if (parts.length !== 3) return null;
   
-  // Verifica se são números válidos (não vazios)
   if (parts.some(p => p.trim() === "" || isNaN(Number(p.trim())))) return null;
 
   let day, month, year;
@@ -134,9 +130,9 @@ export function formatDateToISO(dateStr: string | null | undefined): string | nu
   const m = parseInt(month, 10);
   const y = parseInt(year, 10);
 
-  // Validação real de calendário gregoriano básico
   if (isNaN(d) || isNaN(m) || isNaN(y)) return null;
   if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > 2100) return null;
+  if (d === 0 || m === 0) return null;
 
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
@@ -244,7 +240,6 @@ export function extrairTribunal(protocolo: string): { tribunal: string; link: st
 }
 
 function getValue(obj: Record<string, any>, ...keys: string[]): string {
-  // Mapa de normalização de headers para tratar encodings corrompidos
   const map = Object.fromEntries(
     Object.entries(obj).map(([k, v]) => {
       const cleanK = fixEncoding(k).trim().toUpperCase();
@@ -269,7 +264,6 @@ export function processarCaso(linha: Record<string, any>): LegalCase {
   const protocolo = getValue(linha, "PROTOCOLO", "PROCESSO", "Nº PROCESSO", "NUMERO", "NÚMERO").trim() || "S/N";
   const cliente = getValue(linha, "CLIENTE", "NOME").toUpperCase() || "DESCONHECIDO";
 
-  // Lógica de Status: Calculado vs Estratégico (Manual)
   let status = calcularStatus(proximoPrazo, situacao);
   const statusManual = getValue(linha, "STATUS_MANUAL", "STATUS MANUAL");
   
