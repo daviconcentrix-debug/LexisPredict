@@ -14,7 +14,8 @@ import {
   ChevronRight,
   TrendingUp,
   Activity,
-  Cpu
+  Cpu,
+  CheckCircle2
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -69,20 +70,28 @@ export default function Dashboard() {
   }, [mounted, loadData]);
 
   const metrics = useMemo(() => {
-    const total = cases.length;
-    const critical = cases.filter(c => c.status === 'Vencido' || c.status === 'Crítico').length;
-    const active = cases.filter(c => !['ENCERRADO', 'ARQUIVADO'].includes((c.situacao || '').toUpperCase())).length;
-    const riskScore = total ? Math.round(((critical) / total) * 100) : 0;
+    // Filtro de casos ativos (ignora finalizados)
+    const activeCases = cases.filter(c => {
+      const sit = (c.situacao || '').toUpperCase();
+      return !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].some(s => sit.includes(s));
+    });
 
-    // Data for charts
+    const total = cases.length;
+    const active = activeCases.length;
+    
+    // Risco e Críticos calculados apenas sobre os ativos
+    const critical = activeCases.filter(c => c.status === 'Vencido' || c.status === 'Crítico' || c.status === 'É Hoje').length;
+    const riskScore = active ? Math.round((critical / active) * 100) : 0;
+
+    // Data for charts - "No Prazo" is now the "Healthy" metric
     const statusData = [
-      { name: t.statusVencido, value: cases.filter(c => c.status === 'Vencido').length, color: '#ef4444' },
-      { name: t.statusAtencao, value: cases.filter(c => c.status === 'Atenção').length, color: '#f59e0b' },
-      { name: t.statusPrazo, value: cases.filter(c => c.status === 'No Prazo').length, color: '#22c55e' },
+      { name: t.statusVencido, value: activeCases.filter(c => c.status === 'Vencido' || c.status === 'É Hoje').length, color: '#ef4444' },
+      { name: t.statusAtencao, value: activeCases.filter(c => c.status === 'Atenção').length, color: '#f59e0b' },
+      { name: "Saudáveis (No Prazo)", value: activeCases.filter(c => c.status === 'No Prazo').length, color: '#22c55e' },
     ].filter(d => d.value > 0);
 
     const tribunalCounts: Record<string, number> = {};
-    cases.forEach(c => {
+    activeCases.forEach(c => {
       tribunalCounts[c.tribunal] = (tribunalCounts[c.tribunal] || 0) + 1;
     });
     const tribunalData = Object.entries(tribunalCounts)
@@ -95,7 +104,7 @@ export default function Dashboard() {
 
   const urgentQueue = useMemo(() => {
     return cases
-      .filter(c => c.status === 'Vencido' || c.status === 'Atenção')
+      .filter(c => c.status === 'Vencido' || c.status === 'Atenção' || c.status === 'É Hoje')
       .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
       .slice(0, 5);
   }, [cases]);
@@ -128,17 +137,17 @@ export default function Dashboard() {
         <div className="flex-1 overflow-auto p-8 space-y-10">
           {/* TOP METRICS GRID */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard title="Total Management" value={loading ? "..." : metrics.total} icon={<Briefcase size={16} />} color="primary" trend="4.2%" trendUp />
-            <StatCard title="Critical Alerts" value={loading ? "..." : metrics.critical} icon={<ShieldAlert size={16} />} color="destructive" />
-            <StatCard title="Health Risk Index" value={loading ? "..." : `${metrics.riskScore}%`} icon={<TrendingUp size={16} />} color="destructive" />
-            <StatCard title="Active Demands" value={loading ? "..." : metrics.active} icon={<FileCheck size={16} />} color="success" trend="1.8%" trendUp />
+            <StatCard title="Total Repository" value={loading ? "..." : metrics.total} icon={<Briefcase size={16} />} color="accent" />
+            <StatCard title="Demandas Ativas" value={loading ? "..." : metrics.active} icon={<Activity size={16} />} color="primary" />
+            <StatCard title="Alertas Críticos" value={loading ? "..." : metrics.critical} icon={<ShieldAlert size={16} />} color="destructive" />
+            <StatCard title="Indice de Risco" value={loading ? "..." : `${metrics.riskScore}%`} icon={<TrendingUp size={16} />} color="destructive" />
           </section>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             {/* CHARTS SECTION */}
             <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
                <section className="bg-card border border-border/50 rounded-md p-6 h-[350px] flex flex-col">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Status Distribution</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Saúde da Carteira Ativa</h3>
                   <div className="flex-1 min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -212,7 +221,7 @@ export default function Dashboard() {
                           <td className="text-right">
                             <Badge className={cn(
                               "text-[9px] font-bold uppercase px-3 py-1 rounded-sm border-none",
-                              c.status === 'Vencido' ? "bg-destructive/20 text-destructive" : "bg-orange-500/20 text-orange-400"
+                              c.status === 'Vencido' || c.status === 'É Hoje' ? "bg-destructive/20 text-destructive" : "bg-orange-500/20 text-orange-400"
                             )}>
                               {c.status}
                             </Badge>
