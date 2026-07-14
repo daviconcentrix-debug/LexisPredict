@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -48,14 +49,31 @@ export default function Dashboard() {
 
   const t = getTranslation(locale);
 
+  const loadInsights = useCallback(() => {
+    const savedInsights = localStorage.getItem('lexisPredict_notes_analysis');
+    if (savedInsights) {
+      try {
+        setIaInsights(JSON.parse(savedInsights));
+      } catch (e) {
+        console.error("Fail load insights");
+      }
+    }
+  }, []);
+
   useEffect(() => {
     setMounted(true);
     const savedLocale = localStorage.getItem('lexisPredict_locale') as Locale;
     if (savedLocale) setLocale(savedLocale);
     
-    const savedInsights = localStorage.getItem('lexisPredict_notes_analysis');
-    if (savedInsights) setIaInsights(JSON.parse(savedInsights));
-  }, []);
+    loadInsights();
+
+    // Listener para atualizações em tempo real vindo da página de Notas
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'lexisPredict_notes_analysis') loadInsights();
+    });
+
+    return () => window.removeEventListener('storage', loadInsights);
+  }, [loadInsights]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -91,7 +109,6 @@ export default function Dashboard() {
       ? Math.round(Math.abs(vencidosArray.reduce((acc, c) => acc + (c.diasFaltando || 0), 0)) / vencidosArray.length) 
       : 0;
 
-    // Risco Ponderado por Gravidade (Apenas sobre Ativos)
     const riskSum = (vencidos * 1.0) + (venceHoje * 0.8) + (atencao * 0.5) + (noPrazo * 0.1);
     const riskScore = activeDemands > 0 ? Math.min(100, Math.round((riskSum / activeDemands) * 100)) : 0;
 
@@ -163,14 +180,14 @@ export default function Dashboard() {
                        <h3 className="text-[10px] font-bold uppercase tracking-widest opacity-60">Insights de Auditoria (IA)</h3>
                        <Badge variant="outline" className="text-[8px] border-primary/30 text-primary">v10.0 Elite</Badge>
                     </div>
-                    {iaInsights ? (
+                    {iaInsights && (iaInsights.pontosFortes?.length > 0 || iaInsights.riscosDetectados?.length > 0) ? (
                       <div className="space-y-4 overflow-auto flex-1 pr-2 custom-scrollbar">
                          <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-sm">
                             <p className="text-[8px] font-black text-green-500 uppercase flex items-center gap-1.5 mb-1.5"><TrendingUp size={10}/> Pontos Fortes</p>
                             <ul className="space-y-1">
                               {Array.isArray(iaInsights.pontosFortes) ? iaInsights.pontosFortes.map((item: string, idx: number) => (
                                 <li key={idx} className="text-[10px] font-medium leading-relaxed opacity-80 uppercase">• {item}</li>
-                              )) : <li className="text-[10px] font-medium opacity-80 uppercase">{iaInsights.pontosFortes}</li>}
+                              )) : <li className="text-[10px] font-medium opacity-80 uppercase">• {iaInsights.pontosFortes}</li>}
                             </ul>
                          </div>
                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-sm">
@@ -178,7 +195,7 @@ export default function Dashboard() {
                             <ul className="space-y-1">
                               {Array.isArray(iaInsights.riscosDetectados) ? iaInsights.riscosDetectados.map((item: string, idx: number) => (
                                 <li key={idx} className="text-[10px] font-medium leading-relaxed opacity-80 uppercase">• {item}</li>
-                              )) : <li className="text-[10px] font-medium opacity-80 uppercase">{iaInsights.riscosDetectados}</li>}
+                              )) : <li className="text-[10px] font-medium opacity-80 uppercase">• {iaInsights.riscosDetectados}</li>}
                             </ul>
                          </div>
                       </div>
