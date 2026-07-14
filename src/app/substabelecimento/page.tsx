@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useMemo } from 'react';
@@ -85,8 +84,8 @@ const BANCA_DATA: Record<string, any> = {
     oabs: { "SP": "470.735/SP" },
     estadoCivil: "casado"
   },
-  "ANDRESSA EDUARDA TAVARES": {
-    oabs: { "SP": "PENDENTE/SP" },
+  "ANDRESSA EDUARDA TAVARES MATOS": {
+    oabs: { "MG": "238.75/MG", "SP": "238.75/MG" },
     estadoCivil: "casada"
   }
 };
@@ -268,7 +267,7 @@ export default function SubstabelecimentoGenerator() {
                             <SelectValue placeholder="SP" />
                           </SelectTrigger>
                           <SelectContent className="bg-white border-2 border-black rounded-none">
-                            {["SP", "RJ", "MG", "PR", "SC", "RS", "BA", "CE", "MT", "GO", "DF", "TO", "RN", "PE", "PA", "AM", "AC", "RO", "AP", "RR", "SE", "PI", "MA", "PB", "AL", "ES", "MS"].map((uf) => (
+                            {["SP", "MG", "RJ", "PR", "SC", "RS", "BA", "CE", "MT", "GO", "DF", "TO", "RN", "PE", "PA", "AM", "AC", "RO", "AP", "RR", "SE", "PI", "MA", "PB", "AL", "ES", "MS"].map((uf) => (
                               <SelectItem key={uf} value={uf} className="font-black uppercase text-[10px]">{uf}</SelectItem>
                             ))}
                           </SelectContent>
@@ -415,7 +414,7 @@ export default function SubstabelecimentoGenerator() {
                   <p className="text-center font-bold text-md mb-16">(sem reserva de poderes)</p>
 
                   <p className="text-justify mb-16 indent-12">
-                    O <strong>{extractedData.substabelecente.nome.toUpperCase()}</strong>, brasileiro, {extractedData.substabelecente.estadoCivil}, advogado, inscrito na <strong>{extractedData.substabelecente.oabCompleta}</strong>, <strong>SUBSTABELECE SEM RESERVA DE PODERES</strong> na pessoa do <strong>{extractedData.substabelecido.nome.toUpperCase()}</strong>, inscrito na <strong>{extractedData.substabelecido.oabCompleta}</strong>, os poderes conferidos por <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, <strong>PARA A PROMOÇÃO DE {extractedData.processo.acao.toUpperCase()}</strong>, processo de n.º <strong>{extractedData.processo.numero}</strong> por meio do instrumento outrora outorgado, requerendo a exclusão do advogado substabelecente <strong>{extractedData.substabelecente.nome.toUpperCase()}</strong> sob <strong>{extractedData.substabelecente.oabCurta}</strong> da contracapa dos autos, bem como de qualquer outro meio de intimação do processo, sendo assim que <strong>todas as futuras intimações passem a ser exclusivamente dirigidas ao substabelecido</strong>, <strong>{extractedData.substabelecido.nome.toUpperCase()}</strong> sob <strong>{extractedData.substabelecido.oabCurta}</strong>, nos termos do artigo 272, §5º, do CPC, sob pena de nulidade.
+                    O <strong>{extractedData.substabelecente.nome.toUpperCase()}</strong>, brasileiro, {extractedData.substabelecente.estadoCivil}, advogado, inscrito na <strong>{extractedData.substabelecente.oabCompleta}</strong>, <strong>SUBSTABELECE SEM RESERVA DE PODERES</strong> na pessoa do <strong>{extractedData.substabelecido.nome.toUpperCase()}</strong>, inscrito na <strong>{extractedData.substabelecido.oabCompleta}</strong>, os poderes conferidos por <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, <strong>PARA A PROMOÇÃO DE {extractedData.processo.acao.toUpperCase()}</strong>, processo de n.º <strong>{extractedData.processo.numero}</strong> por meio do instrumento outrora outorgado, requerendo a exclusão do advogado substabelecente <strong>{extractedData.substabelecente.nome.toUpperCase()}</strong> sob <strong>{extractedData.substabelecente.oabCurta}</strong> da contracapa dos autos, bem como de qualquer outro meio de intimação do processo, sendo assim que <strong>todas as futuras intimações passsem a ser exclusivamente dirigidas ao substabelecido</strong>, <strong>{extractedData.substabelecido.nome.toUpperCase()}</strong> sob <strong>{extractedData.substabelecido.oabCurta}</strong>, nos termos do artigo 272, §5º, do CPC, sob pena de nulidade.
                   </p>
 
                   <div className="text-center mb-24 mt-16">
