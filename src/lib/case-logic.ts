@@ -1,14 +1,13 @@
 
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * W1 Capital / LexisPredict v185.0
+ * W1 Capital / LexisPredict v195.0
  */
 
 export type CaseStatus =
   | "Vencido"
   | "É Hoje"
   | "Atenção"
-  | "Próximo"
   | "No Prazo"
   | "Sem Prazo"
   | "Encerrado"
@@ -101,12 +100,16 @@ export function formatDateToISO(dateStr: string | null | undefined): string | nu
   if (!dateStr || String(dateStr).trim() === "" || dateStr === "-") return null;
   const raw = String(dateStr).trim();
 
+  // Se já for ISO
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     return raw;
   }
 
+  // Parser para DD/MM/AAAA ou AAAA/MM/DD
   const parts = raw.split(/[\/\-]/);
   if (parts.length !== 3) return null;
+  
+  // Verifica se são números
   if (parts.some(p => isNaN(Number(p.trim())))) return null;
 
   let day, month, year;
@@ -150,7 +153,7 @@ export function calcularStatus(proximoRetorno: string | null | undefined, situac
   if (dias < 0) return "Vencido";
   if (dias === 0) return "É Hoje";
   if (dias <= 3) return "Atenção";
-  if (dias <= 7) return "Próximo";
+  // "Próximo" consolidado em "No Prazo"
   return "No Prazo";
 }
 
