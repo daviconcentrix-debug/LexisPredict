@@ -45,8 +45,8 @@ export default function UrgencyEngine() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <UrgencyLevelCard icon={<ShieldAlert className="text-red-600" />} label="Vencido (Crítico)" condition="Data < Hoje" description="Prioridade máxima. Impacto direto na compliance jurídica." color="border-red-600" />
-            <UrgencyLevelCard icon={<AlertTriangle className="text-orange-500" />} label="Atenção (Alerta)" condition="Dias ≤ 7" description="Ação imediata recomendada para revisão interna." color="border-orange-500" />
-            <UrgencyLevelCard icon={<CheckCircle2 className="text-green-600" />} label="No Prazo (Saudável)" condition="Dias > 7" description="Monitoramento rotineiro mantido sem alertas." color="border-green-600" />
+            <UrgencyLevelCard icon={<AlertTriangle className="text-orange-500" />} label="Atenção (Alerta)" condition="Dias ≤ 3" description="Ação imediata recomendada para revisão interna." color="border-orange-500" />
+            <UrgencyLevelCard icon={<CheckCircle2 className="text-green-600" />} label="No Prazo (Saudável)" condition="Dias > 3" description="Monitoramento rotineiro mantido sem alertas críticos." color="border-green-600" />
           </div>
 
           <Card className={cn("bg-white border-black shadow-sm rounded-sm overflow-hidden", !isAdmin && "opacity-50")}>
@@ -60,17 +60,17 @@ export default function UrgencyEngine() {
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <Label className="text-black font-black uppercase text-xs">Limite de Alerta (Dias)</Label>
-                  <span className="text-black font-black uppercase text-xs bg-[#f3f2f2] px-3 py-1 border border-black">7 Dias</span>
+                  <span className="text-black font-black uppercase text-xs bg-[#f3f2f2] px-3 py-1 border border-black">3 Dias</span>
                 </div>
-                <Slider defaultValue={[7]} max={30} step={1} className="[&_[role=slider]]:bg-black" disabled={!isAdmin} />
+                <Slider defaultValue={[3]} max={30} step={1} className="[&_[role=slider]]:bg-black" disabled={!isAdmin} />
               </div>
 
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <Label className="text-black font-black uppercase text-xs">Buffer Crítico (Dias)</Label>
-                  <span className="text-red-600 font-black uppercase text-xs bg-red-50 px-3 py-1 border border-red-600">2 Dias</span>
+                  <span className="text-red-600 font-black uppercase text-xs bg-red-50 px-3 py-1 border border-red-600">1 Dia</span>
                 </div>
-                <Slider defaultValue={[2]} max={10} step={1} className="[&_[role=slider]]:bg-red-600" disabled={!isAdmin} />
+                <Slider defaultValue={[1]} max={10} step={1} className="[&_[role=slider]]:bg-red-600" disabled={!isAdmin} />
               </div>
             </CardContent>
           </Card>
