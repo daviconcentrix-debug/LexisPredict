@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -38,6 +39,12 @@ const BANCA_DATA: Record<string, any> = {
     oabs: { "DF": "78116/DF", "AL": "21512A/AL", "AM": "A2373/AM", "PE": "66465/PE", "RJ": "261767/RJ", "SP": "520783/SP" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "lucassj.adv01@gmail.com",
+    genero: "M"
+  },
+  "ERALDO FRANCISCO DA SILVA JUNIOR": {
+    oabs: { "SP": "327.677/SP" },
+    endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
+    email: "eraldojr@adv.oabsp.org.br",
     genero: "M"
   }
 };
@@ -247,5 +254,15 @@ export async function generateProcuracaoPDFAction(data: any) {
     return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
   } catch (e: any) {
     return { error: "Falha ao selar o PDF." };
+  }
+}
+
+export async function generateSubstabelecimentoPDFAction(data: any) {
+  try {
+    const { SubstabelecimentoPDF } = await import('@/components/pdf/substabelecimento-pdf');
+    const pdfBuffer = await renderToBuffer(React.createElement(SubstabelecimentoPDF, { data }));
+    return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
+  } catch (e: any) {
+    return { error: "Falha ao selar o PDF do Substabelecimento." };
   }
 }
