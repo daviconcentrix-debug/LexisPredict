@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Motor de Extração de Dados Jurídicos v800.0 ELITE
@@ -38,6 +39,48 @@ const BANCA_DATA = {
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "lucassj.adv01@gmail.com",
     genero: "M"
+  },
+  "ERALDO FRANCISCO DA SILVA JUNIOR": {
+    oabs: { "SP": "327.677/SP" },
+    endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
+    email: "eraldojr@adv.oabsp.org.br",
+    genero: "M"
+  },
+  "ISAI SAMPAIO MOREIRA": {
+    oabs: { "SP": "437.886/SP" },
+    endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
+    email: "isai@adv.oabsp.org.br",
+    genero: "M"
+  },
+  "GILBERTO BONFIM CAVALCANTI FILHO": {
+    oabs: { "SP": "337.930/SP" },
+    endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
+    email: "gilberto@adv.oabsp.org.br",
+    genero: "M"
+  },
+  "FABIO RODRIGUES SAMPAIO MOREIRA": {
+    oabs: { "SP": "437.886/SP" },
+    endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
+    email: "fabio@adv.oabsp.org.br",
+    genero: "M"
+  },
+  "MATHEUS SANTOS DIAS": {
+    oabs: { "SP": "472.089/SP" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
+    email: "matheus@adv.oabsp.org.br",
+    genero: "M"
+  },
+  "MAIKON ALVES LOPES DOS SANTOS": {
+    oabs: { "SP": "470.735/SP" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
+    email: "maikon@adv.oabsp.org.br",
+    genero: "M"
+  },
+  "ANDRESSA EDUARDA TAVARES": {
+    oabs: { "SP": "PENDENTE/SP" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
+    email: "andressa@adv.oabsp.org.br",
+    genero: "F"
   }
 };
 
@@ -153,7 +196,7 @@ export const documentFlow = ai.defineFlow(
     const lawyerInfo = (BANCA_DATA as any)[targetLawyer] || BANCA_DATA["PABLO MATHEUS SILVA BASTOS PEREIRA"];
     const processosArray = Array.isArray(parsed.processos) ? parsed.processos : parsed.processo ? [parsed.processo] : [];
     const finalState = (input.preferredState || processosArray[0]?.estado || "SP").toUpperCase();
-    const selectedOAB = (lawyerInfo.oabs as any)[finalState] || (lawyerInfo.oabs as any)["SP"];
+    const selectedOAB = (lawyerInfo.oabs as any)[finalState] || (lawyerInfo.oabs as any)["SP"] || (lawyerInfo.oabs as any)[Object.keys(lawyerInfo.oabs)[0]];
 
     return {
       cliente: {
