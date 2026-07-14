@@ -30,8 +30,11 @@ export default function RootLayout({
               try {
                 const root = document.documentElement;
                 const bg = localStorage.getItem('lexisPredict_bg_color') || '#FFFFFF';
+                const bgSec = localStorage.getItem('lexisPredict_bg_secondary_color') || '#F3F4F6';
                 const font = localStorage.getItem('lexisPredict_font_color') || '#0A0A0A';
+                const fontMuted = localStorage.getItem('lexisPredict_font_muted_color') || '#6B7280';
                 const btn = localStorage.getItem('lexisPredict_btn_bg_color') || '#00D1FF';
+                const btnInactive = localStorage.getItem('lexisPredict_btn_inactive_color') || '#E5E7EB';
                 const radius = localStorage.getItem('lexisPredict_border_radius') || '4';
                 const wallpaper = localStorage.getItem('lexisPredict_wallpaper');
                 const bgOpacity = localStorage.getItem('lexisPredict_bg_opacity') || '0.85';
@@ -59,16 +62,18 @@ export default function RootLayout({
                   return Math.round(h * 360) + ' ' + Math.round(s * 100) + '% ' + Math.round(l * 100) + '%';
                 };
 
-                const hslBg = hexToHsl(bg);
-                if(hslBg) {
-                  root.style.setProperty('--background', hslBg);
-                  root.style.setProperty('--card', hslBg);
-                }
-                const hslFont = hexToHsl(font);
-                if(hslFont) root.style.setProperty('--foreground', hslFont);
-                
-                const hslBtn = hexToHsl(btn);
-                if(hslBtn) root.style.setProperty('--primary', hslBtn);
+                const setHsl = (prop, hex) => {
+                  const hsl = hexToHsl(hex);
+                  if(hsl) root.style.setProperty(prop, hsl);
+                };
+
+                setHsl('--background', bg);
+                setHsl('--card', bg);
+                setHsl('--secondary', bgSec);
+                setHsl('--foreground', font);
+                setHsl('--muted-foreground', fontMuted);
+                setHsl('--primary', btn);
+                setHsl('--accent', btnInactive);
                 
                 root.style.setProperty('--radius', radius + 'px');
                 root.style.setProperty('--bg-opacity', bgOpacity);
