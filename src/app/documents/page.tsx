@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useRef, useMemo } from 'react';
@@ -45,6 +46,13 @@ const ADVOGADOS_BANCA = [
   { id: 'diego', nome: 'DIEGO GOMES DIAS', estados: ["BA", "CE", "MT", "PI", "RN", "SP"] },
   { id: 'lucas', nome: 'LUCAS DOS SANTOS DE JESUS', estados: ["DF", "AL", "AM", "PE", "RJ", "SP"] },
   { id: 'leticia', nome: 'LETICIA ALVES GODOY DA CRUZ', estados: ["TO", "AC", "RS", "PB", "PA", "SP"] },
+  { id: 'eraldo', nome: 'ERALDO FRANCISCO DA SILVA JUNIOR', estados: ["SP"] },
+  { id: 'isai', nome: 'ISAI SAMPAIO MOREIRA', estados: ["SP"] },
+  { id: 'gilberto', nome: 'GILBERTO BONFIM CAVALCANTI FILHO', estados: ["SP"] },
+  { id: 'fabio', nome: 'FABIO RODRIGUES SAMPAIO MOREIRA', estados: ["SP"] },
+  { id: 'matheus_dias', nome: 'MATHEUS SANTOS DIAS', estados: ["SP"] },
+  { id: 'maikon', nome: 'MAIKON ALVES LOPES DOS SANTOS', estados: ["SP"] },
+  { id: 'andressa_tavares', nome: 'ANDRESSA EDUARDA TAVARES', estados: ["SP"] },
 ];
 
 export default function DocumentGenerator() {
