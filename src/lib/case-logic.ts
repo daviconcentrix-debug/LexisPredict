@@ -95,33 +95,50 @@ export function fixEncoding(text: string): string {
 
 /**
  * Validador Estrito de Datas para Postgres
+ * Evita o erro '00-00' garantindo que as partes da data sejam válidas e numéricas.
  */
 export function formatDateToISO(dateStr: string | null | undefined): string | null {
-  if (!dateStr || String(dateStr).trim() === "" || dateStr === "-") return null;
+  if (!dateStr) return null;
   const raw = String(dateStr).trim();
+  
+  // Ignora marcadores comuns de data nula ou inválida
+  if (raw === "" || raw === "-" || raw === "0" || raw === "00/00/0000" || 
+      raw.toLowerCase() === "undefined" || raw.toLowerCase() === "null") {
+    return null;
+  }
 
-  // Se já for ISO
+  // Se já for ISO YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     return raw;
   }
 
-  // Parser para DD/MM/AAAA ou AAAA/MM/DD
-  const parts = raw.split(/[\/\-]/);
+  // Parser para DD/MM/AAAA ou AAAA/MM/DD ou variações com ponto/espaço
+  const parts = raw.split(/[\/\-\.\s,]+/).filter(p => p.length > 0);
   if (parts.length !== 3) return null;
   
-  // Verifica se são números
-  if (parts.some(p => isNaN(Number(p.trim())))) return null;
+  // Verifica se são números válidos (não vazios)
+  if (parts.some(p => p.trim() === "" || isNaN(Number(p.trim())))) return null;
 
   let day, month, year;
   if (parts[0].length === 4) {
     [year, month, day] = parts;
   } else {
     [day, month, year] = parts;
-    if (year.length === 2) year = `20${year}`;
+    if (year.length === 2) {
+      const yNum = parseInt(year, 10);
+      year = yNum > 50 ? `19${year}` : `20${year}`;
+    }
   }
 
-  if (Number(month) > 12 || Number(day) > 31) return null;
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  const d = parseInt(day, 10);
+  const m = parseInt(month, 10);
+  const y = parseInt(year, 10);
+
+  // Validação real de calendário gregoriano básico
+  if (isNaN(d) || isNaN(m) || isNaN(y)) return null;
+  if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > 2100) return null;
+
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 export function calcularDiasFaltando(proximoISO: string | null): number | null {
@@ -153,7 +170,6 @@ export function calcularStatus(proximoRetorno: string | null | undefined, situac
   if (dias < 0) return "Vencido";
   if (dias === 0) return "É Hoje";
   if (dias <= 3) return "Atenção";
-  // "Próximo" consolidado em "No Prazo"
   return "No Prazo";
 }
 
@@ -228,8 +244,12 @@ export function extrairTribunal(protocolo: string): { tribunal: string; link: st
 }
 
 function getValue(obj: Record<string, any>, ...keys: string[]): string {
+  // Mapa de normalização de headers para tratar encodings corrompidos
   const map = Object.fromEntries(
-    Object.entries(obj).map(([k, v]) => [fixEncoding(k).trim().toUpperCase(), v])
+    Object.entries(obj).map(([k, v]) => {
+      const cleanK = fixEncoding(k).trim().toUpperCase();
+      return [cleanK, v];
+    })
   );
 
   for (const key of keys) {
@@ -242,9 +262,9 @@ function getValue(obj: Record<string, any>, ...keys: string[]): string {
 }
 
 export function processarCaso(linha: Record<string, any>): LegalCase {
-  const proximoPrazo = getValue(linha, "PRÓXIMO PRAZO", "PROXIMO PRAZO", "PRÓXIMO RETORNO", "PROXIMO RETORNO", "PRAZO", "VENCIMENTO");
-  const situacao = getValue(linha, "SITUACAO", "SITUAÇÃO", "STATUS").toUpperCase() || "EM ANDAMENTO";
-  const observacao = getValue(linha, "OBSERVACAO", "OBSERVAÇÃO", "OBSERVAÇÕES", "OBSERVAÃ‡Ã•ES", "NOTAS", "DADOS");
+  const proximoPrazo = getValue(linha, "PRÓXIMO RETORNO", "PROXIMO RETORNO", "PRÃ“XIMO RETORNO", "PRÓXIMO PRAZO", "PRAZO", "VENCIMENTO");
+  const situacao = getValue(linha, "SITUACAO", "SITUAÃ‡ÃƒO", "SITUAÇÃO", "STATUS").toUpperCase() || "EM ANDAMENTO";
+  const observacao = getValue(linha, "OBSERVACAO", "OBSERVAÃ‡Ã•ES", "OBSERVAÇÃO", "OBSERVAÇÕES", "NOTAS", "DADOS");
   const statusInterno = getValue(linha, "STATUS", "STATUS_INTERNO", "STATUS INTERNO");
   const protocolo = getValue(linha, "PROTOCOLO", "PROCESSO", "Nº PROCESSO", "NUMERO", "NÚMERO").trim() || "S/N";
   const cliente = getValue(linha, "CLIENTE", "NOME").toUpperCase() || "DESCONHECIDO";
@@ -274,8 +294,8 @@ export function processarCaso(linha: Record<string, any>): LegalCase {
     cliente,
     protocolo,
     telefone: getValue(linha, "TELEFONE", "CELULAR", "WHATSAPP"),
-    advogado: getValue(linha, "ADVOGADO", "ADVOGADO RESPONSÁVEL", "ADVOGADO RESPONSÃVEL", "RESPONSÁVEL") || "NÃO ATRIBUÍDO",
-    escritorio: getValue(linha, "ESCRITORIO", "ESCRITÓRIO", "ESCRITÃ“RIO", "UNIDADE"),
+    advogado: getValue(linha, "ADVOGADO", "ADVOGADO RESPONSÁVEL", "ADVOGADO RESPONSÃVEL", "RESPONSÃVEL", "RESPONSÁVEL") || "NÃO ATRIBUÍDO",
+    escritorio: getValue(linha, "ESCRITORIO", "ESCRITÃ“RIO", "ESCRITÓRIO", "UNIDADE"),
     situacao,
     statusInterno,
     observacao,
