@@ -1,7 +1,6 @@
-
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense, useDeferredValue } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   Search, 
@@ -43,11 +42,114 @@ import { useAdmin } from '@/hooks/use-admin';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from '@/components/ui/textarea';
 
+// COMPONENTE DE LINHA MEMOIZADO PARA PERFORMANCE EXTREMA
+const CaseRow = React.memo(({ 
+  c, 
+  isOperador, 
+  onLogReturn, 
+  onEdit, 
+  onDelete, 
+  onShowObs 
+}: { 
+  c: LegalCase, 
+  isOperador: boolean, 
+  onLogReturn: (p: string) => void, 
+  onEdit: (c: LegalCase) => void, 
+  onDelete: (id: string) => void,
+  onShowObs: (obs: string) => void
+}) => {
+  return (
+    <tr className="hover:bg-black group transition-all cursor-default">
+      <td className="px-6 py-5">
+        <div className="flex flex-col">
+          <span className="text-black font-black text-xs lg:text-sm group-hover:text-white transition-colors uppercase leading-none">{c.cliente}</span>
+          <span className="text-[9px] lg:text-[10px] font-mono text-black/60 group-hover:text-white/60 mt-1 uppercase">{c.protocolo}</span>
+        </div>
+      </td>
+      <td className="px-6 py-5">
+        <Badge variant="outline" className="bg-white border-black border-2 font-black text-[8px] lg:text-[9px] text-black group-hover:bg-white group-hover:text-black uppercase rounded-none">
+          {c.tribunal}
+        </Badge>
+      </td>
+      <td className="px-6 py-5 text-[10px] lg:text-[11px] text-black font-black uppercase group-hover:text-white transition-colors">
+        {c.advogado}
+      </td>
+      <td className="px-6 py-5">
+        <div className="flex flex-col gap-1.5">
+          <StatusBadge status={c.status} />
+          <p className="text-[9px] lg:text-[10px] text-black/60 group-hover:text-white/60 font-black uppercase">{c.proximoPrazo || 'Sem Prazo'}</p>
+        </div>
+      </td>
+      <td className="px-6 py-5">
+        <div className="flex items-center gap-2">
+          <Clock className="w-3.5 h-3.5 text-black/40 group-hover:text-white/40" />
+          <span className="text-[10px] lg:text-[11px] text-black group-hover:text-white font-black uppercase whitespace-nowrap">
+            {c.ultimoRetorno || 'S/ Registro'}
+          </span>
+        </div>
+      </td>
+      <td className="px-6 py-5 text-right">
+        <div className="flex items-center justify-end gap-1">
+          {c.telefone && (
+             <Button title="WhatsApp" variant="ghost" size="icon" asChild className="text-green-600 group-hover:text-green-400 hover:bg-black transition-all h-8 w-8">
+               <a href={formatWhatsAppLink(c.telefone)} target="_blank" rel="noopener noreferrer">
+                 <MessageCircle size={16} />
+               </a>
+             </Button>
+          )}
+          {c.observacao && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-black group-hover:text-white h-8 w-8" 
+              onClick={() => onShowObs(c.observacao || '')}
+            >
+              <FileText size={16} />
+            </Button>
+          )}
+          {isOperador && (
+            <>
+              <Button 
+                title="Retorno"
+                variant="ghost" 
+                size="icon" 
+                onClick={() => onLogReturn(c.protocolo)} 
+                className="text-black group-hover:text-white hover:bg-black transition-all h-8 w-8"
+              >
+                <CheckCircle size={16} />
+              </Button>
+              <Button title="Editar" variant="ghost" size="icon" onClick={() => onEdit(c)} className="text-black group-hover:text-white hover:bg-black transition-all h-8 w-8">
+                <Edit2 size={16} />
+              </Button>
+            </>
+          )}
+          <Button title="Tribunal" variant="ghost" size="icon" asChild className="text-black group-hover:text-white hover:bg-black transition-all h-8 w-8">
+            <a href={c.linkConsulta} target="_blank" rel="noopener noreferrer">
+              <ExternalLink size={16} />
+            </a>
+          </Button>
+          {isOperador && (
+            <Button title="Excluir" variant="ghost" size="icon" onClick={() => onDelete(c.id)} className="text-black group-hover:text-red-500 hover:bg-black transition-all h-8 w-8">
+              <Trash2 size={16} />
+            </Button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+CaseRow.displayName = 'CaseRow';
+
 function CasesContent() {
   const [cases, setCases] = useState<LegalCase[]>([]);
   const searchParams = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
   const [search, setSearch] = useState(initialSearch);
+  
+  // PERFORMANCE: useDeferredValue evita que a digitação na busca trave a tela com muitos processos
+  const deferredSearch = useDeferredValue(search);
+  
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [obsDialogOpen, setObsDialogOpen] = useState<string | null>(null);
@@ -133,7 +235,7 @@ function CasesContent() {
     }
   };
 
-  const handleLogReturn = async (protocolo: string) => {
+  const handleLogReturn = useCallback(async (protocolo: string) => {
     if (!isOperador) return;
     const today = format(new Date(), 'dd/MM/yyyy');
     const updated = cases.map(c => {
@@ -148,7 +250,7 @@ function CasesContent() {
     if (result.success) {
       toast({ title: "Retorno Registrado", description: `Contato confirmado hoje (${today}).` });
     }
-  };
+  }, [cases, isOperador, toast]);
 
   const handleClearAll = async () => {
     if (!isOperador) return;
@@ -170,7 +272,7 @@ function CasesContent() {
     }
   };
 
-  const handleEditClick = (c: LegalCase) => {
+  const handleEditClick = useCallback((c: LegalCase) => {
     if (!isOperador) return;
     setEditingCase(c);
     setFormState({
@@ -185,9 +287,9 @@ function CasesContent() {
       telefone: c.telefone || ''
     });
     setIsModalOpen(true);
-  };
+  }, [isOperador]);
 
-  const deleteCase = async (id: string) => {
+  const deleteCase = useCallback(async (id: string) => {
     if (!isOperador) return;
     if (confirm('Tem certeza que deseja excluir este caso da base de dados?')) {
       const updated = cases.filter(c => c.id !== id);
@@ -195,15 +297,20 @@ function CasesContent() {
       await syncRepoCases(updated);
       toast({ title: "Caso Excluído" });
     }
-  };
+  }, [cases, isOperador, toast]);
 
   const filtered = useMemo(() => {
+    const searchLower = deferredSearch.toLowerCase();
     return cases.filter(c => 
-      (c.cliente || '').toLowerCase().includes(search.toLowerCase()) || 
-      (c.protocolo || '').includes(search) ||
-      (c.advogado && c.advogado.toLowerCase().includes(search.toLowerCase()))
+      (c.cliente || '').toLowerCase().includes(searchLower) || 
+      (c.protocolo || '').includes(deferredSearch) ||
+      (c.advogado && c.advogado.toLowerCase().includes(searchLower))
     );
-  }, [cases, search]);
+  }, [cases, deferredSearch]);
+
+  const onShowObs = useCallback((obs: string) => {
+    setObsDialogOpen(obs);
+  }, []);
 
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
@@ -331,83 +438,15 @@ function CasesContent() {
                 </thead>
                 <tbody className="divide-y-2 divide-black/5">
                   {filtered.length > 0 ? filtered.map((c) => (
-                    <tr key={c.id} className="hover:bg-black group transition-all cursor-default">
-                      <td className="px-6 py-5">
-                        <div className="flex flex-col">
-                          <span className="text-black font-black text-xs lg:text-sm group-hover:text-white transition-colors uppercase leading-none">{c.cliente}</span>
-                          <span className="text-[9px] lg:text-[10px] font-mono text-black/60 group-hover:text-white/60 mt-1 uppercase">{c.protocolo}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <Badge variant="outline" className="bg-white border-black border-2 font-black text-[8px] lg:text-[9px] text-black group-hover:bg-white group-hover:text-black uppercase rounded-none">
-                          {c.tribunal}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-5 text-[10px] lg:text-[11px] text-black font-black uppercase group-hover:text-white transition-colors">
-                        {c.advogado}
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex flex-col gap-1.5">
-                          <StatusBadge status={c.status} />
-                          <p className="text-[9px] lg:text-[10px] text-black/60 group-hover:text-white/60 font-black uppercase">{c.proximoPrazo || 'Sem Prazo'}</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-3.5 h-3.5 text-black/40 group-hover:text-white/40" />
-                          <span className="text-[10px] lg:text-[11px] text-black group-hover:text-white font-black uppercase whitespace-nowrap">
-                            {c.ultimoRetorno || 'S/ Registro'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {c.telefone && (
-                             <Button title="WhatsApp" variant="ghost" size="icon" asChild className="text-green-600 group-hover:text-green-400 hover:bg-black transition-all h-8 w-8">
-                               <a href={formatWhatsAppLink(c.telefone)} target="_blank" rel="noopener noreferrer">
-                                 <MessageCircle size={16} />
-                               </a>
-                             </Button>
-                          )}
-                          {c.observacao && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="text-black group-hover:text-white h-8 w-8" 
-                              onClick={() => setObsDialogOpen(c.observacao || null)}
-                            >
-                              <FileText size={16} />
-                            </Button>
-                          )}
-                          {isOperador && (
-                            <>
-                              <Button 
-                                title="Retorno"
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handleLogReturn(c.protocolo)} 
-                                className="text-black group-hover:text-white hover:bg-black transition-all h-8 w-8"
-                              >
-                                <CheckCircle size={16} />
-                              </Button>
-                              <Button title="Editar" variant="ghost" size="icon" onClick={() => handleEditClick(c)} className="text-black group-hover:text-white hover:bg-black transition-all h-8 w-8">
-                                <Edit2 size={16} />
-                              </Button>
-                            </>
-                          )}
-                          <Button title="Tribunal" variant="ghost" size="icon" asChild className="text-black group-hover:text-white hover:bg-black transition-all h-8 w-8">
-                            <a href={c.linkConsulta} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink size={16} />
-                            </a>
-                          </Button>
-                          {isOperador && (
-                            <Button title="Excluir" variant="ghost" size="icon" onClick={() => deleteCase(c.id)} className="text-black group-hover:text-red-500 hover:bg-black transition-all h-8 w-8">
-                              <Trash2 size={16} />
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                    <CaseRow 
+                      key={c.id} 
+                      c={c} 
+                      isOperador={isOperador} 
+                      onLogReturn={handleLogReturn} 
+                      onEdit={handleEditClick} 
+                      onDelete={deleteCase}
+                      onShowObs={onShowObs}
+                    />
                   )) : (
                     <tr>
                       <td colSpan={6} className="py-24 lg:py-32 text-center">
