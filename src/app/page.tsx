@@ -49,13 +49,23 @@ export default function Dashboard() {
 
   const t = getTranslation(locale);
 
+  /**
+   * Carrega os insights da IA salvos no localStorage
+   */
   const loadInsights = useCallback(() => {
     const savedInsights = localStorage.getItem('lexisPredict_notes_analysis');
     if (savedInsights) {
       try {
-        setIaInsights(JSON.parse(savedInsights));
+        const parsed = JSON.parse(savedInsights);
+        // Só define se houver conteúdo real
+        if (parsed && (parsed.pontosFortes?.length > 0 || parsed.riscosDetectados?.length > 0)) {
+          setIaInsights(parsed);
+        } else {
+          setIaInsights(null);
+        }
       } catch (e) {
         console.error("Fail load insights");
+        setIaInsights(null);
       }
     }
   }, []);
@@ -67,12 +77,19 @@ export default function Dashboard() {
     
     loadInsights();
 
-    // Listener para atualizações em tempo real vindo da página de Notas
-    window.addEventListener('storage', (e) => {
+    // Sincronia entre telas: Escuta atualizações de outras janelas
+    const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'lexisPredict_notes_analysis') loadInsights();
-    });
+    };
+    
+    // Sincronia na mesma janela: Escuta evento customizado disparado pela página de Notas
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('lexis-insights-updated', loadInsights);
 
-    return () => window.removeEventListener('storage', loadInsights);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('lexis-insights-updated', loadInsights);
+    };
   }, [loadInsights]);
 
   const loadData = useCallback(async () => {
@@ -95,32 +112,39 @@ export default function Dashboard() {
 
   const metrics = useMemo(() => {
     const totalRepo = cases.length;
-    const ativos = cases.filter(c => !['Encerrado', 'Arquivado', 'Extinto', 'Suspenso'].includes(c.situacao));
+    // Demandas Ativas: Exclui Encerrados/Arquivados
+    const ativos = cases.filter(c => !['Encerrado', 'Arquivado', 'Extinto', 'Suspenso', 'Sem Prazo'].includes(c.status) && !['Encerrado', 'Arquivado'].includes(c.situacao));
     const activeDemands = ativos.length;
     
-    const vencidos = ativos.filter(c => c.status === 'Vencido').length;
-    const venceHoje = ativos.filter(c => c.status === 'É Hoje').length;
-    const atencao = ativos.filter(c => c.status === 'Atenção').length;
-    const noPrazo = ativos.filter(c => c.status === 'No Prazo').length; 
-    const semPrazo = ativos.filter(c => c.status === 'Sem Prazo').length;
+    // Status Individuais para soma exata (Carteira Ativa Total = 246)
+    const vencidos = cases.filter(c => c.status === 'Vencido' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
+    const venceHoje = cases.filter(c => c.status === 'É Hoje' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
+    const atencao = cases.filter(c => c.status === 'Atenção' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
+    const noPrazo = cases.filter(c => c.status === 'No Prazo' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length; 
+    const semPrazo = cases.filter(c => (c.status === 'Sem Prazo' || !c.proximoPrazo) && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
+    const finalizados = cases.filter(c => ['Encerrado', 'Arquivado'].includes(c.status) || ['Encerrado', 'Arquivado'].includes(c.situacao)).length;
 
-    const vencidosArray = ativos.filter(c => c.status === 'Vencido' && c.diasFaltando !== null);
+    // Tempo Médio de Atraso
+    const vencidosArray = cases.filter(c => c.status === 'Vencido' && c.diasFaltando !== null);
     const tempoMedio = vencidosArray.length > 0 
       ? Math.round(Math.abs(vencidosArray.reduce((acc, c) => acc + (c.diasFaltando || 0), 0)) / vencidosArray.length) 
       : 0;
 
+    // Índice de Risco Ponderado (Somente sobre o que não está finalizado)
     const riskSum = (vencidos * 1.0) + (venceHoje * 0.8) + (atencao * 0.5) + (noPrazo * 0.1);
-    const riskScore = activeDemands > 0 ? Math.min(100, Math.round((riskSum / activeDemands) * 100)) : 0;
+    const totalConsiderado = (vencidos + venceHoje + atencao + noPrazo + semPrazo);
+    const riskScore = totalConsiderado > 0 ? Math.min(100, Math.round((riskSum / totalConsiderado) * 100)) : 0;
 
     const statusData = [
       { name: 'Vencidos', value: vencidos, color: '#ef4444' },
-      { name: 'Hoje', value: venceHoje, color: '#f59e0b' },
+      { name: 'Hoje', value: venceHoje, color: '#f97316' },
       { name: 'Atenção', value: atencao, color: '#fbbf24' },
       { name: 'Saudáveis', value: noPrazo, color: '#22c55e' },
       { name: 'Sem Prazo', value: semPrazo, color: '#94a3b8' },
+      { name: 'Finalizados', value: finalizados, color: '#1f2937' }
     ].filter(d => d.value > 0);
 
-    return { totalRepo, activeDemands, vencidos, venceHoje, atencao, tempoMedio, riskScore, statusData };
+    return { totalRepo, activeDemands, vencidos, venceHoje, atencao, noPrazo, semPrazo, finalizados, tempoMedio, riskScore, statusData };
   }, [cases]);
 
   if (!mounted) return null;
@@ -152,7 +176,7 @@ export default function Dashboard() {
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard title="Vencem Hoje" value={loading ? "..." : metrics.venceHoje} icon={<Clock size={16} />} color={metrics.venceHoje > 0 ? "destructive" : "primary"} />
             <StatCard title="Vencidos" value={loading ? "..." : metrics.vencidos} icon={<ShieldAlert size={16} />} color="destructive" />
-            <StatCard title="Demandas Ativas" value={loading ? "..." : metrics.activeDemands} icon={<Activity size={16} />} color="primary" />
+            <StatCard title="Próximos 7 Dias" value={loading ? "..." : metrics.atencao} icon={<Calendar size={16} />} color="accent" />
             <StatCard title="Atraso Médio" value={loading ? "..." : `${metrics.tempoMedio} dias`} icon={<TrendingUp size={16} />} color="destructive" />
           </section>
 
@@ -160,7 +184,7 @@ export default function Dashboard() {
             <div className="xl:col-span-2 space-y-8">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <section className="bg-card border border-border/50 rounded-md p-6 h-[350px] flex flex-col">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Saúde da Carteira Ativa</h3>
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Saúde da Carteira (Total: {metrics.activeDemands + metrics.semPrazo})</h3>
                     <div className="flex-1 min-h-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
@@ -173,31 +197,40 @@ export default function Dashboard() {
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
+                    <div className="grid grid-cols-3 gap-2 mt-4">
+                       <StatusMiniPill color="bg-red-500" label="Vencidos" value={metrics.vencidos} />
+                       <StatusMiniPill color="bg-orange-500" label="Atenção" value={metrics.atencao} />
+                       <StatusMiniPill color="bg-green-500" label="Saudáveis" value={metrics.noPrazo} />
+                    </div>
                   </section>
 
                   <section className="bg-card border border-border/50 rounded-md p-6 h-[350px] flex flex-col">
                     <div className="flex items-center justify-between mb-6">
                        <h3 className="text-[10px] font-bold uppercase tracking-widest opacity-60">Insights de Auditoria (IA)</h3>
-                       <Badge variant="outline" className="text-[8px] border-primary/30 text-primary">v10.0 Elite</Badge>
+                       <Badge variant="outline" className="text-[8px] border-primary/30 text-primary uppercase">v25.0 Elite</Badge>
                     </div>
-                    {iaInsights && (iaInsights.pontosFortes?.length > 0 || iaInsights.riscosDetectados?.length > 0) ? (
+                    {iaInsights ? (
                       <div className="space-y-4 overflow-auto flex-1 pr-2 custom-scrollbar">
-                         <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-sm">
-                            <p className="text-[8px] font-black text-green-500 uppercase flex items-center gap-1.5 mb-1.5"><TrendingUp size={10}/> Pontos Fortes</p>
-                            <ul className="space-y-1">
-                              {Array.isArray(iaInsights.pontosFortes) ? iaInsights.pontosFortes.map((item: string, idx: number) => (
-                                <li key={idx} className="text-[10px] font-medium leading-relaxed opacity-80 uppercase">• {item}</li>
-                              )) : <li className="text-[10px] font-medium opacity-80 uppercase">• {iaInsights.pontosFortes}</li>}
-                            </ul>
-                         </div>
-                         <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-sm">
-                            <p className="text-[8px] font-black text-red-500 uppercase flex items-center gap-1.5 mb-1.5"><TrendingDown size={10}/> Riscos Detectados</p>
-                            <ul className="space-y-1">
-                              {Array.isArray(iaInsights.riscosDetectados) ? iaInsights.riscosDetectados.map((item: string, idx: number) => (
-                                <li key={idx} className="text-[10px] font-medium leading-relaxed opacity-80 uppercase">• {item}</li>
-                              )) : <li className="text-[10px] font-medium opacity-80 uppercase">• {iaInsights.riscosDetectados}</li>}
-                            </ul>
-                         </div>
+                         {iaInsights.pontosFortes?.length > 0 && (
+                           <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-sm">
+                              <p className="text-[8px] font-black text-green-500 uppercase flex items-center gap-1.5 mb-1.5"><TrendingUp size={10}/> Pontos Fortes</p>
+                              <ul className="space-y-1">
+                                {iaInsights.pontosFortes.map((item: string, idx: number) => (
+                                  <li key={idx} className="text-[10px] font-medium leading-relaxed opacity-80 uppercase">• {item}</li>
+                                ))}
+                              </ul>
+                           </div>
+                         )}
+                         {iaInsights.riscosDetectados?.length > 0 && (
+                           <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-sm">
+                              <p className="text-[8px] font-black text-red-500 uppercase flex items-center gap-1.5 mb-1.5"><TrendingDown size={10}/> Riscos Detectados</p>
+                              <ul className="space-y-1">
+                                {iaInsights.riscosDetectados.map((item: string, idx: number) => (
+                                  <li key={idx} className="text-[10px] font-medium leading-relaxed opacity-80 uppercase">• {item}</li>
+                                ))}
+                              </ul>
+                           </div>
+                         )}
                       </div>
                     ) : (
                       <div className="flex-1 flex flex-col items-center justify-center opacity-30 text-center">
@@ -279,6 +312,16 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+function StatusMiniPill({ color, label, value }: { color: string, label: string, value: number }) {
+  return (
+    <div className="flex flex-col items-center gap-1 p-2 bg-secondary/10 rounded-sm border border-border/10">
+       <div className={cn("w-2 h-2 rounded-full", color)} />
+       <span className="text-[8px] font-bold uppercase text-muted-foreground">{label}</span>
+       <span className="text-xs font-black">{value}</span>
     </div>
   );
 }

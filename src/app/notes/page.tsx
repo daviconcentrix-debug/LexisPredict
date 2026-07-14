@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -115,10 +116,13 @@ export default function NotesPage() {
     try {
       const result = await analisarNotasIA(notes);
       if (result && !result.error) {
+        // Salva e notifica o Dashboard
         localStorage.setItem('lexisPredict_notes_analysis', JSON.stringify(result));
+        window.dispatchEvent(new Event('lexis-insights-updated'));
+        
         toast({ title: "Auditoria Concluída", description: "Insights colados no Dashboard." });
       } else {
-        toast({ title: "Falha IA", description: result.error, variant: "destructive" });
+        toast({ title: "Falha IA", description: result.error || "A IA não conseguiu identificar padrões.", variant: "destructive" });
       }
     } catch (e) {
       toast({ title: "Erro de Conexão", variant: "destructive" });
@@ -146,27 +150,6 @@ export default function NotesPage() {
     }
   };
 
-  const handleClearAll = async () => {
-    if (!isAdmin || isSaving) return;
-    
-    const confirmClear = window.confirm('ATENÇÃO: Deseja apagar TODAS as suas notas estratégicas permanentemente?');
-    if (!confirmClear) return;
-    
-    setIsSaving(true);
-    try {
-      const result = await syncRepoNotes([]);
-      if (result.success) {
-        setNotes([]);
-        toast({ title: "Minhas Notas Removidas" });
-      }
-    } catch (e) {
-      toast({ title: "Erro Crítico", description: "Falha na comunicação.", variant: "destructive" });
-    } finally {
-      setIsSaving(false);
-      loadData(true);
-    }
-  };
-
   const filteredNotes = useMemo(() => {
     return notes.filter(n => 
       (n.title || '').toLowerCase().includes(search.toLowerCase()) || 
@@ -181,7 +164,7 @@ export default function NotesPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">
-              {isAdmin ? "Anotações Gerais de Auditoria" : "Minhas Notas Estratégicas"}
+              Evidências
             </h1>
             <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px] px-3 py-1 flex items-center gap-1.5 tracking-tighter">
               <ShieldCheck size={10} /> {isAdmin ? 'Modo Global' : 'Modo Privado'}

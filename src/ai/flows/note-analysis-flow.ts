@@ -14,9 +14,13 @@ const API_KEYS = {
   AIRFORCE: 'sk-air-Rxc7ygo5b0XpkZqUBqwSnhjwS0bZbWFnzwRLjfPtdAbYK6nj'
 };
 
+/**
+ * Limpa metadados técnicos antes de enviar para a IA
+ */
 function limparEvidencias(texto: string) {
   return texto
-    .replace(/\d{2}\/\d{2}\/\d{4},\s\d{2}:\d{2}:\d{2}/g, '')
+    // Remove datas e horas automáticas (Ex: 13/07/2026, 19:27:43 ou 13/07/2026 19:27:43)
+    .replace(/\d{2}\/\d{2}\/\d{4}[,\s]+\d{2}:\d{2}:\d{2}/g, '')
     .replace(/Note Attachment/gi, '')
     .replace(/Atualização sem Título/gi, '')
     .trim();
@@ -67,12 +71,13 @@ Retorne SOMENTE JSON plano, sem markdown, sem explicações:
 function cleanJsonResponse(text: string): any {
   if (!text) return null;
   try {
-    // Remoção agressiva de markdown e ruídos
+    // Remoção agressiva de markdown e ruídos de texto
     let clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
     const firstBrace = clean.indexOf('{');
     const lastBrace = clean.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1) {
-      return JSON.parse(clean.substring(firstBrace, lastBrace + 1));
+      const jsonStr = clean.substring(firstBrace, lastBrace + 1);
+      return JSON.parse(jsonStr);
     }
     return null;
   } catch (e) { 
@@ -117,13 +122,16 @@ async function callAirforce(notesText: string) {
 export const noteAnalysisFlow = ai.defineFlow(
   { name: 'noteAnalysisFlow', inputSchema: z.any(), outputSchema: z.any() },
   async (input) => {
+    // Agrupa todas as notas em um único texto para análise de contexto
     const rawText = input.notes.map((n: any) => `[${n.updatedAt}] ${n.title}: ${n.content}`).join('\n\n');
     const cleanText = limparEvidencias(rawText);
     
     if (cleanText.length < 5) return { error: "Notas insuficientes para análise estratégica." };
 
     let result = await callXAI(cleanText);
-    if (!result) result = await callAirforce(cleanText);
+    if (!result || (!result.pontosFortes && !result.riscosDetectados)) {
+      result = await callAirforce(cleanText);
+    }
 
     return result || { pontosFortes: [], riscosDetectados: [] };
   }

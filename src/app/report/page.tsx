@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -46,7 +47,11 @@ export default function UnifiedReport() {
         setNotes(notesData || []);
         
         const savedInsights = localStorage.getItem('lexisPredict_notes_analysis');
-        if (savedInsights) setIaInsights(JSON.parse(savedInsights));
+        if (savedInsights) {
+           try {
+             setIaInsights(JSON.parse(savedInsights));
+           } catch(e) {}
+        }
       } catch (e) {
         console.error("Report extraction failure:", e);
       } finally {
@@ -58,17 +63,17 @@ export default function UnifiedReport() {
 
   const metrics = useMemo(() => {
     const totalRepo = cases.length;
+    // Carteira Ativa: Exclui registros já finalizados estrategicamente
     const ativos = cases.filter(c => !['Encerrado', 'Arquivado', 'Extinto', 'Suspenso'].includes(c.situacao));
     const activeTotal = ativos.length;
     
-    // Categorização Estrita (Soma deve fechar em activeTotal)
-    const countVencido = ativos.filter(c => c.status === 'Vencido').length;
-    const countHoje = ativos.filter(c => c.status === 'É Hoje').length;
-    const countAtencao = ativos.filter(c => c.status === 'Atenção').length;
-    const countSaudavel = ativos.filter(c => c.status === 'No Prazo').length;
-    const countSemPrazo = ativos.filter(c => c.status === 'Sem Prazo').length;
+    // Categorização Estrita (Soma exata)
+    const countVencido = cases.filter(c => c.status === 'Vencido' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
+    const countHoje = cases.filter(c => c.status === 'É Hoje' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
+    const countAtencao = cases.filter(c => c.status === 'Atenção' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
+    const countSaudavel = cases.filter(c => c.status === 'No Prazo' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
+    const countSemPrazo = cases.filter(c => (c.status === 'Sem Prazo' || !c.proximoPrazo) && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
     
-    // Finalizados fora da carteira ativa
     const countFinalizados = cases.filter(c => ['Encerrado', 'Arquivado'].includes(c.situacao)).length;
 
     // Índice de Risco Ponderado (Somente sobre Ativos)
@@ -83,17 +88,7 @@ export default function UnifiedReport() {
     else if (riskScore > 20) { riskLabel = "MODERADO"; riskColor = "text-amber-400"; }
 
     return {
-      totalRepo,
-      activeTotal,
-      countVencido,
-      countHoje,
-      countAtencao,
-      countSaudavel,
-      countSemPrazo,
-      countFinalizados,
-      riskScore,
-      riskLabel,
-      riskColor
+      totalRepo, activeTotal, countVencido, countHoje, countAtencao, countSaudavel, countSemPrazo, countFinalizados, riskScore, riskLabel, riskColor
     };
   }, [cases]);
 
@@ -146,7 +141,7 @@ export default function UnifiedReport() {
               </div>
               <div className="text-right space-y-2 self-end">
                 <p className="text-sm font-medium tracking-wide text-white">{profile?.nome || "ADMINISTRADOR"}</p>
-                <p className="text-[10px] tracking-[0.2em] uppercase text-white/40">Auditado sob protocolo v240.0</p>
+                <p className="text-[10px] tracking-[0.2em] uppercase text-white/40">Auditado sob protocolo v250.0 Elite</p>
                 <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 border border-emerald-500/40 text-emerald-400 text-[9px] font-medium tracking-widest uppercase"><ShieldCheck size={11} /> Autenticado</div>
               </div>
             </div>
@@ -170,7 +165,7 @@ export default function UnifiedReport() {
                 </div>
               </div>
               <div className="col-span-12 md:col-span-8 grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <KpiCard icon={<Activity size={16} />} label="Carteira Total" value={metrics.totalRepo} accent="text-blue-400" />
+                <KpiCard icon={<Activity size={16} />} label="Ativos em Gestão" value={metrics.activeTotal} accent="text-blue-400" />
                 <KpiCard icon={<AlertTriangle size={16} />} label="Processos Vencidos" value={metrics.countVencido} accent="text-red-500" highlight={metrics.countVencido > 0} />
                 <KpiCard icon={<CheckCircle2 size={16} />} label="Casos Saudáveis" value={metrics.countSaudavel} accent="text-emerald-400" />
                 <KpiCard icon={<Clock size={16} />} label="Vencem Hoje" value={metrics.countHoje} accent="text-orange-400" highlight={metrics.countHoje > 0} />
@@ -181,7 +176,7 @@ export default function UnifiedReport() {
           <section className="px-10 pb-12">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-1 h-5 bg-[#c9a227]" />
-              <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-white/60">Distribuição Ativa (Total: {metrics.activeTotal})</h2>
+              <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-white/60">Distribuição Operacional (Carteira Total: {metrics.totalRepo})</h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               <StatusPill label="Vencidos" count={metrics.countVencido} total={metrics.activeTotal} color="bg-red-600" />
@@ -193,7 +188,6 @@ export default function UnifiedReport() {
             </div>
           </section>
 
-          {/* PARECER DA IA - NOVO REQUISITO */}
           {iaInsights && (
             <section className="px-10 pb-12">
               <div className="flex items-center gap-3 mb-6">
@@ -204,17 +198,17 @@ export default function UnifiedReport() {
                  <div className="space-y-4">
                     <p className="text-[10px] font-black text-[#c9a227] uppercase tracking-[0.2em] flex items-center gap-2"><Sparkles size={12}/> Pontos Fortes de Gabinete</p>
                     <ul className="space-y-2">
-                      {Array.isArray(iaInsights.pontosFortes) ? iaInsights.pontosFortes.map((item: string, idx: number) => (
+                      {iaInsights.pontosFortes?.map((item: string, idx: number) => (
                         <li key={idx} className="text-xs leading-relaxed opacity-70 uppercase font-medium">• {item}</li>
-                      )) : <li className="text-xs leading-relaxed opacity-70 uppercase font-medium">{iaInsights.pontosFortes}</li>}
+                      ))}
                     </ul>
                  </div>
                  <div className="space-y-4">
                     <p className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] flex items-center gap-2"><TrendingDown size={12}/> Riscos e Negativos Detectados</p>
                     <ul className="space-y-2">
-                      {Array.isArray(iaInsights.riscosDetectados) ? iaInsights.riscosDetectados.map((item: string, idx: number) => (
+                      {iaInsights.riscosDetectados?.map((item: string, idx: number) => (
                         <li key={idx} className="text-xs leading-relaxed opacity-70 uppercase font-medium">• {item}</li>
-                      )) : <li className="text-xs leading-relaxed opacity-70 uppercase font-medium">{iaInsights.riscosDetectados}</li>}
+                      ))}
                     </ul>
                  </div>
               </div>
@@ -225,7 +219,7 @@ export default function UnifiedReport() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-1 h-5 bg-red-600" />
-                <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-white/60">Processos que exigem ação imediata</h2>
+                <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-white/60">Triagem de Prioridade Máxima</h2>
               </div>
             </div>
             <div className="border border-white/10 overflow-hidden">
@@ -273,7 +267,6 @@ export default function UnifiedReport() {
             </div>
           </section>
 
-          {/* LOG DE NOTAS E EVIDÊNCIAS - NOVO REQUISITO */}
           <section className="px-10 pb-12 break-before-page">
             <div className="flex items-center gap-3 mb-8">
               <div className="w-1 h-5 bg-[#c9a227]" />
@@ -292,7 +285,7 @@ export default function UnifiedReport() {
                ))}
                {notes.length === 0 && (
                  <div className="col-span-2 py-10 text-center border border-dashed border-white/10">
-                    <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.3em]">Nenhuma evidência registrada para auditoria.</p>
+                    <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.3em]">Nenhuma evidência registrada.</p>
                  </div>
                )}
             </div>
@@ -304,7 +297,7 @@ export default function UnifiedReport() {
                 <div className="w-10 h-10 border border-[#c9a227]/50 flex items-center justify-center"><Zap size={16} className="text-[#c9a227]" /></div>
                 <div>
                   <p className="text-[10px] tracking-[0.3em] uppercase text-white/40">2026 W1 Capital</p>
-                  <p className="text-xs text-white/60 font-medium">Relatório de Gestão Operacional</p>
+                  <p className="text-xs text-white/60 font-medium">Relatório Executivo Operacional</p>
                 </div>
               </div>
               <div className="inline-flex items-center gap-2 px-5 py-2.5 border border-white/10">
