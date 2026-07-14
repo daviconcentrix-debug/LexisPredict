@@ -81,6 +81,12 @@ const BANCA_DATA: Record<string, any> = {
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "andressa@adv.oabsp.org.br",
     genero: "F"
+  },
+  "RENATO PRINCIPE STEVANIN": {
+    oabs: { "PR": "115.910/PR", "SP": "346.790/SP" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
+    email: "renatostevanin@adv.oabsp.org.br",
+    genero: "M"
   }
 };
 
