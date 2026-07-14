@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useMemo } from 'react';
@@ -52,7 +51,7 @@ const ADVOGADOS_BANCA = [
   { id: 'fabio', nome: 'FABIO RODRIGUES SAMPAIO MOREIRA', estados: ["SP"] },
   { id: 'matheus_dias', nome: 'MATHEUS SANTOS DIAS', estados: ["SP"] },
   { id: 'maikon', nome: 'MAIKON ALVES LOPES DOS SANTOS', estados: ["SP"] },
-  { id: 'andressa_tavares', nome: 'ANDRESSA EDUARDA TAVARES', estados: ["SP"] },
+  { id: 'andressa_tavares', nome: 'ANDRESSA EDUARDA TAVARES MATOS', estados: ["MG", "SP"] },
 ];
 
 export default function DocumentGenerator() {
