@@ -64,6 +64,30 @@ const BANCA_DATA: Record<string, any> = {
   "ERALDO FRANCISCO DA SILVA JUNIOR": {
     oabs: { "SP": "327.677/SP" },
     estadoCivil: "casado"
+  },
+  "ISAI SAMPAIO MOREIRA": {
+    oabs: { "SP": "437.886/SP" },
+    estadoCivil: "casado"
+  },
+  "GILBERTO BONFIM CAVALCANTI FILHO": {
+    oabs: { "SP": "337.930/SP" },
+    estadoCivil: "casado"
+  },
+  "FABIO RODRIGUES SAMPAIO MOREIRA": {
+    oabs: { "SP": "437.886/SP" },
+    estadoCivil: "casado"
+  },
+  "MATHEUS SANTOS DIAS": {
+    oabs: { "SP": "472.089/SP" },
+    estadoCivil: "casado"
+  },
+  "MAIKON ALVES LOPES DOS SANTOS": {
+    oabs: { "SP": "470.735/SP" },
+    estadoCivil: "casado"
+  },
+  "ANDRESSA EDUARDA TAVARES": {
+    oabs: { "SP": "PENDENTE/SP" },
+    estadoCivil: "casada"
   }
 };
 
