@@ -77,25 +77,23 @@ export default function Dashboard() {
 
   const metrics = useMemo(() => {
     const totalRepo = cases.length;
+    const ativos = cases.filter(c => !['Encerrado', 'Arquivado', 'Extinto', 'Suspenso'].includes(c.situacao));
+    const activeDemands = ativos.length;
     
-    // Filtro estrito: Demandas Ativas ignoram Encerrados/Arquivados/Suspensos
-    const activeDemands = cases.filter(c => !['Encerrado', 'Arquivado', 'Extinto', 'Suspenso'].includes(c.situacao)).length;
-    
-    const vencidos = cases.filter(c => c.status === 'Vencido').length;
-    const venceHoje = cases.filter(c => c.status === 'É Hoje').length;
-    const atencao = cases.filter(c => c.status === 'Atenção').length;
-    const noPrazo = cases.filter(c => c.status === 'No Prazo').length; // Chamaremos de "Saudáveis"
-    const semPrazo = cases.filter(c => c.status === 'Sem Prazo').length;
+    const vencidos = ativos.filter(c => c.status === 'Vencido').length;
+    const venceHoje = ativos.filter(c => c.status === 'É Hoje').length;
+    const atencao = ativos.filter(c => c.status === 'Atenção').length;
+    const noPrazo = ativos.filter(c => c.status === 'No Prazo').length; 
+    const semPrazo = ativos.filter(c => c.status === 'Sem Prazo').length;
 
-    const vencidosArray = cases.filter(c => c.status === 'Vencido' && c.diasFaltando !== null);
+    const vencidosArray = ativos.filter(c => c.status === 'Vencido' && c.diasFaltando !== null);
     const tempoMedio = vencidosArray.length > 0 
       ? Math.round(Math.abs(vencidosArray.reduce((acc, c) => acc + (c.diasFaltando || 0), 0)) / vencidosArray.length) 
       : 0;
 
-    // Risco Ponderado por Gravidade
+    // Risco Ponderado por Gravidade (Apenas sobre Ativos)
     const riskSum = (vencidos * 1.0) + (venceHoje * 0.8) + (atencao * 0.5) + (noPrazo * 0.1);
-    const activeTotal = vencidos + venceHoje + atencao + noPrazo;
-    const riskScore = activeTotal > 0 ? Math.min(100, Math.round((riskSum / activeTotal) * 100)) : 0;
+    const riskScore = activeDemands > 0 ? Math.min(100, Math.round((riskSum / activeDemands) * 100)) : 0;
 
     const statusData = [
       { name: 'Vencidos', value: vencidos, color: '#ef4444' },
@@ -163,17 +161,25 @@ export default function Dashboard() {
                   <section className="bg-card border border-border/50 rounded-md p-6 h-[350px] flex flex-col">
                     <div className="flex items-center justify-between mb-6">
                        <h3 className="text-[10px] font-bold uppercase tracking-widest opacity-60">Insights de Auditoria (IA)</h3>
-                       <Badge variant="outline" className="text-[8px] border-primary/30 text-primary">v9.0 Elite</Badge>
+                       <Badge variant="outline" className="text-[8px] border-primary/30 text-primary">v10.0 Elite</Badge>
                     </div>
                     {iaInsights ? (
                       <div className="space-y-4 overflow-auto flex-1 pr-2 custom-scrollbar">
                          <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-sm">
                             <p className="text-[8px] font-black text-green-500 uppercase flex items-center gap-1.5 mb-1.5"><TrendingUp size={10}/> Pontos Fortes</p>
-                            <p className="text-[10px] font-medium leading-relaxed opacity-80 uppercase">{iaInsights.strongPoints}</p>
+                            <ul className="space-y-1">
+                              {Array.isArray(iaInsights.pontosFortes) ? iaInsights.pontosFortes.map((item: string, idx: number) => (
+                                <li key={idx} className="text-[10px] font-medium leading-relaxed opacity-80 uppercase">• {item}</li>
+                              )) : <li className="text-[10px] font-medium opacity-80 uppercase">{iaInsights.pontosFortes}</li>}
+                            </ul>
                          </div>
                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-sm">
                             <p className="text-[8px] font-black text-red-500 uppercase flex items-center gap-1.5 mb-1.5"><TrendingDown size={10}/> Riscos Detectados</p>
-                            <p className="text-[10px] font-medium leading-relaxed opacity-80 uppercase">{iaInsights.negativePoints}</p>
+                            <ul className="space-y-1">
+                              {Array.isArray(iaInsights.riscosDetectados) ? iaInsights.riscosDetectados.map((item: string, idx: number) => (
+                                <li key={idx} className="text-[10px] font-medium leading-relaxed opacity-80 uppercase">• {item}</li>
+                              )) : <li className="text-[10px] font-medium opacity-80 uppercase">{iaInsights.riscosDetectados}</li>}
+                            </ul>
                          </div>
                       </div>
                     ) : (
@@ -189,7 +195,7 @@ export default function Dashboard() {
                <section className="space-y-4">
                 <div className="bg-card border border-border/50 rounded-md overflow-hidden">
                   <div className="p-4 border-b border-border/10 bg-secondary/5 flex items-center justify-between">
-                     <h3 className="text-[10px] font-bold uppercase tracking-[0.2em]">Processos com Prazo Crítico</h3>
+                     <h3 className="text-[10px] font-bold uppercase tracking-[0.2em]">Processos que exigem ação imediata</h3>
                      <Badge className="bg-red-500 text-white font-black text-[9px] uppercase">{metrics.vencidos + metrics.venceHoje} ALERTA</Badge>
                   </div>
                   <table className="mission-control-table">
@@ -202,18 +208,22 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {cases.filter(c => ['Vencido', 'É Hoje'].includes(c.status)).slice(0, 10).map((c) => (
-                        <tr key={c.id} className="hover:bg-secondary/20 transition-colors">
-                          <td><Badge variant="outline" className="text-[9px] font-bold uppercase">{c.tribunal}</Badge></td>
-                          <td className="font-bold uppercase text-[11px]">{c.cliente}</td>
-                          <td className="font-mono text-[10px] text-muted-foreground">{c.protocolo}</td>
-                          <td className="text-right">
-                            <span className="text-[9px] font-black uppercase text-red-500">
-                              {(c.diasFaltando || 0) < 0 ? `${Math.abs(c.diasFaltando || 0)}d atraso` : "Hoje"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {cases
+                        .filter(c => ['Vencido', 'É Hoje', 'Atenção'].includes(c.status) && !['Encerrado', 'Arquivado'].includes(c.situacao))
+                        .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
+                        .slice(0, 40)
+                        .map((c) => (
+                          <tr key={c.id} className="hover:bg-secondary/20 transition-colors">
+                            <td><Badge variant="outline" className="text-[9px] font-bold uppercase">{c.tribunal}</Badge></td>
+                            <td className="font-bold uppercase text-[11px]">{c.cliente}</td>
+                            <td className="font-mono text-[10px] text-muted-foreground">{c.protocolo}</td>
+                            <td className="text-right">
+                              <span className={cn("text-[9px] font-black uppercase", (c.diasFaltando || 0) < 0 ? "text-red-500" : "text-orange-500")}>
+                                {c.status === 'É Hoje' ? "Hoje" : (c.diasFaltando || 0) < 0 ? `${Math.abs(c.diasFaltando || 0)}d atraso` : `Faltam ${c.diasFaltando}d`}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>
@@ -224,13 +234,13 @@ export default function Dashboard() {
               <div className="bg-card border border-border/50 rounded-md p-6 space-y-4">
                 <div className="flex justify-between items-end">
                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Índice de Risco (Gabinete)</p>
-                   <span className={cn("text-2xl font-black", metrics.riskScore > 80 ? "text-red-500" : "text-primary")}>{metrics.riskScore}%</span>
+                   <span className={cn("text-2xl font-black", metrics.riskScore > 80 ? "text-red-500" : metrics.riskScore > 60 ? "text-orange-500" : "text-primary")}>{metrics.riskScore}%</span>
                 </div>
                 <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                   <div className={cn("h-full transition-all duration-1000", metrics.riskScore > 80 ? "bg-red-500" : "bg-primary")} style={{ width: `${metrics.riskScore}%` }} />
+                   <div className={cn("h-full transition-all duration-1000", metrics.riskScore > 80 ? "bg-red-500" : metrics.riskScore > 60 ? "bg-orange-500" : "bg-primary")} style={{ width: `${metrics.riskScore}%` }} />
                 </div>
                 <p className="text-[9px] font-bold uppercase text-center opacity-40">
-                  {metrics.riskScore > 80 ? "Nível: Crítico" : metrics.riskScore > 60 ? "Nível: Alto" : "Nível: Moderado"}
+                  {metrics.riskScore > 80 ? "Nível: Crítico" : metrics.riskScore > 60 ? "Nível: Alto" : metrics.riskScore > 40 ? "Nível: Elevado" : "Nível: Moderado"}
                 </p>
               </div>
 
@@ -241,7 +251,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <h2 className="text-lg font-bold uppercase tracking-tight">Dossiê Operacional</h2>
-                    <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed uppercase">Relatório completo de auditoria executiva, incluindo logs de evidências e notas estratégicas.</p>
+                    <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed uppercase">Relatório completo de auditoria executiva, incluindo logs de evidências e parecer técnico da IA.</p>
                   </div>
                   <Button variant="default" asChild className="w-full bg-primary text-black font-bold h-11 rounded-sm uppercase text-[10px] tracking-[0.15em] hover:bg-primary/90 transition-all">
                     <Link href="/report">Gerar Relatório Executivo</Link>

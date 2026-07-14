@@ -58,19 +58,20 @@ export default function UnifiedReport() {
 
   const metrics = useMemo(() => {
     const totalRepo = cases.length;
+    const ativos = cases.filter(c => !['Encerrado', 'Arquivado', 'Extinto', 'Suspenso'].includes(c.situacao));
+    const activeTotal = ativos.length;
     
-    // Categorização Estrita
-    const countVencido = cases.filter(c => c.status === 'Vencido').length;
-    const countHoje = cases.filter(c => c.status === 'É Hoje').length;
-    const countAtencao = cases.filter(c => c.status === 'Atenção').length;
-    const countSaudavel = cases.filter(c => c.status === 'No Prazo').length;
-    const countSemPrazo = cases.filter(c => c.status === 'Sem Prazo').length;
+    // Categorização Estrita (Soma deve fechar em activeTotal)
+    const countVencido = ativos.filter(c => c.status === 'Vencido').length;
+    const countHoje = ativos.filter(c => c.status === 'É Hoje').length;
+    const countAtencao = ativos.filter(c => c.status === 'Atenção').length;
+    const countSaudavel = ativos.filter(c => c.status === 'No Prazo').length;
+    const countSemPrazo = ativos.filter(c => c.status === 'Sem Prazo').length;
+    
+    // Finalizados fora da carteira ativa
     const countFinalizados = cases.filter(c => ['Encerrado', 'Arquivado'].includes(c.situacao)).length;
 
     // Índice de Risco Ponderado (Somente sobre Ativos)
-    const activeSet = cases.filter(c => !['Encerrado', 'Arquivado', 'Extinto', 'Suspenso'].includes(c.situacao));
-    const activeTotal = activeSet.length;
-    
     const riskSum = (countVencido * 1.0) + (countHoje * 0.8) + (countAtencao * 0.5) + (countSaudavel * 0.1);
     const riskScore = activeTotal > 0 ? Math.min(100, Math.round((riskSum / activeTotal) * 100)) : 0;
 
@@ -83,6 +84,7 @@ export default function UnifiedReport() {
 
     return {
       totalRepo,
+      activeTotal,
       countVencido,
       countHoje,
       countAtencao,
@@ -97,7 +99,7 @@ export default function UnifiedReport() {
 
   const prioritaryCases = useMemo(() => {
     return cases
-      .filter(c => ["Vencido", "É Hoje", "Atenção"].includes(c.status))
+      .filter(c => ["Vencido", "É Hoje", "Atenção"].includes(c.status) && !['Encerrado', 'Arquivado'].includes(c.situacao))
       .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
       .slice(0, 50);
   }, [cases]);
@@ -144,7 +146,7 @@ export default function UnifiedReport() {
               </div>
               <div className="text-right space-y-2 self-end">
                 <p className="text-sm font-medium tracking-wide text-white">{profile?.nome || "ADMINISTRADOR"}</p>
-                <p className="text-[10px] tracking-[0.2em] uppercase text-white/40">Auditado sob protocolo v230.0</p>
+                <p className="text-[10px] tracking-[0.2em] uppercase text-white/40">Auditado sob protocolo v240.0</p>
                 <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 border border-emerald-500/40 text-emerald-400 text-[9px] font-medium tracking-widest uppercase"><ShieldCheck size={11} /> Autenticado</div>
               </div>
             </div>
@@ -179,14 +181,14 @@ export default function UnifiedReport() {
           <section className="px-10 pb-12">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-1 h-5 bg-[#c9a227]" />
-              <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-white/60">Distribuição Operacional (Total: {metrics.totalRepo})</h2>
+              <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-white/60">Distribuição Ativa (Total: {metrics.activeTotal})</h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              <StatusPill label="Vencidos" count={metrics.countVencido} total={metrics.totalRepo} color="bg-red-600" />
-              <StatusPill label="Hoje" count={metrics.countHoje} total={metrics.totalRepo} color="bg-orange-500" />
-              <StatusPill label="Atenção" count={metrics.countAtencao} total={metrics.totalRepo} color="bg-amber-400" />
-              <StatusPill label="Saudáveis" count={metrics.countSaudavel} total={metrics.totalRepo} color="bg-emerald-500" />
-              <StatusPill label="Sem Prazo" count={metrics.countSemPrazo} total={metrics.totalRepo} color="bg-slate-400" />
+              <StatusPill label="Vencidos" count={metrics.countVencido} total={metrics.activeTotal} color="bg-red-600" />
+              <StatusPill label="Hoje" count={metrics.countHoje} total={metrics.activeTotal} color="bg-orange-500" />
+              <StatusPill label="Atenção" count={metrics.countAtencao} total={metrics.activeTotal} color="bg-amber-400" />
+              <StatusPill label="Saudáveis" count={metrics.countSaudavel} total={metrics.activeTotal} color="bg-emerald-500" />
+              <StatusPill label="Sem Prazo" count={metrics.countSemPrazo} total={metrics.activeTotal} color="bg-slate-400" />
               <StatusPill label="Finalizados" count={metrics.countFinalizados} total={metrics.totalRepo} color="bg-slate-800" />
             </div>
           </section>
@@ -201,15 +203,19 @@ export default function UnifiedReport() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/[0.02] border border-white/5 p-8">
                  <div className="space-y-4">
                     <p className="text-[10px] font-black text-[#c9a227] uppercase tracking-[0.2em] flex items-center gap-2"><Sparkles size={12}/> Pontos Fortes de Gabinete</p>
-                    <p className="text-xs leading-relaxed opacity-70 uppercase font-medium">{iaInsights.strongPoints}</p>
+                    <ul className="space-y-2">
+                      {Array.isArray(iaInsights.pontosFortes) ? iaInsights.pontosFortes.map((item: string, idx: number) => (
+                        <li key={idx} className="text-xs leading-relaxed opacity-70 uppercase font-medium">• {item}</li>
+                      )) : <li className="text-xs leading-relaxed opacity-70 uppercase font-medium">{iaInsights.pontosFortes}</li>}
+                    </ul>
                  </div>
                  <div className="space-y-4">
                     <p className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] flex items-center gap-2"><TrendingDown size={12}/> Riscos e Negativos Detectados</p>
-                    <p className="text-xs leading-relaxed opacity-70 uppercase font-medium">{iaInsights.negativePoints}</p>
-                 </div>
-                 <div className="md:col-span-2 pt-6 border-t border-white/5">
-                    <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.1em] mb-2">Resumo Executivo do Auditor</p>
-                    <p className="text-sm leading-relaxed italic opacity-90 uppercase">{iaInsights.executiveSummary}</p>
+                    <ul className="space-y-2">
+                      {Array.isArray(iaInsights.riscosDetectados) ? iaInsights.riscosDetectados.map((item: string, idx: number) => (
+                        <li key={idx} className="text-xs leading-relaxed opacity-70 uppercase font-medium">• {item}</li>
+                      )) : <li className="text-xs leading-relaxed opacity-70 uppercase font-medium">{iaInsights.riscosDetectados}</li>}
+                    </ul>
                  </div>
               </div>
             </section>
