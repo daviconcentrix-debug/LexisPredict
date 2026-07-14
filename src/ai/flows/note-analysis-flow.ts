@@ -1,9 +1,10 @@
 
 'use server';
 /**
- * @fileOverview Motor de Auditoria Operacional Jurídica v1000.0 ELITE
+ * @fileOverview Motor de Auditoria Operacional Jurídica v1200.0 ELITE
  * Analisa anotações para extrair pontos fortes e riscos detectados.
  * Motor: Cascata xAI Grok 4.5 -> DeepSeek V3.
+ * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
 import {ai} from '@/ai/genkit';
@@ -15,63 +16,40 @@ const API_KEYS = {
 };
 
 /**
- * Limpa metadados técnicos antes de enviar para a IA
+ * Limpa metadados técnicos do sistema sem apagar as datas manuais do usuário.
  */
 function limparEvidencias(texto: string) {
+  if (!texto) return "";
   return texto
-    // Remove datas e horas automáticas (Ex: 13/07/2026, 19:27:43 ou 13/07/2026 19:27:43)
+    // Remove apenas o padrão de data e hora do sistema: DD/MM/AAAA, HH:MM:SS
     .replace(/\d{2}\/\d{2}\/\d{4}[,\s]+\d{2}:\d{2}:\d{2}/g, '')
+    // Remove tags de sistema
     .replace(/Note Attachment/gi, '')
     .replace(/Atualização sem Título/gi, '')
+    // Remove ruídos de caracteres especiais repetidos
+    .replace(/={3,}/g, '')
+    .replace(/-{3,}/g, '')
     .trim();
 }
 
-const SYSTEM_PROMPT = `Você é um Auditor Operacional Jurídico.
+const SYSTEM_PROMPT = `Você é um Auditor Operacional Jurídico Senior da W1 Capital.
+Sua missão é ler o relatório de atividades e extrair KPIs qualitativos.
 
-Analise exclusivamente o relatório de atividades fornecido.
+INSTRUÇÕES:
+1. Ignore datas e horas geradas automaticamente pelo sistema.
+2. Identifique PONTOS FORTES: Produtividade (ex: n procurações enviadas), suporte à equipe, melhorias no app, casos críticos resolvidos, atendimento WhatsApp.
+3. Identifique RISCOS DETECTADOS: Falhas técnicas, clientes sem resposta, minutas não assinadas, atrasos operacionais, erros em atualizações.
+4. Extraia o máximo de informações possível. Se houver texto, deve haver análise.
 
-O texto contém registros internos de trabalho, atendimento ao cliente, manutenção de sistemas e acompanhamento jurídico.
-
-Ignore completamente:
-- datas automáticas repetidas;
-- horários gerados pelo sistema;
-- palavras como "Note Attachment";
-- títulos vazios como "Atualização sem Título";
-- informações técnicas sem relação com impacto operacional.
-
-Sua função é identificar:
-
-PONTOS FORTES:
-Inclua:
-- clientes atendidos;
-- procurações enviadas;
-- casos críticos tratados;
-- reclamações resolvidas;
-- melhorias no aplicativo;
-- automações criadas;
-- apoio à equipe.
-
-RISCOS DETECTADOS:
-Inclua:
-- falhas operacionais;
-- problemas causados por atualizações;
-- clientes sem retorno;
-- documentos pendentes;
-- casos críticos;
-- riscos jurídicos.
-
-Não invente informações.
-
-Retorne SOMENTE JSON plano, sem markdown, sem explicações:
+RETORNE EXCLUSIVAMENTE JSON PLANO:
 {
- "pontosFortes": [],
- "riscosDetectados": []
+ "pontosFortes": ["ponto 1", "ponto 2"],
+ "riscosDetectados": ["risco 1", "risco 2"]
 }`;
 
 function cleanJsonResponse(text: string): any {
   if (!text) return null;
   try {
-    // Remoção agressiva de markdown e ruídos de texto
     let clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
     const firstBrace = clean.indexOf('{');
     const lastBrace = clean.lastIndexOf('}');
@@ -81,7 +59,6 @@ function cleanJsonResponse(text: string): any {
     }
     return null;
   } catch (e) { 
-    console.error("JSON Parse Error:", e);
     return null; 
   }
 }
@@ -123,14 +100,20 @@ export const noteAnalysisFlow = ai.defineFlow(
   { name: 'noteAnalysisFlow', inputSchema: z.any(), outputSchema: z.any() },
   async (input) => {
     // Agrupa todas as notas em um único texto para análise de contexto
-    const rawText = input.notes.map((n: any) => `[${n.updatedAt}] ${n.title}: ${n.content}`).join('\n\n');
+    const rawText = input.notes.map((n: any) => `${n.title}: ${n.content}`).join('\n\n');
     const cleanText = limparEvidencias(rawText);
     
-    if (cleanText.length < 5) return { error: "Notas insuficientes para análise estratégica." };
+    if (cleanText.length < 10) return { error: "Conteúdo insuficiente para auditoria." };
 
     let result = await callXAI(cleanText);
     if (!result || (!result.pontosFortes && !result.riscosDetectados)) {
       result = await callAirforce(cleanText);
+    }
+
+    // Garante estrutura mínima
+    if (result) {
+      if (!Array.isArray(result.pontosFortes)) result.pontosFortes = [];
+      if (!Array.isArray(result.riscosDetectados)) result.riscosDetectados = [];
     }
 
     return result || { pontosFortes: [], riscosDetectados: [] };
