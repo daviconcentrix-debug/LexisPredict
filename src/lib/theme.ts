@@ -1,8 +1,6 @@
-
 /**
- * MOTOR DE ENGENHARIA CROMÁTICA v14000.0 ELITE
- * Gerenciamento de Variáveis de Hardware, Presets Authority Series e Wallpapers.
- * Propriedade de W1 Capital | Fundador: Davi Alves Figueredo
+ * MOTOR DE ENGENHARIA CROMÁTICA v170000.0 ELITE
+ * Gerenciamento de Variáveis de Hardware e Presets Authority Series.
  */
 
 export type ThemeColors = {
@@ -96,12 +94,12 @@ export const AUTHORITY_PRESETS: ThemePreset[] = [
 ];
 
 export function hexToHsl(hex: string): string {
-  if (!hex) return '0 0% 0%';
+  if (!hex || hex[0] !== '#') return '0 0% 0%';
   let r = parseInt(hex.slice(1, 3), 16) / 255;
   let g = parseInt(hex.slice(3, 5), 16) / 255;
   let b = parseInt(hex.slice(5, 7), 16) / 255;
   let max = Math.max(r, g, b), min = Math.min(r, g, b);
-  let h, s, l = (max + min) / 2;
+  let h = 0, s = 0, l = (max + min) / 2;
   if (max === min) h = s = 0;
   else {
     let d = max - min;
@@ -116,7 +114,7 @@ export function hexToHsl(hex: string): string {
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
-export function applyGlobalTheme(colors: ThemeColors, radius: number, longDuration: boolean = false) {
+export function applyGlobalTheme(colors: ThemeColors, radius: number, bgOpacity?: number, sidebarOpacity?: number, glassBlur?: number) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   
@@ -141,11 +139,7 @@ export function applyGlobalTheme(colors: ThemeColors, radius: number, longDurati
   root.style.setProperty('--sidebar-primary', hexToHsl(colors.primary));
   root.style.setProperty('--sidebar-accent', hexToHsl(colors.secondary));
 
-  if (longDuration) {
-    root.style.filter = 'contrast(1.05) saturate(0.85) sepia(0.2)';
-    localStorage.setItem('lexis_long_reading', 'true');
-  } else {
-    root.style.filter = 'none';
-    localStorage.setItem('lexis_long_reading', 'false');
-  }
+  if (bgOpacity !== undefined) root.style.setProperty('--bg-opacity', bgOpacity.toString());
+  if (sidebarOpacity !== undefined) root.style.setProperty('--sidebar-opacity', sidebarOpacity.toString());
+  if (glassBlur !== undefined) root.style.setProperty('--glass-blur', `${glassBlur}px`);
 }

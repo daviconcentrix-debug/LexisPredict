@@ -43,10 +43,11 @@ export default function AnalyticsPage() {
 
     cases.forEach(c => {
       const situacao = (c.situacao || '').toUpperCase();
-      const isArchived = ['ENCERRADO', 'SUSPENSO', 'ARQUIVADO'].some(s => situacao.includes(s));
+      const isArchived = ['ENCERRADO', 'SUSPENSO', 'ARQUIVADO', 'EXTINTO'].some(s => situacao.includes(s));
       
-      if (isArchived) {
-        statusCounts.Arquivado++;
+      // Se for arquivado ou o status for Sem Prazo, contabiliza como Sem Prazo
+      if (isArchived || c.status === 'Sem Prazo') {
+        statusCounts['Sem Prazo']++;
       } else {
         const status = c.status || 'Sem Prazo';
         if (statusCounts.hasOwnProperty(status)) {
@@ -56,8 +57,8 @@ export default function AnalyticsPage() {
         }
       }
 
-      tribunalCounts[c.tribunal] = (tribunalCounts[c.tribunal] || 0) + 1;
-      attorneyCounts[c.advogado] = (attorneyCounts[c.advogado] || 0) + 1;
+      tribunalCounts[c.tribunal || "Outros"] = (tribunalCounts[c.tribunal || "Outros"] || 0) + 1;
+      attorneyCounts[c.advogado || "Não Atribuído"] = (attorneyCounts[c.advogado || "Não Atribuído"] || 0) + 1;
     });
 
     const topTribunals = Object.entries(tribunalCounts)
@@ -123,15 +124,15 @@ export default function AnalyticsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <MetricItem label="Vencido (Crítico)" value={metrics.statusCounts.Vencido} pct={getPercent(metrics.statusCounts.Vencido)} color="bg-red-600" />
               <MetricItem label="Atenção (Alerta)" value={metrics.statusCounts.Atenção} pct={getPercent(metrics.statusCounts.Atenção)} color="bg-orange-500" />
-              <MetricItem label="No Prazo (Saudável)" value={metrics.statusCounts['No Prazo'] + metrics.statusCounts['Sem Prazo']} pct={getPercent(metrics.statusCounts['No Prazo'] + metrics.statusCounts['Sem Prazo'])} color="bg-green-600" />
-              <MetricItem label="Arquivado / Encerrado" value={metrics.statusCounts.Arquivado} pct={getPercent(metrics.statusCounts.Arquivado)} color="bg-gray-400" />
+              <MetricItem label="No Prazo (Saudável)" value={metrics.statusCounts['No Prazo']} pct={getPercent(metrics.statusCounts['No Prazo'])} color="bg-green-600" />
+              <MetricItem label="Sem Prazo / Encerrado" value={metrics.statusCounts['Sem Prazo']} pct={getPercent(metrics.statusCounts['Sem Prazo'])} color="bg-gray-400" />
             </div>
 
             <div className="h-3 w-full bg-[#f3f2f2] rounded-full flex overflow-hidden border border-[#dddbda] group-hover:border-white/20 transition-all">
               <div style={{ width: `${getPercent(metrics.statusCounts.Vencido)}%` }} className="bg-red-600 h-full transition-all duration-1000" />
               <div style={{ width: `${getPercent(metrics.statusCounts.Atenção)}%` }} className="bg-orange-500 h-full transition-all duration-1000" />
-              <div style={{ width: `${getPercent(metrics.statusCounts['No Prazo'] + metrics.statusCounts['Sem Prazo'])}%` }} className="bg-green-600 h-full transition-all duration-1000" />
-              <div style={{ width: `${getPercent(metrics.statusCounts.Arquivado)}%` }} className="bg-gray-400 h-full transition-all duration-1000" />
+              <div style={{ width: `${getPercent(metrics.statusCounts['No Prazo'])}%` }} className="bg-green-600 h-full transition-all duration-1000" />
+              <div style={{ width: `${getPercent(metrics.statusCounts['Sem Prazo'])}%` }} className="bg-gray-400 h-full transition-all duration-1000" />
             </div>
           </section>
 

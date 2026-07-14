@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -7,11 +6,15 @@ import {
   Cpu,
   Palette,
   Globe,
-  Check,
   Zap,
   Image as ImageIcon,
-  Type,
-  Layout
+  Layout,
+  Waves,
+  RefreshCcw,
+  Trash2,
+  Check,
+  ShieldCheck,
+  Type
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -20,9 +23,54 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { AUTHORITY_PRESETS, applyGlobalTheme, hexToHsl } from '@/lib/theme';
+import { Slider } from '@/components/ui/slider';
+import { AUTHORITY_PRESETS, applyGlobalTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
+import { 
+  persistOpacity, 
+  applyWallpaperUrl, 
+  resetWallpaper, 
+  saveWallpaperFile, 
+  loadVisualStateFromStorage,
+  setCssOpacityVars
+} from '@/lib/visual-hardware';
 
+/**
+ * COMPONENTES AUXILIARES DE NAVEGAÇÃO
+ */
+function NavButton({ active, onClick, icon, label }: any) {
+  return (
+    <Button 
+      variant="ghost" 
+      onClick={onClick} 
+      className={cn(
+        "w-full justify-start rounded-none border-2 font-black uppercase text-[10px] tracking-[0.2em] h-12 mb-1", 
+        active ? "bg-black text-white border-black" : "text-muted-foreground border-transparent hover:border-black/10"
+      )}
+    >
+      <span className="mr-4">{icon}</span> {label}
+    </Button>
+  );
+}
+
+function EngineOption({ id, label, desc, active }: any) {
+  return (
+    <label htmlFor={id} className={cn("flex items-center justify-between p-5 border-2 transition-all cursor-pointer mb-3 rounded-none", active ? "border-black bg-black/5" : "border-black/5")}>
+      <div className="flex items-center gap-5">
+         <RadioGroupItem value={id} id={id} className="border-black/20" />
+         <div className="text-left">
+           <p className="font-black text-[10px] uppercase tracking-widest text-black">{label}</p>
+           <p className="text-[9px] text-black/40 uppercase mt-1">{desc}</p>
+         </div>
+      </div>
+      {active && <Zap size={14} className="text-black fill-black" />}
+    </label>
+  );
+}
+
+/**
+ * PÁGINA PRINCIPAL DE CONFIGURAÇÕES
+ */
 export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState('Style');
@@ -33,8 +81,11 @@ export default function SettingsPage() {
   const [bgColor, setBgColor] = useState('#FFFFFF');
   const [fontColor, setFontColor] = useState('#0A0A0A');
   const [primaryColor, setPrimaryColor] = useState('#00D1FF');
-  const [wallpaper, setWallpaper] = useState('');
   const [radius, setRadius] = useState(4);
+  const [bgOpacity, setBgOpacity] = useState(85);
+  const [sidebarOpacity, setSidebarOpacity] = useState(90);
+  const [glassBlur, setGlassBlur] = useState(8);
+  const [wallpaper, setWallpaper] = useState('');
 
   const { toast } = useToast();
 
@@ -46,8 +97,15 @@ export default function SettingsPage() {
     setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#FFFFFF');
     setFontColor(localStorage.getItem('lexisPredict_font_color') || '#0A0A0A');
     setPrimaryColor(localStorage.getItem('lexisPredict_btn_bg_color') || '#00D1FF');
-    setWallpaper(localStorage.getItem('lexisPredict_wallpaper') || '');
     setRadius(parseInt(localStorage.getItem('lexisPredict_border_radius') || '4'));
+
+    const visual = loadVisualStateFromStorage();
+    setWallpaper(visual.wallpaper);
+    setBgOpacity(Math.round(visual.bgOpacity01 * 100));
+    setSidebarOpacity(Math.round(visual.sidebarOpacity01 * 100));
+    setGlassBlur(visual.glassBlur);
+    
+    setCssOpacityVars(visual.bgOpacity01, visual.sidebarOpacity01, visual.glassBlur);
   }, []);
 
   const handleLanguageChange = (lang: string) => {
@@ -62,8 +120,26 @@ export default function SettingsPage() {
     setFontColor(preset.colors.foreground);
     setPrimaryColor(preset.colors.primary);
     setRadius(preset.radius);
-    applyGlobalTheme(preset.colors, preset.radius, false);
+    applyGlobalTheme(preset.colors, preset.radius, bgOpacity / 100, sidebarOpacity / 100, glassBlur);
     toast({ title: `${preset.name} Ativado` });
+  };
+
+  const handleBgOpacity = (val: number[]) => {
+    const pct = val[0];
+    setBgOpacity(pct);
+    persistOpacity(pct / 100, sidebarOpacity / 100, glassBlur);
+  };
+
+  const handleSidebarOpacity = (val: number[]) => {
+    const pct = val[0];
+    setSidebarOpacity(pct);
+    persistOpacity(bgOpacity / 100, pct / 100, glassBlur);
+  };
+
+  const handleGlassBlur = (val: number[]) => {
+    const px = val[0];
+    setGlassBlur(px);
+    persistOpacity(bgOpacity / 100, sidebarOpacity / 100, px);
   };
 
   const handleManualApply = () => {
@@ -76,28 +152,42 @@ export default function SettingsPage() {
       card: bgColor,
       accent: primaryColor
     };
-    applyGlobalTheme(customColors, radius);
+    applyGlobalTheme(customColors, radius, bgOpacity / 100, sidebarOpacity / 100, glassBlur);
     if (wallpaper) {
-      localStorage.setItem('lexisPredict_wallpaper', wallpaper);
-      document.documentElement.style.backgroundImage = `url(${wallpaper})`;
-      document.documentElement.style.backgroundSize = 'cover';
-      document.documentElement.style.backgroundAttachment = 'fixed';
-    } else {
-      localStorage.removeItem('lexisPredict_wallpaper');
-      document.documentElement.style.backgroundImage = 'none';
+      applyWallpaperUrl(wallpaper);
     }
-    toast({ title: "Custom Hardware Applied" });
+    toast({ title: "Hardware Visual Aplicado" });
+  };
+
+  const handleWallpaperFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const url = await saveWallpaperFile(file);
+      setWallpaper(url);
+      toast({ title: "Wallpaper Enviado" });
+    } catch (e) {
+      toast({ title: "Falha no Upload", variant: "destructive" });
+    }
+  };
+
+  const handleResetWallpaperAction = async () => {
+    await resetWallpaper();
+    setWallpaper('');
+    toast({ title: "Atmosfera Resetada" });
   };
 
   if (!mounted) return null;
 
   return (
-    <div className="flex h-screen bg-background font-sans text-foreground">
+    <div className="flex h-screen bg-transparent font-sans text-black overflow-hidden relative z-10">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-16 border-b border-border/30 bg-background/80 backdrop-blur-xl flex items-center justify-between px-8 shrink-0">
-          <h1 className="font-bold text-sm tracking-[0.2em] uppercase">Gabinete Mission Control</h1>
-          <Badge variant="outline" className="border-primary text-primary text-[9px] uppercase font-bold tracking-[0.3em]">Elite v14.0</Badge>
+      <main className="flex-1 flex flex-col h-screen overflow-hidden glass-panel">
+        <header className="h-16 border-b border-black/10 bg-white/40 backdrop-blur-xl flex items-center justify-between px-8 shrink-0">
+          <div className="flex items-center gap-4">
+             <h1 className="font-black text-sm tracking-[0.2em] uppercase">Gabinete Mission Control</h1>
+          </div>
+          <Badge variant="outline" className="border-black border-2 text-black text-[9px] uppercase font-black tracking-[0.3em] rounded-none px-3 py-1">Elite v17.0</Badge>
         </header>
 
         <div className="flex-1 overflow-auto p-8 max-w-6xl mx-auto w-full">
@@ -113,73 +203,96 @@ export default function SettingsPage() {
                 <div className="space-y-12 animate-in fade-in duration-500">
                   <section className="space-y-4">
                     <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Live Telemetry Preview</Label>
-                    <div className="p-8 bg-card border border-border rounded-xl space-y-6 shadow-sm border-2">
+                    <div className="p-8 glass-card border-2 border-black rounded-none space-y-6 shadow-[8px_8px_0px_#000]">
                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                             <div className="w-3 h-3 bg-primary rounded-sm" />
-                             <span className="text-sm font-black text-foreground uppercase">Gabinete Real-Time</span>
+                             <div className="w-3 h-3 bg-black rounded-none" style={{ backgroundColor: primaryColor }} />
+                             <span className="text-sm font-black text-black uppercase">Gabinete Real-Time</span>
                           </div>
-                          <Badge className="bg-green-500/10 text-green-600 border-none text-[8px]">CONTRASTE AAA</Badge>
+                          <Badge className="bg-green-600 text-white border-none text-[8px] font-black rounded-none px-2 py-0.5">CONTRASTE AAA</Badge>
                        </div>
-                       <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest leading-relaxed">
-                          Esta simulação reflete o comportamento dos botões primários e secundários em tempo real.
+                       <p className="text-xs text-black font-black uppercase tracking-widest leading-relaxed">
+                          Opacidade Atual: {bgOpacity}% | Blur: {glassBlur}px
                        </p>
                        <div className="flex gap-4">
-                          <button className="flex-1 h-11 text-[9px] font-black uppercase bg-primary text-primary-foreground rounded-lg shadow-lg">PRIMARY ACTION</button>
-                          <button className="flex-1 h-11 text-[9px] font-black uppercase border-2 border-border text-foreground hover:bg-accent rounded-lg">SECONDARY ACTION</button>
+                          <button className="flex-1 h-12 text-[9px] font-black uppercase bg-black text-white rounded-none shadow-lg border-2 border-black hover:bg-white hover:text-black transition-all">AÇÃO ATIVA</button>
+                          <button className="flex-1 h-12 text-[9px] font-black uppercase border-2 border-black text-black hover:bg-black hover:text-white transition-all rounded-none bg-white">AÇÃO INATIVA</button>
+                       </div>
+                    </div>
+                  </section>
+
+                  <section className="space-y-6">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Transparência & Glassmorphism</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 glass-card p-6 border-2 border-black rounded-none shadow-[4px_4px_0px_#000]">
+                       <div className="space-y-4">
+                          <Label className="text-[9px] uppercase font-black flex items-center gap-2 text-black"><Waves size={12}/> Fundo Principal: {bgOpacity}%</Label>
+                          <Slider value={[bgOpacity]} max={100} min={20} step={1} onValueChange={handleBgOpacity} className="[&_[role=slider]]:bg-black" />
+                       </div>
+                       <div className="space-y-4">
+                          <Label className="text-[9px] uppercase font-black flex items-center gap-2 text-black"><Layout size={12}/> Sidebar: {sidebarOpacity}%</Label>
+                          <Slider value={[sidebarOpacity]} max={100} min={20} step={1} onValueChange={handleSidebarOpacity} className="[&_[role=slider]]:bg-black" />
+                       </div>
+                       <div className="space-y-4">
+                          <Label className="text-[9px] uppercase font-black flex items-center gap-2 text-black"><RefreshCcw size={12}/> Blur Intensidade: {glassBlur}px</Label>
+                          <Slider value={[glassBlur]} max={30} min={0} step={1} onValueChange={handleGlassBlur} className="[&_[role=slider]]:bg-black" />
                        </div>
                     </div>
                   </section>
 
                   <section className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Custom Hardware Overrides</Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 bg-card p-6 border border-border rounded-xl">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 glass-card p-6 border-2 border-black rounded-none shadow-[4px_4px_0px_#000]">
                        <div className="space-y-4">
                           <div className="grid gap-2">
-                            <Label className="text-[9px] uppercase font-bold">Fundo (Background)</Label>
+                            <Label className="text-[9px] uppercase font-black flex items-center gap-2"><Palette size={12}/> Fundo (Background)</Label>
                             <div className="flex gap-2">
-                              <Input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-12 h-10 p-1" />
-                              <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="font-mono text-xs" />
+                              <Input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-12 h-10 p-1 border-2 border-black rounded-none" />
+                              <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="font-mono text-xs border-2 border-black rounded-none uppercase" />
                             </div>
                           </div>
                           <div className="grid gap-2">
-                            <Label className="text-[9px] uppercase font-bold">Texto (Foreground)</Label>
+                            <Label className="text-[9px] uppercase font-black flex items-center gap-2"><Type size={12}/> Texto (Foreground)</Label>
                             <div className="flex gap-2">
-                              <Input type="color" value={fontColor} onChange={(e) => setFontColor(e.target.value)} className="w-12 h-10 p-1" />
-                              <Input value={fontColor} onChange={(e) => setFontColor(e.target.value)} className="font-mono text-xs" />
+                              <Input type="color" value={fontColor} onChange={(e) => setFontColor(e.target.value)} className="w-12 h-10 p-1 border-2 border-black rounded-none" />
+                              <Input value={fontColor} onChange={(e) => setFontColor(e.target.value)} className="font-mono text-xs border-2 border-black rounded-none uppercase" />
                             </div>
                           </div>
                           <div className="grid gap-2">
-                            <Label className="text-[9px] uppercase font-bold">Destaque (Primary)</Label>
+                            <Label className="text-[9px] uppercase font-black flex items-center gap-2"><Zap size={12}/> Destaque (Primary)</Label>
                             <div className="flex gap-2">
-                              <Input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-12 h-10 p-1" />
-                              <Input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="font-mono text-xs" />
+                              <Input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-12 h-10 p-1 border-2 border-black rounded-none" />
+                              <Input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="font-mono text-xs border-2 border-black rounded-none uppercase" />
                             </div>
                           </div>
                        </div>
                        <div className="space-y-4">
                           <div className="grid gap-2">
-                            <Label className="text-[9px] uppercase font-bold flex items-center gap-2"><ImageIcon size={12}/> Plano de Fundo (Wallpaper URL)</Label>
-                            <Input placeholder="https://..." value={wallpaper} onChange={(e) => setWallpaper(e.target.value)} className="text-xs" />
+                            <Label className="text-[9px] uppercase font-black flex items-center gap-2"><ImageIcon size={12}/> Wallpaper URL</Label>
+                            <Input placeholder="https://..." value={wallpaper} onChange={(e) => setWallpaper(e.target.value)} className="text-xs border-2 border-black rounded-none" />
                           </div>
                           <div className="grid gap-2">
-                            <Label className="text-[9px] uppercase font-bold flex items-center gap-2"><Layout size={12}/> Raio de Borda (Radius: {radius}px)</Label>
-                            <Input type="range" min="0" max="24" value={radius} onChange={(e) => setRadius(parseInt(e.target.value))} />
+                            <Label className="text-[9px] uppercase font-black flex items-center gap-2"><Layout size={12}/> Raio de Borda: {radius}px</Label>
+                            <Input type="range" min="0" max="24" value={radius} onChange={(e) => setRadius(parseInt(e.target.value))} className="accent-black" />
                           </div>
-                          <Button onClick={handleManualApply} className="w-full bg-black text-white hover:bg-primary hover:text-black font-black uppercase text-[10px] h-12 mt-4 transition-all">
-                             Aplicar Modificações
-                          </Button>
+                          <div className="flex gap-2 mt-4">
+                            <Button onClick={handleManualApply} className="flex-1 bg-black text-white hover:bg-white hover:text-black border-2 border-black font-black uppercase text-[10px] h-12 rounded-none transition-all shadow-[4px_4px_0px_#000] hover:shadow-none">
+                               Aplicar Hardware
+                            </Button>
+                            <Button variant="outline" size="icon" onClick={handleResetWallpaperAction} className="h-12 w-12 border-2 border-black rounded-none hover:bg-red-600 hover:text-white" title="Resetar Wallpaper">
+                               <Trash2 size={16} />
+                            </Button>
+                          </div>
                        </div>
                     </div>
                   </section>
 
-                  <section className="space-y-6">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Authority Series Presets</Label>
+                  <section className="space-y-4">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Presets Authority Series</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                        {AUTHORITY_PRESETS.map((p) => (
-                         <button key={p.id} onClick={() => handlePresetChange(p)} className="p-4 border-2 border-border/50 hover:border-primary transition-all flex flex-col items-center gap-3 bg-card rounded-xl">
-                            <div className="w-8 h-8 rounded-full border border-border" style={{ backgroundColor: p.colors.background }}></div>
-                            <span className="text-[8px] font-black uppercase tracking-widest">{p.name.split(' ')[0]}</span>
+                         <button key={p.id} onClick={() => handlePresetChange(p)} className="p-4 border-2 border-black/10 hover:border-black transition-all flex flex-col items-center gap-3 glass-card rounded-none bg-white/40">
+                            <div className="w-8 h-8 rounded-full border-2 border-black/20" style={{ backgroundColor: p.colors.background }}></div>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-center">{p.name.split(' ')[0]}</span>
                          </button>
                        ))}
                     </div>
@@ -188,69 +301,41 @@ export default function SettingsPage() {
               )}
 
               {activeTab === 'Engine' && (
-                <div className="bg-[#0F1117] border border-white/10 rounded-2xl p-6 animate-in slide-in-from-right-4">
-                  <div className="mb-8">
-                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Pentade Neural Mission Control</h3>
-                    <p className="text-[10px] text-white/40 uppercase">Selecione o motor de IA principal para as operações de gabinete.</p>
-                  </div>
-                  <RadioGroup value={iaModel} onValueChange={(val) => { setIaModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); }}>
-                    <EngineOption id="xai" label="xAI GROK 4.5" desc="Raciocínio sênior de alta fidelidade." active={iaModel === 'xai'} />
-                    <EngineOption id="airforce" label="AIRFORCE DEEPSEEK-V3" desc="Processamento ultra-veloz de dados." active={iaModel === 'airforce'} />
-                    <EngineOption id="groq-llama" label="GROQ LLAMA 3.3" desc="Comunicação fluida em tempo real." active={iaModel === 'groq-llama'} />
-                    <EngineOption id="groq-deepseek" label="GROQ DEEPSEEK R1" desc="Lógica profunda para análise forense." active={iaModel === 'groq-deepseek'} />
-                    <EngineOption id="puter" label="PUTER AI" desc="Operação edge para baixa latência." active={iaModel === 'puter'} />
-                  </RadioGroup>
-                </div>
+                <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] animate-in slide-in-from-right-4">
+                  <CardHeader className="bg-black text-white border-b-2 border-black py-4">
+                    <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Zap size={14}/> Neural Mission Control</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-8">
+                    <RadioGroup value={iaModel} onValueChange={(val) => { setIaModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); toast({ title: "Motor Neural Alternado" }); }}>
+                      <EngineOption id="xai" label="xAI GROK 4.5" desc="Raciocínio sênior de alta fidelidade para contratos complexos." active={iaModel === 'xai'} />
+                      <EngineOption id="airforce" label="AIRFORCE DEEPSEEK-V3" desc="Processamento ultra-veloz de dados e transcrição forense." active={iaModel === 'airforce'} />
+                      <EngineOption id="groq-llama" label="GROQ LLAMA 3.3" desc="Comunicação fluida em tempo real para atendimento ao cliente." active={iaModel === 'groq-llama'} />
+                      <EngineOption id="groq-deepseek" label="GROQ DEEPSEEK R1" desc="Lógica profunda para análise de riscos e triagem técnica." active={iaModel === 'groq-deepseek'} />
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
               )}
 
               {activeTab === 'System' && (
                 <div className="space-y-8 animate-in slide-in-from-right-4">
                    <div className="space-y-6">
-                      <Label className="text-[10px] font-black uppercase opacity-60 tracking-widest">Localização & Fuso Horário</Label>
+                      <Label className="text-[10px] font-black uppercase opacity-60 tracking-widest">Localização & Protocolo</Label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <button
-                          onClick={() => handleLanguageChange('pt')}
-                          className={cn(
-                            "flex items-center justify-between p-5 border-2 transition-all rounded-xl text-left",
-                            locale === 'pt' ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/30"
-                          )}
-                        >
+                        <button onClick={() => handleLanguageChange('pt')} className={cn("flex items-center justify-between p-6 border-2 transition-all rounded-none text-left", locale === 'pt' ? "border-black bg-black/5" : "border-black/10 bg-white")}>
                           <div className="flex items-center gap-4">
                             <span className="text-2xl">🇧🇷</span>
-                            <div>
-                              <p className="text-[10px] font-black uppercase">Português (Brasil)</p>
-                              <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Idioma Padrão</p>
-                            </div>
+                            <div className="font-black uppercase text-[10px] text-black">Português (BR)</div>
                           </div>
-                          {locale === 'pt' && <Check size={16} className="text-primary" />}
+                          {locale === 'pt' && <Check size={16} className="text-black" />}
                         </button>
-                        <button
-                          onClick={() => handleLanguageChange('en')}
-                          className={cn(
-                            "flex items-center justify-between p-5 border-2 transition-all rounded-xl text-left",
-                            locale === 'en' ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/30"
-                          )}
-                        >
+                        <button onClick={() => handleLanguageChange('en')} className={cn("flex items-center justify-between p-6 border-2 transition-all rounded-none text-left", locale === 'en' ? "border-black bg-black/5" : "border-black/10 bg-white")}>
                           <div className="flex items-center gap-4">
                             <span className="text-2xl">🇺🇸</span>
-                            <div>
-                              <p className="text-[10px] font-black uppercase">English (US)</p>
-                              <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">International Protocol</p>
-                            </div>
+                            <div className="font-black uppercase text-[10px] text-black">English (US)</div>
                           </div>
-                          {locale === 'en' && <Check size={16} className="text-primary" />}
+                          {locale === 'en' && <Check size={16} className="text-black" />}
                         </button>
                       </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-border"> 
-                      <div className="flex items-center justify-between"> 
-                        <div> 
-                          <div className="font-black uppercase text-[10px]">Fuso Horário do Gabinete</div> 
-                          <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest mt-1">América/São Paulo (BRT)</div> 
-                        </div> 
-                        <div className="text-[8px] px-3 py-1 rounded-none border border-border text-muted-foreground font-black uppercase"> Automático </div> 
-                      </div> 
                     </div>
                 </div>
               )}
@@ -259,28 +344,5 @@ export default function SettingsPage() {
         </div>
       </main>
     </div>
-  );
-}
-
-function NavButton({ active, onClick, icon, label }: any) {
-  return (
-    <Button variant="ghost" onClick={onClick} className={cn("w-full justify-start rounded-xl font-black uppercase text-[10px] tracking-[0.2em] h-12", active ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground")}>
-      <span className="mr-4">{icon}</span> {label}
-    </Button>
-  );
-}
-
-function EngineOption({ id, label, desc, active }: any) {
-  return (
-    <label htmlFor={id} className={cn("flex items-center justify-between p-5 border-2 transition-all cursor-pointer mb-3 rounded-xl", active ? "border-[#6366F1] bg-[#6366F1]/10" : "border-white/5")}>
-      <div className="flex items-center gap-5">
-         <RadioGroupItem value={id} id={id} className="border-white/20" />
-         <div className="text-left">
-           <p className="font-black text-[10px] uppercase tracking-widest text-white">{label}</p>
-           <p className="text-[9px] text-white/40 uppercase mt-1">{desc}</p>
-         </div>
-      </div>
-      {active && <Zap size={14} className="text-[#6366F1] fill-[#6366F1]" />}
-    </label>
   );
 }

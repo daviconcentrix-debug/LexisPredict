@@ -1,11 +1,9 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* TEMA CLARO - REFORÇADO PARA ALTO CONTRASTE */
     --background: 0 0% 100%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
@@ -27,7 +25,11 @@
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.75rem;
 
-    /* SIDEBAR VARIABLES */
+    /* Glassmorphism Variables */
+    --bg-opacity: 0.85;
+    --sidebar-opacity: 0.9;
+    --glass-blur: 8px;
+
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 221.2 83.2% 53.3%;
@@ -74,26 +76,32 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
+    background-color: transparent !important;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
   }
 }
 
-.report-canvas {
-  background-image: radial-gradient(#000 0.5px, transparent 0.5px);
-  background-size: 30px 30px;
-  background-position: center;
-  background-attachment: local;
+.glass-panel {
+  background-color: hsla(var(--background), var(--bg-opacity)) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.glass-card {
+  background-color: hsla(var(--card), var(--bg-opacity)) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.glass-sidebar {
+  background-color: hsla(var(--background), var(--sidebar-opacity)) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 
 @media print {
   .print-hidden {
     display: none !important;
-  }
-  .report-canvas {
-    background-image: none !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 0 !important;
   }
 }

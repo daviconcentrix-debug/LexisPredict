@@ -142,8 +142,10 @@ export function calcularDiasFaltando(proximoISO: string | null): number | null {
 
 export function calcularStatus(proximoRetorno: string | null | undefined, situacao: string | null | undefined): CaseStatus {
   const sit = (situacao || "").toUpperCase();
+  
+  // REFENCIAL ELITE: Processos encerrados ou arquivados aparecem como "Sem Prazo"
   if (sit.includes("ENCERRADO") || sit.includes("ARQUIVADO") || sit.includes("EXTINTO")) {
-    return "Arquivado";
+    return "Sem Prazo";
   }
 
   const iso = formatDateToISO(proximoRetorno);

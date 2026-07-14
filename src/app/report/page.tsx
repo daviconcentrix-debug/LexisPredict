@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -69,12 +70,13 @@ export default function UnifiedReport() {
 
     cases.forEach((c) => {
       const situacao = (c.situacao || "").toUpperCase();
-      const isArchived = ["ENCERRADO", "SUSPENSO", "ARQUIVADO"].some((s) =>
+      const isArchived = ["ENCERRADO", "SUSPENSO", "ARQUIVADO", "EXTINTO"].some((s) =>
         situacao.includes(s)
       );
 
-      if (isArchived) {
-        statusCounts.Arquivado++;
+      // Agrupa arquivados e casos sem prazo conforme solicitado
+      if (isArchived || c.status === 'Sem Prazo') {
+        statusCounts["Sem Prazo"]++;
       } else {
         const status = c.status || "Sem Prazo";
         if (statusCounts.hasOwnProperty(status)) {
@@ -94,8 +96,8 @@ export default function UnifiedReport() {
 
     const attentionCount = statusCounts.Atenção;
     const healthyCount =
-      statusCounts["No Prazo"] + statusCounts["Sem Prazo"];
-    const archivedCount = statusCounts.Arquivado + statusCounts.Encerrado;
+      statusCounts["No Prazo"];
+    const archivedCount = statusCounts["Sem Prazo"];
 
     const topTribunals = Object.entries(tribunalCounts)
       .sort((a, b) => b[1] - a[1])
@@ -374,7 +376,7 @@ export default function UnifiedReport() {
                 color="bg-emerald-400"
               />
               <StatusPill
-                label="Arquivado"
+                label="Sem Prazo / Finalizados"
                 count={metrics.archivedCount}
                 total={metrics.total}
                 color="bg-white/30"
