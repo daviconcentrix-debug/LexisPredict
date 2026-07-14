@@ -17,7 +17,8 @@ import {
   ShieldCheck, 
   FileText, 
   MessageCircle, 
-  Info 
+  Info,
+  AlertTriangle
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -149,6 +150,26 @@ function CasesContent() {
     }
   };
 
+  const handleClearAll = async () => {
+    if (!isOperador) return;
+    if (!confirm('AVISO CRÍTICO: Deseja apagar TODOS os processos vinculados apenas ao seu perfil? Esta ação não afetará os colegas de gabinete.')) return;
+
+    setLoading(true);
+    try {
+      const result = await syncRepoCases([]);
+      if (result.success) {
+        setCases([]);
+        toast({ title: "Perfil Saneado", description: "Todos os seus registros foram removidos." });
+      } else {
+        toast({ title: "Erro no Expurgo", description: result.message, variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Erro de Infraestrutura", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleEditClick = (c: LegalCase) => {
     if (!isOperador) return;
     setEditingCase(c);
@@ -199,68 +220,79 @@ function CasesContent() {
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
             {isOperador && (
-              <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCase(null); }}>
-                <DialogTrigger asChild>
-                  <Button onClick={() => setEditingCase(null)} className="bg-white text-black border-2 border-black hover:bg-black hover:text-white font-black h-9 lg:h-10 uppercase text-[9px] lg:text-[10px] px-3 lg:px-6 transition-all shadow-[4px_4px_0px_#000] hover:shadow-none rounded-none whitespace-nowrap">
-                    <Plus className="w-3.5 h-3.5 mr-2" /> Novo
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-white border-2 border-black text-black sm:max-w-[425px] rounded-none max-h-[90vh] overflow-y-auto">
-                  <form onSubmit={handleSaveCase}>
-                    <DialogHeader>
-                      <DialogTitle className="font-black uppercase text-black">Registro de Caso</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-1">
-                        <Label className="uppercase text-[9px] font-black">Cliente</Label>
-                        <Input value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="border-black font-black uppercase rounded-none h-11" />
-                      </div>
-                      <div className="grid gap-1">
-                        <Label className="uppercase text-[9px] font-black">Protocolo CNJ</Label>
-                        <Input value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="border-black font-black rounded-none h-11" />
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <>
+                <Button 
+                  variant="ghost" 
+                  onClick={handleClearAll} 
+                  disabled={loading || cases.length === 0}
+                  className="hidden md:flex h-9 lg:h-10 text-red-600 border-2 border-red-600 hover:bg-red-600 hover:text-white font-black uppercase text-[9px] lg:text-[10px] px-3 lg:px-6 transition-all rounded-none bg-white"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-2" /> Limpar Base
+                </Button>
+                
+                <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCase(null); }}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => setEditingCase(null)} className="bg-white text-black border-2 border-black hover:bg-black hover:text-white font-black h-9 lg:h-10 uppercase text-[9px] lg:text-[10px] px-3 lg:px-6 transition-all shadow-[4px_4px_0px_#000] hover:shadow-none rounded-none whitespace-nowrap">
+                      <Plus className="w-3.5 h-3.5 mr-2" /> Novo
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-white border-2 border-black text-black sm:max-w-[425px] rounded-none max-h-[90vh] overflow-y-auto">
+                    <form onSubmit={handleSaveCase}>
+                      <DialogHeader>
+                        <DialogTitle className="font-black uppercase text-black">Registro de Caso</DialogTitle>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
                         <div className="grid gap-1">
-                           <Label className="uppercase text-[9px] font-black">Advogado</Label>
-                           <Input value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="border-black font-black uppercase rounded-none h-11" />
+                          <Label className="uppercase text-[9px] font-black">Cliente</Label>
+                          <Input value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="border-black font-black uppercase rounded-none h-11" />
                         </div>
                         <div className="grid gap-1">
-                           <Label className="uppercase text-[9px] font-black">WhatsApp</Label>
-                           <Input value={formState.telefone} onChange={(e) => setFormState({...formState, telefone: e.target.value})} className="border-black font-black uppercase rounded-none h-11" />
+                          <Label className="uppercase text-[9px] font-black">Protocolo CNJ</Label>
+                          <Input value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="border-black font-black rounded-none h-11" />
                         </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="grid gap-1">
+                             <Label className="uppercase text-[9px] font-black">Advogado</Label>
+                             <Input value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="border-black font-black uppercase rounded-none h-11" />
+                          </div>
+                          <div className="grid gap-1">
+                             <Label className="uppercase text-[9px] font-black">WhatsApp</Label>
+                             <Input value={formState.telefone} onChange={(e) => setFormState({...formState, telefone: e.target.value})} className="border-black font-black uppercase rounded-none h-11" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="grid gap-1">
+                            <Label className="uppercase text-[9px] font-black">Status Estratégico</Label>
+                            <Select value={formState.statusManual} onValueChange={(val) => setFormState({...formState, statusManual: val as any})}>
+                              <SelectTrigger className="border-black font-black uppercase h-11 text-[10px] rounded-none">
+                                <SelectValue placeholder="Selecione..." />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white border-2 border-black rounded-none">
+                                <SelectItem value="Automatico" className="font-black uppercase text-[10px]">Automático (Prazo)</SelectItem>
+                                <SelectItem value="Caso Crítico" className="font-black uppercase text-[10px]">Caso Crítico</SelectItem>
+                                <SelectItem value="Atenção" className="font-black uppercase text-[10px]">Atenção</SelectItem>
+                                <SelectItem value="Encerrado" className="font-black uppercase text-[10px]">Encerrado</SelectItem>
+                                <SelectItem value="Arquivado" className="font-black uppercase text-[10px]">Arquivado</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid gap-1">
+                            <Label className="uppercase text-[9px] font-black">Prazo (DD/MM/AAAA)</Label>
+                            <Input value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="border-black font-black rounded-none h-11" />
+                          </div>
+                        </div>
                         <div className="grid gap-1">
-                          <Label className="uppercase text-[9px] font-black">Status Estratégico</Label>
-                          <Select value={formState.statusManual} onValueChange={(val) => setFormState({...formState, statusManual: val as any})}>
-                            <SelectTrigger className="border-black font-black uppercase h-11 text-[10px] rounded-none">
-                              <SelectValue placeholder="Selecione..." />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white border-2 border-black rounded-none">
-                              <SelectItem value="Automatico" className="font-black uppercase text-[10px]">Automático (Prazo)</SelectItem>
-                              <SelectItem value="Caso Crítico" className="font-black uppercase text-[10px]">Caso Crítico</SelectItem>
-                              <SelectItem value="Atenção" className="font-black uppercase text-[10px]">Atenção</SelectItem>
-                              <SelectItem value="Encerrado" className="font-black uppercase text-[10px]">Encerrado</SelectItem>
-                              <SelectItem value="Arquivado" className="font-black uppercase text-[10px]">Arquivado</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-1">
-                          <Label className="uppercase text-[9px] font-black">Prazo (DD/MM/AAAA)</Label>
-                          <Input value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="border-black font-black rounded-none h-11" />
+                          <Label className="uppercase text-[9px] font-black">Notas Estratégicas</Label>
+                          <Textarea value={formState.observacao} onChange={(e) => setFormState({...formState, observacao: e.target.value})} className="border-black font-black uppercase text-[10px] min-h-[80px] rounded-none" />
                         </div>
                       </div>
-                      <div className="grid gap-1">
-                        <Label className="uppercase text-[9px] font-black">Notas Estratégicas</Label>
-                        <Textarea value={formState.observacao} onChange={(e) => setFormState({...formState, observacao: e.target.value})} className="border-black font-black uppercase text-[10px] min-h-[80px] rounded-none" />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="submit" className="w-full font-black text-white bg-black hover:bg-white hover:text-black border-2 border-black uppercase h-12 transition-all rounded-none">Sincronizar</Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                      <DialogFooter>
+                        <Button type="submit" className="w-full font-black text-white bg-black hover:bg-white hover:text-black border-2 border-black uppercase h-12 transition-all rounded-none">Sincronizar</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </>
             )}
             <Button variant="ghost" size="icon" onClick={loadData} className="h-9 w-9 lg:h-10 lg:w-10 text-black border-2 border-black rounded-none bg-white">
               <RefreshCcw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
