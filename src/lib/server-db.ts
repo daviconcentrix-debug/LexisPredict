@@ -6,8 +6,8 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v1550.0 ELITE)
- * Estratégia Full Sync: Limpeza e Inserção para evitar erros de Constraint e Duplicidade.
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v160.0 ELITE)
+ * Estratégia de Sincronia Blindada contra Erros de Tipagem (Date/Text).
  */
 
 async function getUserContext() {
@@ -42,7 +42,6 @@ export async function getStoredCases(): Promise<LegalCase[]> {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    // Prioriza o JSON da coluna 'dados' mas garante que campos críticos existam
     return data ? data.map(item => ({
       ...(item.dados as LegalCase),
       db_id: item.id.toString()
@@ -59,13 +58,13 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
   if (!empresa_id || !auth_id) return { success: false, message: "Sessão expirada." };
 
   try {
-    // 1. DEDUPLICAÇÃO EM MEMÓRIA (Evita duplicatas no próprio lote)
     const uniqueMap = new Map();
     cases.forEach(c => { 
       if (c && c.protocolo) uniqueMap.set(c.protocolo, c); 
     });
     
     const payload = Array.from(uniqueMap.values()).map(c => {
+      // SANEAMENTO ESTRITO: Garante que apenas datas reais cheguem às colunas date
       const isoPrazo = formatDateToISO(c.proximoPrazo);
       const isoRetorno = formatDateToISO(c.ultimoRetorno);
 
@@ -78,8 +77,8 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
         escritorio: c.escritorio || '',
         status: c.status || 'Sem Prazo',
         risco: c.risco || 'Normal',
-        proximo_retorno: isoPrazo,
-        ultimo_retorno: isoRetorno,
+        proximo_retorno: isoPrazo, // Se for texto, isoPrazo será null
+        ultimo_retorno: isoRetorno,   // Se for texto, isoRetorno será null
         tribunal: c.tribunal || 'Outros',
         telefone: c.telefone || '',
         observacoes: c.observacao || '',
@@ -90,8 +89,7 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 
     if (payload.length === 0) return { success: true, message: "Nenhum dado para salvar." };
 
-    // 2. ESTRATÉGIA FULL SYNC (Prevenção de duplicatas infinita)
-    // Limpamos os registros atuais da empresa para inserir o novo estado fiel
+    // Limpeza por empresa para evitar duplicatas infinitas
     const { error: deleteError } = await supabase
       .from('processos')
       .delete()
@@ -99,7 +97,6 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 
     if (deleteError) throw deleteError;
 
-    // 3. INSERÇÃO DO NOVO LOTE
     const { error: insertError } = await supabase
       .from('processos')
       .insert(payload);
