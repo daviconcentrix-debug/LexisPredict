@@ -11,11 +11,11 @@ import {
   FileDown, 
   FileCheck,
   Copyright,
-  ChevronRight,
   TrendingUp,
   Activity,
   Cpu,
-  CheckCircle2
+  Clock,
+  Calendar
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -29,7 +29,6 @@ import {
   Bar, 
   XAxis, 
   YAxis, 
-  CartesianGrid, 
   Tooltip, 
   ResponsiveContainer, 
   PieChart, 
@@ -70,43 +69,56 @@ export default function Dashboard() {
   }, [mounted, loadData]);
 
   const metrics = useMemo(() => {
-    // Filtro de casos ativos (ignora finalizados)
     const activeCases = cases.filter(c => {
       const sit = (c.situacao || '').toUpperCase();
       return !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].some(s => sit.includes(s));
     });
 
-    const total = cases.length;
-    const active = activeCases.length;
+    const totalRepo = cases.length;
+    const activeTotal = activeCases.length;
     
-    // Risco e Críticos calculados apenas sobre os ativos
-    const critical = activeCases.filter(c => c.status === 'Vencido' || c.status === 'Crítico' || c.status === 'É Hoje').length;
-    const riskScore = active ? Math.round((critical / active) * 100) : 0;
+    // KPIs Estratégicos
+    const vencidos = activeCases.filter(c => c.status === 'Vencido').length;
+    const venceHoje = activeCases.filter(c => c.status === 'É Hoje').length;
+    const proximos7 = activeCases.filter(c => (c.diasFaltando !== null && c.diasFaltando > 0 && c.diasFaltando <= 7)).length;
+    
+    // Tempo Médio de Atraso
+    const vencidosArray = activeCases.filter(c => c.status === 'Vencido' && c.diasFaltando !== null);
+    const tempoMedio = vencidosArray.length > 0 
+      ? Math.round(Math.abs(vencidosArray.reduce((acc, c) => acc + (c.diasFaltando || 0), 0)) / vencidosArray.length) 
+      : 0;
 
-    // Data for charts - "No Prazo" is now the "Healthy" metric
+    // Pontuação de Risco Ponderada
+    const riskSum = (vencidos * 100) + (venceHoje * 80) + (proximos7 * 40);
+    const riskScore = activeTotal > 0 ? Math.round((riskSum / (activeTotal * 100)) * 100) : 0;
+
     const statusData = [
-      { name: t.statusVencido, value: activeCases.filter(c => c.status === 'Vencido' || c.status === 'É Hoje').length, color: '#ef4444' },
-      { name: t.statusAtencao, value: activeCases.filter(c => c.status === 'Atenção').length, color: '#f59e0b' },
-      { name: "Saudáveis (No Prazo)", value: activeCases.filter(c => c.status === 'No Prazo').length, color: '#22c55e' },
+      { name: 'Vencidos', value: vencidos, color: '#ef4444' },
+      { name: 'Vence Hoje', value: venceHoje, color: '#f59e0b' },
+      { name: 'Saudáveis', value: activeTotal - vencidos - venceHoje, color: '#22c55e' },
     ].filter(d => d.value > 0);
 
     const tribunalCounts: Record<string, number> = {};
     activeCases.forEach(c => {
-      tribunalCounts[c.tribunal] = (tribunalCounts[c.tribunal] || 0) + 1;
+      const t = c.tribunal || 'Outros';
+      tribunalCounts[t] = (tribunalCounts[t] || 0) + 1;
     });
     const tribunalData = Object.entries(tribunalCounts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
-    return { total, critical, active, riskScore, statusData, tribunalData };
-  }, [cases, t]);
-
-  const urgentQueue = useMemo(() => {
-    return cases
-      .filter(c => c.status === 'Vencido' || c.status === 'Atenção' || c.status === 'É Hoje')
-      .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
-      .slice(0, 5);
+    return { 
+      totalRepo, 
+      activeTotal, 
+      vencidos, 
+      venceHoje, 
+      proximos7, 
+      tempoMedio, 
+      riskScore, 
+      statusData, 
+      tribunalData 
+    };
   }, [cases]);
 
   if (!mounted) return null;
@@ -125,7 +137,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-4">
             <Button variant="outline" size="sm" asChild className="hidden sm:flex border-border/50 hover:border-primary hover:bg-primary/10 text-xs font-semibold h-9 px-6 rounded-sm uppercase tracking-wider transition-all">
               <Link href="/report">
-                <FileDown size={14} className="mr-2" /> Master Report
+                <FileDown size={14} className="mr-2" /> Dossiê Operacional
               </Link>
             </Button>
             <Button variant="ghost" size="icon" onClick={loadData} className="h-9 w-9 text-muted-foreground hover:text-primary">
@@ -135,29 +147,22 @@ export default function Dashboard() {
         </header>
 
         <div className="flex-1 overflow-auto p-8 space-y-10">
-          {/* TOP METRICS GRID */}
+          {/* TOP EXEC KPIs */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard title="Total Repository" value={loading ? "..." : metrics.total} icon={<Briefcase size={16} />} color="accent" />
-            <StatCard title="Demandas Ativas" value={loading ? "..." : metrics.active} icon={<Activity size={16} />} color="primary" />
-            <StatCard title="Alertas Críticos" value={loading ? "..." : metrics.critical} icon={<ShieldAlert size={16} />} color="destructive" />
-            <StatCard title="Indice de Risco" value={loading ? "..." : `${metrics.riskScore}%`} icon={<TrendingUp size={16} />} color="destructive" />
+            <StatCard title="Vencem Hoje" value={loading ? "..." : metrics.venceHoje} icon={<Clock size={16} />} color={metrics.venceHoje > 0 ? "destructive" : "primary"} />
+            <StatCard title="Vencidos" value={loading ? "..." : metrics.vencidos} icon={<ShieldAlert size={16} />} color="destructive" />
+            <StatCard title="Próximos 7 Dias" value={loading ? "..." : metrics.proximos7} icon={<Calendar size={16} />} color="accent" />
+            <StatCard title="Atraso Médio" value={loading ? "..." : `${metrics.tempoMedio} dias`} icon={<TrendingUp size={16} />} color="destructive" />
           </section>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            {/* CHARTS SECTION */}
             <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
                <section className="bg-card border border-border/50 rounded-md p-6 h-[350px] flex flex-col">
                   <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Saúde da Carteira Ativa</h3>
                   <div className="flex-1 min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie
-                          data={metrics.statusData}
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
+                        <Pie data={metrics.statusData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                           {metrics.statusData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
@@ -166,18 +171,10 @@ export default function Dashboard() {
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="flex justify-center gap-4 mt-4">
-                     {metrics.statusData.map((d, i) => (
-                       <div key={i} className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
-                          <span className="text-[9px] font-bold uppercase opacity-60">{d.name}</span>
-                       </div>
-                     ))}
-                  </div>
                </section>
 
                <section className="bg-card border border-border/50 rounded-md p-6 h-[350px] flex flex-col">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Top Tribunals</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Top Tribunais</h3>
                   <div className="flex-1 min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={metrics.tribunalData} layout="vertical">
@@ -191,56 +188,35 @@ export default function Dashboard() {
                </section>
 
                <section className="md:col-span-2 space-y-4">
-                <div className="flex items-center justify-between mb-2 px-1">
-                  <div className="flex items-center gap-3">
-                    <Cpu size={16} className="text-primary" />
-                    <h2 className="font-bold text-[11px] uppercase tracking-[0.2em]">{t.priorityQueue}</h2>
-                  </div>
-                </div>
-
                 <div className="bg-card border border-border/50 rounded-md overflow-hidden">
+                  <div className="p-4 border-b border-border/10 bg-secondary/5 flex items-center justify-between">
+                     <h3 className="text-[10px] font-bold uppercase tracking-[0.2em]">Carga de Trabalho Ativa</h3>
+                     <Badge className="bg-primary text-black font-black text-[9px] uppercase">{metrics.activeTotal} ATIVOS</Badge>
+                  </div>
                   <table className="mission-control-table">
                     <thead>
                       <tr>
                         <th>Tribunal</th>
-                        <th>Account / Client</th>
-                        <th>Protocol Number</th>
-                        <th className="text-right">Operational Status</th>
+                        <th>Cliente</th>
+                        <th>Protocolo</th>
+                        <th className="text-right">Risco Pessoal</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {urgentQueue.length > 0 ? urgentQueue.map((c) => (
+                      {cases.filter(c => c.status === 'Vencido').slice(0, 5).map((c) => (
                         <tr key={c.id} className="hover:bg-secondary/20 transition-colors">
-                          <td>
-                            <Badge variant="outline" className="border-border text-[9px] font-bold uppercase tracking-wider rounded-sm px-2 py-0.5">
-                              {c.tribunal}
-                            </Badge>
-                          </td>
-                          <td className="font-bold uppercase tracking-wide text-foreground/90">{c.cliente}</td>
+                          <td><Badge variant="outline" className="text-[9px] font-bold uppercase">{c.tribunal}</Badge></td>
+                          <td className="font-bold uppercase text-[11px]">{c.cliente}</td>
                           <td className="font-mono text-[10px] text-muted-foreground">{c.protocolo}</td>
-                          <td className="text-right">
-                            <Badge className={cn(
-                              "text-[9px] font-bold uppercase px-3 py-1 rounded-sm border-none",
-                              c.status === 'Vencido' || c.status === 'É Hoje' ? "bg-destructive/20 text-destructive" : "bg-orange-500/20 text-orange-400"
-                            )}>
-                              {c.status}
-                            </Badge>
-                          </td>
+                          <td className="text-right"><Badge className="bg-red-500/20 text-red-400 border-none text-[9px]">VENCIDO</Badge></td>
                         </tr>
-                      )) : (
-                        <tr>
-                          <td colSpan={4} className="py-24 text-center opacity-30 italic uppercase tracking-widest text-[10px]">
-                             Telemetry clear. No urgent tasks detected.
-                          </td>
-                        </tr>
-                      )}
+                      ))}
                     </tbody>
                   </table>
                 </div>
               </section>
             </div>
 
-            {/* SIDEBAR DASHBOARD */}
             <aside className="space-y-6">
               <div className="bg-card border border-border/50 rounded-md p-6 space-y-6 relative overflow-hidden group hover:border-primary/30 transition-all">
                 <div className="space-y-4">
@@ -248,47 +224,28 @@ export default function Dashboard() {
                     <FileCheck size={20} />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold uppercase tracking-tight">Mission Dossier</h2>
-                    <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed font-medium uppercase tracking-[0.1em]">Consolidated forensic report verified under authority protocols.</p>
+                    <h2 className="text-lg font-bold uppercase tracking-tight">Dossiê Operacional</h2>
+                    <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed uppercase">Relatório de auditoria executiva para exportação forense.</p>
                   </div>
                   <Button variant="default" asChild className="w-full bg-primary text-black font-bold h-11 rounded-sm uppercase text-[10px] tracking-[0.15em] hover:bg-primary/90 transition-all">
-                    <Link href="/report">Access PDF Analytics</Link>
+                    <Link href="/report">Gerar Relatório Executivo</Link>
                   </Button>
                 </div>
               </div>
 
-              <div className="bg-card border border-border/50 rounded-md p-6 space-y-6">
-                <h3 className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.25em]">Network Telemetry</h3>
-                <div className="space-y-4">
-                  <TelemetryItem label="DataJud Public Node" status="nominal" />
-                  <TelemetryItem label="Cloud Tenant Sync" status="nominal" />
-                  <TelemetryItem label="Neural Resilience" status="elite" />
+              <div className="bg-card border border-border/50 rounded-md p-6 space-y-4">
+                <div className="flex justify-between items-end">
+                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Risco de Gabinete</p>
+                   <span className="text-2xl font-black text-primary">{metrics.riskScore}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                   <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${metrics.riskScore}%` }} />
                 </div>
               </div>
             </aside>
           </div>
-
-          <footer className="pt-12 pb-8 border-t border-border/30 flex flex-col items-center justify-center gap-4">
-            <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.4em] text-muted-foreground/40">
-              <Copyright size={10} /> 2026 W1 Capital • Advanced Ops
-            </div>
-          </footer>
         </div>
       </main>
-    </div>
-  );
-}
-
-function TelemetryItem({ label, status }: { label: string, status: 'nominal' | 'elite' }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{label}</span>
-      <Badge className={cn(
-        "text-[8px] font-bold rounded-sm px-2 py-0.5 border-none",
-        status === 'nominal' ? "bg-green-500/20 text-green-400" : "bg-primary text-black"
-      )}>
-        {status.toUpperCase()}
-      </Badge>
     </div>
   );
 }
