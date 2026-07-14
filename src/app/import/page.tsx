@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -78,7 +79,11 @@ export default function ImportPage() {
   };
 
   const processRawText = async (text: string) => {
+    // Detecta se é o formato de dump do banco (coluna "dados" com JSON) ou CSV puro
+    const isDumpFormat = text.includes('"{""id"":');
+    const separator = text.includes(';') ? ';' : ',';
     const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+    
     if (lines.length < 1) {
       toast({ title: "Entrada Vazia", variant: "destructive" });
       setParsing(false);
@@ -87,31 +92,28 @@ export default function ImportPage() {
 
     const parsedCases: LegalCase[] = [];
     const totalRows = lines.length;
-
-    // Detecta se é o formato de dump do banco (coluna "dados" com JSON)
-    const isDumpFormat = text.includes('dados') && text.includes('"{""id"":');
-
-    // Identificação de cabeçalhos para CSV normal
-    const separator = lines[0].includes(';') ? ';' : ',';
     const rawHeaders = lines[0].split(separator).map(h => h.trim().toUpperCase());
 
     for (let i = 0; i < lines.length; i++) {
+      if (i === 0) continue; // Pula cabeçalho
+
       let rowData: any = {};
+      const currentLine = lines[i];
       
       if (isDumpFormat) {
-        // Regex para capturar JSON dentro de aspas duplas escapadas do dump
-        const jsonMatch = lines[i].match(/"({.+})"/);
+        // Parser para dump: Captura JSON entre aspas escapadas
+        const jsonMatch = currentLine.match(/"({.+})"/);
         if (jsonMatch) {
           try {
             const rawJson = jsonMatch[1].replace(/""/g, '"');
             rowData = JSON.parse(rawJson);
           } catch (e) { continue; }
-        } else if (i === 0) continue; // Cabeçalho do dump
+        }
       } else {
-        if (i === 0) continue; 
-        const currentLine = lines[i].split(separator);
+        // Parser para CSV padrão
+        const fields = currentLine.split(separator);
         rawHeaders.forEach((h, index) => {
-          rowData[h] = currentLine[index] ? currentLine[index].trim() : '';
+          rowData[h] = fields[index] ? fields[index].trim() : '';
         });
       }
 
@@ -138,7 +140,7 @@ export default function ImportPage() {
 
   const commitToStorage = async () => {
     if (!isOperador) {
-       toast({ title: "Acesso Negado", description: "Você não tem permissão para gravar dados.", variant: "destructive" });
+       toast({ title: "Acesso Negado", description: "Permissão insuficiente.", variant: "destructive" });
        return;
     }
     if (preview.length === 0) return;
@@ -147,13 +149,14 @@ export default function ImportPage() {
     try {
       const result = await syncRepoCases(preview);
       if (result.success) {
-        toast({ title: "Sincronia Concluída", description: `${preview.length} registros processados com sucesso.` });
-        resetImport();
+        toast({ title: "Sincronia Concluída", description: `${preview.length} registros atualizados.` });
+        setPreview([]);
+        setStep('upload');
       } else {
         toast({ title: "Falha na Gravação", description: result.message, variant: "destructive" });
       }
     } catch (err) {
-      toast({ title: "Erro de Infraestrutura", description: "Falha crítica na nuvem W1.", variant: "destructive" });
+      toast({ title: "Erro de Infraestrutura", variant: "destructive" });
     } finally {
       setSyncing(false);
     }
@@ -196,7 +199,7 @@ export default function ImportPage() {
                <div className="text-center space-y-4 mb-8">
                   <h2 className="text-3xl font-black uppercase tracking-tighter">Unidade de Migração Elite</h2>
                   <p className="text-black/60 max-w-2xl mx-auto text-sm font-black uppercase leading-relaxed">
-                    Carregue seu dump de banco ou cole o texto. O sistema corrigirá automaticamente erros de codificação e detectará tribunais pelo CNJ.
+                    Carregue seu dump de banco ou cole o texto do CSV. O sistema detectará automaticamente o formato e corrigirá erros de codificação.
                   </p>
                </div>
 
@@ -207,7 +210,7 @@ export default function ImportPage() {
 
                <TabsContent value="text" className="space-y-4">
                   <Textarea 
-                    placeholder="COLE O DUMP DO BANCO OU O CONTEÚDO DO CSV AQUI..."
+                    placeholder="COLE O CONTEÚDO AQUI (DUMP OU CSV)..."
                     value={textInput}
                     onChange={(e) => setTextInput(e.target.value)}
                     className="min-h-[350px] border-2 border-black font-black uppercase text-[11px] rounded-none resize-none leading-relaxed bg-white shadow-inner"
