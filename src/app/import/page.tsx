@@ -1,26 +1,24 @@
-
 "use client";
 
 import React, { useState } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   Upload, 
-  FileSpreadsheet, 
-  FileText,
-  CheckCircle2,
-  AlertCircle,
-  Eye,
-  Database,
-  ShieldCheck,
+  Database, 
+  Zap, 
+  Eye, 
+  CheckCircle2, 
+  Loader2,
   Copyright,
-  Zap
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { syncRepoCases, fetchRepoCases } from '@/app/actions/case-actions';
+import { syncRepoCases } from '@/app/actions/case-actions';
 import { cn } from '@/lib/utils';
 import { useAdmin } from '@/hooks/use-admin';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,12 +33,12 @@ import {
 } from "@/components/ui/table";
 
 export default function ImportPage() {
-  const [file, setFile] = useState<File | null>(null);
-  const [textInput, setTextInput] = useState('');
   const [parsing, setParsing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [preview, setPreview] = useState<LegalCase[]>([]);
   const [step, setStep] = useState<'upload' | 'preview'>('upload');
+  const [textInput, setTextInput] = useState('');
   const [stats, setStats] = useState({ total: 0, critical: 0, tribunals: 0 });
 
   const { isOperador } = useAdmin();
@@ -53,7 +51,6 @@ export default function ImportPage() {
         toast({ title: "Formato Inválido", description: "Utilize apenas arquivos .csv", variant: "destructive" });
         return;
       }
-      setFile(selected);
       parseFile(selected);
     }
   };
@@ -91,34 +88,29 @@ export default function ImportPage() {
     const parsedCases: LegalCase[] = [];
     const totalRows = lines.length;
 
-    // Tenta detectar se é o formato de dump do banco (coluna "dados" com JSON)
+    // Detecta se é o formato de dump do banco (coluna "dados" com JSON)
     const isDumpFormat = text.includes('dados') && text.includes('"{""id"":');
+
+    // Identificação de cabeçalhos para CSV normal
+    const separator = lines[0].includes(';') ? ';' : ',';
+    const rawHeaders = lines[0].split(separator).map(h => h.trim().toUpperCase());
 
     for (let i = 0; i < lines.length; i++) {
       let rowData: any = {};
       
       if (isDumpFormat) {
-        // Regex para capturar o JSON dentro da linha do dump
-        // O dump costuma vir como: id,created_at,"{""key"": ""val""}",...
+        // Regex para capturar JSON dentro de aspas duplas escapadas do dump
         const jsonMatch = lines[i].match(/"({.+})"/);
         if (jsonMatch) {
           try {
-            // Remove o escape das aspas duplas internas
             const rawJson = jsonMatch[1].replace(/""/g, '"');
             rowData = JSON.parse(rawJson);
-          } catch (e) {
-            continue;
-          }
-        } else {
-          continue;
-        }
+          } catch (e) { continue; }
+        } else if (i === 0) continue; // Cabeçalho do dump
       } else {
-        // Parser CSV básico para a primeira linha como cabeçalho
         if (i === 0) continue; 
-        const separator = lines[0].includes(';') ? ';' : ',';
-        const headers = lines[0].split(separator).map(h => h.trim().toUpperCase());
         const currentLine = lines[i].split(separator);
-        headers.forEach((h, index) => {
+        rawHeaders.forEach((h, index) => {
           rowData[h] = currentLine[index] ? currentLine[index].trim() : '';
         });
       }
@@ -145,32 +137,34 @@ export default function ImportPage() {
   };
 
   const commitToStorage = async () => {
-    if (!isOperador || preview.length === 0) return;
+    if (!isOperador) {
+       toast({ title: "Acesso Negado", description: "Você não tem permissão para gravar dados.", variant: "destructive" });
+       return;
+    }
+    if (preview.length === 0) return;
+
+    setSyncing(true);
     try {
-      const existing = await fetchRepoCases();
-      const existingArray = Array.isArray(existing) ? existing : [];
-      
-      // Fusão Idempotente baseada no ID estável
-      const caseMap = new Map();
-      existingArray.forEach(c => caseMap.set(c.id, c));
-      preview.forEach(c => caseMap.set(c.id, c));
-      
-      const result = await syncRepoCases(Array.from(caseMap.values()));
+      const result = await syncRepoCases(preview);
       if (result.success) {
-        toast({ title: "Sincronia Concluída", description: `${preview.length} registros processados.` });
+        toast({ title: "Sincronia Concluída", description: `${preview.length} registros processados com sucesso.` });
         resetImport();
+      } else {
+        toast({ title: "Falha na Gravação", description: result.message, variant: "destructive" });
       }
     } catch (err) {
-      toast({ title: "Erro de Infraestrutura", variant: "destructive" });
+      toast({ title: "Erro de Infraestrutura", description: "Falha crítica na nuvem W1.", variant: "destructive" });
+    } finally {
+      setSyncing(false);
     }
   };
 
   const resetImport = () => {
-    setFile(null);
     setTextInput('');
     setPreview([]);
     setStep('upload');
     setProgress(0);
+    setSyncing(false);
   };
 
   return (
@@ -184,32 +178,49 @@ export default function ImportPage() {
           </div>
           <div className="flex items-center gap-4">
              {step === 'preview' && (
-               <Button onClick={resetImport} variant="ghost" className="font-black uppercase text-[10px] hover:bg-red-600 hover:text-white border-2 border-transparent hover:border-black rounded-none">Descartar</Button>
+               <Button onClick={resetImport} variant="ghost" disabled={syncing} className="font-black uppercase text-[10px] hover:bg-red-600 hover:text-white border-2 border-transparent hover:border-black rounded-none">Descartar</Button>
              )}
              <Button 
-               disabled={step === 'upload' || parsing} 
+               disabled={step === 'upload' || parsing || syncing} 
                onClick={commitToStorage} 
                className="bg-black text-white border-2 border-black hover:bg-white hover:text-black font-black px-8 transition-all uppercase text-[10px] rounded-none shadow-[4px_4px_0px_#000] hover:shadow-none"
               >
-               Confirmar & Sincronizar
+               {syncing ? <><Loader2 className="animate-spin mr-2" /> Gravando...</> : "Confirmar & Sincronizar"}
              </Button>
           </div>
         </header>
 
         <div className="flex-1 overflow-auto p-8 max-w-6xl mx-auto w-full">
           {step === 'upload' ? (
-            <Tabs defaultValue="csv" className="space-y-8 animate-in fade-in duration-500">
+            <Tabs defaultValue="text" className="space-y-8 animate-in fade-in duration-500">
                <div className="text-center space-y-4 mb-8">
-                  <h2 className="text-3xl font-black uppercase tracking-tighter">Unidade de Migração</h2>
+                  <h2 className="text-3xl font-black uppercase tracking-tighter">Unidade de Migração Elite</h2>
                   <p className="text-black/60 max-w-2xl mx-auto text-sm font-black uppercase leading-relaxed">
-                    Carregue ou cole seus dados. O sistema corrigirá automaticamente erros de escrita e detectará tribunais.
+                    Carregue seu dump de banco ou cole o texto. O sistema corrigirá automaticamente erros de codificação e detectará tribunais pelo CNJ.
                   </p>
                </div>
 
-               <TabsList className="grid w-full grid-cols-2 bg-gray-200 rounded-none p-1 border-2 border-black">
+               <TabsList className="grid w-full grid-cols-2 bg-gray-200 rounded-none p-1 border-2 border-black shadow-[4px_4px_0px_#000]">
+                  <TabsTrigger value="text" className="rounded-none font-black uppercase text-xs data-[state=active]:bg-black data-[state=active]:text-white">Texto de Gabinete / Dump</TabsTrigger>
                   <TabsTrigger value="csv" className="rounded-none font-black uppercase text-xs data-[state=active]:bg-black data-[state=active]:text-white">Planilha CSV</TabsTrigger>
-                  <TabsTrigger value="text" className="rounded-none font-black uppercase text-xs data-[state=active]:bg-black data-[state=active]:text-white">Texto de Gabinete</TabsTrigger>
                </TabsList>
+
+               <TabsContent value="text" className="space-y-4">
+                  <Textarea 
+                    placeholder="COLE O DUMP DO BANCO OU O CONTEÚDO DO CSV AQUI..."
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    className="min-h-[350px] border-2 border-black font-black uppercase text-[11px] rounded-none resize-none leading-relaxed bg-white shadow-inner"
+                    disabled={parsing}
+                  />
+                  <Button 
+                    onClick={handleTextImport} 
+                    disabled={parsing || !textInput.trim()}
+                    className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]"
+                  >
+                    {parsing ? <><Zap className="animate-spin mr-2" /> Analisando Estruturas...</> : <><Database size={16} className="mr-2" /> Processar Texto de Gabinete</>}
+                  </Button>
+               </TabsContent>
 
                <TabsContent value="csv">
                   <label className={cn(
@@ -218,37 +229,21 @@ export default function ImportPage() {
                   )}>
                     {parsing ? (
                       <div className="space-y-6 w-full max-w-md text-center">
-                        <p className="font-black text-black group-hover:text-white uppercase text-sm animate-pulse">Lendo Estruturas Neurais...</p>
+                        <p className="font-black text-black group-hover:text-white uppercase text-sm animate-pulse">Lendo Fluxo Neural...</p>
                         <Progress value={progress} className="h-3 bg-gray-100 border-2 border-black [&>div]:bg-black group-hover:border-white group-hover:[&>div]:bg-white" />
                         <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white/40">{progress}% PROCESSADO</p>
                       </div>
                     ) : (
                       <>
-                        <div className="p-8 bg-[#f3f2f2] rounded-none mb-6 group-hover:bg-white transition-all border-2 border-black">
+                        <div className="p-8 bg-[#f3f2f2] rounded-none mb-6 group-hover:bg-white transition-all border-2 border-black shadow-[6px_6px_0px_#000]">
                           <Upload className="text-black w-16 h-16" />
                         </div>
                         <h3 className="text-black group-hover:text-white font-black text-xl mb-2 uppercase">Selecionar CSV</h3>
-                        <p className="text-xs text-black/40 group-hover:text-white/40 font-black uppercase tracking-widest">UTF-8 • SANEAMENTO AUTOMÁTICO</p>
+                        <p className="text-xs text-black/40 group-hover:text-white/40 font-black uppercase tracking-widest text-center">CORREÇÃO DE ENCODING AUTOMÁTICA ATIVA</p>
                       </>
                     )}
                     <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
                   </label>
-               </TabsContent>
-
-               <TabsContent value="text" className="space-y-4">
-                  <Textarea 
-                    placeholder="COLE O TEXTO DO RELATÓRIO OU DUMP DO BANCO AQUI..."
-                    value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
-                    className="min-h-[300px] border-2 border-black font-black uppercase text-[11px] rounded-none resize-none leading-relaxed bg-white"
-                  />
-                  <Button 
-                    onClick={handleTextImport} 
-                    disabled={parsing || !textInput.trim()}
-                    className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]"
-                  >
-                    {parsing ? <><Zap className="animate-spin mr-2" /> Processando...</> : <><Database size={16} className="mr-2" /> Ingestão via Texto</>}
-                  </Button>
                </TabsContent>
             </Tabs>
           ) : (
@@ -257,15 +252,15 @@ export default function ImportPage() {
                   <StatItem label="Total Detectado" value={stats.total} />
                   <StatItem label="Tribunais Únicos" value={stats.tribunals} />
                   <StatItem label="Alertas Críticos" value={stats.critical} color="text-red-600" />
-                  <StatItem label="Higiene Visual" value="CORRIGIDA" color="text-green-600" />
+                  <StatItem label="Codificação" value="SANEADA" color="text-green-600" />
                </div>
 
                <div className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] overflow-hidden">
                   <div className="bg-black text-white p-4 flex items-center justify-between">
                      <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2"><Eye size={16} /> Preview de Higiene (Lote {stats.total})</h3>
-                     <Badge variant="outline" className="text-white border-white font-black text-[9px] uppercase">Codificação Corrigida</Badge>
+                     <Badge variant="outline" className="text-white border-white font-black text-[9px] uppercase">Deduplicação Inteligente Ativa</Badge>
                   </div>
-                  <div className="max-h-[500px] overflow-auto">
+                  <div className="max-h-[500px] overflow-auto bg-[#fafafa]">
                     <Table>
                       <TableHeader className="bg-[#f8f9fb] border-b-2 border-black sticky top-0 z-20">
                         <TableRow className="hover:bg-transparent">
@@ -276,15 +271,15 @@ export default function ImportPage() {
                       </TableHeader>
                       <TableBody>
                         {preview.slice(0, 100).map((c, i) => (
-                          <TableRow key={i} className="hover:bg-black group transition-colors">
+                          <TableRow key={i} className="hover:bg-black group transition-colors cursor-default">
                             <TableCell>
                                <div className="flex flex-col">
-                                  <span className="font-black text-xs uppercase group-hover:text-white">{c.cliente}</span>
+                                  <span className="font-black text-xs uppercase group-hover:text-white transition-colors">{c.cliente}</span>
                                   <span className="text-[9px] font-mono text-black/40 group-hover:text-white/40">{c.protocolo}</span>
                                </div>
                             </TableCell>
                             <TableCell>
-                               <Badge variant="outline" className="border-black border-2 font-black text-[8px] uppercase group-hover:bg-white group-hover:text-black">{c.tribunal}</Badge>
+                               <Badge variant="outline" className="border-black border-2 font-black text-[8px] uppercase group-hover:bg-white group-hover:text-black transition-all">{c.tribunal}</Badge>
                             </TableCell>
                             <TableCell>
                                <div className="flex flex-col">
