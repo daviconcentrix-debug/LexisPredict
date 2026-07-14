@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Motor de Extração de Dados Jurídicos v800.0 ELITE
@@ -76,18 +75,12 @@ const BANCA_DATA = {
     email: "maikon@adv.oabsp.org.br",
     genero: "M"
   },
-  "ANDRESSA EDUARDA TAVARES": {
-    oabs: { "SP": "PENDENTE/SP" },
+  "ANDRESSA EDUARDA TAVARES MATOS": {
+    oabs: { "MG": "238.75/MG", "SP": "238.75/MG" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "andressa@adv.oabsp.org.br",
     genero: "F"
   }
-};
-
-const API_KEYS = {
-  XAI: 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE',
-  AIRFORCE: 'sk-air-Rxc7ygo5b0XpkZqUBqwSnhjwS0bZbWFnzwRLjfPtdAbYK6nj',
-  GROQ: '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'
 };
 
 const SYSTEM_PROMPT = `Você é o Arquiteto Jurídico da W1 Capital. Extraia os dados do contrato.
