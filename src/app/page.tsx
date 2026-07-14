@@ -5,18 +5,14 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { 
-  Briefcase, 
   ShieldAlert, 
   RefreshCcw, 
   FileDown, 
   FileCheck,
   Copyright,
   TrendingUp,
-  Activity,
-  Cpu,
   Clock,
   Calendar,
-  AlertTriangle,
   Zap,
   TrendingDown,
   Sparkles
@@ -29,15 +25,11 @@ import { fetchRepoCases } from '@/app/actions/case-actions';
 import Link from 'next/link';
 import { getTranslation, Locale } from '@/lib/i18n';
 import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
   ResponsiveContainer, 
   PieChart, 
   Pie, 
-  Cell 
+  Cell,
+  Tooltip
 } from 'recharts';
 
 export default function Dashboard() {
@@ -49,22 +41,14 @@ export default function Dashboard() {
 
   const t = getTranslation(locale);
 
-  /**
-   * Carrega os insights da IA salvos no localStorage
-   */
   const loadInsights = useCallback(() => {
+    if (typeof window === 'undefined') return;
     const savedInsights = localStorage.getItem('lexisPredict_notes_analysis');
     if (savedInsights) {
       try {
         const parsed = JSON.parse(savedInsights);
-        // Só define se houver conteúdo real
-        if (parsed && (parsed.pontosFortes?.length > 0 || parsed.riscosDetectados?.length > 0)) {
-          setIaInsights(parsed);
-        } else {
-          setIaInsights(null);
-        }
+        setIaInsights(parsed);
       } catch (e) {
-        console.error("Fail load insights");
         setIaInsights(null);
       }
     }
@@ -77,18 +61,13 @@ export default function Dashboard() {
     
     loadInsights();
 
-    // Sincronia entre telas: Escuta atualizações de outras janelas
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'lexisPredict_notes_analysis') loadInsights();
-    };
-    
-    // Sincronia na mesma janela: Escuta evento customizado disparado pela página de Notas
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('lexis-insights-updated', loadInsights);
+    const handleStorageUpdate = (e: any) => loadInsights();
+    window.addEventListener('lexis-insights-updated', handleStorageUpdate);
+    window.addEventListener('storage', handleStorageUpdate);
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('lexis-insights-updated', loadInsights);
+      window.removeEventListener('lexis-insights-updated', handleStorageUpdate);
+      window.removeEventListener('storage', handleStorageUpdate);
     };
   }, [loadInsights]);
 
@@ -112,28 +91,23 @@ export default function Dashboard() {
 
   const metrics = useMemo(() => {
     const totalRepo = cases.length;
-    // Demandas Ativas: Exclui Encerrados/Arquivados
-    const ativos = cases.filter(c => !['Encerrado', 'Arquivado', 'Extinto', 'Suspenso', 'Sem Prazo'].includes(c.status) && !['Encerrado', 'Arquivado'].includes(c.situacao));
+    const ativos = cases.filter(c => !['Encerrado', 'Arquivado', 'Extinto', 'Suspenso'].includes(c.situacao));
     const activeDemands = ativos.length;
     
-    // Status Individuais para soma exata (Carteira Ativa Total = 246)
     const vencidos = cases.filter(c => c.status === 'Vencido' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
     const venceHoje = cases.filter(c => c.status === 'É Hoje' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
     const atencao = cases.filter(c => c.status === 'Atenção' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
     const noPrazo = cases.filter(c => c.status === 'No Prazo' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length; 
     const semPrazo = cases.filter(c => (c.status === 'Sem Prazo' || !c.proximoPrazo) && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
-    const finalizados = cases.filter(c => ['Encerrado', 'Arquivado'].includes(c.status) || ['Encerrado', 'Arquivado'].includes(c.situacao)).length;
+    const finalizados = cases.filter(c => ['Encerrado', 'Arquivado'].includes(c.situacao)).length;
 
-    // Tempo Médio de Atraso
     const vencidosArray = cases.filter(c => c.status === 'Vencido' && c.diasFaltando !== null);
     const tempoMedio = vencidosArray.length > 0 
       ? Math.round(Math.abs(vencidosArray.reduce((acc, c) => acc + (c.diasFaltando || 0), 0)) / vencidosArray.length) 
       : 0;
 
-    // Índice de Risco Ponderado (Somente sobre o que não está finalizado)
     const riskSum = (vencidos * 1.0) + (venceHoje * 0.8) + (atencao * 0.5) + (noPrazo * 0.1);
-    const totalConsiderado = (vencidos + venceHoje + atencao + noPrazo + semPrazo);
-    const riskScore = totalConsiderado > 0 ? Math.min(100, Math.round((riskSum / totalConsiderado) * 100)) : 0;
+    const riskScore = activeDemands > 0 ? Math.min(100, Math.round((riskSum / activeDemands) * 100)) : 0;
 
     const statusData = [
       { name: 'Vencidos', value: vencidos, color: '#ef4444' },
@@ -156,9 +130,7 @@ export default function Dashboard() {
         <header className="h-16 border-b border-border/30 bg-background/80 backdrop-blur-xl flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-6">
             <h1 className="font-bold text-sm tracking-[0.2em] uppercase">{t.controlPanel}</h1>
-            <div className="hidden xl:flex items-center gap-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground border-l border-border/30 pl-6">
-               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> {t.activeTelemetry}
-            </div>
+            <Badge variant="outline" className="hidden xl:flex text-[9px] font-black border-primary/40 text-primary uppercase animate-pulse">DataJud Active</Badge>
           </div>
           <div className="flex items-center gap-4">
             <Button variant="outline" size="sm" asChild className="hidden sm:flex border-border/50 hover:border-primary hover:bg-primary/10 text-xs font-semibold h-9 px-6 rounded-sm uppercase tracking-wider transition-all">
@@ -176,7 +148,7 @@ export default function Dashboard() {
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard title="Vencem Hoje" value={loading ? "..." : metrics.venceHoje} icon={<Clock size={16} />} color={metrics.venceHoje > 0 ? "destructive" : "primary"} />
             <StatCard title="Vencidos" value={loading ? "..." : metrics.vencidos} icon={<ShieldAlert size={16} />} color="destructive" />
-            <StatCard title="Próximos 7 Dias" value={loading ? "..." : metrics.atencao} icon={<Calendar size={16} />} color="accent" />
+            <StatCard title="Atenção" value={loading ? "..." : metrics.atencao} icon={<Calendar size={16} />} color="accent" />
             <StatCard title="Atraso Médio" value={loading ? "..." : `${metrics.tempoMedio} dias`} icon={<TrendingUp size={16} />} color="destructive" />
           </section>
 
@@ -184,7 +156,7 @@ export default function Dashboard() {
             <div className="xl:col-span-2 space-y-8">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <section className="bg-card border border-border/50 rounded-md p-6 h-[350px] flex flex-col">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Saúde da Carteira (Total: {metrics.activeDemands + metrics.semPrazo})</h3>
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Saúde da Carteira (Ativos: {metrics.activeDemands})</h3>
                     <div className="flex-1 min-h-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
@@ -206,12 +178,12 @@ export default function Dashboard() {
 
                   <section className="bg-card border border-border/50 rounded-md p-6 h-[350px] flex flex-col">
                     <div className="flex items-center justify-between mb-6">
-                       <h3 className="text-[10px] font-bold uppercase tracking-widest opacity-60">Insights de Auditoria (IA)</h3>
-                       <Badge variant="outline" className="text-[8px] border-primary/30 text-primary uppercase">v25.0 Elite</Badge>
+                       <h3 className="text-[10px] font-bold uppercase tracking-widest opacity-60">Parecer IA de Gabinete</h3>
+                       <Badge variant="outline" className="text-[8px] border-primary/30 text-primary uppercase">Elite Node</Badge>
                     </div>
                     {iaInsights ? (
                       <div className="space-y-4 overflow-auto flex-1 pr-2 custom-scrollbar">
-                         {iaInsights.pontosFortes?.length > 0 && (
+                         {iaInsights.pontosFortes?.length > 0 ? (
                            <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-sm">
                               <p className="text-[8px] font-black text-green-500 uppercase flex items-center gap-1.5 mb-1.5"><TrendingUp size={10}/> Pontos Fortes</p>
                               <ul className="space-y-1">
@@ -220,8 +192,8 @@ export default function Dashboard() {
                                 ))}
                               </ul>
                            </div>
-                         )}
-                         {iaInsights.riscosDetectados?.length > 0 && (
+                         ) : null}
+                         {iaInsights.riscosDetectados?.length > 0 ? (
                            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-sm">
                               <p className="text-[8px] font-black text-red-500 uppercase flex items-center gap-1.5 mb-1.5"><TrendingDown size={10}/> Riscos Detectados</p>
                               <ul className="space-y-1">
@@ -230,12 +202,15 @@ export default function Dashboard() {
                                 ))}
                               </ul>
                            </div>
+                         ) : null}
+                         {(!iaInsights.pontosFortes?.length && !iaInsights.riscosDetectados?.length) && (
+                            <p className="text-[10px] uppercase font-bold text-center opacity-40 py-10">Auditoria concluída sem registros relevantes.</p>
                          )}
                       </div>
                     ) : (
                       <div className="flex-1 flex flex-col items-center justify-center opacity-30 text-center">
                          <Sparkles size={32} className="mb-4" />
-                         <p className="text-[10px] font-bold uppercase">Nenhuma auditoria de notas gerada.</p>
+                         <p className="text-[10px] font-bold uppercase">Nenhuma auditoria gerada.</p>
                          <Link href="/notes" className="text-[9px] underline mt-2 uppercase">Ir para Evidências</Link>
                       </div>
                     )}
@@ -261,7 +236,7 @@ export default function Dashboard() {
                       {cases
                         .filter(c => ['Vencido', 'É Hoje', 'Atenção'].includes(c.status) && !['Encerrado', 'Arquivado'].includes(c.situacao))
                         .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
-                        .slice(0, 40)
+                        .slice(0, 50)
                         .map((c) => (
                           <tr key={c.id} className="hover:bg-secondary/20 transition-colors">
                             <td><Badge variant="outline" className="text-[9px] font-bold uppercase">{c.tribunal}</Badge></td>
@@ -284,10 +259,10 @@ export default function Dashboard() {
               <div className="bg-card border border-border/50 rounded-md p-6 space-y-4">
                 <div className="flex justify-between items-end">
                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Índice de Risco (Gabinete)</p>
-                   <span className={cn("text-2xl font-black", metrics.riskScore > 80 ? "text-red-500" : metrics.riskScore > 60 ? "text-orange-500" : "text-primary")}>{metrics.riskScore}%</span>
+                   <span className={cn("text-2xl font-black", metrics.riskScore > 80 ? "text-red-500" : metrics.riskScore > 40 ? "text-orange-500" : "text-primary")}>{metrics.riskScore}%</span>
                 </div>
                 <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                   <div className={cn("h-full transition-all duration-1000", metrics.riskScore > 80 ? "bg-red-500" : metrics.riskScore > 60 ? "bg-orange-500" : "bg-primary")} style={{ width: `${metrics.riskScore}%` }} />
+                   <div className={cn("h-full transition-all duration-1000", metrics.riskScore > 80 ? "bg-red-500" : metrics.riskScore > 40 ? "bg-orange-500" : "bg-primary")} style={{ width: `${metrics.riskScore}%` }} />
                 </div>
                 <p className="text-[9px] font-bold uppercase text-center opacity-40">
                   {metrics.riskScore > 80 ? "Nível: Crítico" : metrics.riskScore > 60 ? "Nível: Alto" : metrics.riskScore > 40 ? "Nível: Elevado" : "Nível: Moderado"}
@@ -301,7 +276,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <h2 className="text-lg font-bold uppercase tracking-tight">Dossiê Operacional</h2>
-                    <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed uppercase">Relatório completo de auditoria executiva, incluindo logs de evidências e parecer técnico da IA.</p>
+                    <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed uppercase">Relatório completo de auditoria executiva no padrão corporativo dourado e preto.</p>
                   </div>
                   <Button variant="default" asChild className="w-full bg-primary text-black font-bold h-11 rounded-sm uppercase text-[10px] tracking-[0.15em] hover:bg-primary/90 transition-all">
                     <Link href="/report">Gerar Relatório Executivo</Link>
