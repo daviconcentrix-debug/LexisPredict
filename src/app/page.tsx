@@ -15,7 +15,8 @@ import {
   Activity,
   Cpu,
   Clock,
-  Calendar
+  Calendar,
+  AlertTriangle
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -69,37 +70,39 @@ export default function Dashboard() {
   }, [mounted, loadData]);
 
   const metrics = useMemo(() => {
-    const activeCases = cases.filter(c => {
-      const sit = (c.situacao || '').toUpperCase();
-      return !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].some(s => sit.includes(s));
-    });
-
     const totalRepo = cases.length;
-    const activeTotal = activeCases.length;
     
-    // KPIs Estratégicos
-    const vencidos = activeCases.filter(c => c.status === 'Vencido').length;
-    const venceHoje = activeCases.filter(c => c.status === 'É Hoje').length;
-    const proximos7 = activeCases.filter(c => (c.diasFaltando !== null && c.diasFaltando > 0 && c.diasFaltando <= 7)).length;
-    
+    // Categorias Estritas
+    const vencidos = cases.filter(c => c.status === 'Vencido').length;
+    const venceHoje = cases.filter(c => c.status === 'É Hoje').length;
+    const atencao = cases.filter(c => c.status === 'Atenção').length;
+    const noPrazo = cases.filter(c => c.status === 'No Prazo').length;
+    const semPrazo = cases.filter(c => c.status === 'Sem Prazo').length;
+    const finalizados = cases.filter(c => ['Encerrado', 'Arquivado'].includes(c.status)).length;
+
     // Tempo Médio de Atraso
-    const vencidosArray = activeCases.filter(c => c.status === 'Vencido' && c.diasFaltando !== null);
+    const vencidosArray = cases.filter(c => c.status === 'Vencido' && c.diasFaltando !== null);
     const tempoMedio = vencidosArray.length > 0 
       ? Math.round(Math.abs(vencidosArray.reduce((acc, c) => acc + (c.diasFaltando || 0), 0)) / vencidosArray.length) 
       : 0;
 
-    // Pontuação de Risco Ponderada
-    const riskSum = (vencidos * 100) + (venceHoje * 80) + (proximos7 * 40);
-    const riskScore = activeTotal > 0 ? Math.round((riskSum / (activeTotal * 100)) * 100) : 0;
+    // Índice de Risco Ponderado (Fórmula Elite)
+    // 46% vencidos = Score Crítico (> 80)
+    const riskSum = (vencidos * 100) + (venceHoje * 80) + (atencao * 50) + (noPrazo * 10);
+    const activeWithDates = vencidos + venceHoje + atencao + noPrazo;
+    const riskScore = activeWithDates > 0 ? Math.min(100, Math.round((riskSum / (activeWithDates * 100)) * 100)) : 0;
 
     const statusData = [
       { name: 'Vencidos', value: vencidos, color: '#ef4444' },
-      { name: 'Vence Hoje', value: venceHoje, color: '#f59e0b' },
-      { name: 'Saudáveis', value: activeTotal - vencidos - venceHoje, color: '#22c55e' },
+      { name: 'É Hoje', value: venceHoje, color: '#f59e0b' },
+      { name: 'Atenção', value: atencao, color: '#fbbf24' },
+      { name: 'No Prazo', value: noPrazo, color: '#22c55e' },
+      { name: 'Sem Prazo', value: semPrazo, color: '#94a3b8' },
+      { name: 'Finalizados', value: finalizados, color: '#1e293b' },
     ].filter(d => d.value > 0);
 
     const tribunalCounts: Record<string, number> = {};
-    activeCases.forEach(c => {
+    cases.forEach(c => {
       const t = c.tribunal || 'Outros';
       tribunalCounts[t] = (tribunalCounts[t] || 0) + 1;
     });
@@ -110,10 +113,9 @@ export default function Dashboard() {
 
     return { 
       totalRepo, 
-      activeTotal, 
       vencidos, 
       venceHoje, 
-      proximos7, 
+      atencao, 
       tempoMedio, 
       riskScore, 
       statusData, 
@@ -147,18 +149,18 @@ export default function Dashboard() {
         </header>
 
         <div className="flex-1 overflow-auto p-8 space-y-10">
-          {/* TOP EXEC KPIs */}
+          {/* TOP EXEC KPIs - CONFIGURAÇÃO SOLICITADA */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard title="Vencem Hoje" value={loading ? "..." : metrics.venceHoje} icon={<Clock size={16} />} color={metrics.venceHoje > 0 ? "destructive" : "primary"} />
             <StatCard title="Vencidos" value={loading ? "..." : metrics.vencidos} icon={<ShieldAlert size={16} />} color="destructive" />
-            <StatCard title="Próximos 7 Dias" value={loading ? "..." : metrics.proximos7} icon={<Calendar size={16} />} color="accent" />
+            <StatCard title="Próximos 7 Dias (Atenção)" value={loading ? "..." : metrics.atencao} icon={<Calendar size={16} />} color="accent" />
             <StatCard title="Atraso Médio" value={loading ? "..." : `${metrics.tempoMedio} dias`} icon={<TrendingUp size={16} />} color="destructive" />
           </section>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
                <section className="bg-card border border-border/50 rounded-md p-6 h-[350px] flex flex-col">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Saúde da Carteira Ativa</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Composição da Carteira (Total: {metrics.totalRepo})</h3>
                   <div className="flex-1 min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -190,8 +192,8 @@ export default function Dashboard() {
                <section className="md:col-span-2 space-y-4">
                 <div className="bg-card border border-border/50 rounded-md overflow-hidden">
                   <div className="p-4 border-b border-border/10 bg-secondary/5 flex items-center justify-between">
-                     <h3 className="text-[10px] font-bold uppercase tracking-[0.2em]">Carga de Trabalho Ativa</h3>
-                     <Badge className="bg-primary text-black font-black text-[9px] uppercase">{metrics.activeTotal} ATIVOS</Badge>
+                     <h3 className="text-[10px] font-bold uppercase tracking-[0.2em]">Processos que exigem ação imediata</h3>
+                     <Badge className="bg-red-500 text-white font-black text-[9px] uppercase">{metrics.vencidos + metrics.venceHoje} CRÍTICOS</Badge>
                   </div>
                   <table className="mission-control-table">
                     <thead>
@@ -199,16 +201,20 @@ export default function Dashboard() {
                         <th>Tribunal</th>
                         <th>Cliente</th>
                         <th>Protocolo</th>
-                        <th className="text-right">Risco Pessoal</th>
+                        <th className="text-right">Atraso</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {cases.filter(c => c.status === 'Vencido').slice(0, 5).map((c) => (
+                      {cases.filter(c => ['Vencido', 'É Hoje'].includes(c.status)).slice(0, 8).map((c) => (
                         <tr key={c.id} className="hover:bg-secondary/20 transition-colors">
                           <td><Badge variant="outline" className="text-[9px] font-bold uppercase">{c.tribunal}</Badge></td>
                           <td className="font-bold uppercase text-[11px]">{c.cliente}</td>
                           <td className="font-mono text-[10px] text-muted-foreground">{c.protocolo}</td>
-                          <td className="text-right"><Badge className="bg-red-500/20 text-red-400 border-none text-[9px]">VENCIDO</Badge></td>
+                          <td className="text-right">
+                            <span className="text-[9px] font-black uppercase text-red-500">
+                              {(c.diasFaltando || 0) < 0 ? `${Math.abs(c.diasFaltando || 0)}d atraso` : "Hoje"}
+                            </span>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -235,12 +241,15 @@ export default function Dashboard() {
 
               <div className="bg-card border border-border/50 rounded-md p-6 space-y-4">
                 <div className="flex justify-between items-end">
-                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Risco de Gabinete</p>
-                   <span className="text-2xl font-black text-primary">{metrics.riskScore}%</span>
+                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Índice de Risco (Carteira)</p>
+                   <span className={cn("text-2xl font-black", metrics.riskScore > 80 ? "text-red-500" : "text-primary")}>{metrics.riskScore}%</span>
                 </div>
                 <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                   <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${metrics.riskScore}%` }} />
+                   <div className={cn("h-full transition-all duration-1000", metrics.riskScore > 80 ? "bg-red-500" : "bg-primary")} style={{ width: `${metrics.riskScore}%` }} />
                 </div>
+                <p className="text-[9px] font-bold uppercase text-center opacity-40">
+                  {metrics.riskScore > 80 ? "Nível: Crítico" : metrics.riskScore > 60 ? "Nível: Alto" : "Nível: Moderado"}
+                </p>
               </div>
             </aside>
           </div>

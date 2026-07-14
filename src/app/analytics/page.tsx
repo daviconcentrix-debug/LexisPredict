@@ -11,7 +11,8 @@ import {
   RefreshCcw,
   Copyright,
   CheckCircle2,
-  Clock
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -38,36 +39,18 @@ export default function AnalyticsPage() {
   }, []);
 
   const metrics = useMemo(() => {
-    // Apenas demandas ativas entram na análise de risco
-    const activeCases = cases.filter(c => {
-      const sit = (c.situacao || '').toUpperCase();
-      return !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].some(s => sit.includes(s));
-    });
-
     const total = cases.length;
-    const active = activeCases.length;
     
-    const statusCounts = { Vencido: 0, Atenção: 0, 'No Prazo': 0, 'Sem Prazo / Finalizados': 0 };
+    const vencidos = cases.filter(c => c.status === 'Vencido').length;
+    const hoje = cases.filter(c => c.status === 'É Hoje').length;
+    const atencao = cases.filter(c => c.status === 'Atenção').length;
+    const noPrazo = cases.filter(c => c.status === 'No Prazo').length;
+    const semPrazo = cases.filter(c => c.status === 'Sem Prazo').length;
+    const finalizados = cases.filter(c => ['Encerrado', 'Arquivado'].includes(c.status)).length;
+
     const tribunalCounts: Record<string, number> = {};
-
     cases.forEach(c => {
-      const sit = (c.situacao || '').toUpperCase();
-      const isFinished = ['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].some(s => sit.includes(s));
-      
-      if (isFinished || c.status === 'Sem Prazo') {
-        statusCounts['Sem Prazo / Finalizados']++;
-      } else {
-        const status = c.status || 'Sem Prazo';
-        if (statusCounts.hasOwnProperty(status)) {
-          statusCounts[status as keyof typeof statusCounts]++;
-        } else {
-          statusCounts['Sem Prazo / Finalizados']++;
-        }
-      }
-
-      if (!isFinished) {
-        tribunalCounts[c.tribunal || "Outros"] = (tribunalCounts[c.tribunal || "Outros"] || 0) + 1;
-      }
+      tribunalCounts[c.tribunal || "Outros"] = (tribunalCounts[c.tribunal || "Outros"] || 0) + 1;
     });
 
     const topTribunals = Object.entries(tribunalCounts)
@@ -76,13 +59,17 @@ export default function AnalyticsPage() {
 
     return { 
       total,
-      active,
-      statusCounts, 
+      vencidos,
+      hoje,
+      atencao,
+      noPrazo,
+      semPrazo,
+      finalizados,
       topTribunals
     };
   }, [cases]);
 
-  const getPercentActive = (val: number) => metrics.active ? Math.round((val / metrics.active) * 100) : 0;
+  const getPercent = (val: number) => metrics.total ? Math.round((val / metrics.total) * 100) : 0;
   const handleExportPDF = () => window.print();
 
   return (
@@ -105,26 +92,29 @@ export default function AnalyticsPage() {
         </header>
 
         <div className="flex-1 overflow-auto p-8 space-y-8 max-w-7xl mx-auto w-full print:p-0">
-          <section className="bg-white border border-[#dddbda] rounded-sm p-8 shadow-sm print:bg-white print:border-gray-200 group hover:bg-black transition-all cursor-default">
+          <section className="bg-white border border-[#dddbda] rounded-sm p-8 shadow-sm group hover:bg-black transition-all cursor-default">
             <div className="flex items-center gap-3 mb-8 print:hidden">
               <div className="icon-3d-wrapper"><div className="icon-3d-block black w-10 h-10 rounded-sm group-hover:bg-white"><ShieldAlert className="text-white group-hover:text-black w-5 h-5" /></div></div>
               <div>
-                <h2 className="text-lg font-black text-black group-hover:text-white uppercase tracking-wider">Saúde da Carteira Ativa ({metrics.active} casos)</h2>
-                <p className="text-[10px] text-black/60 group-hover:text-white/60 font-black uppercase">Frequência de alertas e casos saudáveis em dia.</p>
+                <h2 className="text-lg font-black text-black group-hover:text-white uppercase tracking-wider">Higiene da Carteira (Total: {metrics.total})</h2>
+                <p className="text-[10px] text-black/60 group-hover:text-white/60 font-black uppercase">Consolidado estrito de todos os status de gabinete.</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <MetricItem label="Vencido / Hoje" value={metrics.statusCounts.Vencido} pct={getPercentActive(metrics.statusCounts.Vencido)} color="bg-red-600" />
-              <MetricItem label="Atenção (Alerta)" value={metrics.statusCounts.Atenção} pct={getPercentActive(metrics.statusCounts.Atenção)} color="bg-orange-500" />
-              <MetricItem label="Saudáveis (No Prazo)" value={metrics.statusCounts['No Prazo']} pct={getPercentActive(metrics.statusCounts['No Prazo'])} color="bg-green-600" />
-              <MetricItem label="Finalizados / Outros" value={metrics.statusCounts['Sem Prazo / Finalizados']} pct={Math.round((metrics.statusCounts['Sem Prazo / Finalizados'] / metrics.total) * 100)} color="bg-gray-400" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <MetricItem label="Vencidos (🔴)" value={metrics.vencidos} pct={getPercent(metrics.vencidos)} color="bg-red-600" />
+              <MetricItem label="Vencem Hoje (🟡)" value={metrics.hoje} pct={getPercent(metrics.hoje)} color="bg-orange-500" />
+              <MetricItem label="Em Atenção (🟠)" value={metrics.atencao} pct={getPercent(metrics.atencao)} color="bg-amber-500" />
+              <MetricItem label="No Prazo (🟢)" value={metrics.noPrazo} pct={getPercent(metrics.noPrazo)} color="bg-green-600" />
+              <MetricItem label="Sem Prazo (⚪)" value={metrics.semPrazo} pct={getPercent(metrics.semPrazo)} color="bg-slate-400" />
+              <MetricItem label="Finalizados (⚫)" value={metrics.finalizados} pct={getPercent(metrics.finalizados)} color="bg-slate-800" />
             </div>
 
             <div className="h-3 w-full bg-[#f3f2f2] rounded-full flex overflow-hidden border border-[#dddbda] group-hover:border-white/20 transition-all">
-              <div style={{ width: `${getPercentActive(metrics.statusCounts.Vencido)}%` }} className="bg-red-600 h-full transition-all duration-1000" />
-              <div style={{ width: `${getPercentActive(metrics.statusCounts.Atenção)}%` }} className="bg-orange-500 h-full transition-all duration-1000" />
-              <div style={{ width: `${getPercentActive(metrics.statusCounts['No Prazo'])}%` }} className="bg-green-600 h-full transition-all duration-1000" />
+              <div style={{ width: `${getPercent(metrics.vencidos)}%` }} className="bg-red-600 h-full transition-all duration-1000" />
+              <div style={{ width: `${getPercent(metrics.hoje)}%` }} className="bg-orange-500 h-full transition-all duration-1000" />
+              <div style={{ width: `${getPercent(metrics.atencao)}%` }} className="bg-amber-500 h-full transition-all duration-1000" />
+              <div style={{ width: `${getPercent(metrics.noPrazo)}%` }} className="bg-green-600 h-full transition-all duration-1000" />
             </div>
           </section>
 
@@ -132,17 +122,17 @@ export default function AnalyticsPage() {
             <section className="bg-white border border-[#dddbda] rounded-sm p-8 hover:bg-black group transition-all cursor-default">
               <div className="flex items-center gap-3 mb-8 print:hidden">
                 <div className="icon-3d-wrapper"><div className="icon-3d-block black w-10 h-10 rounded-sm group-hover:bg-white"><Scale className="text-white group-hover:text-black w-5 h-5" /></div></div>
-                <div><h2 className="text-lg font-black text-black group-hover:text-white uppercase tracking-wider">Carga Ativa por Tribunal</h2></div>
+                <div><h2 className="text-lg font-black text-black group-hover:text-white uppercase tracking-wider">Carga por Tribunal</h2></div>
               </div>
               <div className="space-y-7">
                 {metrics.topTribunals.length > 0 ? metrics.topTribunals.map(([name, count]) => (
                   <div key={name} className="space-y-2.5">
                     <div className="flex justify-between text-xs font-black uppercase tracking-widest text-black group-hover:text-white transition-colors">
                       <span>{name}</span>
-                      <span className="text-black/60 group-hover:text-white/60">{count} ({getPercentActive(count)}%)</span>
+                      <span className="text-black/60 group-hover:text-white/60">{count} ({Math.round((count / metrics.total) * 100)}%)</span>
                     </div>
                     <div className="h-1.5 w-full bg-[#f3f2f2] rounded-full overflow-hidden border border-[#dddbda] group-hover:border-white/10 transition-all">
-                      <div className="h-full bg-black group-hover:bg-white transition-all duration-1000" style={{ width: `${getPercentActive(count)}%` }} />
+                      <div className="h-full bg-black group-hover:bg-white transition-all duration-1000" style={{ width: `${(count / metrics.total) * 100}%` }} />
                     </div>
                   </div>
                 )) : <div className="py-20 text-center border-2 border-dashed border-[#dddbda] rounded-sm"><p className="text-sm font-black uppercase text-black/40">Sem dados ativos.</p></div>}
@@ -151,13 +141,13 @@ export default function AnalyticsPage() {
 
             <section className="bg-white border border-[#dddbda] rounded-sm p-8 hover:bg-black group transition-all cursor-default">
               <div className="flex flex-col items-center justify-center h-full space-y-6 text-center">
-                 <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-green-600 border-2 border-green-600 group-hover:bg-white group-hover:text-black group-hover:border-white transition-all">
-                   <CheckCircle2 size={32} />
+                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-600 border-2 border-slate-600 group-hover:bg-white group-hover:text-black group-hover:border-white transition-all">
+                   <AlertCircle size={32} />
                  </div>
                  <div>
-                   <h3 className="text-xl font-black text-black group-hover:text-white uppercase tracking-tighter">Higiene de Carteira</h3>
+                   <h3 className="text-xl font-black text-black group-hover:text-white uppercase tracking-tighter">Observações de Gabinete</h3>
                    <p className="text-[10px] font-black text-black/40 group-hover:text-white/60 uppercase mt-2 tracking-widest">
-                     {metrics.statusCounts['Sem Prazo / Finalizados']} processos foram removidos do ciclo de risco.
+                     {metrics.semPrazo} processos estão ativos mas sem data de retorno configurada.
                    </p>
                  </div>
               </div>

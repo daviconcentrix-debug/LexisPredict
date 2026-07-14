@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { LegalCase, CaseNote } from "@/lib/case-logic";
+import { LegalCase } from "@/lib/case-logic";
 import { Button } from "@/components/ui/button";
 import {
   Printer,
@@ -20,7 +20,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
-import { fetchRepoCases, fetchRepoNotes } from "@/app/actions/case-actions";
+import { fetchRepoCases } from "@/app/actions/case-actions";
 import { useAuth } from "@/components/auth/auth-provider";
 import { cn } from "@/lib/utils";
 
@@ -48,59 +48,47 @@ export default function UnifiedReport() {
   const metrics = useMemo(() => {
     const totalRepo = cases.length;
     
-    // 1. SEPARAÇÃO RIGOROSA: ATIVOS vs FINALIZADOS
-    const activeCases = cases.filter(c => {
-      const sit = (c.situacao || "").toUpperCase();
-      return !["ENCERRADO", "ARQUIVADO", "EXTINTO", "SUSPENSO"].some(s => sit.includes(s));
-    });
-    const finishedCases = cases.filter(c => {
-      const sit = (c.situacao || "").toUpperCase();
-      return ["ENCERRADO", "ARQUIVADO", "EXTINTO", "SUSPENSO"].some(s => sit.includes(s));
-    });
+    // Categorização Estrita (Soma deve fechar em 246)
+    const countVencido = cases.filter(c => c.status === 'Vencido').length;
+    const countHoje = cases.filter(c => c.status === 'É Hoje').length;
+    const countAtencao = cases.filter(c => c.status === 'Atenção').length;
+    const countSaudavel = cases.filter(c => c.status === 'No Prazo').length;
+    const countSemPrazo = cases.filter(c => c.status === 'Sem Prazo').length;
+    const countFinalizados = cases.filter(c => ['Encerrado', 'Arquivado'].includes(c.status)).length;
 
-    const activeTotal = activeCases.length;
-    const finishedTotal = finishedCases.length;
-
-    // 2. CATEGORIZAÇÃO DENTRO DA CARTEIRA ATIVA
-    const countVencido = activeCases.filter(c => c.status === 'Vencido').length;
-    const countHoje = activeCases.filter(c => c.status === 'É Hoje').length;
-    const countAtencao = activeCases.filter(c => c.status === 'Atenção').length;
-    const countSaudavel = activeCases.filter(c => c.status === 'No Prazo').length;
-
-    // 3. ÍNDICE DE RISCO PONDERADO (AUTOMÁTICO)
-    // Pesos: Vencido=100, Hoje=80, Atenção=50, Saudável=10
+    // Índice de Risco Ponderado
+    const activeSet = cases.filter(c => !['Encerrado', 'Arquivado', 'Sem Prazo'].includes(c.status));
+    const activeTotal = activeSet.length;
+    
     const riskSum = (countVencido * 100) + (countHoje * 80) + (countAtencao * 50) + (countSaudavel * 10);
-    const maxPossibleRisk = activeTotal * 100;
-    const riskScore = activeTotal > 0 ? Math.round((riskSum / maxPossibleRisk) * 100) : 0;
+    const riskScore = activeTotal > 0 ? Math.min(100, Math.round((riskSum / (activeTotal * 100)) * 100)) : 0;
 
-    // Rótulo de Risco Baseado na Escala Técnica
     let riskLabel = "BAIXO";
     let riskColor = "text-emerald-400";
     if (riskScore > 80) { riskLabel = "CRÍTICO"; riskColor = "text-red-500"; }
     else if (riskScore > 60) { riskLabel = "ALTO"; riskColor = "text-orange-500"; }
-    else if (riskScore > 40) { riskLabel = "MÉDIO"; riskColor = "text-yellow-500"; }
+    else if (riskScore > 40) { riskLabel = "ELEVADO"; riskColor = "text-yellow-500"; }
     else if (riskScore > 20) { riskLabel = "MODERADO"; riskColor = "text-amber-400"; }
 
     return {
       totalRepo,
-      activeTotal,
-      finishedTotal,
       countVencido,
       countHoje,
       countAtencao,
       countSaudavel,
+      countSemPrazo,
+      countFinalizados,
       riskScore,
       riskLabel,
       riskColor
     };
   }, [cases]);
 
-  // 4. TRIAGEM DE PRIORIDADE MÁXIMA (ORDENAÇÃO POR URGÊNCIA)
-  const highPriorityCases = useMemo(() => {
+  const prioritaryCases = useMemo(() => {
     return cases
       .filter(c => ["Vencido", "É Hoje", "Atenção"].includes(c.status))
       .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
-      .slice(0, 50);
+      .slice(0, 60);
   }, [cases]);
 
   const handleExportPDF = () => window.print();
@@ -145,7 +133,7 @@ export default function UnifiedReport() {
               </div>
               <div className="text-right space-y-2 self-end">
                 <p className="text-sm font-medium tracking-wide text-white">{profile?.nome || "ADMINISTRADOR"}</p>
-                <p className="text-[10px] tracking-[0.2em] uppercase text-white/40">Auditado sob protocolo v210.0</p>
+                <p className="text-[10px] tracking-[0.2em] uppercase text-white/40">Auditado sob protocolo v220.0</p>
                 <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 border border-emerald-500/40 text-emerald-400 text-[9px] font-medium tracking-widest uppercase"><ShieldCheck size={11} /> Autenticado</div>
               </div>
             </div>
@@ -170,7 +158,7 @@ export default function UnifiedReport() {
                 </div>
               </div>
               <div className="col-span-12 md:col-span-8 grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <KpiCard icon={<Activity size={16} />} label="Carteira Ativa" value={metrics.activeTotal} accent="text-blue-400" />
+                <KpiCard icon={<Activity size={16} />} label="Total Carteira" value={metrics.totalRepo} accent="text-blue-400" />
                 <KpiCard icon={<AlertTriangle size={16} />} label="Alertas Vencidos" value={metrics.countVencido} accent="text-red-500" highlight={metrics.countVencido > 0} />
                 <KpiCard icon={<CheckCircle2 size={16} />} label="Saudáveis (Em Dia)" value={metrics.countSaudavel} accent="text-emerald-400" />
                 <KpiCard icon={<Clock size={16} />} label="Vencem Hoje" value={metrics.countHoje} accent="text-orange-400" highlight={metrics.countHoje > 0} />
@@ -178,21 +166,19 @@ export default function UnifiedReport() {
             </div>
           </section>
 
-          {/* DISTRIBUIÇÃO OPERACIONAL MATEMÁTICA */}
+          {/* DISTRIBUIÇÃO OPERACIONAL EXATA */}
           <section className="px-10 pb-12">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-1 h-5 bg-[#c9a227]" />
-              <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-white/60">Saúde da Carteira Ativa ({metrics.activeTotal} demandas)</h2>
+              <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-white/60">Distribuição Operacional (Total: {metrics.totalRepo})</h2>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <StatusPill label="Vencidos" count={metrics.countVencido} total={metrics.activeTotal} color="bg-red-600" />
-              <StatusPill label="Hoje" count={metrics.countHoje} total={metrics.activeTotal} color="bg-orange-500" />
-              <StatusPill label="Atenção" count={metrics.countAtencao} total={metrics.activeTotal} color="bg-amber-400" />
-              <StatusPill label="Saudáveis" count={metrics.countSaudavel} total={metrics.activeTotal} color="bg-emerald-500" />
-            </div>
-            <div className="mt-8 p-4 border border-white/5 bg-white/[0.02] flex items-center justify-between">
-               <span className="text-[10px] tracking-widest text-white/40 uppercase">Demandas Finalizadas / Arquivadas (Histórico)</span>
-               <span className="text-sm font-black text-white/60 tabular-nums">{metrics.finishedTotal} Processos</span>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <StatusPill label="Vencidos" count={metrics.countVencido} total={metrics.totalRepo} color="bg-red-600" />
+              <StatusPill label="Hoje" count={metrics.countHoje} total={metrics.totalRepo} color="bg-orange-500" />
+              <StatusPill label="Atenção" count={metrics.countAtencao} total={metrics.totalRepo} color="bg-amber-400" />
+              <StatusPill label="Saudáveis" count={metrics.countSaudavel} total={metrics.totalRepo} color="bg-emerald-500" />
+              <StatusPill label="Sem Prazo" count={metrics.countSemPrazo} total={metrics.totalRepo} color="bg-slate-400" />
+              <StatusPill label="Finalizados" count={metrics.countFinalizados} total={metrics.totalRepo} color="bg-slate-800" />
             </div>
           </section>
 
@@ -201,7 +187,7 @@ export default function UnifiedReport() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-1 h-5 bg-red-600" />
-                <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-white/60">Triagem de Prioridade Máxima</h2>
+                <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-white/60">Processos que exigem ação imediata</h2>
               </div>
               <span className="text-[10px] text-white/30 tracking-widest uppercase">Ordenado por tempo de atraso</span>
             </div>
@@ -217,7 +203,7 @@ export default function UnifiedReport() {
                   </tr>
                 </thead>
                 <tbody>
-                  {highPriorityCases.map((c, i) => (
+                  {prioritaryCases.map((c, i) => (
                     <tr key={i} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                       <td className="px-5 py-4">
                         <p className="text-sm font-medium text-white leading-tight">{c.cliente}</p>
@@ -230,7 +216,7 @@ export default function UnifiedReport() {
                           "text-[10px] font-black uppercase",
                           (c.diasFaltando || 0) < 0 ? "text-red-500" : "text-white/60"
                         )}>
-                          {(c.diasFaltando || 0) < 0 ? `Vencido há ${Math.abs(c.diasFaltando || 0)} dias` : (c.diasFaltando === 0 ? "Vence Hoje" : `Faltam ${c.diasFaltando} dias`)}
+                          {(c.diasFaltando || 0) < 0 ? `${Math.abs(c.diasFaltando || 0)}d atraso` : (c.diasFaltando === 0 ? "Vence Hoje" : `Faltam ${c.diasFaltando} dias`)}
                         </p>
                       </td>
                       <td className="px-5 py-4 text-right">
@@ -270,8 +256,14 @@ export default function UnifiedReport() {
 
       <style jsx global>{`
         @media print {
-          body { background-color: #0a0a0a !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body { 
+            background-color: #0a0a0a !important; 
+            color: white !important; 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+          }
           .print-black { background-color: #0a0a0a !important; }
+          * { border-color: rgba(255,255,255,0.1) !important; }
           @page { size: A4; margin: 10mm; }
         }
       `}</style>
@@ -302,7 +294,7 @@ function StatusPill({ label, count, total, color }: { label: string; count: numb
       <div className="h-1.5 w-full bg-white/10 overflow-hidden rounded-full">
         <div className={cn("h-full", color)} style={{ width: `${pct}%` }} />
       </div>
-      <p className="text-[9px] text-white/30 mt-2 tabular-nums">{pct}% da carteira ativa</p>
+      <p className="text-[9px] text-white/30 mt-2 tabular-nums">{pct}%</p>
     </div>
   );
 }
