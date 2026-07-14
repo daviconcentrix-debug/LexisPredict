@@ -6,8 +6,8 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v1500.0 ELITE)
- * Estratégia Idempotente: Proteção contra Duplicidade e Mapeamento Integral de Colunas.
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v1550.0 ELITE)
+ * Estratégia Full Sync: Limpeza e Inserção para evitar erros de Constraint e Duplicidade.
  */
 
 async function getUserContext() {
@@ -37,12 +37,16 @@ export async function getStoredCases(): Promise<LegalCase[]> {
   try {
     const { data, error } = await supabase
       .from('processos')
-      .select('dados')
+      .select('*')
       .eq('empresa_id', empresa_id)
-      .order('id', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data ? data.map(item => item.dados as LegalCase) : [];
+    // Prioriza o JSON da coluna 'dados' mas garante que campos críticos existam
+    return data ? data.map(item => ({
+      ...(item.dados as LegalCase),
+      db_id: item.id.toString()
+    })) : [];
   } catch (error) {
     console.error('[DB] Fetch Fail:', error);
     return [];
@@ -55,14 +59,13 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
   if (!empresa_id || !auth_id) return { success: false, message: "Sessão expirada." };
 
   try {
-    // Deduplicação preventiva no lado do servidor baseada no protocolo
+    // 1. DEDUPLICAÇÃO EM MEMÓRIA (Evita duplicatas no próprio lote)
     const uniqueMap = new Map();
     cases.forEach(c => { 
-      if(c && c.protocolo) uniqueMap.set(c.protocolo, c); 
+      if (c && c.protocolo) uniqueMap.set(c.protocolo, c); 
     });
     
     const payload = Array.from(uniqueMap.values()).map(c => {
-      // Normalização de datas para o formato Postgres (Date)
       const isoPrazo = formatDateToISO(c.proximoPrazo);
       const isoRetorno = formatDateToISO(c.ultimoRetorno);
 
@@ -85,17 +88,27 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
       };
     });
 
-    if (payload.length === 0) return { success: true, message: "Vazio." };
+    if (payload.length === 0) return { success: true, message: "Nenhum dado para salvar." };
 
-    // UPSERT: Utiliza protocolo_ref para identificar duplicatas e atualizar registros
-    const { error } = await supabase
+    // 2. ESTRATÉGIA FULL SYNC (Prevenção de duplicatas infinita)
+    // Limpamos os registros atuais da empresa para inserir o novo estado fiel
+    const { error: deleteError } = await supabase
       .from('processos')
-      .upsert(payload, { onConflict: 'protocolo_ref' });
+      .delete()
+      .eq('empresa_id', empresa_id);
 
-    if (error) throw error;
-    return { success: true, message: "Sincronia Idempotente concluída." };
+    if (deleteError) throw deleteError;
+
+    // 3. INSERÇÃO DO NOVO LOTE
+    const { error: insertError } = await supabase
+      .from('processos')
+      .insert(payload);
+
+    if (insertError) throw insertError;
+
+    return { success: true, message: "Sincronia concluída com sucesso." };
   } catch (error: any) {
-    console.error('[DB] Save Error:', error.message);
+    console.error('[DB] Sync Error:', error.message);
     return { success: false, message: error.message };
   }
 }
