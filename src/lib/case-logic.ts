@@ -1,6 +1,7 @@
+
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * W1 Capital / LexisPredict v145000.0
+ * W1 Capital / LexisPredict v155.0
  */
 
 export type CaseStatus =
@@ -85,8 +86,7 @@ export function fixEncoding(text: string): string {
       .replace(/Ãµ/g, 'õ')
       .replace(/Ã /g, 'à')
       .replace(/Âº/g, 'º')
-      .replace(/Âª/g, 'ª')
-      .replace(/Ã\*/g, 'Ó'); // Fallback para casos específicos de maiúsculas
+      .replace(/Âª/g, 'ª');
   } catch (e) {
     return text;
   }
