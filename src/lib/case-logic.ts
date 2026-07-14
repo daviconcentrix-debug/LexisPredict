@@ -1,4 +1,3 @@
-
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
  * W1 Capital / LexisPredict v145000.0
@@ -55,7 +54,6 @@ export type CaseNote = {
 
 /**
  * Corrige erros de encoding comuns (UTF-8 interpretado como ISO-8859-1)
- * Ex: Ã‡ÃƒO -> ÇÃO
  */
 export function fixEncoding(text: string): string {
   if (!text) return "";
@@ -87,46 +85,38 @@ export function fixEncoding(text: string): string {
       .replace(/Ãµ/g, 'õ')
       .replace(/Ã /g, 'à')
       .replace(/Âº/g, 'º')
-      .replace(/Âª/g, 'ª');
+      .replace(/Âª/g, 'ª')
+      .replace(/Ã\*/g, 'Ó'); // Fallback para casos específicos de maiúsculas
   } catch (e) {
     return text;
   }
 }
 
-export function formatDateToISO(
-  dateStr: string | null | undefined
-): string | null {
+export function formatDateToISO(dateStr: string | null | undefined): string | null {
   if (!dateStr || String(dateStr).trim() === "" || dateStr === "-") return null;
   const raw = String(dateStr).trim();
 
-  // Caso seja ISO completo YYYY-MM-DD...
+  // YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
     return raw.slice(0, 10);
   }
 
-  // Tenta quebrar por barra ou traço
+  // DD/MM/YYYY ou YYYY/MM/DD
   const parts = raw.split(/[\/\-]/);
   if (parts.length !== 3) return null;
 
-  let day = parts[0];
-  let month = parts[1];
-  let year = parts[2];
-
-  // Caso YYYY/MM/DD
-  if (day.length === 4) {
-    year = parts[0];
-    month = parts[1];
-    day = parts[2];
-  } else if (year.length === 2) {
-    year = `20${year}`;
+  let day, month, year;
+  if (parts[0].length === 4) {
+    [year, month, day] = parts;
+  } else {
+    [day, month, year] = parts;
+    if (year.length === 2) year = `20${year}`;
   }
 
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
-export function calcularDiasFaltando(
-  proximoISO: string | null
-): number | null {
+export function calcularDiasFaltando(proximoISO: string | null): number | null {
   if (!proximoISO) return null;
   try {
     const dataProximo = new Date(proximoISO + "T12:00:00");
@@ -140,16 +130,9 @@ export function calcularDiasFaltando(
   }
 }
 
-export function calcularStatus(
-  proximoRetorno: string | null | undefined,
-  situacao: string | null | undefined
-): CaseStatus {
+export function calcularStatus(proximoRetorno: string | null | undefined, situacao: string | null | undefined): CaseStatus {
   const sit = (situacao || "").toUpperCase();
-  if (
-    sit.includes("ENCERRADO") ||
-    sit.includes("ARQUIVADO") ||
-    sit.includes("EXTINTO")
-  ) {
+  if (sit.includes("ENCERRADO") || sit.includes("ARQUIVADO") || sit.includes("EXTINTO")) {
     return "Arquivado";
   }
 
@@ -166,53 +149,25 @@ export function calcularStatus(
   return "No Prazo";
 }
 
-export function calcularRisco(
-  observacoes: string | null | undefined,
-  statusInterno: string | null | undefined,
-  situacao: string | null | undefined
-): RiskLevel {
-  const texto =
-    `${observacoes || ""} ${statusInterno || ""} ${situacao || ""}`.toUpperCase();
+export function calcularRisco(observacoes: string | null | undefined, statusInterno: string | null | undefined, situacao: string | null | undefined): RiskLevel {
+  const texto = `${observacoes || ""} ${statusInterno || ""} ${situacao || ""}`.toUpperCase();
 
-  const criticas = [
-    "INDEFERIDA",
-    "EXTINTO",
-    "IMPROCEDENTE",
-    "CLIENTE NÃO RESPONDE",
-    "NÃO PAGOU AS CUSTAS",
-    "CARTA DE DESISTÊNCIA",
-    "SUMI",
-    "BLOQUEOU",
-    "SUCUMBÊNCIA",
-    "BAIXA DEFINITIVAMENTE",
-  ];
-  const atencao = [
-    "CONCLUSO",
-    "AGUARDANDO",
-    "DOCUMENTAÇÃO",
-    "CUSTAS",
-    "DILAÇÃO",
-    "REDISTRIBUIÇÃO",
-    "SUBSTABELECIMENTO",
-    "JG INDEFERIDA",
-  ];
+  const criticas = ["INDEFERIDA", "EXTINTO", "IMPROCEDENTE", "NÃO RESPONDE", "NÃO PAGOU", "DESISTÊNCIA", "SUMI", "BLOQUEOU", "SUCUMBÊNCIA", "BAIXA DEFINITIVAMENTE"];
+  const atencao = ["CONCLUSO", "AGUARDANDO", "DOCUMENTAÇÃO", "CUSTAS", "DILAÇÃO", "REDISTRIBUIÇÃO", "SUBSTABELECIMENTO", "JG INDEFERIDA"];
 
   if (criticas.some((p) => texto.includes(p))) return "Crítico";
   if (atencao.some((p) => texto.includes(p))) return "Atenção";
   return "Normal";
 }
 
-export function extrairTribunal(protocolo: string): {
-  tribunal: string;
-  link: string;
-} {
+export function extrairTribunal(protocolo: string): { tribunal: string; link: string; } {
   const original = (protocolo || "").trim();
   const clean = original.replace(/\D/g, "");
 
   if (clean.length !== 20) {
     return {
       tribunal: "Outros",
-      link: `https://www.google.com/search?q=consulta+processo+judicial+${encodeURIComponent(original || "")}`,
+      link: `https://www.google.com/search?q=consulta+processo+judicial+${encodeURIComponent(original)}`,
     };
   }
 
@@ -266,7 +221,6 @@ export function extrairTribunal(protocolo: string): {
 }
 
 function getValue(obj: Record<string, any>, ...keys: string[]): string {
-  // Constrói mapa de chaves normalizadas para lidar com encoding corrompido nas chaves também
   const map = Object.fromEntries(
     Object.entries(obj).map(([k, v]) => [fixEncoding(k).trim().toUpperCase(), v])
   );
@@ -283,7 +237,7 @@ function getValue(obj: Record<string, any>, ...keys: string[]): string {
 export function processarCaso(linha: Record<string, any>): LegalCase {
   const proximoPrazo = getValue(linha, "PRÓXIMO PRAZO", "PROXIMO PRAZO", "PRÓXIMO RETORNO", "PROXIMO RETORNO", "PRAZO", "VENCIMENTO");
   const situacao = getValue(linha, "SITUACAO", "SITUAÇÃO", "STATUS").toUpperCase() || "EM ANDAMENTO";
-  const observacao = getValue(linha, "OBSERVACAO", "OBSERVAÇÃO", "NOTAS", "DADOS", "OBSERVAÇÕES");
+  const observacao = getValue(linha, "OBSERVACAO", "OBSERVAÇÃO", "OBSERVAÇÕES", "NOTAS", "DADOS");
   const statusInterno = getValue(linha, "STATUS", "STATUS_INTERNO", "STATUS INTERNO");
   const protocolo = getValue(linha, "PROTOCOLO", "PROCESSO", "Nº PROCESSO", "NUMERO", "NÚMERO").trim() || "S/N";
   const cliente = getValue(linha, "CLIENTE", "NOME").toUpperCase() || "DESCONHECIDO";
@@ -293,7 +247,6 @@ export function processarCaso(linha: Record<string, any>): LegalCase {
   const iso = formatDateToISO(proximoPrazo);
   const diasFaltando = calcularDiasFaltando(iso);
 
-  // Tribunal já informado na planilha tem prioridade; senão detecta pelo CNJ
   const tribunalInformado = getValue(linha, "TRIBUNAL");
   const detected = extrairTribunal(protocolo);
   const tribunal = tribunalInformado && tribunalInformado.toUpperCase() !== "OUTROS"
@@ -302,11 +255,10 @@ export function processarCaso(linha: Record<string, any>): LegalCase {
 
   const linkConsulta = linha.linkConsulta || linha.LINK || detected.link;
 
-  // ID ESTÁVEL para impedir duplicação infinita
-  // Protocolo limpo ou hash do cliente+prazo se S/N
+  // ID ESTÁVEL para evitar duplicação
   const stableId = protocolo !== "S/N" 
     ? protocolo.replace(/\D/g, "") 
-    : `tmp-${cliente.replace(/\W/g, "")}-${proximoPrazo.replace(/\D/g, "")}`;
+    : `tmp-${cliente.replace(/\W/g, "")}-${(proximoPrazo || "").replace(/\D/g, "")}`;
 
   return {
     id: stableId,
