@@ -87,6 +87,10 @@ const BANCA_DATA: Record<string, any> = {
   "ANDRESSA EDUARDA TAVARES MATOS": {
     oabs: { "MG": "238.75/MG", "SP": "238.75/MG" },
     estadoCivil: "casada"
+  },
+  "RENATO PRINCIPE STEVANIN": {
+    oabs: { "PR": "115.910/PR", "SP": "346.790/SP" },
+    estadoCivil: "casado"
   }
 };
 
