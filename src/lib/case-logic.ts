@@ -1,7 +1,7 @@
 
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * W1 Capital / LexisPredict v160.0
+ * W1 Capital / LexisPredict v185.0
  */
 
 export type CaseStatus =
@@ -12,7 +12,8 @@ export type CaseStatus =
   | "No Prazo"
   | "Sem Prazo"
   | "Encerrado"
-  | "Arquivado";
+  | "Arquivado"
+  | "Caso Crítico";
 
 export type RiskLevel = "Crítico" | "Atenção" | "Normal";
 
@@ -31,7 +32,7 @@ export interface LegalCase {
   status: CaseStatus;
   risco: RiskLevel;
   diasFaltando?: number | null;
-  statusManual?: string;
+  statusManual: string;
   tribunal: string;
   linkConsulta: string;
   produtos?: string;
@@ -87,7 +88,7 @@ export function fixEncoding(text: string): string {
       .replace(/Ã /g, 'à')
       .replace(/Âº/g, 'º')
       .replace(/Âª/g, 'ª')
-      .replace(/Â/g, ''); // Limpa resíduos de acentuação
+      .replace(/Â/g, ''); 
   } catch (e) {
     return text;
   }
@@ -100,16 +101,12 @@ export function formatDateToISO(dateStr: string | null | undefined): string | nu
   if (!dateStr || String(dateStr).trim() === "" || dateStr === "-") return null;
   const raw = String(dateStr).trim();
 
-  // Verifica se é YYYY-MM-DD (ISO) - Estrito
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     return raw;
   }
 
-  // Verifica se é DD/MM/YYYY ou similar
   const parts = raw.split(/[\/\-]/);
   if (parts.length !== 3) return null;
-
-  // Garante que as partes sejam números para não deixar passar strings de status
   if (parts.some(p => isNaN(Number(p.trim())))) return null;
 
   let day, month, year;
@@ -120,9 +117,7 @@ export function formatDateToISO(dateStr: string | null | undefined): string | nu
     if (year.length === 2) year = `20${year}`;
   }
 
-  // Validação final de componentes
   if (Number(month) > 12 || Number(day) > 31) return null;
-
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
@@ -143,7 +138,6 @@ export function calcularDiasFaltando(proximoISO: string | null): number | null {
 export function calcularStatus(proximoRetorno: string | null | undefined, situacao: string | null | undefined): CaseStatus {
   const sit = (situacao || "").toUpperCase();
   
-  // REFENCIAL ELITE: Processos encerrados ou arquivados aparecem como "Sem Prazo"
   if (sit.includes("ENCERRADO") || sit.includes("ARQUIVADO") || sit.includes("EXTINTO")) {
     return "Sem Prazo";
   }
@@ -252,7 +246,14 @@ export function processarCaso(linha: Record<string, any>): LegalCase {
   const protocolo = getValue(linha, "PROTOCOLO", "PROCESSO", "Nº PROCESSO", "NUMERO", "NÚMERO").trim() || "S/N";
   const cliente = getValue(linha, "CLIENTE", "NOME").toUpperCase() || "DESCONHECIDO";
 
-  const status = calcularStatus(proximoPrazo, situacao);
+  // Lógica de Status: Calculado vs Estratégico (Manual)
+  let status = calcularStatus(proximoPrazo, situacao);
+  const statusManual = getValue(linha, "STATUS_MANUAL", "STATUS MANUAL");
+  
+  if (statusManual && statusManual !== "Automatico") {
+     status = statusManual as CaseStatus;
+  }
+
   const risco = calcularRisco(observacao, statusInterno, situacao);
   const tribunalInformado = getValue(linha, "TRIBUNAL");
   const detected = extrairTribunal(protocolo);
@@ -282,6 +283,7 @@ export function processarCaso(linha: Record<string, any>): LegalCase {
     diasFaltando: calcularDiasFaltando(formatDateToISO(proximoPrazo)),
     tribunal,
     linkConsulta: linha.linkConsulta || linha.LINK || detected.link,
+    statusManual: statusManual || "Automatico",
     tipo: getValue(linha, "TIPO", "TIPO_CASO") || "NOVO",
     atendente: getValue(linha, "ATENDENTE", "ASSISTENTE", "ASSISTENTE")
   };
