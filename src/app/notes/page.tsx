@@ -1,9 +1,8 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw, Loader2, Image as ImageIcon, X, Maximize2, Copyright, ShieldCheck } from 'lucide-react';
+import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw, Loader2, Image as ImageIcon, X, Maximize2, Copyright, ShieldCheck, Zap, Sparkles } from 'lucide-react';
 import { CaseNote } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/use-admin';
 import { fetchRepoNotes, syncRepoNotes } from '@/app/actions/case-actions';
+import { analisarNotasIA } from '@/ai/flows/note-analysis-flow';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import {
@@ -26,6 +26,7 @@ export default function NotesPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const hasLoaded = useRef(false);
@@ -105,6 +106,27 @@ export default function NotesPage() {
     }
   };
 
+  const handleIAAnalysis = async () => {
+    if (notes.length === 0) {
+      toast({ title: "Sem dados", description: "Crie algumas notas para análise.", variant: "destructive" });
+      return;
+    }
+    setIsAnalyzing(true);
+    try {
+      const result = await analisarNotasIA(notes);
+      if (result && !result.error) {
+        localStorage.setItem('lexisPredict_notes_analysis', JSON.stringify(result));
+        toast({ title: "Auditoria Concluída", description: "Insights colados no Dashboard." });
+      } else {
+        toast({ title: "Falha IA", description: result.error, variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Erro de Conexão", variant: "destructive" });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const handleDeleteNote = async (id: string) => {
     if (!isOperador || isSaving) return;
     
@@ -166,7 +188,15 @@ export default function NotesPage() {
             </Badge>
           </div>
           <div className="flex items-center gap-3">
-            <div className="relative w-64">
+            <Button 
+              onClick={handleIAAnalysis} 
+              disabled={isAnalyzing || notes.length === 0}
+              className="h-10 bg-black text-white border-2 border-black font-black uppercase text-[10px] px-6 shadow-[4px_4px_0px_#c9a227] hover:shadow-none transition-all rounded-none"
+            >
+              {isAnalyzing ? <Loader2 className="animate-spin mr-2" size={14}/> : <Sparkles className="mr-2 text-yellow-500" size={14}/>}
+              Auditoria IA
+            </Button>
+            <div className="relative w-64 hidden lg:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
               <Input 
                 placeholder="FILTRAR EVIDÊNCIAS..." 
@@ -175,17 +205,6 @@ export default function NotesPage() {
                 className="pl-10 h-10 bg-white border-black border-2 text-[10px] font-black uppercase focus-visible:ring-0 text-black"
               />
             </div>
-            {isOperador && (
-              <Button 
-                variant="destructive" 
-                size="sm" 
-                onClick={handleClearAll} 
-                disabled={isSaving}
-                className="h-10 font-black text-white px-6 uppercase text-[10px] border-2 border-black shadow-[4px_4px_0px_#000] hover:shadow-none"
-              >
-                <Trash2 className="w-4 h-4 mr-2" /> {isSaving ? "Limpando..." : "Limpar Notas"}
-              </Button>
-            )}
             <Button variant="ghost" size="icon" onClick={() => loadData(true)} className="text-black hover:bg-black hover:text-white border-2 border-black h-10 w-10">
               <RefreshCcw className={cn("w-4 h-4", loading && "animate-spin")} />
             </Button>

@@ -1,8 +1,7 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { LegalCase } from "@/lib/case-logic";
+import { LegalCase, CaseNote } from "@/lib/case-logic";
 import { Button } from "@/components/ui/button";
 import {
   Printer,
@@ -18,14 +17,19 @@ import {
   Zap,
   Eye,
   TrendingUp,
+  StickyNote,
+  Sparkles,
+  TrendingDown
 } from "lucide-react";
 import Link from "next/link";
-import { fetchRepoCases } from "@/app/actions/case-actions";
+import { fetchRepoCases, fetchRepoNotes } from "@/app/actions/case-actions";
 import { useAuth } from "@/components/auth/auth-provider";
 import { cn } from "@/lib/utils";
 
 export default function UnifiedReport() {
   const [cases, setCases] = useState<LegalCase[]>([]);
+  const [notes, setNotes] = useState<CaseNote[]>([]);
+  const [iaInsights, setIaInsights] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const { profile, loading: authLoading } = useAuth();
@@ -34,8 +38,15 @@ export default function UnifiedReport() {
     setMounted(true);
     async function load() {
       try {
-        const [casesData] = await Promise.all([fetchRepoCases()]);
+        const [casesData, notesData] = await Promise.all([
+          fetchRepoCases(),
+          fetchRepoNotes()
+        ]);
         setCases(casesData || []);
+        setNotes(notesData || []);
+        
+        const savedInsights = localStorage.getItem('lexisPredict_notes_analysis');
+        if (savedInsights) setIaInsights(JSON.parse(savedInsights));
       } catch (e) {
         console.error("Report extraction failure:", e);
       } finally {
@@ -48,20 +59,20 @@ export default function UnifiedReport() {
   const metrics = useMemo(() => {
     const totalRepo = cases.length;
     
-    // Categorização Estrita (Soma deve fechar em 246)
+    // Categorização Estrita
     const countVencido = cases.filter(c => c.status === 'Vencido').length;
     const countHoje = cases.filter(c => c.status === 'É Hoje').length;
     const countAtencao = cases.filter(c => c.status === 'Atenção').length;
     const countSaudavel = cases.filter(c => c.status === 'No Prazo').length;
     const countSemPrazo = cases.filter(c => c.status === 'Sem Prazo').length;
-    const countFinalizados = cases.filter(c => ['Encerrado', 'Arquivado'].includes(c.status)).length;
+    const countFinalizados = cases.filter(c => ['Encerrado', 'Arquivado'].includes(c.situacao)).length;
 
-    // Índice de Risco Ponderado
-    const activeSet = cases.filter(c => !['Encerrado', 'Arquivado', 'Sem Prazo'].includes(c.status));
+    // Índice de Risco Ponderado (Somente sobre Ativos)
+    const activeSet = cases.filter(c => !['Encerrado', 'Arquivado', 'Extinto', 'Suspenso'].includes(c.situacao));
     const activeTotal = activeSet.length;
     
-    const riskSum = (countVencido * 100) + (countHoje * 80) + (countAtencao * 50) + (countSaudavel * 10);
-    const riskScore = activeTotal > 0 ? Math.min(100, Math.round((riskSum / (activeTotal * 100)) * 100)) : 0;
+    const riskSum = (countVencido * 1.0) + (countHoje * 0.8) + (countAtencao * 0.5) + (countSaudavel * 0.1);
+    const riskScore = activeTotal > 0 ? Math.min(100, Math.round((riskSum / activeTotal) * 100)) : 0;
 
     let riskLabel = "BAIXO";
     let riskColor = "text-emerald-400";
@@ -88,7 +99,7 @@ export default function UnifiedReport() {
     return cases
       .filter(c => ["Vencido", "É Hoje", "Atenção"].includes(c.status))
       .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
-      .slice(0, 60);
+      .slice(0, 50);
   }, [cases]);
 
   const handleExportPDF = () => window.print();
@@ -133,13 +144,12 @@ export default function UnifiedReport() {
               </div>
               <div className="text-right space-y-2 self-end">
                 <p className="text-sm font-medium tracking-wide text-white">{profile?.nome || "ADMINISTRADOR"}</p>
-                <p className="text-[10px] tracking-[0.2em] uppercase text-white/40">Auditado sob protocolo v220.0</p>
+                <p className="text-[10px] tracking-[0.2em] uppercase text-white/40">Auditado sob protocolo v230.0</p>
                 <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 border border-emerald-500/40 text-emerald-400 text-[9px] font-medium tracking-widest uppercase"><ShieldCheck size={11} /> Autenticado</div>
               </div>
             </div>
           </header>
 
-          {/* KPIs EXECUTIVOS */}
           <section className="px-10 py-10 bg-black/40">
             <div className="grid grid-cols-12 gap-4">
               <div className="col-span-12 md:col-span-4 bg-black border border-white/10 p-7 flex flex-col justify-between min-h-[220px]">
@@ -158,15 +168,14 @@ export default function UnifiedReport() {
                 </div>
               </div>
               <div className="col-span-12 md:col-span-8 grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <KpiCard icon={<Activity size={16} />} label="Total Carteira" value={metrics.totalRepo} accent="text-blue-400" />
-                <KpiCard icon={<AlertTriangle size={16} />} label="Alertas Vencidos" value={metrics.countVencido} accent="text-red-500" highlight={metrics.countVencido > 0} />
-                <KpiCard icon={<CheckCircle2 size={16} />} label="Saudáveis (Em Dia)" value={metrics.countSaudavel} accent="text-emerald-400" />
+                <KpiCard icon={<Activity size={16} />} label="Carteira Total" value={metrics.totalRepo} accent="text-blue-400" />
+                <KpiCard icon={<AlertTriangle size={16} />} label="Processos Vencidos" value={metrics.countVencido} accent="text-red-500" highlight={metrics.countVencido > 0} />
+                <KpiCard icon={<CheckCircle2 size={16} />} label="Casos Saudáveis" value={metrics.countSaudavel} accent="text-emerald-400" />
                 <KpiCard icon={<Clock size={16} />} label="Vencem Hoje" value={metrics.countHoje} accent="text-orange-400" highlight={metrics.countHoje > 0} />
               </div>
             </div>
           </section>
 
-          {/* DISTRIBUIÇÃO OPERACIONAL EXATA */}
           <section className="px-10 pb-12">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-1 h-5 bg-[#c9a227]" />
@@ -182,14 +191,36 @@ export default function UnifiedReport() {
             </div>
           </section>
 
-          {/* TRIAGEM DE PRIORIDADE (TABELA EXECUTIVA) */}
+          {/* PARECER DA IA - NOVO REQUISITO */}
+          {iaInsights && (
+            <section className="px-10 pb-12">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-1 h-5 bg-[#c9a227]" />
+                <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-white/60">Parecer Estratégico da IA</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/[0.02] border border-white/5 p-8">
+                 <div className="space-y-4">
+                    <p className="text-[10px] font-black text-[#c9a227] uppercase tracking-[0.2em] flex items-center gap-2"><Sparkles size={12}/> Pontos Fortes de Gabinete</p>
+                    <p className="text-xs leading-relaxed opacity-70 uppercase font-medium">{iaInsights.strongPoints}</p>
+                 </div>
+                 <div className="space-y-4">
+                    <p className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] flex items-center gap-2"><TrendingDown size={12}/> Riscos e Negativos Detectados</p>
+                    <p className="text-xs leading-relaxed opacity-70 uppercase font-medium">{iaInsights.negativePoints}</p>
+                 </div>
+                 <div className="md:col-span-2 pt-6 border-t border-white/5">
+                    <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.1em] mb-2">Resumo Executivo do Auditor</p>
+                    <p className="text-sm leading-relaxed italic opacity-90 uppercase">{iaInsights.executiveSummary}</p>
+                 </div>
+              </div>
+            </section>
+          )}
+
           <section className="px-10 pb-12">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-1 h-5 bg-red-600" />
                 <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-white/60">Processos que exigem ação imediata</h2>
               </div>
-              <span className="text-[10px] text-white/30 tracking-widest uppercase">Ordenado por tempo de atraso</span>
             </div>
             <div className="border border-white/10 overflow-hidden">
               <table className="w-full text-left">
@@ -236,6 +267,31 @@ export default function UnifiedReport() {
             </div>
           </section>
 
+          {/* LOG DE NOTAS E EVIDÊNCIAS - NOVO REQUISITO */}
+          <section className="px-10 pb-12 break-before-page">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-1 h-5 bg-[#c9a227]" />
+              <h2 className="text-xs font-medium tracking-[0.3em] uppercase text-white/60">Log de Evidências & Notas Estratégicas</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               {notes.map((note) => (
+                 <div key={note.id} className="p-6 border border-white/10 bg-white/[0.02] flex flex-col gap-3">
+                    <div className="flex justify-between items-start">
+                       <span className="text-[8px] font-black text-[#c9a227] uppercase tracking-[0.2em]">{note.updatedAt}</span>
+                       <StickyNote size={10} className="opacity-20" />
+                    </div>
+                    <h3 className="text-xs font-bold uppercase text-white leading-tight">{note.title}</h3>
+                    <p className="text-[10px] leading-relaxed opacity-60 uppercase tracking-widest flex-1">{note.content}</p>
+                 </div>
+               ))}
+               {notes.length === 0 && (
+                 <div className="col-span-2 py-10 text-center border border-dashed border-white/10">
+                    <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.3em]">Nenhuma evidência registrada para auditoria.</p>
+                 </div>
+               )}
+            </div>
+          </section>
+
           <footer className="px-10 py-10 border-t border-white/5">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="flex items-center gap-4">
@@ -262,6 +318,11 @@ export default function UnifiedReport() {
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important; 
           }
+          .bg-black\/40 { background-color: rgba(0,0,0,0.4) !important; }
+          .bg-white\/\[0\.03\] { background-color: rgba(255,255,255,0.03) !important; }
+          .bg-white\/\[0\.02\] { background-color: rgba(255,255,255,0.02) !important; }
+          .text-\[\#c9a227\] { color: #c9a227 !important; }
+          .border-\[\#c9a227\] { border-color: #c9a227 !important; }
           .print-black { background-color: #0a0a0a !important; }
           * { border-color: rgba(255,255,255,0.1) !important; }
           @page { size: A4; margin: 10mm; }
