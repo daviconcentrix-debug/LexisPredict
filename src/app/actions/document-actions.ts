@@ -46,6 +46,42 @@ const BANCA_DATA: Record<string, any> = {
     endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
     email: "eraldojr@adv.oabsp.org.br",
     genero: "M"
+  },
+  "ISAI SAMPAIO MOREIRA": {
+    oabs: { "SP": "437.886/SP" },
+    endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
+    email: "isai@adv.oabsp.org.br",
+    genero: "M"
+  },
+  "GILBERTO BONFIM CAVALCANTI FILHO": {
+    oabs: { "SP": "337.930/SP" },
+    endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
+    email: "gilberto@adv.oabsp.org.br",
+    genero: "M"
+  },
+  "FABIO RODRIGUES SAMPAIO MOREIRA": {
+    oabs: { "SP": "437.886/SP" },
+    endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
+    email: "fabio@adv.oabsp.org.br",
+    genero: "M"
+  },
+  "MATHEUS SANTOS DIAS": {
+    oabs: { "SP": "472.089/SP" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
+    email: "matheus@adv.oabsp.org.br",
+    genero: "M"
+  },
+  "MAIKON ALVES LOPES DOS SANTOS": {
+    oabs: { "SP": "470.735/SP" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
+    email: "maikon@adv.oabsp.org.br",
+    genero: "M"
+  },
+  "ANDRESSA EDUARDA TAVARES": {
+    oabs: { "SP": "PENDENTE/SP" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
+    email: "andressa@adv.oabsp.org.br",
+    genero: "F"
   }
 };
 
@@ -197,7 +233,7 @@ export async function extrairDadosProcuracaoAction(inputText: string, lawyer: st
     }
 
     const lawyerInfo = BANCA_DATA[lawyer] || BANCA_DATA["PABLO MATHEUS SILVA BASTOS PEREIRA"];
-    const selectedOAB = lawyerInfo.oabs[state] || lawyerInfo.oabs["SP"];
+    const selectedOAB = lawyerInfo.oabs[state] || lawyerInfo.oabs["SP"] || lawyerInfo.oabs[Object.keys(lawyerInfo.oabs)[0]];
 
     const clienteData = parsed.cliente || parsed;
     const processosRaw = Array.isArray(parsed.processos) ? parsed.processos : [];
