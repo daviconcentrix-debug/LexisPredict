@@ -1,16 +1,16 @@
 /**
- * MOTOR DE ENGENHARIA CROMÁTICA v170000.0 ELITE
+ * MOTOR DE ENGENHARIA CROMÁTICA v190000.0 ELITE
  * Gerenciamento de Variáveis de Hardware e Presets Authority Series.
  */
 
 export type ThemeColors = {
   background: string;
+  bgSecondary: string;
   foreground: string;
+  fontMuted: string;
   primary: string;
-  border: string;
-  secondary: string;
-  card: string;
   accent: string;
+  border: string;
 };
 
 export type ThemePreset = {
@@ -27,40 +27,12 @@ export const AUTHORITY_PRESETS: ThemePreset[] = [
     radius: 4,
     colors: {
       background: '#FFFFFF',
+      bgSecondary: '#F3F4F6',
       foreground: '#0A0A0A',
+      fontMuted: '#6B7280',
       primary: '#00D1FF',
-      border: '#E5E7EB',
-      secondary: '#F3F4F6',
-      card: '#FFFFFF',
-      accent: '#00D1FF'
-    }
-  },
-  {
-    id: 'midnight-pro',
-    name: 'Midnight Professional',
-    radius: 4,
-    colors: {
-      background: '#020617',
-      foreground: '#E0E7FF',
-      primary: '#6366F1',
-      border: '#1E2937',
-      secondary: '#0F172A',
-      card: '#0F172A',
-      accent: '#22D3EE'
-    }
-  },
-  {
-    id: 'charcoal-authority',
-    name: 'Charcoal Authority',
-    radius: 6,
-    colors: {
-      background: '#0F172A',
-      foreground: '#F8FAFC',
-      primary: '#3B82F6',
-      border: '#334155',
-      secondary: '#1E2937',
-      card: '#1E2937',
-      accent: '#3B82F6'
+      accent: '#E5E7EB',
+      border: '#000000'
     }
   },
   {
@@ -69,26 +41,12 @@ export const AUTHORITY_PRESETS: ThemePreset[] = [
     radius: 0,
     colors: {
       background: '#050505',
+      bgSecondary: '#111111',
       foreground: '#F1F5F9',
+      fontMuted: '#94A3B8',
       primary: '#00D1FF',
-      border: '#1F2937',
-      secondary: '#111111',
-      card: '#0A0A0A',
-      accent: '#00D1FF'
-    }
-  },
-  {
-    id: 'slate-corporate',
-    name: 'Slate Corporate',
-    radius: 8,
-    colors: {
-      background: '#F1F5F9',
-      foreground: '#0F172A',
-      primary: '#2563EB',
-      border: '#CBD5E1',
-      secondary: '#E2E8F0',
-      card: '#FFFFFF',
-      accent: '#2563EB'
+      accent: '#1F2937',
+      border: '#FFFFFF'
     }
   }
 ];
@@ -118,26 +76,30 @@ export function applyGlobalTheme(colors: ThemeColors, radius: number, bgOpacity?
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   
+  // Persistência local
   localStorage.setItem('lexisPredict_bg_color', colors.background);
+  localStorage.setItem('lexisPredict_bg_secondary_color', colors.bgSecondary);
   localStorage.setItem('lexisPredict_font_color', colors.foreground);
+  localStorage.setItem('lexisPredict_font_muted_color', colors.fontMuted);
   localStorage.setItem('lexisPredict_btn_bg_color', colors.primary);
+  localStorage.setItem('lexisPredict_btn_inactive_color', colors.accent);
   localStorage.setItem('lexisPredict_border_color', colors.border);
-  localStorage.setItem('lexisPredict_secondary_color', colors.secondary);
   localStorage.setItem('lexisPredict_border_radius', radius.toString());
 
+  // Injeção de variáveis CSS
   root.style.setProperty('--background', hexToHsl(colors.background));
-  root.style.setProperty('--card', hexToHsl(colors.card || colors.background));
+  root.style.setProperty('--secondary', hexToHsl(colors.bgSecondary));
   root.style.setProperty('--foreground', hexToHsl(colors.foreground));
+  root.style.setProperty('--muted-foreground', hexToHsl(colors.fontMuted));
   root.style.setProperty('--primary', hexToHsl(colors.primary));
+  root.style.setProperty('--accent', hexToHsl(colors.accent));
   root.style.setProperty('--border', hexToHsl(colors.border));
-  root.style.setProperty('--secondary', hexToHsl(colors.secondary));
   root.style.setProperty('--radius', `${radius}px`);
   
+  // Sidebar e Cards seguem a lógica técnica
   root.style.setProperty('--sidebar-background', hexToHsl(colors.background));
   root.style.setProperty('--sidebar-foreground', hexToHsl(colors.foreground));
-  root.style.setProperty('--sidebar-border', hexToHsl(colors.border));
-  root.style.setProperty('--sidebar-primary', hexToHsl(colors.primary));
-  root.style.setProperty('--sidebar-accent', hexToHsl(colors.secondary));
+  root.style.setProperty('--card', hexToHsl(colors.background));
 
   if (bgOpacity !== undefined) root.style.setProperty('--bg-opacity', bgOpacity.toString());
   if (sidebarOpacity !== undefined) root.style.setProperty('--sidebar-opacity', sidebarOpacity.toString());
