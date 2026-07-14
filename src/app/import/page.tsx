@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -68,6 +69,8 @@ export default function ImportPage() {
   const [preview, setPreview] = useState<LegalCase[]>([]);
   const [step, setStep] = useState<'upload' | 'preview'>('upload');
   const [textInput, setTextInput] = useState('');
+  
+  // CORREÇÃO: Restaurado o identificador 'stats' e removido '统计' (erro de tradução)
   const [stats, setStats] = useState({ total: 0, critical: 0, tribunals: 0 });
 
   const { isOperador } = useAdmin();
