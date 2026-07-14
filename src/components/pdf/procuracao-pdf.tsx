@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Font } from '@react-pdf/renderer';
 
@@ -61,9 +62,7 @@ export function ProcuracaoPDF({ data }: { data: any }) {
         
         <View style={styles.paragraph}>
           <Text>
-            <Text style={styles.bold}>{cliente.nome.toUpperCase()}</Text>, brasileiro, {cliente.estadoCivil || "casado(a)"}, {cliente.profissao || "autônomo(a)"}, 
-            {cliente.dataNascimento && cliente.dataNascimento !== "" ? ` nascido(a) em ${cliente.dataNascimento}, ` : ""} 
-            portador do RG sob Nº {cliente.rg} e devidamente inscrito no CPF sob Nº {cliente.cpf}, residente e domiciliado à {cliente.endereco}, com endereço eletrônico: {cliente.email || 'Não informado'}, neste ato nomeia como seu procurador:
+            <Text style={styles.bold}>{cliente.nome.toUpperCase()}</Text>, brasileiro, {cliente.estadoCivil}, {cliente.profissao}, portador do RG sob Nº {cliente.rg} e devidamente inscrito no CPF sob Nº {cliente.cpf}, residente e domiciliado à {cliente.endereco}, com endereço eletrônico: {cliente.email || 'Não informado'}, neste ato nomeia como seu procurador:
           </Text>
         </View>
 
@@ -78,9 +77,7 @@ export function ProcuracaoPDF({ data }: { data: any }) {
             <Text style={styles.bold}>PODERES: </Text>
             Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula “AD JUDICIA”, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da {processos?.map((p: any, i: number) => (
               <React.Fragment key={i}>
-                <Text style={[styles.bold, styles.underline]}>{p.acao}</Text> promovida contra <Text style={styles.bold}>{p.banco.toUpperCase()}</Text>
-                {p.cnpjBanco && p.cnpjBanco !== "" ? ` (CNPJ: ${p.cnpjBanco})` : ""}
-                , processo nº {p.numero}{i < processos.length - 1 ? '; ' : '.'}
+                <Text style={[styles.bold, styles.underline]}>{p.acao}</Text> promovida contra <Text style={styles.bold}>{p.banco.toUpperCase()}</Text>, processo nº {p.numero}{i < processos.length - 1 ? '; ' : '.'}
               </React.Fragment>
             ))}
           </Text>

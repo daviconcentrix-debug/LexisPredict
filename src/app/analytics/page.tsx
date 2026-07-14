@@ -3,28 +3,22 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { buildExecutiveInsight } from "@/lib/performance-engine";
 import { 
   ShieldAlert, 
   Scale, 
   Users,
   FileDown,
   RefreshCcw,
-  Copyright,
-  UserCheck,
-  ShieldCheck,
-  Activity,
-  AlertTriangle
+  Copyright
 } from 'lucide-react';
-import { LegalCase, CaseNote } from '@/lib/case-logic';
+import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { fetchRepoCases, fetchRepoNotes } from '@/app/actions/case-actions';
+import { fetchRepoCases } from '@/app/actions/case-actions';
 
 export default function AnalyticsPage() {
   const [cases, setCases] = useState<LegalCase[]>([]);
-  const [notes, setNotes] = useState<CaseNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -32,12 +26,10 @@ export default function AnalyticsPage() {
     setMounted(true);
     async function load() {
       setLoading(true);
-      const [repoData, notesData] = await Promise.all([
-        fetchRepoCases(),
-        fetchRepoNotes()
-      ]);
-      if (repoData) setCases(repoData);
-      if (notesData) setNotes(notesData);
+      const repoData = await fetchRepoCases();
+      if (repoData && repoData.length > 0) {
+        setCases(repoData);
+      }
       setLoading(false);
     }
     load();
@@ -64,8 +56,8 @@ export default function AnalyticsPage() {
         }
       }
 
-      tribunalCounts[c.tribunal || "Outros"] = (tribunalCounts[c.tribunal || "Outros"] || 0) + 1;
-      attorneyCounts[c.advogado || "NÃO ATRIBUÍDO"] = (attorneyCounts[c.advogado || "NÃO ATRIBUÍDO"] || 0) + 1;
+      tribunalCounts[c.tribunal] = (tribunalCounts[c.tribunal] || 0) + 1;
+      attorneyCounts[c.advogado] = (attorneyCounts[c.advogado] || 0) + 1;
     });
 
     const topTribunals = Object.entries(tribunalCounts)
@@ -76,19 +68,19 @@ export default function AnalyticsPage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
-    // Performance Insight
-    const insight = buildExecutiveInsight(cases, notes);
-
     return { 
       total, 
       statusCounts, 
       topTribunals, 
-      topAttorneys,
-      insight
+      topAttorneys 
     };
-  }, [cases, notes]);
+  }, [cases]);
 
   const getPercent = (val: number) => metrics.total ? Math.round((val / metrics.total) * 100) : 0;
+
+  const handleExportPDF = () => {
+    window.print();
+  };
 
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black">
@@ -97,10 +89,10 @@ export default function AnalyticsPage() {
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 print:hidden shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Indicadores Analytics</h1>
-            <Badge variant="outline" className="text-black border-black font-black uppercase text-[10px]">Performance Engine v1.0</Badge>
+            <Badge variant="outline" className="text-black border-black font-black uppercase text-[10px]">Cloud Connected</Badge>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => window.print()} className="text-black border-black h-8 font-black uppercase hover:bg-black hover:text-white transition-all">
+            <Button variant="outline" size="sm" onClick={handleExportPDF} className="text-black border-black h-8 font-black uppercase hover:bg-black hover:text-white transition-all">
               <FileDown size={14} className="mr-2" /> Exportar Dossiê
             </Button>
             <Button variant="ghost" size="icon" onClick={() => window.location.reload()} className="text-black hover:bg-black hover:text-white">
@@ -110,30 +102,12 @@ export default function AnalyticsPage() {
         </header>
 
         <div className="flex-1 overflow-auto p-8 space-y-8 max-w-7xl mx-auto w-full print:p-0">
-          {/* PERFORMANCE HEADER OVERVIEW */}
-          <section className="bg-black text-white p-10 flex flex-col lg:flex-row justify-between items-center gap-8 rounded-sm shadow-xl">
-             <div className="flex items-center gap-8">
-                <div className="w-20 h-20 rounded-full border-8 border-white/10 border-t-[#c9a227] flex items-center justify-center">
-                   <span className="text-3xl font-black text-[#c9a227]">{metrics.insight.summary.performanceScore}</span>
-                </div>
-                <div>
-                   <h2 className="text-2xl font-black uppercase tracking-tight">Status de Auditoria Individual</h2>
-                   <p className="text-[11px] font-black uppercase tracking-[0.4em] text-white/40">Gabinete em Nível {metrics.insight.summary.performanceLabel}</p>
-                </div>
-             </div>
-             <div className="flex gap-10">
-                <div className="text-center">
-                   <p className="text-[10px] font-black text-white/40 uppercase mb-1">Culpabilidade Externa</p>
-                   <p className="text-3xl font-black text-emerald-400">-{metrics.insight.person.notMyFaultCount}</p>
-                </div>
-                <div className="text-center">
-                   <p className="text-[10px] font-black text-white/40 uppercase mb-1">Incidentes Críticos</p>
-                   <p className="text-3xl font-black text-red-500">{metrics.insight.summary.criticalCount}</p>
-                </div>
-             </div>
-          </section>
+          <div className="hidden print:block mb-8 border-b pb-4">
+            <h1 className="text-2xl font-black text-black uppercase">Relatório de Gestão Analítica</h1>
+            <p className="text-sm text-black/60 font-bold uppercase tracking-widest">Extraído em: {mounted ? new Date().toLocaleDateString() : '...'}</p>
+          </div>
 
-          <section className="bg-white border border-[#dddbda] rounded-sm p-8 shadow-sm group hover:bg-black transition-all cursor-default">
+          <section className="bg-white border border-[#dddbda] rounded-sm p-8 shadow-sm print:bg-white print:border-gray-200 group hover:bg-black transition-all cursor-default">
             <div className="flex items-center gap-3 mb-8 print:hidden">
               <div className="icon-3d-wrapper">
                 <div className="icon-3d-block black w-10 h-10 rounded-sm group-hover:bg-white">
@@ -166,18 +140,30 @@ export default function AnalyticsPage() {
               <div className="flex items-center gap-3 mb-8 print:hidden">
                 <div className="icon-3d-wrapper">
                   <div className="icon-3d-block black w-10 h-10 rounded-sm group-hover:bg-white">
-                    <AlertTriangle className="text-white group-hover:text-black w-5 h-5" />
+                    <Scale className="text-white group-hover:text-black w-5 h-5" />
                   </div>
                 </div>
                 <div>
-                  <h2 className="text-lg font-black text-black group-hover:text-white uppercase tracking-wider">Culpabilidade Identificada</h2>
+                  <h2 className="text-lg font-black text-black group-hover:text-white uppercase tracking-wider">Carga por Tribunal</h2>
                 </div>
               </div>
 
               <div className="space-y-7">
-                  <FaultRow label="Responsabilidade do Advogado" count={metrics.insight.byFault.advogado.length} color="bg-amber-400" total={metrics.total} />
-                  <FaultRow label="Responsabilidade do Operador" count={metrics.insight.byFault.operador.length} color="bg-red-600" total={metrics.total} />
-                  <FaultRow label="Fatores Externos (Sem Culpa)" count={metrics.insight.byFault.externo.length} color="bg-emerald-400" total={metrics.total} />
+                {metrics.topTribunals.length > 0 ? metrics.topTribunals.map(([name, count]) => (
+                  <div key={name} className="space-y-2.5">
+                    <div className="flex justify-between text-xs font-black uppercase tracking-widest text-black group-hover:text-white transition-colors">
+                      <span>{name}</span>
+                      <span className="text-black/60 group-hover:text-white/60">{count} ({getPercent(count)}%)</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-[#f3f2f2] rounded-full overflow-hidden border border-[#dddbda] group-hover:border-white/10 transition-all">
+                      <div className="h-full bg-black group-hover:bg-white transition-all duration-1000" style={{ width: `${getPercent(count)}%` }} />
+                    </div>
+                  </div>
+                )) : (
+                  <div className="py-20 text-center border-2 border-dashed border-[#dddbda] rounded-sm">
+                    <p className="text-sm font-black uppercase text-black/40">Sem dados para sincronia.</p>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -185,21 +171,30 @@ export default function AnalyticsPage() {
               <div className="flex items-center gap-3 mb-8 print:hidden">
                 <div className="icon-3d-wrapper">
                   <div className="icon-3d-block black w-10 h-10 rounded-sm group-hover:bg-white">
-                    <UserCheck className="text-white group-hover:text-black w-5 h-5" />
+                    <Users className="text-white group-hover:text-black w-5 h-5" />
                   </div>
                 </div>
                 <div>
-                  <h2 className="text-lg font-black text-black group-hover:text-white uppercase tracking-wider">Recomendações do Auditor</h2>
+                  <h2 className="text-lg font-black text-black group-hover:text-white uppercase tracking-wider">Volume por Advogado</h2>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                 {metrics.insight.person.recommendations.map((r, i) => (
-                   <div key={i} className="flex gap-4 p-4 border-2 border-dashed border-black/10 group-hover:border-white/20 transition-all">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1 shrink-0" />
-                      <p className="text-[11px] font-black text-black/60 group-hover:text-white/80 uppercase leading-relaxed">{r}</p>
-                   </div>
-                 ))}
+              <div className="space-y-7">
+                {metrics.topAttorneys.length > 0 ? metrics.topAttorneys.map(([name, count]) => (
+                  <div key={name} className="space-y-2.5">
+                    <div className="flex justify-between text-xs font-black uppercase tracking-widest text-black group-hover:text-white transition-colors">
+                      <span className="truncate pr-4">{name}</span>
+                      <span className="text-black/60 group-hover:text-white/60 shrink-0">{count} ({getPercent(count)}%)</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-[#f3f2f2] rounded-full overflow-hidden border border-[#dddbda] group-hover:border-white/10 transition-all">
+                      <div className="h-full bg-black group-hover:bg-white transition-all duration-1000" style={{ width: `${getPercent(count)}%` }} />
+                    </div>
+                  </div>
+                )) : (
+                  <div className="py-20 text-center border-2 border-dashed border-[#dddbda] rounded-sm">
+                    <p className="text-sm font-black uppercase text-black/40">Aguardando sincronia...</p>
+                  </div>
+                )}
               </div>
             </section>
           </div>
@@ -224,21 +219,6 @@ function MetricItem({ label, value, pct, color }: { label: string, value: number
       <div className="flex items-end gap-3">
         <span className="text-3xl font-black text-black group-hover:text-white leading-none">{value}</span>
         <span className={cn("text-[10px] font-black px-2 py-0.5 rounded text-white mb-0.5", color)}>{pct}%</span>
-      </div>
-    </div>
-  );
-}
-
-function FaultRow({ label, count, color, total }: { label: string, count: number, color: string, total: number }) {
-  const pct = total ? Math.round((count / total) * 100) : 0;
-  return (
-    <div className="space-y-2.5">
-      <div className="flex justify-between text-xs font-black uppercase tracking-widest text-black group-hover:text-white transition-colors">
-        <span>{label}</span>
-        <span className="text-black/60 group-hover:text-white/60">{count} ({pct}%)</span>
-      </div>
-      <div className="h-1.5 w-full bg-[#f3f2f2] rounded-full overflow-hidden border border-[#dddbda] group-hover:border-white/10 transition-all">
-        <div className={cn("h-full transition-all duration-1000", color)} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );

@@ -1,8 +1,9 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw, Loader2, ImageIcon, X, Maximize2, Copyright, ShieldCheck } from 'lucide-react';
+import { Plus, Trash2, StickyNote, Lock, Search, RefreshCcw, Loader2, Image as ImageIcon, X, Maximize2, Copyright, ShieldCheck } from 'lucide-react';
 import { CaseNote } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -81,7 +82,7 @@ export default function NotesPage() {
       title: newNote.title.trim() || 'Atualização sem Título',
       content: newNote.content.trim(),
       imageUrl: imagePreview || undefined,
-      color: 'bg-muted/50',
+      color: 'bg-sidebar/40',
       updatedAt: new Date().toLocaleString('pt-BR')
     };
 
@@ -152,26 +153,26 @@ export default function NotesPage() {
   }, [notes, search]);
 
   return (
-    <div className="flex h-screen bg-background font-sans text-foreground relative overflow-hidden">
+    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
-        <header className="h-16 border-b border-border bg-card flex items-center justify-between px-8 shrink-0 z-40">
-          <div className="flex items-center gap-4 pl-10 lg:pl-0">
-            <h1 className="font-black text-xl text-foreground uppercase hover:bg-primary hover:text-primary-foreground px-2 py-1 transition-all rounded-sm cursor-default">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden text-black relative z-10">
+        <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
+          <div className="flex items-center gap-4">
+            <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">
               {isAdmin ? "Anotações Gerais de Auditoria" : "Minhas Notas Estratégicas"}
             </h1>
-            <Badge variant="outline" className="border-border border-2 text-foreground font-black uppercase text-[10px] px-3 py-1 flex items-center gap-1.5 tracking-tighter">
-              <ShieldCheck size={10} className="text-primary" /> {isAdmin ? 'Modo Global' : 'Modo Privado'}
+            <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px] px-3 py-1 flex items-center gap-1.5 tracking-tighter">
+              <ShieldCheck size={10} /> {isAdmin ? 'Modo Global' : 'Modo Privado'}
             </Badge>
           </div>
           <div className="flex items-center gap-3">
-            <div className="relative w-64 hidden md:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40 w-4 h-4" />
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
               <Input 
                 placeholder="FILTRAR EVIDÊNCIAS..." 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 h-10 bg-background border-border border-2 text-[10px] font-black uppercase focus-visible:ring-0 text-foreground"
+                className="pl-10 h-10 bg-white border-black border-2 text-[10px] font-black uppercase focus-visible:ring-0 text-black"
               />
             </div>
             {isOperador && (
@@ -180,12 +181,12 @@ export default function NotesPage() {
                 size="sm" 
                 onClick={handleClearAll} 
                 disabled={isSaving}
-                className="h-10 font-black px-6 uppercase text-[10px] border-2 border-border shadow-[4px_4px_0px_rgba(0,0,0,0.1)]"
+                className="h-10 font-black text-white px-6 uppercase text-[10px] border-2 border-black shadow-[4px_4px_0px_#000] hover:shadow-none"
               >
                 <Trash2 className="w-4 h-4 mr-2" /> {isSaving ? "Limpando..." : "Limpar Notas"}
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={() => loadData(true)} className="text-foreground hover:bg-primary hover:text-primary-foreground border-2 border-border h-10 w-10">
+            <Button variant="ghost" size="icon" onClick={() => loadData(true)} className="text-black hover:bg-black hover:text-white border-2 border-black h-10 w-10">
               <RefreshCcw className={cn("w-4 h-4", loading && "animate-spin")} />
             </Button>
           </div>
@@ -193,38 +194,38 @@ export default function NotesPage() {
 
         <div className="flex-1 overflow-auto p-8 space-y-8">
           {isOperador && (
-            <section className="max-w-xl mx-auto bg-card border-2 border-border p-6 rounded-none shadow-[10px_10px_0px_rgba(0,0,0,0.05)] space-y-4">
+            <section className="max-w-xl mx-auto bg-white border-2 border-black p-6 rounded-none shadow-[10px_10px_0px_#000] space-y-4">
               <div className="flex items-center gap-2 mb-2">
-                <Badge className="bg-primary text-primary-foreground text-[9px] font-black uppercase rounded-none">Nova Evidência</Badge>
+                <Badge className="bg-black text-white text-[9px] font-black uppercase rounded-none">Nova Evidência</Badge>
               </div>
               <Input 
                 placeholder="TÍTULO DA ANOTAÇÃO (OPCIONAL)" 
                 value={newNote.title}
                 onChange={(e) => setNewNote({...newNote, title: e.target.value})}
-                className="bg-transparent border-none text-[12px] font-black placeholder:opacity-30 focus-visible:ring-0 px-0 text-foreground uppercase"
+                className="bg-transparent border-none text-[12px] font-black placeholder:text-black/30 focus-visible:ring-0 px-0 text-black uppercase"
                 disabled={isSaving}
               />
               <Textarea 
                 placeholder="ESCREVA AQUI A ATUALIZAÇÃO ESTRATÉGICA..." 
                 value={newNote.content}
                 onChange={(e) => setNewNote({...newNote, content: e.target.value})}
-                className="bg-transparent border-none text-[12px] placeholder:opacity-30 focus-visible:ring-0 px-0 min-h-[100px] resize-none text-foreground font-black uppercase leading-relaxed"
+                className="bg-transparent border-none text-[12px] placeholder:text-black/30 focus-visible:ring-0 px-0 min-h-[100px] resize-none text-black font-black uppercase leading-relaxed"
                 disabled={isSaving}
               />
               
               {imagePreview && (
-                <div className="relative w-32 h-32 rounded-none overflow-hidden border-2 border-border group">
+                <div className="relative w-32 h-32 rounded-none overflow-hidden border-2 border-black group">
                   <Image src={imagePreview} alt="Preview" fill className="object-cover" />
                   <button 
                     onClick={() => setImagePreview(null)}
-                    className="absolute top-1 right-1 bg-black text-white rounded-none p-1 hover:bg-destructive transition-colors"
+                    className="absolute top-1 right-1 bg-black text-white rounded-none p-1 hover:bg-red-600 transition-colors"
                   >
                     <X size={12} />
                   </button>
                 </div>
               )}
 
-              <div className="flex justify-between items-center pt-4 border-t-2 border-border/50">
+              <div className="flex justify-between items-center pt-4 border-t-2 border-black/5">
                 <div className="flex gap-2">
                   <input 
                     type="file" 
@@ -237,17 +238,17 @@ export default function NotesPage() {
                     variant="ghost" 
                     size="icon" 
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-foreground hover:bg-primary hover:text-primary-foreground border-2 border-border h-10 w-10 transition-all"
+                    className="text-black hover:bg-black hover:text-white border-2 border-black h-10 w-10 transition-all"
                     disabled={isSaving}
                   >
-                    <StickyNote size={18} />
+                    <ImageIcon size={18} />
                   </Button>
                 </div>
                 <Button 
                   size="sm" 
                   onClick={handleAddNote} 
                   disabled={isSaving || !newNote.content.trim()}
-                  className="h-10 font-black bg-primary text-primary-foreground border-2 border-primary hover:opacity-90 px-10 uppercase text-[10px] transition-all shadow-[4px_4px_0px_rgba(0,0,0,0.1)]"
+                  className="h-10 font-black bg-white text-black border-2 border-black hover:bg-black hover:text-white px-10 uppercase text-[10px] transition-all shadow-[4px_4px_0px_#000] hover:shadow-none"
                 >
                   {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Plus className="w-3.5 h-3.5 mr-2" />}
                   {isSaving ? "Sincronizando..." : "Salvar Nota"}
@@ -259,7 +260,7 @@ export default function NotesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 pb-12">
             {filteredNotes.length > 0 ? filteredNotes.map((note) => (
               <div key={note.id} className={cn(
-                "p-6 bg-card border-2 border-border rounded-none transition-all hover:border-primary group relative flex flex-col h-full cursor-default shadow-[6px_6px_0px_rgba(0,0,0,0.05)]"
+                "p-6 bg-white border-2 border-black rounded-none transition-all hover:bg-black group relative flex flex-col h-full cursor-default shadow-[6px_6px_0px_#000] hover:shadow-none"
               )}>
                 <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                    {note.imageUrl && (
@@ -267,7 +268,7 @@ export default function NotesPage() {
                       variant="ghost" 
                       size="icon" 
                       onClick={() => setFullscreenImage(note.imageUrl!)}
-                      className="h-8 w-8 bg-background text-foreground border-2 border-border rounded-none"
+                      className="h-8 w-8 bg-white text-black hover:bg-white/90 border-2 border-black rounded-none shadow-sm"
                     >
                       <Maximize2 size={14} />
                     </Button>
@@ -278,7 +279,7 @@ export default function NotesPage() {
                       size="icon" 
                       onClick={() => handleDeleteNote(note.id)}
                       disabled={isSaving}
-                      className="h-8 w-8 bg-background text-foreground hover:bg-destructive hover:text-destructive-foreground border-2 border-border rounded-none"
+                      className="h-8 w-8 bg-white text-black hover:bg-red-600 hover:text-white border-2 border-black rounded-none shadow-sm"
                     >
                       <Trash2 size={14} />
                     </Button>
@@ -286,32 +287,33 @@ export default function NotesPage() {
                 </div>
                 
                 {note.imageUrl && (
-                  <div className="relative w-full h-44 mb-5 rounded-none overflow-hidden border-2 border-border group-hover:border-primary transition-all cursor-pointer" onClick={() => setFullscreenImage(note.imageUrl!)}>
-                    <img src={note.imageUrl} alt="Note Attachment" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  <div className="relative w-full h-44 mb-5 rounded-none overflow-hidden border-2 border-black group-hover:border-white/20 transition-all cursor-pointer shadow-sm" onClick={() => setFullscreenImage(note.imageUrl!)}>
+                    <Image src={note.imageUrl} alt="Note Attachment" fill className="object-cover transition-transform duration-500 group-hover:scale-105" unoptimized />
                   </div>
                 )}
 
-                <h3 className="font-black text-[13px] mb-3 text-foreground uppercase transition-colors tracking-tight leading-tight group-hover:text-primary">{note.title}</h3>
-                <p className="text-[11px] text-foreground/70 leading-relaxed font-black uppercase whitespace-pre-wrap flex-1 transition-colors tracking-widest">{note.content}</p>
+                <h3 className="font-black text-[13px] mb-3 text-black group-hover:text-white uppercase transition-colors tracking-tight leading-tight">{note.title}</h3>
+                <p className="text-[11px] text-black/60 group-hover:text-white/80 leading-relaxed font-black uppercase whitespace-pre-wrap flex-1 transition-colors tracking-widest">{note.content}</p>
                 
-                <div className="mt-5 pt-5 border-t-2 border-border/50 flex justify-between items-center transition-all">
-                  <span className="text-[9px] text-foreground/40 font-black uppercase tracking-[0.2em]">{note.updatedAt}</span>
-                  <StickyNote size={14} className="text-primary/40" />
+                <div className="mt-5 pt-5 border-t-2 border-black/5 group-hover:border-white/20 flex justify-between items-center transition-all">
+                  <span className="text-[9px] text-black/40 group-hover:text-white/40 font-black uppercase tracking-[0.2em]">{note.updatedAt}</span>
+                  <StickyNote size={14} className="text-black/20 group-hover:text-white/20" />
                 </div>
               </div>
             )) : (
-              <div className="col-span-full py-32 text-center border-2 border-dashed border-border rounded-none opacity-40">
-                <p className="text-[11px] font-black text-foreground uppercase tracking-[0.3em]">{loading ? "Consolidando Visão por Perfil..." : "Nenhuma anotação estratégica localizada."}</p>
+              <div className="col-span-full py-32 text-center border-2 border-dashed border-black/20 rounded-none opacity-40">
+                <p className="text-[11px] font-black text-black uppercase tracking-[0.3em]">{loading ? "Consolidando Visão por Perfil..." : "Nenhuma anotação estratégica localizada."}</p>
               </div>
             )}
           </div>
         </div>
 
-        <footer className="h-10 border-t border-border bg-card flex items-center justify-center gap-6 text-[10px] text-foreground/40 font-black uppercase tracking-[0.2em] shrink-0">
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 hover:bg-black hover:text-white transition-all cursor-default">
           <div className="flex items-center gap-2">
-            <Copyright size={10} /> 2026 W1 Capital.
+            <Copyright size={10} /> 2026 W1 Capital. Todos os direitos reservados.
           </div>
-          <span className="uppercase font-black text-primary">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
+          <span className="w-1 h-1 bg-black rounded-full opacity-30 group-hover:bg-white" />
+          <span className="uppercase font-black">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
         </footer>
 
         <Dialog open={!!fullscreenImage} onOpenChange={(open) => !open && setFullscreenImage(null)}>
