@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Motor de Auditoria Operacional Jurídica v1000.0 ELITE
@@ -57,7 +58,7 @@ Inclua:
 
 Não invente informações.
 
-Retorne SOMENTE JSON:
+Retorne SOMENTE JSON plano, sem markdown, sem explicações:
 {
  "pontosFortes": [],
  "riscosDetectados": []
@@ -66,13 +67,18 @@ Retorne SOMENTE JSON:
 function cleanJsonResponse(text: string): any {
   if (!text) return null;
   try {
-    const firstBrace = text.indexOf('{');
-    const lastBrace = text.lastIndexOf('}');
+    // Remoção agressiva de markdown e ruídos
+    let clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const firstBrace = clean.indexOf('{');
+    const lastBrace = clean.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1) {
-      return JSON.parse(text.substring(firstBrace, lastBrace + 1));
+      return JSON.parse(clean.substring(firstBrace, lastBrace + 1));
     }
     return null;
-  } catch (e) { return null; }
+  } catch (e) { 
+    console.error("JSON Parse Error:", e);
+    return null; 
+  }
 }
 
 async function callXAI(notesText: string) {
