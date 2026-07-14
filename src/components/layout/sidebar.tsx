@@ -21,7 +21,8 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
-  UserPlus
+  UserPlus,
+  Repeat
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -65,6 +66,7 @@ export function Sidebar() {
       items: [
         { label: t.audit, href: '/veredito', icon: FileSearch },
         { label: t.documents, href: '/documents', icon: FileText },
+        { label: t.substabelecimento, href: '/substabelecimento', icon: Repeat },
         { label: t.chat, href: '/chat', icon: MessageSquare },
         { label: t.whatsapp, href: '/whatsapp', icon: MessageCircle },
         { label: t.import, href: '/import', icon: Upload },
