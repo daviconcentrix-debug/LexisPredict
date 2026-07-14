@@ -46,7 +46,10 @@ const styles = StyleSheet.create({
   },
   signatureArea: {
     textAlign: 'center',
-    marginTop: 20
+    marginTop: 20,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
   },
   signatureLine: {
     width: '60%',
@@ -80,10 +83,21 @@ export function SubstabelecimentoPDF({ data }: { data: any }) {
 
         <Text style={styles.date}>{comarca}, {dataExtenso}</Text>
 
+        {/* Assinatura do Substabelecente */}
         <View style={styles.signatureArea}>
           <View style={styles.signatureLine} />
           <Text style={styles.bold}>{substabelecente.nome.toUpperCase()}</Text>
           <Text style={styles.bold}>{substabelecente.oabCurta}</Text>
+        </View>
+
+        {/* Espaçamento entre assinaturas */}
+        <View style={{ marginTop: 40 }} />
+
+        {/* Assinatura do Substabelecido */}
+        <View style={styles.signatureArea}>
+          <View style={styles.signatureLine} />
+          <Text style={styles.bold}>{substabelecido.nome.toUpperCase()}</Text>
+          <Text style={styles.bold}>{substabelecido.oabCurta}</Text>
         </View>
       </Page>
     </Document>
