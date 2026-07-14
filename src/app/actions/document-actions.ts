@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -77,8 +76,8 @@ const BANCA_DATA: Record<string, any> = {
     email: "maikon@adv.oabsp.org.br",
     genero: "M"
   },
-  "ANDRESSA EDUARDA TAVARES": {
-    oabs: { "SP": "PENDENTE/SP" },
+  "ANDRESSA EDUARDA TAVARES MATOS": {
+    oabs: { "MG": "238.75/MG", "SP": "238.75/MG" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "andressa@adv.oabsp.org.br",
     genero: "F"
