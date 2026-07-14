@@ -1,7 +1,7 @@
 
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * W1 Capital / LexisPredict v155.0
+ * W1 Capital / LexisPredict v160.0
  */
 
 export type CaseStatus =
@@ -86,24 +86,31 @@ export function fixEncoding(text: string): string {
       .replace(/Ãµ/g, 'õ')
       .replace(/Ã /g, 'à')
       .replace(/Âº/g, 'º')
-      .replace(/Âª/g, 'ª');
+      .replace(/Âª/g, 'ª')
+      .replace(/Â/g, ''); // Limpa resíduos de acentuação
   } catch (e) {
     return text;
   }
 }
 
+/**
+ * Validador Estrito de Datas para Postgres
+ */
 export function formatDateToISO(dateStr: string | null | undefined): string | null {
   if (!dateStr || String(dateStr).trim() === "" || dateStr === "-") return null;
   const raw = String(dateStr).trim();
 
-  // YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
-    return raw.slice(0, 10);
+  // Verifica se é YYYY-MM-DD (ISO) - Estrito
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
   }
 
-  // DD/MM/YYYY ou YYYY/MM/DD
+  // Verifica se é DD/MM/YYYY ou similar
   const parts = raw.split(/[\/\-]/);
   if (parts.length !== 3) return null;
+
+  // Garante que as partes sejam números para não deixar passar strings de status
+  if (parts.some(p => isNaN(Number(p.trim())))) return null;
 
   let day, month, year;
   if (parts[0].length === 4) {
@@ -112,6 +119,9 @@ export function formatDateToISO(dateStr: string | null | undefined): string | nu
     [day, month, year] = parts;
     if (year.length === 2) year = `20${year}`;
   }
+
+  // Validação final de componentes
+  if (Number(month) > 12 || Number(day) > 31) return null;
 
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
@@ -136,11 +146,10 @@ export function calcularStatus(proximoRetorno: string | null | undefined, situac
     return "Arquivado";
   }
 
-  if (!proximoRetorno || proximoRetorno === "-") return "Sem Prazo";
-
   const iso = formatDateToISO(proximoRetorno);
-  const dias = calcularDiasFaltando(iso);
+  if (!iso) return "Sem Prazo";
 
+  const dias = calcularDiasFaltando(iso);
   if (dias === null) return "Sem Prazo";
   if (dias < 0) return "Vencido";
   if (dias === 0) return "É Hoje";
@@ -151,7 +160,6 @@ export function calcularStatus(proximoRetorno: string | null | undefined, situac
 
 export function calcularRisco(observacoes: string | null | undefined, statusInterno: string | null | undefined, situacao: string | null | undefined): RiskLevel {
   const texto = `${observacoes || ""} ${statusInterno || ""} ${situacao || ""}`.toUpperCase();
-
   const criticas = ["INDEFERIDA", "EXTINTO", "IMPROCEDENTE", "NÃO RESPONDE", "NÃO PAGOU", "DESISTÊNCIA", "SUMI", "BLOQUEOU", "SUCUMBÊNCIA", "BAIXA DEFINITIVAMENTE"];
   const atencao = ["CONCLUSO", "AGUARDANDO", "DOCUMENTAÇÃO", "CUSTAS", "DILAÇÃO", "REDISTRIBUIÇÃO", "SUBSTABELECIMENTO", "JG INDEFERIDA"];
 
@@ -237,25 +245,20 @@ function getValue(obj: Record<string, any>, ...keys: string[]): string {
 export function processarCaso(linha: Record<string, any>): LegalCase {
   const proximoPrazo = getValue(linha, "PRÓXIMO PRAZO", "PROXIMO PRAZO", "PRÓXIMO RETORNO", "PROXIMO RETORNO", "PRAZO", "VENCIMENTO");
   const situacao = getValue(linha, "SITUACAO", "SITUAÇÃO", "STATUS").toUpperCase() || "EM ANDAMENTO";
-  const observacao = getValue(linha, "OBSERVACAO", "OBSERVAÇÃO", "OBSERVAÇÕES", "NOTAS", "DADOS");
+  const observacao = getValue(linha, "OBSERVACAO", "OBSERVAÇÃO", "OBSERVAÇÕES", "OBSERVAÃ‡Ã•ES", "NOTAS", "DADOS");
   const statusInterno = getValue(linha, "STATUS", "STATUS_INTERNO", "STATUS INTERNO");
   const protocolo = getValue(linha, "PROTOCOLO", "PROCESSO", "Nº PROCESSO", "NUMERO", "NÚMERO").trim() || "S/N";
   const cliente = getValue(linha, "CLIENTE", "NOME").toUpperCase() || "DESCONHECIDO";
 
   const status = calcularStatus(proximoPrazo, situacao);
   const risco = calcularRisco(observacao, statusInterno, situacao);
-  const iso = formatDateToISO(proximoPrazo);
-  const diasFaltando = calcularDiasFaltando(iso);
-
   const tribunalInformado = getValue(linha, "TRIBUNAL");
   const detected = extrairTribunal(protocolo);
+  
   const tribunal = tribunalInformado && tribunalInformado.toUpperCase() !== "OUTROS"
       ? tribunalInformado.toUpperCase()
       : detected.tribunal;
 
-  const linkConsulta = linha.linkConsulta || linha.LINK || detected.link;
-
-  // ID ESTÁVEL para evitar duplicação
   const stableId = protocolo !== "S/N" 
     ? protocolo.replace(/\D/g, "") 
     : `tmp-${cliente.replace(/\W/g, "")}-${(proximoPrazo || "").replace(/\D/g, "")}`;
@@ -265,8 +268,8 @@ export function processarCaso(linha: Record<string, any>): LegalCase {
     cliente,
     protocolo,
     telefone: getValue(linha, "TELEFONE", "CELULAR", "WHATSAPP"),
-    advogado: getValue(linha, "ADVOGADO", "ADVOGADO RESPONSÁVEL", "RESPONSÁVEL") || "NÃO ATRIBUÍDO",
-    escritorio: getValue(linha, "ESCRITORIO", "ESCRITÓRIO", "UNIDADE"),
+    advogado: getValue(linha, "ADVOGADO", "ADVOGADO RESPONSÁVEL", "ADVOGADO RESPONSÃVEL", "RESPONSÁVEL") || "NÃO ATRIBUÍDO",
+    escritorio: getValue(linha, "ESCRITORIO", "ESCRITÓRIO", "ESCRITÃ“RIO", "UNIDADE"),
     situacao,
     statusInterno,
     observacao,
@@ -274,22 +277,20 @@ export function processarCaso(linha: Record<string, any>): LegalCase {
     ultimoRetorno: getValue(linha, "RETORNO", "ÚLTIMO RETORNO", "ULTIMO RETORNO"),
     status,
     risco,
-    diasFaltando,
+    diasFaltando: calcularDiasFaltando(formatDateToISO(proximoPrazo)),
     tribunal,
-    linkConsulta,
-    tipo: getValue(linha, "TIPO") || "NOVO",
+    linkConsulta: linha.linkConsulta || linha.LINK || detected.link,
+    tipo: getValue(linha, "TIPO", "TIPO_CASO") || "NOVO",
     atendente: getValue(linha, "ATENDENTE", "ASSISTENTE", "ASSISTENTE")
   };
 }
 
 export function distribuirPorTribunal(cases: LegalCase[]): { tribunal: string; total: number }[] {
   const map = new Map<string, number>();
-
   for (const c of cases || []) {
     let t = (c.tribunal || "Outros").trim();
     map.set(t, (map.get(t) || 0) + 1);
   }
-
   return Array.from(map.entries())
     .map(([tribunal, total]) => ({ tribunal, total }))
     .sort((a, b) => b.total - a.total);
