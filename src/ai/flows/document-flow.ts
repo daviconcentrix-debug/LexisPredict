@@ -80,6 +80,12 @@ const BANCA_DATA = {
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "andressa@adv.oabsp.org.br",
     genero: "F"
+  },
+  "RENATO PRINCIPE STEVANIN": {
+    oabs: { "PR": "115.910/PR", "SP": "346.790/SP" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
+    email: "renatostevanin@adv.oabsp.org.br",
+    genero: "M"
   }
 };
 
@@ -116,6 +122,7 @@ async function fetchWithTimeout(url: string, options: any, timeout = 10000) {
 }
 
 async function callXAI(text: string) {
+  const API_KEYS = { XAI: 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE' };
   const res = await fetchWithTimeout('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${API_KEYS.XAI}`, 'Content-Type': 'application/json' },
@@ -131,6 +138,7 @@ async function callXAI(text: string) {
 }
 
 async function callAirforce(text: string) {
+  const API_KEYS = { AIRFORCE: 'sk-air-Rxc7ygo5b0XpkZqUBqwSnhjwS0bZbWFnzwRLjfPtdAbYK6nj' };
   const res = await fetchWithTimeout('https://api.airforce/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${API_KEYS.AIRFORCE}`, 'Content-Type': 'application/json' },
@@ -145,6 +153,7 @@ async function callAirforce(text: string) {
 }
 
 async function callGroq(text: string) {
+  const API_KEYS = { GROQ: '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' };
   const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${API_KEYS.GROQ}`, 'Content-Type': 'application/json' },
