@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from 'react';
@@ -69,7 +68,7 @@ export default function ImportPage() {
   const [preview, setPreview] = useState<LegalCase[]>([]);
   const [step, setStep] = useState<'upload' | 'preview'>('upload');
   const [textInput, setTextInput] = useState('');
-  const [stats, setStats] =统计({ total: 0, critical: 0, tribunals: 0 });
+  const [stats, setStats] = useState({ total: 0, critical: 0, tribunals: 0 });
 
   const { isOperador } = useAdmin();
   const { toast } = useToast();
@@ -108,10 +107,8 @@ export default function ImportPage() {
   };
 
   const processRawText = async (text: string) => {
-    // Detecta o separador mais comum (ponto e vírgula ou vírgula)
     const separator = text.includes(';') ? ';' : ',';
     
-    // Divide por quebras de linha respeitando possíveis quebras dentro de aspas
     const lines: string[] = [];
     let currentLine = '';
     let inQuotes = false;
@@ -136,8 +133,6 @@ export default function ImportPage() {
 
     const parsedCases: LegalCase[] = [];
     const totalRows = filteredLines.length;
-    
-    // Parsing dos headers usando o row parser robusto
     const rawHeaders = parseCsvRow(filteredLines[0], separator);
 
     for (let i = 1; i < filteredLines.length; i++) {
