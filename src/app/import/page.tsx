@@ -33,6 +33,35 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+/**
+ * Função de auxílio para fazer o parse correto de uma linha CSV 
+ * lidando com campos entre aspas que podem conter vírgulas.
+ */
+function parseCsvRow(row: string, separator: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < row.length; i++) {
+    const char = row[i];
+    if (char === '"') {
+      if (inQuotes && row[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === separator && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
 export default function ImportPage() {
   const [parsing, setParsing] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -40,7 +69,7 @@ export default function ImportPage() {
   const [preview, setPreview] = useState<LegalCase[]>([]);
   const [step, setStep] = useState<'upload' | 'preview'>('upload');
   const [textInput, setTextInput] = useState('');
-  const [stats, setStats] = useState({ total: 0, critical: 0, tribunals: 0 });
+  const [stats, setStats] =统计({ total: 0, critical: 0, tribunals: 0 });
 
   const { isOperador } = useAdmin();
   const { toast } = useToast();
@@ -79,47 +108,53 @@ export default function ImportPage() {
   };
 
   const processRawText = async (text: string) => {
-    // Detecta se é o formato de dump do banco (coluna "dados" com JSON) ou CSV puro
-    const isDumpFormat = text.includes('"{""id"":');
+    // Detecta o separador mais comum (ponto e vírgula ou vírgula)
     const separator = text.includes(';') ? ';' : ',';
-    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
     
-    if (lines.length < 1) {
+    // Divide por quebras de linha respeitando possíveis quebras dentro de aspas
+    const lines: string[] = [];
+    let currentLine = '';
+    let inQuotes = false;
+    for (const char of text) {
+      if (char === '"') inQuotes = !inQuotes;
+      if (char === '\n' && !inQuotes) {
+        lines.push(currentLine.replace(/\r$/, ''));
+        currentLine = '';
+      } else {
+        currentLine += char;
+      }
+    }
+    if (currentLine) lines.push(currentLine.replace(/\r$/, ''));
+
+    const filteredLines = lines.filter(l => l.trim().length > 0);
+    
+    if (filteredLines.length < 1) {
       toast({ title: "Entrada Vazia", variant: "destructive" });
       setParsing(false);
       return;
     }
 
     const parsedCases: LegalCase[] = [];
-    const totalRows = lines.length;
-    const rawHeaders = lines[0].split(separator).map(h => h.trim().toUpperCase());
+    const totalRows = filteredLines.length;
+    
+    // Parsing dos headers usando o row parser robusto
+    const rawHeaders = parseCsvRow(filteredLines[0], separator);
 
-    for (let i = 0; i < lines.length; i++) {
-      if (i === 0) continue; // Pula cabeçalho
-
+    for (let i = 1; i < filteredLines.length; i++) {
       let rowData: any = {};
-      const currentLine = lines[i];
+      const fields = parseCsvRow(filteredLines[i], separator);
       
-      if (isDumpFormat) {
-        // Parser para dump: Captura JSON entre aspas escapadas
-        const jsonMatch = currentLine.match(/"({.+})"/);
-        if (jsonMatch) {
-          try {
-            const rawJson = jsonMatch[1].replace(/""/g, '"');
-            rowData = JSON.parse(rawJson);
-          } catch (e) { continue; }
-        }
-      } else {
-        // Parser para CSV padrão
-        const fields = currentLine.split(separator);
-        rawHeaders.forEach((h, index) => {
-          rowData[h] = fields[index] ? fields[index].trim() : '';
-        });
-      }
+      rawHeaders.forEach((h, index) => {
+        rowData[h] = fields[index] || '';
+      });
 
       if (Object.keys(rowData).length > 0) {
-        const processed = processarCaso(rowData);
-        parsedCases.push(processed);
+        try {
+          const processed = processarCaso(rowData);
+          parsedCases.push(processed);
+        } catch (e) {
+          console.warn(`Erro ao processar linha ${i}:`, e);
+        }
       }
       
       if (i % 50 === 0) {
@@ -155,8 +190,8 @@ export default function ImportPage() {
       } else {
         toast({ title: "Falha na Gravação", description: result.message, variant: "destructive" });
       }
-    } catch (err) {
-      toast({ title: "Erro de Infraestrutura", variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: "Erro de Infraestrutura", description: err.message, variant: "destructive" });
     } finally {
       setSyncing(false);
     }
@@ -199,7 +234,7 @@ export default function ImportPage() {
                <div className="text-center space-y-4 mb-8">
                   <h2 className="text-3xl font-black uppercase tracking-tighter">Unidade de Migração Elite</h2>
                   <p className="text-black/60 max-w-2xl mx-auto text-sm font-black uppercase leading-relaxed">
-                    Carregue seu dump de banco ou cole o texto do CSV. O sistema detectará automaticamente o formato e corrigirá erros de codificação.
+                    Carregue seu dump de banco ou cole o texto do CSV. O sistema detectará automaticamente o formato e corrigirá erros de codificação e datas.
                   </p>
                </div>
 
@@ -242,7 +277,7 @@ export default function ImportPage() {
                           <Upload className="text-black w-16 h-16" />
                         </div>
                         <h3 className="text-black group-hover:text-white font-black text-xl mb-2 uppercase">Selecionar CSV</h3>
-                        <p className="text-xs text-black/40 group-hover:text-white/40 font-black uppercase tracking-widest text-center">CORREÇÃO DE ENCODING AUTOMÁTICA ATIVA</p>
+                        <p className="text-xs text-black/40 group-hover:text-white/40 font-black uppercase tracking-widest text-center">CORREÇÃO DE ENCODING E DATAS ATIVA</p>
                       </>
                     )}
                     <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
@@ -255,13 +290,13 @@ export default function ImportPage() {
                   <StatItem label="Total Detectado" value={stats.total} />
                   <StatItem label="Tribunais Únicos" value={stats.tribunals} />
                   <StatItem label="Alertas Críticos" value={stats.critical} color="text-red-600" />
-                  <StatItem label="Codificação" value="SANEADA" color="text-green-600" />
+                  <StatItem label="Status Dados" value="SANEADOS" color="text-green-600" />
                </div>
 
                <div className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] overflow-hidden">
                   <div className="bg-black text-white p-4 flex items-center justify-between">
                      <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2"><Eye size={16} /> Preview de Higiene (Lote {stats.total})</h3>
-                     <Badge variant="outline" className="text-white border-white font-black text-[9px] uppercase">Deduplicação Inteligente Ativa</Badge>
+                     <Badge variant="outline" className="text-white border-white font-black text-[9px] uppercase">Isolamento por Operador Ativo</Badge>
                   </div>
                   <div className="max-h-[500px] overflow-auto bg-[#fafafa]">
                     <Table>
