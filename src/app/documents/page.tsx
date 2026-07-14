@@ -52,6 +52,7 @@ const ADVOGADOS_BANCA = [
   { id: 'matheus_dias', nome: 'MATHEUS SANTOS DIAS', estados: ["SP"] },
   { id: 'maikon', nome: 'MAIKON ALVES LOPES DOS SANTOS', estados: ["SP"] },
   { id: 'andressa_tavares', nome: 'ANDRESSA EDUARDA TAVARES MATOS', estados: ["MG", "SP"] },
+  { id: 'renato_stevanin', nome: 'RENATO PRINCIPE STEVANIN', estados: ["PR", "SP"] },
 ];
 
 export default function DocumentGenerator() {
