@@ -1,4 +1,4 @@
-'use server';
+"use client";
 /**
  * @fileOverview Motor de Extração de Dados Jurídicos v800.0 ELITE
  * Estratégia: Fatiamento de Contexto para evitar Erro de Buffer e Fallback Quaternário.
@@ -10,79 +10,79 @@ import {z} from 'genkit';
 
 const BANCA_DATA = {
   "DIEGO GOMES DIAS": {
-    oabs: { "BA": "77510/BA", "CE": "52996-A/CE", "MT": "34044-A/MT", "PI": "22858/PI", "RN": "21766A/RN", "SP": "370.898/SP" },
+    oabs: { "BA": "77510", "CE": "52996-A", "MT": "34044-A", "PI": "22858", "RN": "21766A", "SP": "370.898" },
     endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
     email: "diego_gomesdias@yahoo.com.br",
     genero: "M"
   },
   "LETICIA ALVES GODOY DA CRUZ": {
-    oabs: { "TO": "12.528-A/TO", "AC": "6572/AC", "RS": "131831A/RS", "PB": "31888 A/PB", "PA": "36417-A/PA", "SP": "490.641/SP" },
+    oabs: { "TO": "12.528-A", "AC": "6572", "RS": "131831A", "PB": "31888 A", "PA": "36417-A", "SP": "490.641" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "leticiagodoy.adv@gmail.com",
     genero: "F"
   },
   "PABLO MATHEUS SILVA BASTOS PEREIRA": {
-    oabs: { "SP": "520783/SP", "RN": "520783/SP", "PI": "520783/SP", "MT": "520783/SP", "CE": "520783/SP", "BA": "520783/SP", "MG": "249550/MG", "SC": "520783/SP", "ES": "520783/SP", "MS": "520783/SP", "PR": "520783/PR" },
+    oabs: { "SP": "520783", "RN": "520783", "PI": "520783", "MT": "520783", "CE": "520783", "BA": "520783", "MG": "249550", "SC": "520783", "ES": "520783", "MS": "520783", "PR": "520783" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
     email: "pablobastos@adv.oabsp.org.br",
     genero: "M"
   },
   "INGRID MICHAELLY TELES PACHECO OLIVEIRA ALVES": {
-    oabs: { "MA": "490.641/SP", "RO": "13.438/RO", "AP": "5.819-A/AP", "SE": "1.601A/SE", "RR": "844-A/RR", "GO": "70699/GO", "SP": "490.641/SP" },
+    oabs: { "MA": "490.641", "RO": "13.438", "AP": "5.819-A", "SE": "1.601A", "RR": "844-A", "GO": "70699", "SP": "490.641" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "pachecoingrid.adv@gmail.com",
     genero: "F"
   },
   "LUCAS DOS SANTOS DE JESUS": {
-    oabs: { "DF": "78116/DF", "AL": "21512A/AL", "AM": "A2373/AM", "PE": "66465/PE", "RJ": "261767/RJ", "SP": "520783/SP" },
+    oabs: { "DF": "78116", "AL": "21512A", "AM": "A2373", "PE": "66465", "RJ": "261767", "SP": "520783" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "lucassj.adv01@gmail.com",
     genero: "M"
   },
   "ERALDO FRANCISCO DA SILVA JUNIOR": {
-    oabs: { "SP": "327.677/SP" },
+    oabs: { "SP": "327.677" },
     endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
     email: "eraldojr@adv.oabsp.org.br",
     genero: "M"
   },
   "ISAI SAMPAIO MOREIRA": {
-    oabs: { "SP": "437.886/SP" },
+    oabs: { "SP": "437.886" },
     endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
     email: "isai@adv.oabsp.org.br",
     genero: "M"
   },
   "GILBERTO BONFIM CAVALCANTI FILHO": {
-    oabs: { "SP": "337.930/SP" },
+    oabs: { "SP": "337.930" },
     endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
     email: "gilberto@adv.oabsp.org.br",
     genero: "M"
   },
   "FABIO RODRIGUES SAMPAIO MOREIRA": {
-    oabs: { "SP": "437.886/SP" },
+    oabs: { "SP": "437.886" },
     endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
     email: "fabio@adv.oabsp.org.br",
     genero: "M"
   },
   "MATHEUS SANTOS DIAS": {
-    oabs: { "SP": "472.089/SP" },
+    oabs: { "SP": "472.089" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
     email: "matheus@adv.oabsp.org.br",
     genero: "M"
   },
   "MAIKON ALVES LOPES DOS SANTOS": {
-    oabs: { "SP": "470.735/SP" },
+    oabs: { "SP": "470.735" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
     email: "maikon@adv.oabsp.org.br",
     genero: "M"
   },
   "ANDRESSA EDUARDA TAVARES MATOS": {
-    oabs: { "MG": "238.75/MG", "SP": "238.75/MG" },
+    oabs: { "MG": "238.75", "SP": "238.75" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "andressa@adv.oabsp.org.br",
     genero: "F"
   },
   "RENATO PRINCIPE STEVANIN": {
-    oabs: { "PR": "115.910/PR", "SP": "346.790/SP" },
+    oabs: { "PR": "115.910", "SP": "346.790" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
     email: "renatostevanin@adv.oabsp.org.br",
     genero: "M"
