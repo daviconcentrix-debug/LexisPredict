@@ -1,9 +1,9 @@
 "use client";
 /**
- * @fileOverview LexisPredict - W1 Capital Advanced Legal Operations
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
+ * @license Proprietary - All rights reserved. See LICENSE file.
  */
+
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -25,8 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
   UserPlus,
-  Repeat,
-  FilePlus2
+  Repeat
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -70,8 +69,8 @@ export function Sidebar() {
       items: [
         { label: t.audit, href: '/veredito', icon: FileSearch },
         { label: t.documents, href: '/documents', icon: FileText },
-        { label: t.habilitacao, href: '/habilitacao', icon: FilePlus2 },
         { label: t.substabelecimento, href: '/substabelecimento', icon: Repeat },
+        { label: t.pecaSubstabelecimento, href: '/substabelecimento-peca', icon: FileText },
         { label: t.chat, href: '/chat', icon: MessageSquare },
         { label: t.whatsapp, href: '/whatsapp', icon: MessageCircle },
         { label: t.import, href: '/import', icon: Upload },
@@ -146,20 +145,10 @@ export function Sidebar() {
         )}
         
         <div className="flex items-center justify-between">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={handleLogout}
-            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          >
+          <Button variant="ghost" size="icon" onClick={handleLogout} className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
             <LogOut size={14} />
           </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex h-8 w-8 text-muted-foreground hover:text-primary"
-          >
+          <Button variant="ghost" size="icon" onClick={() => setCollapsed(!collapsed)} className="hidden lg:flex h-8 w-8 text-muted-foreground hover:text-primary">
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </Button>
         </div>
@@ -177,19 +166,13 @@ export function Sidebar() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="p-0 border-r border-border w-72">
-            <SheetHeader className="sr-only">
-              <SheetTitle>Navigation Menu</SheetTitle>
-              <SheetDescription>Access all system operations</SheetDescription>
-            </SheetHeader>
+            <SheetHeader className="sr-only"><SheetTitle>Navigation Menu</SheetTitle><SheetDescription>Access all system operations</SheetDescription></SheetHeader>
             <SidebarContent />
           </SheetContent>
         </Sheet>
       </div>
 
-      <aside className={cn(
-        "hidden lg:flex h-screen flex-col transition-all duration-300 z-50 shrink-0",
-        collapsed ? "w-20" : "w-64"
-      )}>
+      <aside className={cn("hidden lg:flex h-screen flex-col transition-all duration-300 z-50 shrink-0", collapsed ? "w-20" : "w-64")}>
         <SidebarContent />
       </aside>
     </>
