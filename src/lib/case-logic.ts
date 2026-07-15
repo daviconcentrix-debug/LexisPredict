@@ -5,7 +5,7 @@
 
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * W1 Capital / LexisPredict v215.0 ELITE
+ * W1 Capital / LexisPredict v220.0 ELITE
  */
 
 export type CaseStatus =
@@ -83,7 +83,12 @@ export function parseBrazilianDate(dateStr: string): Date | null {
   const clean = dateStr.trim();
   if (clean === "" || clean === "-" || clean === "00/00/0000" || clean === "0") return null;
   
-  const parts = clean.split('/');
+  // Suporte a ISO 2026-07-27
+  if (clean.includes('-') && clean.split('-')[0].length === 4) {
+     return new Date(clean);
+  }
+
+  const parts = clean.split(/[\/\-\.]/);
   if (parts.length !== 3) return null;
   
   const d = parseInt(parts[0], 10);
@@ -204,8 +209,9 @@ export function processarCaso(raw: any): LegalCase {
   const advogado = fixEncoding(normalized.ADVOGADO_RESPONSÁVEL || normalized.ADVOGADO || 'NÃO ATRIBUÍDO').toUpperCase();
   const situacao = (normalized.SITUAÇÃO || normalized.SITUACAO || 'EM ANDAMENTO').toUpperCase();
   
-  const proximoPrazo = normalized.PROXIMO_RETORNO || normalized.PRÓXIMO_RETORNO || normalized.PRÓXIMO_PRAZO || normalized.PROXIMO_PRAZO || '';
-  const ultimoRetorno = normalized.ULTIMO_RETORNO || normalized.ÚLTIMO_RETORNO || normalized.RETORNO || '';
+  // Mapeamento Resiliente de Cabeçalhos
+  const proximoPrazo = normalized.PROXIMO_RETORNO || normalized.PRÓXIMO_RETORNO || normalized.PRÓXIMO_PRAZO || normalized.PROXIMO_PRAZO || normalized.PROXIMO_RETORNO || '';
+  const ultimoRetorno = normalized.ULTIMO_RETORNO || normalized.ÚLTIMO_RETORNO || normalized.RETORNO || normalized.ULTIMO_RETORNO || '';
   const observacao = fixEncoding(normalized.OBSERVAÇÕES || normalized.OBSERVACAO || normalized.OBSERVAÇÃO || '');
   const telefone = (normalized.TELEFONE || '').replace(/\D/g, '');
   
