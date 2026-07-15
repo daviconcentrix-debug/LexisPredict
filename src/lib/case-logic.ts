@@ -5,7 +5,7 @@
 
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * W1 Capital / LexisPredict v210.0 ELITE
+ * W1 Capital / LexisPredict v212.0 ELITE
  */
 
 export type CaseStatus =
@@ -79,11 +79,16 @@ export function fixEncoding(text: string): string {
 
 export function parseBrazilianDate(dateStr: string): Date | null {
   if (!dateStr) return null;
-  const parts = dateStr.split('/');
+  const clean = dateStr.trim();
+  if (clean === "" || clean === "-" || clean === "00/00/0000") return null;
+  
+  const parts = clean.split('/');
   if (parts.length !== 3) return null;
+  
   const d = parseInt(parts[0], 10);
   const m = parseInt(parts[1], 10) - 1;
   const y = parseInt(parts[2], 10);
+  
   const date = new Date(y, m, d);
   return isNaN(date.getTime()) ? null : date;
 }
@@ -185,4 +190,38 @@ export function extrairTribunal(protocolo: string): { tribunal: string; link: st
   const found = maps[code];
   if (found) return { tribunal: found.tribunal, link: found.link };
   return { tribunal: "Outros", link: `https://www.google.com/search?q=consulta+processo+judicial+${encodeURIComponent(original)}` };
+}
+
+export function processarCaso(raw: any): LegalCase {
+  const cliente = fixEncoding(raw.CLIENTE || raw.cliente || 'CLIENTE NÃO IDENTIFICADO').toUpperCase();
+  const protocolo = (raw.PROTOCOLO || raw.protocolo || '').trim();
+  const advogado = fixEncoding(raw.ADVOCADO || raw['ADVOGADO RESPONSÁVEL'] || raw.advogado || 'NÃO ATRIBUÍDO').toUpperCase();
+  const situacao = (raw.SITUAÇÃO || raw.situacao || 'EM ANDAMENTO').toUpperCase();
+  const proximoPrazo = raw['PRÓXIMO PRAZO'] || raw.proximoPrazo || '';
+  const ultimoRetorno = raw.ULTIMO_RETORNO || raw.ultimoRetorno || '';
+  const statusManual = raw.STATUS_MANUAL || raw.statusManual || 'Automatico';
+  const observacao = fixEncoding(raw.OBSERVACAO || raw.observacao || '');
+  const telefone = (raw.TELEFONE || raw.telefone || '').replace(/\D/g, '');
+
+  const tribunalData = extrairTribunal(protocolo);
+  const statusCalculado = calcularStatus(proximoPrazo, situacao);
+  const riscoCalculado = calcularRisco(observacao, '', situacao);
+
+  return {
+    id: raw.id || crypto.randomUUID(),
+    cliente,
+    protocolo,
+    advogado,
+    situacao,
+    proximoPrazo,
+    ultimoRetorno,
+    status: statusManual === 'Automatico' ? statusCalculado : (statusManual as any),
+    risco: riscoCalculado,
+    diasFaltando: calcularDiasFaltando(formatDateToISO(proximoPrazo)),
+    statusManual,
+    tribunal: tribunalData.tribunal,
+    linkConsulta: tribunalData.link,
+    observacao,
+    telefone
+  };
 }
