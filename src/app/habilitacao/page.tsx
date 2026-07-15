@@ -3,53 +3,72 @@
 import React, { useState } from 'react';
 
 export default function HabilitacaoPage() {
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [textoContrato, setTextoContrato] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Estados do formulário
   const [vara, setVara] = useState("02ª VARA CÍVEL");
   const [comarca, setComarca] = useState("JAGUARIUNA - SP");
-  const [numeroProcesso, setNumeroProcesso] = useState("1003224-40.2025.8.26.0296");
+  const [numeroProcesso, setNumeroProcesso] = useState("");
 
-  const [clienteNome, setClienteNome] = useState("EBERT RONALD LEME");
-  const [clienteNacionalidade, setClienteNacionalidade] = useState("brasileiro");
-  const [clienteEstadoCivil, setClienteEstadoCivil] = useState("casado");
-  const [clienteProfissao, setClienteProfissao] = useState("empresário");
-  const [clienteRg, setClienteRg] = useState("26130466");
-  const [clienteCpf, setClienteCpf] = useState("300.483.608-48");
-  const [clienteEndereco, setClienteEndereco] = useState("Rua: Maranhão, número: 489, Casa 13, Jardim Bela Vista, Jaguariúna - SP");
-  const [clienteCep, setClienteCep] = useState("13911-414");
+  const [clienteNome, setClienteNome] = useState("");
+  const [clienteCpf, setClienteCpf] = useState("");
+  const [clienteRg, setClienteRg] = useState("");
+  const [clienteEndereco, setClienteEndereco] = useState("");
 
   const [advogadoNome, setAdvogadoNome] = useState("DIEGO GOMES DIAS");
   const [advogadoOab, setAdvogadoOab] = useState("370.898");
-  const [advogadoEndereco, setAdvogadoEndereco] = useState("Av. São Miguel, nº 4810, Ponte Rasa, São Paulo-SP");
-  const [advogadoCep, setAdvogadoCep] = useState("03870-100");
-  const [advogadoEmail, setAdvogadoEmail] = useState("diego.gomesdias@yahoo.com.br");
 
   const [tipoAcao, setTipoAcao] = useState("AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA");
   const [reuNome, setReuNome] = useState("BANCO AYMORÉ CRÉDITO, FINANCIAMENTO E INVESTIMENTO S.A.");
-  const [reuCnpj, setReuCnpj] = useState("07.707.650/0001-10");
 
-  const dataAtual = new Date();
-  const dataFormatada = dataAtual.toLocaleDateString('pt-BR', {
-    day: 'numeric', month: 'long', year: 'numeric'
-  });
+  // Função para extrair dados (simulada por enquanto)
+  const handleExtrairDados = async () => {
+    if (!textoContrato && !pdfFile) {
+      alert("Por favor, cole o texto ou envie um PDF.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    // Simulação de extração (substitua pela sua função real de IA)
+    setTimeout(() => {
+      setClienteNome("EBERT RONALD LEME");
+      setClienteCpf("300.483.608-48");
+      setClienteRg("26130466");
+      setNumeroProcesso("1003224-40.2025.8.26.0296");
+      setTipoAcao("AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA");
+      setReuNome("BANCO AYMORÉ CRÉDITO, FINANCIAMENTO E INVESTIMENTO S.A.");
+
+      setIsLoading(false);
+      alert("Dados extraídos com sucesso!");
+    }, 1200);
+  };
+
+  const handleGerarPeca = () => {
+    alert("Função de geração do PDF ainda não implementada. Vamos implementar na próxima etapa.");
+    // Aqui você vai chamar a função que gera o PDF usando @react-pdf/renderer
+  };
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">HABILITAÇÃO + PROCURAÇÃO</h1>
-        <span className="px-3 py-1 text-xs bg-gray-200 rounded-full">PEÇA COMBINADA</span>
+        <span className="px-3 py-1 text-xs bg-black text-white rounded">PEÇA COMBINADA</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Formulário */}
+        {/* Formulário Principal */}
         <div className="lg:col-span-2 space-y-6">
           
           {/* 1. Gabinete Técnico */}
-          <div className="border border-black p-6 bg-white">
-            <div className="bg-black text-white px-4 py-2 -mx-6 -mt-6 mb-6">
+          <div className="border border-black">
+            <div className="bg-black text-white px-4 py-2">
               <h2 className="font-bold">1. GABINETE TÉCNICO</h2>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">ADVOGADO</label>
                 <input 
@@ -69,53 +88,51 @@ export default function HabilitacaoPage() {
                 />
               </div>
             </div>
+          </div>
 
-            <div className="mt-4">
-              <label className="text-sm font-medium">PROCESSO Nº</label>
-              <input 
-                type="text" 
-                value={numeroProcesso} 
-                onChange={(e) => setNumeroProcesso(e.target.value)}
-                className="w-full border p-2 mt-1" 
-              />
+          {/* 2. Dados do Processo */}
+          <div className="border border-black">
+            <div className="bg-black text-white px-4 py-2">
+              <h2 className="font-bold">2. DADOS DO PROCESSO</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-sm font-medium">NÚMERO DO PROCESSO</label>
+                <input 
+                  type="text" 
+                  value={numeroProcesso} 
+                  onChange={(e) => setNumeroProcesso(e.target.value)}
+                  className="w-full border p-2 mt-1" 
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">CONTRATO / PETIÇÃO ANTIGA</label>
+                <textarea 
+                  value={textoContrato}
+                  onChange={(e) => setTextoContrato(e.target.value)}
+                  placeholder="COLE O TEXTO DO CONTRATO OU PETIÇÃO ANTIGA AQUI..."
+                  className="w-full border p-3 mt-1 h-32"
+                />
+              </div>
+
+              <button 
+                onClick={handleExtrairDados}
+                disabled={isLoading}
+                className="w-full bg-black text-white py-3 font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isLoading ? "EXTRAINDO DADOS..." : "INICIAR TRIAGEM NEURAL"}
+              </button>
             </div>
           </div>
 
-          {/* 2. Dados do Cliente */}
-          <div className="border border-black p-6 bg-white">
-            <div className="bg-black text-white px-4 py-2 -mx-6 -mt-6 mb-6">
-              <h2 className="font-bold">2. DADOS DO CLIENTE</h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium">NOME COMPLETO</label>
-                <input type="text" value={clienteNome} onChange={(e) => setClienteNome(e.target.value)} className="w-full border p-2 mt-1" />
-              </div>
-              <div>
-                <label className="text-sm font-medium">CPF</label>
-                <input type="text" value={clienteCpf} onChange={(e) => setClienteCpf(e.target.value)} className="w-full border p-2 mt-1" />
-              </div>
-            </div>
-          </div>
-
-          {/* Botão de Gerar */}
           <button 
-            onClick={() => alert('Função de geração ainda não implementada')}
-            className="w-full bg-black text-white py-3 font-bold hover:bg-gray-800 transition-colors"
+            onClick={handleGerarPeca}
+            className="w-full bg-black text-white py-3 font-bold"
           >
-            GERAR PEÇA DE HABILITAÇÃO + PROCURAÇÃO
+            GERAR HABILITAÇÃO + PROCURAÇÃO
           </button>
         </div>
 
-        {/* Preview */}
-        <div className="border border-dashed p-6 bg-white min-h-[400px]">
-          <h3 className="font-bold mb-4">PREVIEW DO DOCUMENTO</h3>
-          <div className="text-sm text-gray-500">
-            Aqui vai aparecer o preview da peça gerada...
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+        {/* Upload de PDF */}
+        <div className="border border-dashed p-6 bg-white h-fit">
