@@ -1,7 +1,7 @@
 
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * W1 Capital / LexisPredict v195.0
+ * W1 Capital / LexisPredict v200.0 ELITE
  */
 
 export type CaseStatus =
@@ -64,7 +64,7 @@ export function fixEncoding(text: string): string {
       .replace(/Ãƒ/g, 'Ã')
       .replace(/Ã/g, 'Á')
       .replace(/Ã‰/g, 'É')
-      .replace(/Ã/g, 'Í')
+      .replace(/Ã/g, 'Í')
       .replace(/Ã“/g, 'Ó')
       .replace(/Ãš/g, 'Ú')
       .replace(/Ã‚/g, 'Â')
@@ -95,7 +95,6 @@ export function fixEncoding(text: string): string {
 
 /**
  * Validador Estrito de Datas para Postgres
- * Evita o erro '00-00' garantindo que as partes da data sejam válidas e numéricas.
  */
 export function formatDateToISO(dateStr: string | null | undefined): string | null {
   if (!dateStr) return null;
@@ -137,15 +136,32 @@ export function formatDateToISO(dateStr: string | null | undefined): string | nu
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
+/**
+ * Motor de Cálculo de Prazos Estratégico
+ * REGRA: Se a data é HOJE (Local), retorna 0. Dias passados retornam negativos.
+ */
 export function calcularDiasFaltando(proximoISO: string | null): number | null {
   if (!proximoISO) return null;
   try {
-    const dataProximo = new Date(proximoISO + "T12:00:00");
     const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    dataProximo.setHours(0, 0, 0, 0);
-    const diff = dataProximo.getTime() - hoje.getTime();
-    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+    const hojeAno = hoje.getFullYear();
+    const hojeMes = hoje.getMonth();
+    const hojeDia = hoje.getDate();
+    
+    const [pAno, pMes, pDia] = proximoISO.split('-').map(Number);
+    
+    // Comparação de calendário local rigorosa para "Hoje"
+    if (hojeAno === pAno && hojeMes === (pMes - 1) && hojeDia === pDia) {
+      return 0;
+    }
+
+    // Cálculo matemático para os demais casos (Normalizado ao meio-dia)
+    const dataPrazo = new Date(pAno, pMes - 1, pDia, 12, 0, 0);
+    const dataHojeMeioDia = new Date(hojeAno, hojeMes, hojeDia, 12, 0, 0);
+    
+    const diffMs = dataPrazo.getTime() - dataHojeMeioDia.getTime();
+    // round é seguro aqui pois as datas estão fixas em 12:00
+    return Math.round(diffMs / (1000 * 60 * 60 * 24));
   } catch {
     return null;
   }
@@ -154,7 +170,7 @@ export function calcularDiasFaltando(proximoISO: string | null): number | null {
 export function calcularStatus(proximoRetorno: string | null | undefined, situacao: string | null | undefined): CaseStatus {
   const sit = (situacao || "").toUpperCase();
   
-  if (sit.includes("ENCERRADO") || sit.includes("ARQUIVADO") || sit.includes("EXTINTO")) {
+  if (sit.includes("ENCERRADO") || sit.includes("ARQUIVADO") || sit.includes("EXTINTO") || sit.includes("SUSPENSO")) {
     return "Sem Prazo";
   }
 
@@ -163,6 +179,7 @@ export function calcularStatus(proximoRetorno: string | null | undefined, situac
 
   const dias = calcularDiasFaltando(iso);
   if (dias === null) return "Sem Prazo";
+  
   if (dias < 0) return "Vencido";
   if (dias === 0) return "É Hoje";
   if (dias <= 3) return "Atenção";
