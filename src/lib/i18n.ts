@@ -1,9 +1,8 @@
-"use client";
-/**
- * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved. See LICENSE file.
- */
 
+/**
+ * MOTOR DE INTERNACIONALIZAÇÃO v3000.0 ELITE
+ * Dicionários oficiais para o Gabinete W1 Capital.
+ */
 export type Locale = 'pt' | 'en';
 
 export const translations = {
@@ -18,7 +17,6 @@ export const translations = {
     audit: "Auditoria 3D",
     documents: "Procurações",
     substabelecimento: "Substabelecimento",
-    pecaSubstabelecimento: "Peça de Subst.",
     chat: "Consultoria",
     whatsapp: "Comunicação",
     import: "Ingestão",
@@ -55,7 +53,6 @@ export const translations = {
     audit: "3D Audit",
     documents: "Proxy Docs",
     substabelecimento: "Substitution",
-    pecaSubstabelecimento: "Subst. Plea",
     chat: "Advisory Chat",
     whatsapp: "WhatsApp Hub",
     import: "Data Ingestion",
