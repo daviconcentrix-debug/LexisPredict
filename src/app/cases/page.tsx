@@ -1,9 +1,3 @@
-/**
- * @fileOverview LexisPredict - W1 Capital Advanced Legal Operations
- * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
- * @see LICENSE file for full terms.
- */
 
 "use client";
 
@@ -49,6 +43,7 @@ import { useAdmin } from '@/hooks/use-admin';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from '@/components/ui/textarea';
 
+// COMPONENTE DE LINHA MEMOIZADO PARA PERFORMANCE EXTREMA
 const CaseRow = React.memo(({ 
   c, 
   isOperador, 
@@ -152,6 +147,8 @@ function CasesContent() {
   const searchParams = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
   const [search, setSearch] = useState(initialSearch);
+  
+  // PERFORMANCE: useDeferredValue evita que a digitação na busca trave a tela com muitos processos
   const deferredSearch = useDeferredValue(search);
   
   const [loading, setLoading] = useState(true);
@@ -471,8 +468,9 @@ function CasesContent() {
 
         <footer className="h-10 border-t border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-center gap-4 lg:gap-6 text-[8px] lg:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] shrink-0">
           <div className="flex items-center gap-2">
-            <Copyright size={10} /> 2026 Davi Alves Figueredo / W1 Capital. Todos os direitos reservados.
+            <Copyright size={10} /> 2026 W1 Capital
           </div>
+          <span className="hidden sm:inline uppercase">Relatório Consolidado • DAVI ALVES FIGUEREDO</span>
         </footer>
 
         <Dialog open={!!obsDialogOpen} onOpenChange={(open) => !open && setObsDialogOpen(null)}>
