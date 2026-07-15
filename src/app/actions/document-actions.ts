@@ -1,3 +1,10 @@
+/**
+ * @fileOverview LexisPredict - W1 Capital Advanced Legal Operations
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
+ * @see LICENSE file for full terms.
+ */
+
 'use server';
 
 /**
@@ -6,7 +13,6 @@
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
-import { renderToBuffer } from '@react-pdf/renderer';
 import React from 'react';
 
 const BANCA_DATA: Record<string, any> = {
@@ -290,6 +296,7 @@ export async function extrairDadosProcuracaoAction(inputText: string, lawyer: st
 
 export async function generateProcuracaoPDFAction(data: any) {
   try {
+    const { renderToBuffer } = await import('@react-pdf/renderer');
     const { ProcuracaoPDF } = await import('@/components/pdf/procuracao-pdf');
     const pdfBuffer = await renderToBuffer(React.createElement(ProcuracaoPDF, { data }));
     return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
@@ -300,6 +307,7 @@ export async function generateProcuracaoPDFAction(data: any) {
 
 export async function generateSubstabelecimentoPDFAction(data: any) {
   try {
+    const { renderToBuffer } = await import('@react-pdf/renderer');
     const { SubstabelecimentoPDF } = await import('@/components/pdf/substabelecimento-pdf');
     const pdfBuffer = await renderToBuffer(React.createElement(SubstabelecimentoPDF, { data }));
     return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
