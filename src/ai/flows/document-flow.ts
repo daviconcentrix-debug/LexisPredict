@@ -1,7 +1,6 @@
 'use server';
 /**
  * @fileOverview Motor de Extração de Dados Jurídicos v850.0 ELITE
- * Estratégia: Fatiamento de Contexto para evitar Erro de Buffer e Fallback Quaternário.
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
@@ -93,7 +92,7 @@ const BANCA_DATA = {
 const SYSTEM_PROMPT = `Você é o Arquiteto Jurídico da W1 Capital. Extraia os dados do contrato.
 RETORNE APENAS JSON PLANO. Sem markdown.
 {
-  "cliente": { "nome": "", "estadoCivil": "", "profissao": "", "rg": "", "cpf": "", "endereco": "", "email": "", "genero": "M"|"F" },
+  "cliente": { "nome": "", "estadoCivil": "", "profissao": "", "rg": "", "cpf": "", "endereco": "", "email": "", "genero": "M"|"F", "nacionalidade": "brasileiro(a)" },
   "processos": [{ "banco": "", "cnpjBanco": "", "numero": "", "acao": "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA", "estado": "UF" }]
 }`;
 
@@ -209,6 +208,7 @@ export const documentFlow = ai.defineFlow(
         endereco: parsed.cliente?.endereco || "Não localizado",
         email: parsed.cliente?.email || "",
         genero: parsed.cliente?.genero || 'M',
+        nacionalidade: parsed.cliente?.nacionalidade || 'brasileiro(a)'
       },
       advogado: {
         nome: targetLawyer.toUpperCase(),
