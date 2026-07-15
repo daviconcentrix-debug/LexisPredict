@@ -17,7 +17,7 @@ export async function fetchDataJud(cnj: string) {
   const DATAJUD_API_KEY = 'cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw==';
   
   const cnjLimpo = cnj.replace(/\D/g, '');
-  if (cnjLimpo.length !== 20) throw new Error("Formato de CNJ inválido. Deve conter 20 dígitos.");
+  if (cnjLimpo.length !== 20) throw new Error("CNJ_INVALIDO_TAMANHO");
   
   const aliasPart = `${cnjLimpo[13]}.${cnjLimpo.substring(14, 16)}`;
   const alias = COURT_ALIASES[aliasPart] || "tjsp";
@@ -43,16 +43,15 @@ export async function fetchDataJud(cnj: string) {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`DataJud API Error (${response.status}):`, errorText);
-      throw new Error(`Tribunal ${alias.toUpperCase()} temporariamente indisponível.`);
+      if (response.status === 401 || response.status === 403) throw new Error("DATAJUD_API_KEY_INVALIDA");
+      throw new Error(`TRIBUNAL_${alias.toUpperCase()}_OFFLINE`);
     }
     
     const data = await response.json();
     const result = data.hits?.hits?.[0]?._source || null;
     
     if (!result) {
-      throw new Error("Processo não localizado. Verifique se o número está correto ou se o processo tramita em segredo de justiça.");
+      return null;
     }
     
     return result;
