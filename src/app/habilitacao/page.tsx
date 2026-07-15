@@ -8,8 +8,6 @@ import {
   Upload,
   FileUp,
   CheckCircle2,
-  User,
-  Eye,
   Repeat
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -83,7 +81,6 @@ export default function HabilitacaoProcuracaoPage() {
 
     setLoading(true);
 
-    // Simulação de extração (substitua pela sua action real depois)
     setTimeout(() => {
       const advogadoInfo = BANCA_DATA[selectedAdvogado];
 
@@ -116,8 +113,7 @@ export default function HabilitacaoProcuracaoPage() {
   };
 
   const handleGeneratePDF = () => {
-    alert("Função de geração do PDF ainda não implementada. Vamos criar na próxima etapa.");
-    // Aqui você vai chamar uma action para gerar o PDF (igual ao Substabelecimento)
+    alert("Função de geração do PDF ainda não implementada.");
   };
 
   return (
@@ -141,7 +137,6 @@ export default function HabilitacaoProcuracaoPage() {
             <div className="space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
-                  {/* 1. Gabinete Técnico */}
                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                     <CardHeader className="bg-black text-white py-3">
                       <CardTitle className="text-[10px] font-black uppercase tracking-widest">1. Gabinete Técnico</CardTitle>
@@ -164,44 +159,4 @@ export default function HabilitacaoProcuracaoPage() {
                         <div className="space-y-2">
                           <Label className="uppercase text-[10px] font-black">Estado da OAB</Label>
                           <Select value={selectedState} onValueChange={setSelectedState}>
-                            <SelectTrigger className="border-2 border-black h-12 font-black uppercase text-[10px] rounded-none">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white border-2 border-black rounded-none">
-                              {["SP", "MG", "RJ", "PR", "BA", "CE", "RS", "SC"].map((uf) => (
-                                <SelectItem key={uf} value={uf} className="font-black uppercase text-[10px]">{uf}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* 2. Dados do Processo */}
-                  <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
-                    <CardContent className="p-6 space-y-4">
-                      <Label className="uppercase text-[10px] font-black">2. Contrato / Petição Antiga (PDF ou Texto)</Label>
-                      <Textarea
-                        placeholder="COLE O TEXTO DO CONTRATO OU PETIÇÃO ANTIGA..."
-                        className="min-h-[220px] border-2 border-black font-black uppercase text-[11px] rounded-none resize-none"
-                        value={inputText}
-                        onChange={(e) => setInputText(e.target.value)}
-                      />
-                      <Button onClick={handleExtract} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
-                        {loading ? <Loader2 className="animate-spin mr-2" /> : <Repeat size={16} className="mr-2" />}
-                        Iniciar Triagem Neural
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Upload PDF */}
-                <div className="space-y-6">
-                  <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
-                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                      <CardTitle className="text-[10px] font-black uppercase flex items-center gap-2"><Upload size={14} /> Importar PDF</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all">
-                        {fileLoading ?
+                            <SelectTrigger className="border-2 border-black h
