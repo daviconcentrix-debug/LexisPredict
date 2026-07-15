@@ -1,6 +1,9 @@
-
 "use client";
-
+/**
+ * @fileOverview LexisPredict - W1 Capital Advanced Legal Operations
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
+ */
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -22,7 +25,8 @@ import {
   ChevronLeft,
   ChevronRight,
   UserPlus,
-  Repeat
+  Repeat,
+  FilePlus2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -66,6 +70,7 @@ export function Sidebar() {
       items: [
         { label: t.audit, href: '/veredito', icon: FileSearch },
         { label: t.documents, href: '/documents', icon: FileText },
+        { label: t.habilitacao, href: '/habilitacao', icon: FilePlus2 },
         { label: t.substabelecimento, href: '/substabelecimento', icon: Repeat },
         { label: t.chat, href: '/chat', icon: MessageSquare },
         { label: t.whatsapp, href: '/whatsapp', icon: MessageCircle },
