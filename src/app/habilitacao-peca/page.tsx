@@ -39,13 +39,35 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { extrairTextoDoPDFAction, extrairDadosProcuracaoAction, generateHabilitacaoPecaPDFAction } from '@/app/actions/document-actions';
 
-const ADVOGADOS_BANCA = [
-  { id: 'pablo', nome: 'PABLO MATHEUS SILVA BASTOS PEREIRA', estados: ["SP", "RN", "PI", "MT", "CE", "BA", "SC", "ES", "MS", "MG", "PR"] },
-  { id: 'ingrid', nome: 'INGRID MICHAELLY TELES PACHECO OLIVEIRA ALVES', estados: ["MA", "RO", "AP", "SE", "RR", "GO", "SP"] },
-  { id: 'diego', nome: 'DIEGO GOMES DIAS', estados: ["BA", "CE", "MT", "PI", "RN", "SP"] },
-  { id: 'lucas', nome: 'LUCAS DOS SANTOS DE JESUS', estados: ["DF", "AL", "AM", "PE", "RJ", "SP"] },
-  { id: 'leticia', nome: 'LETICIA ALVES GODOY DA CRUZ', estados: ["TO", "AC", "RS", "PB", "PA", "SP"] },
-];
+const BANCA_DATA: Record<string, any> = {
+  "DIEGO GOMES DIAS": {
+    oabs: { "BA": "77510/BA", "CE": "52996-A/CE", "MT": "34044-A/MT", "PI": "22858/PI", "RN": "21766A/RN", "SP": "370.898/SP" },
+    endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
+    email: "diego_gomesdias@yahoo.com.br"
+  },
+  "LETICIA ALVES GODOY DA CRUZ": {
+    oabs: { "TO": "12.528-A/TO", "AC": "6572/AC", "RS": "131831A/RS", "PB": "31888 A/PB", "PA": "36417-A/PA", "SP": "490.641/SP" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
+    email: "leticiagodoy.adv@gmail.com"
+  },
+  "PABLO MATHEUS SILVA BASTOS PEREIRA": {
+    oabs: { "SP": "520783/SP", "MG": "249550/MG", "PR": "520783/PR" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
+    email: "pablobastos@adv.oabsp.org.br"
+  },
+  "INGRID MICHAELLY TELES PACHECO OLIVEIRA ALVES": {
+    oabs: { "MA": "490.641/SP", "RO": "13.438/RO", "AP": "5.819-A/AP", "SE": "1.601A/SE", "RR": "844-A/RR", "GO": "70699/GO", "SP": "490.641/SP" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
+    email: "pachecoingrid.adv@gmail.com"
+  },
+  "LUCAS DOS SANTOS DE JESUS": {
+    oabs: { "DF": "78116/DF", "AL": "21512A/AL", "AM": "A2373/AM", "PE": "66465/PE", "RJ": "261767/RJ", "SP": "520783/SP" },
+    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
+    email: "lucassj.adv01@gmail.com"
+  }
+};
+
+const ADVOGADOS_LIST = Object.keys(BANCA_DATA);
 
 export default function HabilitacaoPecaGenerator() {
   const [step, setStep] = useState(1);
@@ -53,7 +75,7 @@ export default function HabilitacaoPecaGenerator() {
   const [fileLoading, setFileLoading] = useState(false);
   const [inputText, setInputText] = useState('');
   const [selectedLawyer, setSelectedLawyer] = useState('');
-  const [selectedState, setSelectedState] = useState('');
+  const [selectedState, setSelectedState] = useState('SP');
   const [extractedData, setExtractedData] = useState<any>(null);
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -99,7 +121,7 @@ export default function HabilitacaoPecaGenerator() {
         const data = res as any;
         setExtractedData({
           vara: "02ª VARA CÍVEL",
-          comarca: `${data.processos?.[0]?.estado || selectedState} - ${data.processos?.[0]?.estado || selectedState}`,
+          comarca: `${selectedState}`,
           numeroProcesso: data.processos?.[0]?.numero || "",
           cliente: {
             ...data.cliente,
@@ -181,18 +203,18 @@ export default function HabilitacaoPecaGenerator() {
                       <div className="space-y-2">
                         <Label className="uppercase text-[10px] font-black">Advogado Responsável</Label>
                         <Select value={selectedLawyer} onValueChange={setSelectedLawyer}>
-                          <SelectTrigger className="border-2 border-black h-12 rounded-none"><SelectValue placeholder="SELECIONE..." /></SelectTrigger>
+                          <SelectTrigger className="border-2 border-black h-12 rounded-none bg-white"><SelectValue placeholder="SELECIONE..." /></SelectTrigger>
                           <SelectContent className="bg-white border-2 border-black rounded-none">
-                            {ADVOGADOS_BANCA.map(a => <SelectItem key={a.id} value={a.nome} className="font-black uppercase text-[10px]">{a.nome}</SelectItem>)}
+                            {ADVOGADOS_LIST.map(name => <SelectItem key={name} value={name} className="font-black uppercase text-[10px]">{name}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
                         <Label className="uppercase text-[10px] font-black">Estado (OAB)</Label>
                         <Select value={selectedState} onValueChange={setSelectedState}>
-                          <SelectTrigger className="border-2 border-black h-12 rounded-none"><SelectValue placeholder="UF..." /></SelectTrigger>
+                          <SelectTrigger className="border-2 border-black h-12 rounded-none bg-white"><SelectValue placeholder="UF..." /></SelectTrigger>
                           <SelectContent className="bg-white border-2 border-black rounded-none">
-                            {["SP", "RJ", "MG", "PR", "BA", "CE", "RN", "PE", "PA", "MA", "SC", "ES", "MS", "RS", "MT", "GO", "DF", "TO", "AL", "AM", "RO", "AP", "RR", "SE", "PI", "AC"].map(uf => <SelectItem key={uf} value={uf} className="font-black uppercase text-[10px]">{uf}</SelectItem>)}
+                            {["SP", "RJ", "MG", "PR", "BA", "CE", "RN", "PE", "PA", "MA", "SC", "ES", "MS", "RS", "MT", "GO", "DF", "TO"].map(uf => <SelectItem key={uf} value={uf} className="font-black uppercase text-[10px]">{uf}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
@@ -204,7 +226,7 @@ export default function HabilitacaoPecaGenerator() {
                       <Label className="uppercase text-[10px] font-black">2. Texto do Contrato / Procuração</Label>
                       <Textarea 
                         placeholder="COLE O TEXTO DO CONTRATO OU USE O UPLOAD ABAIXO..."
-                        className="min-h-[300px] border-2 border-black font-black uppercase text-[11px] rounded-none"
+                        className="min-h-[300px] border-2 border-black font-black uppercase text-[11px] rounded-none bg-white"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
                       />
@@ -245,15 +267,15 @@ export default function HabilitacaoPecaGenerator() {
                   <CardContent className="p-6 space-y-4">
                     <div className="grid gap-1">
                       <Label className="text-[9px] font-black uppercase">Vara (Ex: 02ª VARA CÍVEL)</Label>
-                      <Input value={extractedData.vara} onChange={e => setExtractedData({...extractedData, vara: e.target.value})} className="border-black rounded-none font-black uppercase" />
+                      <Input value={extractedData.vara} onChange={e => setExtractedData({...extractedData, vara: e.target.value})} className="border-black rounded-none font-black uppercase bg-white" />
                     </div>
                     <div className="grid gap-1">
                       <Label className="text-[9px] font-black uppercase">Comarca (Ex: SÃO PAULO - SP)</Label>
-                      <Input value={extractedData.comarca} onChange={e => setExtractedData({...extractedData, comarca: e.target.value})} className="border-black rounded-none font-black uppercase" />
+                      <Input value={extractedData.comarca} onChange={e => setExtractedData({...extractedData, comarca: e.target.value})} className="border-black rounded-none font-black uppercase bg-white" />
                     </div>
                     <div className="grid gap-1">
                       <Label className="text-[9px] font-black uppercase">Número do Processo</Label>
-                      <Input value={extractedData.numeroProcesso} onChange={e => setExtractedData({...extractedData, numeroProcesso: e.target.value})} className="border-black rounded-none font-black" />
+                      <Input value={extractedData.numeroProcesso} onChange={e => setExtractedData({...extractedData, numeroProcesso: e.target.value})} className="border-black rounded-none font-black bg-white" />
                     </div>
                   </CardContent>
                 </Card>
@@ -263,21 +285,21 @@ export default function HabilitacaoPecaGenerator() {
                   <CardContent className="p-6 space-y-4">
                     <div className="grid gap-1">
                       <Label className="text-[9px] font-black uppercase">Nome Completo</Label>
-                      <Input value={extractedData.cliente.nome} onChange={e => setExtractedData({...extractedData, cliente: {...extractedData.cliente, nome: e.target.value}})} className="border-black rounded-none font-black uppercase" />
+                      <Input value={extractedData.cliente.nome} onChange={e => setExtractedData({...extractedData, cliente: {...extractedData.cliente, nome: e.target.value}})} className="border-black rounded-none font-black uppercase bg-white" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                        <div className="grid gap-1">
                          <Label className="text-[9px] font-black uppercase">CPF</Label>
-                         <Input value={extractedData.cliente.cpf} onChange={e => setExtractedData({...extractedData, cliente: {...extractedData.cliente, cpf: e.target.value}})} className="border-black rounded-none font-black" />
+                         <Input value={extractedData.cliente.cpf} onChange={e => setExtractedData({...extractedData, cliente: {...extractedData.cliente, cpf: e.target.value}})} className="border-black rounded-none font-black bg-white" />
                        </div>
                        <div className="grid gap-1">
                          <Label className="text-[9px] font-black uppercase">RG</Label>
-                         <Input value={extractedData.cliente.rg} onChange={e => setExtractedData({...extractedData, cliente: {...extractedData.cliente, rg: e.target.value}})} className="border-black rounded-none font-black" />
+                         <Input value={extractedData.cliente.rg} onChange={e => setExtractedData({...extractedData, cliente: {...extractedData.cliente, rg: e.target.value}})} className="border-black rounded-none font-black bg-white" />
                        </div>
                     </div>
                     <div className="grid gap-1">
                       <Label className="text-[9px] font-black uppercase">Endereço Residencial</Label>
-                      <Input value={extractedData.cliente.endereco} onChange={e => setExtractedData({...extractedData, cliente: {...extractedData.cliente, endereco: e.target.value}})} className="border-black rounded-none font-black uppercase" />
+                      <Input value={extractedData.cliente.endereco} onChange={e => setExtractedData({...extractedData, cliente: {...extractedData.cliente, endereco: e.target.value}})} className="border-black rounded-none font-black uppercase bg-white" />
                     </div>
                   </CardContent>
                 </Card>
@@ -288,21 +310,21 @@ export default function HabilitacaoPecaGenerator() {
                     <div className="space-y-4">
                        <div className="grid gap-1">
                          <Label className="text-[9px] font-black uppercase">Título da Ação</Label>
-                         <Input value={extractedData.tipoAcao} onChange={e => setExtractedData({...extractedData, tipoAcao: e.target.value})} className="border-black rounded-none font-black uppercase" />
+                         <Input value={extractedData.tipoAcao} onChange={e => setExtractedData({...extractedData, tipoAcao: e.target.value})} className="border-black rounded-none font-black uppercase bg-white" />
                        </div>
                        <div className="grid gap-1">
                          <Label className="text-[9px] font-black uppercase">Nome do Requerido (Réu)</Label>
-                         <Input value={extractedData.reuNome} onChange={e => setExtractedData({...extractedData, reuNome: e.target.value})} className="border-black rounded-none font-black uppercase" />
+                         <Input value={extractedData.reuNome} onChange={e => setExtractedData({...extractedData, reuNome: e.target.value})} className="border-black rounded-none font-black uppercase bg-white" />
                        </div>
                     </div>
                     <div className="space-y-4">
                        <div className="grid gap-1">
                          <Label className="text-[9px] font-black uppercase">CNPJ do Requerido</Label>
-                         <Input value={extractedData.reuCnpj} onChange={e => setExtractedData({...extractedData, reuCnpj: e.target.value})} className="border-black rounded-none font-black" />
+                         <Input value={extractedData.reuCnpj} onChange={e => setExtractedData({...extractedData, reuCnpj: e.target.value})} className="border-black rounded-none font-black bg-white" />
                        </div>
                        <div className="grid gap-1">
                          <Label className="text-[9px] font-black uppercase">Cidade de Emissão</Label>
-                         <Input value={extractedData.cidadeEmissao} onChange={e => setExtractedData({...extractedData, cidadeEmissao: e.target.value})} className="border-black rounded-none font-black uppercase" />
+                         <Input value={extractedData.cidadeEmissao} onChange={e => setExtractedData({...extractedData, cidadeEmissao: e.target.value})} className="border-black rounded-none font-black uppercase bg-white" />
                        </div>
                     </div>
                   </CardContent>
