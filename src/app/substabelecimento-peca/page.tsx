@@ -1,11 +1,23 @@
 "use client";
-/**
- * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved. See LICENSE file.
- */
+/*
+@copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+@license Proprietary - All rights reserved. See LICENSE file. */
+
 import React, { useState, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { FileText, Loader2, CheckCircle2, Shield, Info, Edit3, Zap, Upload, FileUp } from 'lucide-react';
+import { 
+  Repeat, 
+  Loader2, 
+  Zap, 
+  Shield, 
+  User, 
+  FileUp, 
+  CheckCircle2, 
+  Edit3,
+  Upload,
+  Building2,
+  Info
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,55 +33,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { generateHabilitacaoPecaPDFAction, extrairTextoDoPDFAction, extrairDadosProcuracaoAction } from '@/app/actions/document-actions';
+import { generatePecaSubstabelecimentoPDFAction, extrairTextoDoPDFAction, extrairDadosProcuracaoAction } from '@/app/actions/document-actions';
 
-const ADVOGADOS_BANCA = [
-  { id: 'pablo', nome: 'PABLO MATHEUS SILVA BASTOS PEREIRA', estados: ["SP", "RN", "PI", "MT", "CE", "BA", "SC", "ES", "MS", "MG", "PR"] },
-  { id: 'ingrid', nome: 'INGRID MICHAELLY TELES PACHECO OLIVEIRA ALVES', estados: ["MA", "RO", "AP", "SE", "RR", "GO", "SP"] },
-  { id: 'diego', nome: 'DIEGO GOMES DIAS', estados: ["BA", "CE", "MT", "PI", "RN", "SP"] },
-  { id: 'lucas', nome: 'LUCAS DOS SANTOS DE JESUS', estados: ["DF", "AL", "AM", "PE", "RJ", "SP"] },
-  { id: 'leticia', nome: 'LETICIA ALVES GODOY DA CRUZ', estados: ["TO", "AC", "RS", "PB", "PA", "SP"] },
-];
-
-export default function HabilitacaoPecaGenerator() {
+export default function PecaSubstabelecimento() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [fileLoading, setFileLoading] = useState(false);
   const [inputText, setInputText] = useState('');
   const [selectedLawyer, setSelectedLawyer] = useState('');
-  const [selectedState, setSelectedState] = useState('');
+  const [selectedState, setSelectedState] = useState('SP');
+  const [extractedData, setExtractedData] = useState<any>(null);
+
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [vara, setVara] = useState("02ª VARA CÍVEL");
-  const [comarca, setComarca] = useState("SÃO PAULO - SP");
-  const [numeroProcesso, setNumeroProcesso] = useState("");
-  
-  const [cliente, setCliente] = useState({
-    nome: "",
-    nacionalidade: "brasileiro(a)",
-    estadoCivil: "casado(a)",
-    profissao: "autônomo(a)",
-    rg: "",
-    cpf: "",
-    endereco: "",
-    cep: "",
-    email: "",
-    genero: "M"
-  });
-
-  const [advogado, setAdvogado] = useState({
-    nome: "",
-    oab: "",
-    endereco: "",
-    cep: "",
-    email: ""
-  });
-
-  const [tipoAcao, setTipoAcao] = useState("AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA");
-  const [reuNome, setReuNome] = useState("INSTITUIÇÃO FINANCEIRA");
-  const [reuCnpj, setReuCnpj] = useState("");
-  const [cidadeEmissao, setCidadeEmissao] = useState("São Paulo");
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -81,63 +57,43 @@ export default function HabilitacaoPecaGenerator() {
       const res = await extrairTextoDoPDFAction(formData);
       if (res.success) {
         setInputText(res.text || '');
-        toast({ title: "Contrato Transcrevido" });
-      } else {
-        toast({ title: "Falha na Leitura", description: res.error, variant: "destructive" });
+        toast({ title: "Documento Transcrevido" });
       }
     } catch (err) {
-      toast({ title: "Erro de Conexão", variant: "destructive" });
+      toast({ title: "Falha na Leitura", variant: "destructive" });
     } finally {
       setFileLoading(false);
     }
   };
 
   const handleExtract = async () => {
-    if (!inputText || inputText.length < 50) {
-      toast({ title: "Dados Insuficientes", variant: "destructive" });
+    if (!inputText) {
+      toast({ title: "Insira o texto para triagem", variant: "destructive" });
       return;
     }
-    if (!selectedLawyer || !selectedState) {
-      toast({ title: "Configuração Pendente", variant: "destructive" });
-      return;
-    }
-
     setLoading(true);
     try {
       const res = await extrairDadosProcuracaoAction(inputText, selectedLawyer, selectedState);
       if (res.success) {
-        setCliente({
-          nome: res.cliente.nome,
-          nacionalidade: "brasileiro(a)",
-          estadoCivil: res.cliente.estadoCivil,
-          profissao: res.cliente.profissao,
-          rg: res.cliente.rg,
-          cpf: res.cliente.cpf,
-          endereco: res.cliente.endereco,
-          cep: res.cliente.cep || "",
-          email: res.cliente.email,
-          genero: res.cliente.genero || "M"
+        const data = res as any;
+        setExtractedData({
+          advogadoSubstabelecente: "ERALDO FRANCISCO DA SILVA JUNIOR",
+          estadoCivilSubstabelecente: "casado",
+          oabSubstabelecente: `OAB/${selectedState} sob o n.º 327.677`,
+          oabSubstabelecenteCurta: `OAB/${selectedState} 327.677`,
+          advogadoSubstabelecido: data.advogado.nome || "DIEGO GOMES DIAS",
+          oabSubstabelecido: `OAB/${selectedState} sob o n.º ${data.advogado.oab || '370.898'}`,
+          oabSubstabelecidoCurta: `OAB/${selectedState} ${data.advogado.oab || '370.898'}`,
+          clienteNome: data.cliente.nome || "NOME DO CLIENTE",
+          tipoAcao: data.processos?.[0]?.acao || "AÇÃO REVISIONAL DE CONTRATO BANCÁRIO",
+          numeroProcesso: data.processos?.[0]?.numero || "",
+          cidadeComarca: "São Paulo"
         });
-        setAdvogado({
-          nome: res.advogado.nome,
-          oab: res.advogado.oab,
-          endereco: res.advogado.endereco,
-          cep: "",
-          email: res.advogado.email
-        });
-        if (res.processos && res.processos.length > 0) {
-          setNumeroProcesso(res.processos[0].numero);
-          setReuNome(res.processos[0].banco);
-          setTipoAcao(res.processos[0].acao);
-          setComarca(`${res.processos[0].estado} - ${res.processos[0].estado}`);
-        }
         setStep(2);
         toast({ title: "Triagem Neural Concluída" });
-      } else {
-        toast({ title: "Erro na IA", description: res.error, variant: "destructive" });
       }
-    } catch (err) {
-      toast({ title: "Erro Crítico", variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Erro na IA", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -148,16 +104,16 @@ export default function HabilitacaoPecaGenerator() {
     const dataAtual = new Date();
     const dataFormatada = dataAtual.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
     try {
-      const res = await generateHabilitacaoPecaPDFAction({
-        vara, comarca, numeroProcesso, cliente, advogado, 
-        tipoAcao, reuNome, reuCnpj, cidadeEmissao, dataFormatada
+      const res = await generatePecaSubstabelecimentoPDFAction({
+        ...extractedData,
+        dataFormatada
       });
       if (res.success && res.base64) {
         const link = document.createElement('a');
         link.href = `data:application/pdf;base64,${res.base64}`;
-        link.download = `Habilitacao_${cliente.nome}.pdf`;
+        link.download = `Substabelecimento_${extractedData.clienteNome}.pdf`;
         link.click();
-        toast({ title: "Habilitação Selada" });
+        toast({ title: "Substabelecimento Selado" });
       }
     } catch (e) {
       toast({ title: "Erro na geração", variant: "destructive" });
@@ -172,96 +128,155 @@ export default function HabilitacaoPecaGenerator() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4">
-            <Shield size={20} />
-            <h1 className="font-black text-xl uppercase tracking-tighter">Habilitação + Procuração</h1>
+            <Repeat size={20} />
+            <h1 className="font-black text-xl uppercase tracking-tighter">Substabelecimento Elite</h1>
           </div>
-          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Elite Node</Badge>
+          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Step {step} of 2</Badge>
         </header>
 
-        <div className="flex-1 overflow-auto p-4 lg:p-8 max-w-5xl mx-auto w-full space-y-8">
+        <div className="flex-1 overflow-auto p-4 lg:p-8 max-w-7xl mx-auto w-full">
           {step === 1 && (
-            <div className="space-y-6 animate-in fade-in duration-500">
-               <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
-                 <CardHeader className="bg-black text-white py-3"><CardTitle className="text-[10px] font-black uppercase">1. Configuração de Gabinete</CardTitle></CardHeader>
-                 <CardContent className="p-6 grid grid-cols-2 gap-4">
-                   <div className="space-y-2">
-                     <Label className="uppercase text-[10px] font-black">Advogado</Label>
-                     <Select value={selectedLawyer} onValueChange={setSelectedLawyer}>
-                       <SelectTrigger className="border-2 border-black h-12 rounded-none"><SelectValue placeholder="SELECIONE..." /></SelectTrigger>
-                       <SelectContent className="bg-white border-2 border-black rounded-none">
-                         {ADVOGADOS_BANCA.map(a => <SelectItem key={a.id} value={a.nome} className="font-black uppercase text-[10px]">{a.nome}</SelectItem>)}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                   <div className="space-y-2">
-                     <Label className="uppercase text-[10px] font-black">Estado</Label>
-                     <Select value={selectedState} onValueChange={setSelectedState}>
-                       <SelectTrigger className="border-2 border-black h-12 rounded-none"><SelectValue placeholder="UF..." /></SelectTrigger>
-                       <SelectContent className="bg-white border-2 border-black rounded-none">
-                         {["SP", "RJ", "MG", "PR", "BA", "CE", "RN", "PE", "PA"].map(uf => <SelectItem key={uf} value={uf} className="font-black uppercase text-[10px]">{uf}</SelectItem>)}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                 </CardContent>
-               </Card>
+            <div className="space-y-8 animate-in fade-in duration-500">
+               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                 <div className="lg:col-span-2 space-y-6">
+                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
+                     <CardHeader className="bg-black text-white py-3"><CardTitle className="text-[10px] font-black uppercase">1. Configuração de Transmissão</CardTitle></CardHeader>
+                     <CardContent className="p-6 grid grid-cols-2 gap-4">
+                       <div className="space-y-2">
+                         <Label className="uppercase text-[10px] font-black">Estado da OAB</Label>
+                         <Select value={selectedState} onValueChange={setSelectedState}>
+                           <SelectTrigger className="border-2 border-black h-12 rounded-none"><SelectValue placeholder="UF..." /></SelectTrigger>
+                           <SelectContent className="bg-white border-2 border-black rounded-none">
+                             {["SP", "RJ", "MG", "PR", "BA", "CE", "RN", "PE", "PA", "MA", "SC", "ES", "MS", "RS", "MT", "GO", "DF", "TO"].map(uf => <SelectItem key={uf} value={uf} className="font-black uppercase text-[10px]">{uf}</SelectItem>)}
+                           </SelectContent>
+                         </Select>
+                       </div>
+                     </CardContent>
+                   </Card>
 
-               <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
-                 <CardContent className="p-6 space-y-4">
-                   <Label className="uppercase text-[10px] font-black">2. Triagem de Contrato (PDF/Texto)</Label>
-                   <Textarea 
-                     placeholder="COLE O TEXTO DO CONTRATO OU USE O UPLOAD ABAIXO..."
-                     className="min-h-[250px] border-2 border-black font-black uppercase text-[11px] rounded-none"
-                     value={inputText}
-                     onChange={(e) => setInputText(e.target.value)}
-                   />
-                   <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-black group transition-all">
-                      {fileLoading ? <Loader2 className="animate-spin text-black" size={24} /> : <FileUp size={32} className="text-black/20 group-hover:text-white mb-2" />}
-                      <p className="text-[9px] font-black uppercase text-black/40 group-hover:text-white">Carregar PDF do Contrato</p>
-                      <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-                   </div>
-                   <Button onClick={handleExtract} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
-                     {loading ? <Loader2 className="animate-spin mr-2" /> : <Zap size={16} className="mr-2" />}
-                     Extrair Dados Processuais
-                   </Button>
-                 </CardContent>
-               </Card>
+                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
+                     <CardContent className="p-6 space-y-4">
+                       <Label className="uppercase text-[10px] font-black">2. Documento Origem (Texto/PDF)</Label>
+                       <Textarea 
+                         placeholder="COLE A PROCURAÇÃO ANTIGA OU CONTRATO..."
+                         className="min-h-[300px] border-2 border-black font-black uppercase text-[11px] rounded-none"
+                         value={inputText}
+                         onChange={(e) => setInputText(e.target.value)}
+                       />
+                       <Button onClick={handleExtract} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
+                         {loading ? <Loader2 className="animate-spin mr-2" /> : <Zap size={16} className="mr-2" />}
+                         Extrair Contexto Jurídico
+                       </Button>
+                     </CardContent>
+                   </Card>
+                 </div>
+
+                 <div className="space-y-6">
+                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
+                     <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3"><CardTitle className="text-[10px] font-black uppercase flex items-center gap-2"><Upload size={14} /> Importar PDF</CardTitle></CardHeader>
+                     <CardContent className="p-6">
+                       <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center cursor-pointer hover:bg-black group transition-all">
+                          {fileLoading ? <Loader2 className="animate-spin text-black" size={24} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
+                          <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Arraste a Procuração Original</p>
+                          <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+                       </div>
+                     </CardContent>
+                   </Card>
+                 </div>
+               </div>
             </div>
           )}
 
-          {step === 2 && (
-            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          {step === 2 && extractedData && (
+            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto pb-20">
               <div className="flex justify-between items-center border-b-2 border-black pb-4">
-                 <h2 className="text-xl font-black uppercase tracking-tight">Revisão Forense</h2>
+                 <h2 className="text-xl font-black uppercase tracking-tight">Revisão de Transmissão Forense</h2>
                  <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-black rounded-none">Voltar</Button>
               </div>
 
-              <Card className="border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
-                <CardHeader className="bg-black text-white py-3">
-                  <CardTitle className="text-[10px] uppercase font-black">Dados do Juízo e Processo</CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 grid grid-cols-2 gap-4">
-                  <div className="space-y-1"><Label className="text-[9px] font-black uppercase">Vara</Label><Input value={vara} onChange={e => setVara(e.target.value)} className="border-black rounded-none font-black uppercase" /></div>
-                  <div className="space-y-1"><Label className="text-[9px] font-black uppercase">Comarca</Label><Input value={comarca} onChange={e => setComarca(e.target.value)} className="border-black rounded-none font-black uppercase" /></div>
-                  <div className="col-span-2 space-y-1"><Label className="text-[9px] font-black uppercase">Número do Processo</Label><Input value={numeroProcesso} onChange={e => setNumeroProcesso(e.target.value)} className="border-black rounded-none font-black" /></div>
-                </CardContent>
-              </Card>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <Card className="border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
+                  <CardHeader className="bg-black text-white py-3"><CardTitle className="text-[10px] uppercase font-black">Substabelecente (Cedente)</CardTitle></CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    <div className="grid gap-1">
+                      <Label className="text-[9px] font-black uppercase">Nome Completo</Label>
+                      <Input value={extractedData.advogadoSubstabelecente} onChange={e => setExtractedData({...extractedData, advogadoSubstabelecente: e.target.value})} className="border-black rounded-none font-black uppercase" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="grid gap-1">
+                         <Label className="text-[9px] font-black uppercase">Estado Civil</Label>
+                         <Input value={extractedData.estadoCivilSubstabelecente} onChange={e => setExtractedData({...extractedData, estadoCivilSubstabelecente: e.target.value})} className="border-black rounded-none font-black uppercase" />
+                       </div>
+                       <div className="grid gap-1">
+                         <Label className="text-[9px] font-black uppercase">OAB Curta</Label>
+                         <Input value={extractedData.oabSubstabelecenteCurta} onChange={e => setExtractedData({...extractedData, oabSubstabelecenteCurta: e.target.value})} className="border-black rounded-none font-black" />
+                       </div>
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-[9px] font-black uppercase">OAB Completa (Ex: OAB/SP sob o n.º...)</Label>
+                      <Input value={extractedData.oabSubstabelecente} onChange={e => setExtractedData({...extractedData, oabSubstabelecente: e.target.value})} className="border-black rounded-none font-black" />
+                    </div>
+                  </CardContent>
+                </Card>
 
-              <Card className="border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
-                <CardHeader className="bg-black text-white py-3">
-                  <CardTitle className="text-[10px] uppercase font-black">Dados do Outorgante (Cliente)</CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1"><Label className="text-[9px] font-black uppercase">Nome</Label><Input value={cliente.nome} onChange={e => setCliente({...cliente, nome: e.target.value})} className="border-black rounded-none font-black uppercase" /></div>
-                    <div className="space-y-1"><Label className="text-[9px] font-black uppercase">CPF</Label><Input value={cliente.cpf} onChange={e => setCliente({...cliente, cpf: e.target.value})} className="border-black rounded-none font-black" /></div>
-                  </div>
-                  <div className="space-y-1"><Label className="text-[9px] font-black uppercase">Endereço</Label><Input value={cliente.endereco} onChange={e => setCliente({...cliente, endereco: e.target.value})} className="border-black rounded-none font-black uppercase" /></div>
-                </CardContent>
-              </Card>
+                <Card className="border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
+                  <CardHeader className="bg-black text-white py-3"><CardTitle className="text-[10px] uppercase font-black">Substabelecido (Cessionário)</CardTitle></CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    <div className="grid gap-1">
+                      <Label className="text-[9px] font-black uppercase">Nome Completo</Label>
+                      <Input value={extractedData.advogadoSubstabelecido} onChange={e => setExtractedData({...extractedData, advogadoSubstabelecido: e.target.value})} className="border-black rounded-none font-black uppercase" />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-[9px] font-black uppercase">OAB Curta</Label>
+                      <Input value={extractedData.oabSubstabelecidoCurta} onChange={e => setExtractedData({...extractedData, oabSubstabelecidoCurta: e.target.value})} className="border-black rounded-none font-black" />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-[9px] font-black uppercase">OAB Completa</Label>
+                      <Input value={extractedData.oabSubstabelecido} onChange={e => setExtractedData({...extractedData, oabSubstabelecido: e.target.value})} className="border-black rounded-none font-black" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="md:col-span-2 border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
+                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3"><CardTitle className="text-[10px] uppercase font-black">Contexto do Processo</CardTitle></CardHeader>
+                  <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                       <div className="grid gap-1">
+                         <Label className="text-[9px] font-black uppercase">Cliente Outorgante</Label>
+                         <Input value={extractedData.clienteNome} onChange={e => setExtractedData({...extractedData, clienteNome: e.target.value})} className="border-black rounded-none font-black uppercase" />
+                       </div>
+                       <div className="grid gap-1">
+                         <Label className="text-[9px] font-black uppercase">Número do Processo (CNJ)</Label>
+                         <Input value={extractedData.numeroProcesso} onChange={e => setExtractedData({...extractedData, numeroProcesso: e.target.value})} className="border-black rounded-none font-black font-mono" />
+                       </div>
+                    </div>
+                    <div className="space-y-4">
+                       <div className="grid gap-1">
+                         <Label className="text-[9px] font-black uppercase">Tipo de Ação</Label>
+                         <Input value={extractedData.tipoAcao} onChange={e => setExtractedData({...extractedData, tipoAcao: e.target.value})} className="border-black rounded-none font-black uppercase" />
+                       </div>
+                       <div className="grid gap-1">
+                         <Label className="text-[9px] font-black uppercase">Cidade / Comarca</Label>
+                         <Input value={extractedData.cidadeComarca} onChange={e => setExtractedData({...extractedData, cidadeComarca: e.target.value})} className="border-black rounded-none font-black uppercase" />
+                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="bg-yellow-50 border-2 border-yellow-200 p-4 flex gap-3 items-start">
+                <Info size={16} className="text-yellow-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-[9px] font-black uppercase text-yellow-900">Nota de Compliance:</p>
+                  <p className="text-[8px] font-bold text-yellow-700 uppercase leading-tight">
+                    O substabelecimento será gerado <b>SEM RESERVA DE PODERES</b>, conforme o Art. 272, §5º do CPC.
+                  </p>
+                </div>
+              </div>
 
               <Button onClick={handleGenerate} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
                 {loading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
-                Gerar Peça de Habilitação
+                Selar & Exportar Substabelecimento Profissional
               </Button>
             </div>
           )}
