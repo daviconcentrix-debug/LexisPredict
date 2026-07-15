@@ -5,11 +5,6 @@
  * @see LICENSE file for full terms.
  */
 
-/**
- * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * W1 Capital / LexisPredict v200.0 ELITE
- */
-
 export type CaseStatus =
   | "Vencido"
   | "É Hoje"
@@ -59,9 +54,6 @@ export type CaseNote = {
   updatedAt: string;
 };
 
-/**
- * Corrige erros de encoding comuns (UTF-8 interpretado como ISO-8859-1)
- */
 export function fixEncoding(text: string): string {
   if (!text) return "";
   try {
@@ -99,9 +91,6 @@ export function fixEncoding(text: string): string {
   }
 }
 
-/**
- * Validador Estrito de Datas para Postgres
- */
 export function formatDateToISO(dateStr: string | null | undefined): string | null {
   if (!dateStr) return null;
   const raw = String(dateStr).trim();
@@ -142,10 +131,6 @@ export function formatDateToISO(dateStr: string | null | undefined): string | nu
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-/**
- * Motor de Cálculo de Prazos Estratégico
- * REGRA: Se a data é HOJE (Local), retorna 0. Dias passados retornam negativos.
- */
 export function calcularDiasFaltando(proximoISO: string | null): number | null {
   if (!proximoISO) return null;
   try {
@@ -156,17 +141,14 @@ export function calcularDiasFaltando(proximoISO: string | null): number | null {
     
     const [pAno, pMes, pDia] = proximoISO.split('-').map(Number);
     
-    // Comparação de calendário local rigorosa para "Hoje"
     if (hojeAno === pAno && hojeMes === (pMes - 1) && hojeDia === pDia) {
       return 0;
     }
 
-    // Cálculo matemático para os demais casos (Normalizado ao meio-dia)
     const dataPrazo = new Date(pAno, pMes - 1, pDia, 12, 0, 0);
     const dataHojeMeioDia = new Date(hojeAno, hojeMes, hojeDia, 12, 0, 0);
     
     const diffMs = dataPrazo.getTime() - dataHojeMeioDia.getTime();
-    // round é seguro aqui pois as datas estão fixas em 12:00
     return Math.round(diffMs / (1000 * 60 * 60 * 24));
   } catch {
     return null;
