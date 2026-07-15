@@ -340,7 +340,7 @@ export default function ImportPage() {
 
         <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0">
           <div className="flex items-center gap-2">
-            <Copyright size={10} /> 2026 W1 Capital.
+            <Copyright size={10} /> 2026 Davi Alves Figueredo / W1 Capital. Todos os direitos reservados.
           </div>
           <span className="uppercase">Relatório Consolidado • DAVI ALVES FIGUEREDO</span>
         </footer>
