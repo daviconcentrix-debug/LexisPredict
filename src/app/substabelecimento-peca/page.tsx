@@ -1,9 +1,10 @@
 "use client";
-/*
-@copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
-@license Proprietary - All rights reserved. See LICENSE file. */
+/**
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved. See LICENSE file.
+ */
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   FileText, 
@@ -151,18 +152,27 @@ export default function SubstabelecimentoGenerator() {
         const leavingInfo = BANCA_DATA[advLeaving];
         const enteringInfo = BANCA_DATA[advEntering];
 
+        const getCleanOAB = (uf: string, data: any) => {
+          const raw = data.oabs[uf] || data.oabs['SP'] || Object.values(data.oabs)[0];
+          return String(raw).split('/')[0];
+        };
+
+        const oabLeavingNum = getCleanOAB(selectedState, leavingInfo);
+        const oabEnteringNum = getCleanOAB(selectedState, enteringInfo);
+
         setExtractedData({
           advogadoSubstabelecente: advLeaving,
           estadoCivilSubstabelecente: leavingInfo.estadoCivil,
-          oabSubstabelecente: `OAB/${selectedState} sob o n.º ${leavingInfo.oabs[selectedState] || leavingInfo.oabs['SP']}`,
-          oabSubstabelecenteCurta: `OAB/${selectedState} ${leavingInfo.oabs[selectedState] || leavingInfo.oabs['SP']}`,
+          oabSubstabelecente: `OAB/${selectedState} sob o n.º ${oabLeavingNum}`,
+          oabSubstabelecenteCurta: `OAB/${selectedState} ${oabLeavingNum}`,
           advogadoSubstabelecido: advEntering,
-          oabSubstabelecido: `OAB/${selectedState} sob o n.º ${enteringInfo.oabs[selectedState] || enteringInfo.oabs['SP']}`,
-          oabSubstabelecidoCurta: `OAB/${selectedState} ${enteringInfo.oabs[selectedState] || enteringInfo.oabs['SP']}`,
-          clienteNome: res.cliente?.nome || "NOME DO CLIENTE",
-          tipoAcao: res.processos?.[0]?.acao || "AÇÃO REVISIONAL DE CONTRATO BANCÁRIO",
-          numeroProcesso: res.processos?.[0]?.numero || "",
-          cidadeComarca: selectedState === 'SP' ? 'São Paulo' : 'Comarca Local'
+          oabSubstabelecido: `OAB/${selectedState} sob o n.º ${oabEnteringNum}`,
+          oabSubstabelecidoCurta: `OAB/${selectedState} ${oabEnteringNum}`,
+          clienteNome: (res as any).cliente?.nome || "NOME DO CLIENTE",
+          tipoAcao: (res as any).processos?.[0]?.acao || "AÇÃO REVISIONAL DE CONTRATO BANCÁRIO",
+          numeroProcesso: (res as any).processos?.[0]?.numero || "",
+          cidadeComarca: selectedState === 'SP' ? 'São Paulo' : 'Comarca Local',
+          dataExtenso: new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
         });
         setStep(2);
         toast({ title: "Triagem Concluída" });
@@ -178,13 +188,8 @@ export default function SubstabelecimentoGenerator() {
 
   const handleSeal = async () => {
     setLoading(true);
-    const dataAtual = new Date();
-    const dataFormatada = dataAtual.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
     try {
-      const res = await generatePecaSubstabelecimentoPDFAction({
-        ...extractedData,
-        dataFormatada
-      });
+      const res = await generatePecaSubstabelecimentoPDFAction(extractedData);
       if (res.success && res.base64) {
         const link = document.createElement('a');
         link.href = `data:application/pdf;base64,${res.base64}`;
@@ -214,12 +219,20 @@ export default function SubstabelecimentoGenerator() {
             </div>
             <h1 className="font-black text-xl text-black uppercase tracking-tighter">Gerador de Substabelecimentos</h1>
           </div>
-          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Step {step} of 2</Badge>
+          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Sem Reserva</Badge>
         </header>
 
         <div className="flex-1 overflow-auto p-4 lg:p-8 max-w-7xl mx-auto w-full">
           {step === 1 && (
             <div className="space-y-8 animate-in fade-in duration-500">
+              {apiError && (
+                <Alert variant="destructive" className="border-2 border-red-600 rounded-none shadow-[8px_8px_0px_#000]">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle className="font-black uppercase text-xs">Erro de Triagem</AlertTitle>
+                  <AlertDescription className="text-[10px] font-bold uppercase">{apiError}</AlertDescription>
+                </Alert>
+              )}
+
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
@@ -281,7 +294,7 @@ export default function SubstabelecimentoGenerator() {
                         onChange={(e) => setInputText(e.target.value)}
                       />
                       <Button onClick={handleExtract} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
-                        {loading ? <Loader2 className="animate-spin mr-2" /> : <Zap size={16} className="mr-2" />}
+                        {loading ? <Loader2 className="animate-spin mr-2" /> : <Repeat size={16} className="mr-2" />}
                         Gerar Draft de Substabelecimento
                       </Button>
                     </CardContent>
@@ -410,6 +423,16 @@ export default function SubstabelecimentoGenerator() {
                   </div>
                 </CardContent>
               </Card>
+
+              <div className="bg-blue-50 border-2 border-blue-200 p-4 flex gap-3 items-start">
+                <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-[9px] font-black uppercase text-blue-900">Nota de Protocolo:</p>
+                  <p className="text-[8px] font-bold text-blue-700 uppercase leading-tight">
+                    Este documento solicita a <b>exclusão</b> do advogado cedente da contracapa dos autos, cumprindo o Art. 272, §5º do CPC.
+                  </p>
+                </div>
+              </div>
 
               <Button onClick={handleSeal} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
                 {loading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
