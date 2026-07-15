@@ -1,8 +1,9 @@
-"use client";
+'use server';
 /**
- * @fileOverview Motor de Extração de Dados Jurídicos v800.0 ELITE
+ * @fileOverview Motor de Extração de Dados Jurídicos v850.0 ELITE
  * Estratégia: Fatiamento de Contexto para evitar Erro de Buffer e Fallback Quaternário.
- * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved. See LICENSE file.
  */
 
 import {ai} from '@/ai/genkit';
@@ -171,7 +172,6 @@ async function callGroq(text: string) {
 export const documentFlow = ai.defineFlow(
   { name: 'documentFlow', inputSchema: z.any(), outputSchema: z.any() },
   async (input) => {
-    // BLINDAGEM DE BUFFER: Fatiar contrato para evitar erro de serialização
     const slicedText = (input.text || "").substring(0, 6000);
     
     let parsed: any = null;
@@ -185,7 +185,6 @@ export const documentFlow = ai.defineFlow(
     const sorted = [engines.find(e => e.id === pref) || engines[0], ...engines.filter(e => e.id !== pref)].filter(Boolean);
 
     for (const engine of sorted) {
-      console.log(`[DocumentFlow] Tentando motor: ${engine!.id.toUpperCase()}`);
       try {
         parsed = await engine!.call(slicedText);
         if (parsed && (parsed.cliente || parsed.processos)) break;
