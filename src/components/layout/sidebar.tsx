@@ -1,16 +1,21 @@
 "use client";
+/**
+ * @fileOverview LexisPredict - W1 Capital Advanced Legal Operations
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
+ */
 
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  LayoutDashboard,
-  Briefcase,
-  Users,
-  Upload,
-  BarChart3,
-  ShieldAlert,
-  Settings,
+import { 
+  LayoutDashboard, 
+  Briefcase, 
+  Users, 
+  Upload, 
+  BarChart3, 
+  ShieldAlert, 
+  Settings, 
   StickyNote,
   FileSearch,
   MessageSquare,
@@ -21,7 +26,8 @@ import {
   ChevronLeft,
   ChevronRight,
   UserPlus,
-  Repeat
+  Repeat,
+  FilePlus2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -36,7 +42,7 @@ export function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>('pt');
   const { profile, signOut } = useAuth();
-
+  
   const t = getTranslation(locale);
   const isAdmin = profile?.cargo === 'Administrador';
 
@@ -65,9 +71,8 @@ export function Sidebar() {
       items: [
         { label: t.audit, href: '/veredito', icon: FileSearch },
         { label: t.documents, href: '/documents', icon: FileText },
+        { label: t.habilitacao, href: '/habilitacao', icon: FilePlus2 },
         { label: t.substabelecimento, href: '/substabelecimento', icon: Repeat },
-        // ✅ NOVO ITEM ADICIONADO
-        { label: "Habilitação + Procuração", href: '/habilitacao', icon: FileText },
         { label: t.chat, href: '/chat', icon: MessageSquare },
         { label: t.whatsapp, href: '/whatsapp', icon: MessageCircle },
         { label: t.import, href: '/import', icon: Upload },
@@ -109,26 +114,19 @@ export function Sidebar() {
               </p>
             )}
             {group.items.map((item) => (
-              <Link
+              <Link 
                 key={item.label}
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative",
-                  pathname === item.href
-                    ? "bg-primary/10 text-primary"
+                  pathname === item.href 
+                    ? "bg-primary/10 text-primary" 
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary/30"
                 )}
               >
-                {pathname === item.href && (
-                  <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary rounded-full shadow-[0_0_10px_#00D1FF]" />
-                )}
-                <item.icon className={cn(
-                  "w-4 h-4 shrink-0 transition-colors",
-                  pathname === item.href ? "text-primary" : "opacity-60 group-hover:opacity-100"
-                )} />
-                {!collapsed && (
-                  <span className="text-[10px] font-bold tracking-wider uppercase">{item.label}</span>
-                )}
+                {pathname === item.href && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary rounded-full shadow-[0_0_10px_#00D1FF]" />}
+                <item.icon className={cn("w-4 h-4 shrink-0 transition-colors", pathname === item.href ? "text-primary" : "opacity-60 group-hover:opacity-100")} />
+                {!collapsed && <span className="text-[10px] font-bold tracking-wider uppercase">{item.label}</span>}
               </Link>
             ))}
           </div>
@@ -147,19 +145,19 @@ export function Sidebar() {
             </div>
           </div>
         )}
-
+        
         <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="icon"
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={handleLogout}
             className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
           >
             <LogOut size={14} />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={() => setCollapsed(!collapsed)}
             className="hidden lg:flex h-8 w-8 text-muted-foreground hover:text-primary"
           >
@@ -172,7 +170,6 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile Sidebar */}
       <div className="lg:hidden fixed top-4 left-4 z-[100]">
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>
@@ -190,7 +187,6 @@ export function Sidebar() {
         </Sheet>
       </div>
 
-      {/* Desktop Sidebar */}
       <aside className={cn(
         "hidden lg:flex h-screen flex-col transition-all duration-300 z-50 shrink-0",
         collapsed ? "w-20" : "w-64"
