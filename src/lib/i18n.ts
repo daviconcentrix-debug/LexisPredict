@@ -1,3 +1,8 @@
+/**
+ * @fileOverview LexisPredict - W1 Capital Advanced Legal Operations
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
+ */
 
 /**
  * MOTOR DE INTERNACIONALIZAÇÃO v3000.0 ELITE
@@ -16,6 +21,7 @@ export const translations = {
     team: "Equipe",
     audit: "Auditoria 3D",
     documents: "Procurações",
+    habilitacao: "Habilitação + Proc.",
     substabelecimento: "Substabelecimento",
     chat: "Consultoria",
     whatsapp: "Comunicação",
@@ -52,6 +58,7 @@ export const translations = {
     team: "Team",
     audit: "3D Audit",
     documents: "Proxy Docs",
+    habilitacao: "Enablement + Proxy",
     substabelecimento: "Substitution",
     chat: "Advisory Chat",
     whatsapp: "WhatsApp Hub",
