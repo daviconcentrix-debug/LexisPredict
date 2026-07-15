@@ -20,6 +20,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 1.6,
     textAlign: 'justify',
+    color: '#000000'
   },
   header: {
     fontWeight: 'bold',
@@ -32,7 +33,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   paragraph: {
-    marginBottom: 15,
+    marginBottom: 20,
     textIndent: 50,
   },
   bold: {
@@ -40,14 +41,14 @@ const styles = StyleSheet.create({
   },
   center: {
     textAlign: 'center',
-    marginTop: 20,
+    marginTop: 40,
     marginBottom: 20,
   },
   signatureArea: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    marginTop: 40,
+    marginTop: 60,
   },
   line: {
     width: '60%',
@@ -58,7 +59,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: 'bold',
     fontSize: 14,
-    marginBottom: 20,
+    marginBottom: 40,
     textTransform: 'uppercase',
   }
 });
@@ -91,8 +92,11 @@ export function HabilitacaoPecaPDF({ data }: { data: any }) {
           </Text>
         </View>
 
-        <Text style={styles.center}>Nestes Termos{"\n"}Pede Deferimento.</Text>
-        <Text style={styles.center}>{cidadeEmissao}, {dataFormatada}.</Text>
+        <View style={styles.center}>
+          <Text>Nestes Termos,</Text>
+          <Text>Pede Deferimento.</Text>
+          <Text style={{ marginTop: 20 }}>{cidadeEmissao}, {dataFormatada}.</Text>
+        </View>
 
         <View style={styles.signatureArea}>
           <View style={styles.line} />
@@ -123,7 +127,9 @@ export function HabilitacaoPecaPDF({ data }: { data: any }) {
           </Text>
         </View>
 
-        <Text style={styles.center}>{cidadeEmissao}, {dataFormatada}.</Text>
+        <View style={styles.center}>
+          <Text>{cidadeEmissao}, {dataFormatada}.</Text>
+        </View>
 
         <View style={styles.signatureArea}>
           <View style={styles.line} />

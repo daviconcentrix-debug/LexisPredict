@@ -18,7 +18,10 @@ import {
   Building2, 
   AlertCircle, 
   User, 
-  Eye 
+  Eye,
+  MapPin,
+  Briefcase,
+  Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -134,6 +137,9 @@ export default function HabilitacaoPecaGenerator() {
           cliente: {
             ...data.cliente,
             nacionalidade: data.cliente.nacionalidade || "brasileiro(a)",
+            estadoCivil: data.cliente.estadoCivil || "casado(a)",
+            profissao: data.cliente.profissao || "autônomo(a)",
+            endereco: data.cliente.endereco || "Não localizado"
           },
           advogado: {
             nome: selectedLawyer.toUpperCase(),
@@ -188,6 +194,13 @@ export default function HabilitacaoPecaGenerator() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const updateClientField = (field: string, value: string) => {
+    setExtractedData({
+      ...extractedData,
+      cliente: { ...extractedData.cliente, [field]: value }
+    });
   };
 
   return (
@@ -304,21 +317,33 @@ export default function HabilitacaoPecaGenerator() {
                   <CardContent className="p-6 space-y-6">
                     <div className="grid gap-1">
                       <Label className="text-[9px] font-black uppercase">Nome Completo</Label>
-                      <Input value={extractedData.cliente.nome} onChange={(e) => setExtractedData({...extractedData, cliente: {...extractedData.cliente, nome: e.target.value}})} className="border-black font-black uppercase rounded-none" />
+                      <Input value={extractedData.cliente.nome} onChange={(e) => updateClientField('nome', e.target.value)} className="border-black font-black uppercase rounded-none" />
                     </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-1">
+                        <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Users size={10} /> Estado Civil</Label>
+                        <Input value={extractedData.cliente.estadoCivil} onChange={(e) => updateClientField('estadoCivil', e.target.value)} className="border-black font-black uppercase rounded-none" />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Briefcase size={10} /> Profissão</Label>
+                        <Input value={extractedData.cliente.profissao} onChange={(e) => updateClientField('profissao', e.target.value)} className="border-black font-black uppercase rounded-none" />
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-1">
                         <Label className="text-[9px] font-black uppercase">CPF</Label>
-                        <Input value={extractedData.cliente.cpf} onChange={(e) => setExtractedData({...extractedData, cliente: {...extractedData.cliente, cpf: e.target.value}})} className="border-black font-black rounded-none" />
+                        <Input value={extractedData.cliente.cpf} onChange={(e) => updateClientField('cpf', e.target.value)} className="border-black font-black rounded-none" />
                       </div>
                       <div className="grid gap-1">
                         <Label className="text-[9px] font-black uppercase">RG</Label>
-                        <Input value={extractedData.cliente.rg} onChange={(e) => setExtractedData({...extractedData, cliente: {...extractedData.cliente, rg: e.target.value}})} className="border-black font-black rounded-none" />
+                        <Input value={extractedData.cliente.rg} onChange={(e) => updateClientField('rg', e.target.value)} className="border-black font-black rounded-none" />
                       </div>
                     </div>
                     <div className="grid gap-1">
-                      <Label className="text-[9px] font-black uppercase">Endereço Residencial</Label>
-                      <Input value={extractedData.cliente.endereco} onChange={(e) => setExtractedData({...extractedData, cliente: {...extractedData.cliente, endereco: e.target.value}})} className="border-black font-black uppercase rounded-none" />
+                      <Label className="text-[9px] font-black uppercase flex items-center gap-1.5 text-primary"><MapPin size={10} /> Endereço Residencial</Label>
+                      <Input value={extractedData.cliente.endereco} onChange={(e) => updateClientField('endereco', e.target.value)} className="border-black font-black uppercase rounded-none" />
                     </div>
                   </CardContent>
                 </Card>
