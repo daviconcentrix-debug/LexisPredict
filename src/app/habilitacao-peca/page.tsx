@@ -1,7 +1,8 @@
 "use client";
-/*
-@copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
-@license Proprietary - All rights reserved. See LICENSE file. */
+/**
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved. See LICENSE file.
+ */
 
 import React, { useState, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -20,7 +21,6 @@ import {
   CalendarDays,
   User,
   Info,
-  ChevronRight,
   Eye,
   Hash
 } from 'lucide-react';
@@ -127,6 +127,10 @@ export default function HabilitacaoPecaGenerator() {
       const res = await extrairDadosProcuracaoAction(inputText, selectedLawyer, selectedState);
       if (res.success) {
         const data = res as any;
+        const lawyerInfo = BANCA_DATA[selectedLawyer];
+        const rawOAB = lawyerInfo.oabs[selectedState] || lawyerInfo.oabs['SP'] || Object.values(lawyerInfo.oabs)[0];
+        const oabNum = String(rawOAB).split('/')[0];
+
         setExtractedData({
           vara: "02ª VARA CÍVEL",
           comarca: `${selectedState === 'SP' ? 'São Paulo' : 'Comarca Local'} - ${selectedState}`,
@@ -136,7 +140,10 @@ export default function HabilitacaoPecaGenerator() {
             nacionalidade: "brasileiro(a)",
           },
           advogado: {
-            ...data.advogado,
+            nome: selectedLawyer.toUpperCase(),
+            oab: oabNum,
+            endereco: lawyerInfo.endereco,
+            email: lawyerInfo.email,
             cep: "03870-100"
           },
           tipoAcao: data.processos?.[0]?.acao || "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA",
@@ -160,7 +167,10 @@ export default function HabilitacaoPecaGenerator() {
   const handleSeal = async () => {
     setLoading(true);
     try {
-      const res = await generateHabilitacaoPecaPDFAction(extractedData);
+      const res = await generateHabilitacaoPecaPDFAction({
+        ...extractedData,
+        selectedState // Passamos o estado para o motor de PDF usar no prefixo OAB/UF
+      });
       if (res.success && res.base64) {
         const byteCharacters = atob(res.base64);
         const byteNumbers = new Array(byteCharacters.length);
