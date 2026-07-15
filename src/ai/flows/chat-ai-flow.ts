@@ -27,16 +27,17 @@ RETORNE APENAS JSON PLANO: { "resposta": "todo_o_texto" }.`;
 function cleanJsonResponse(text: string): any {
   if (!text) return null;
   try {
-    const firstBrace = text.indexOf('{');
-    const lastBrace = text.lastIndexOf('}');
+    let clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const firstBrace = clean.indexOf('{');
+    const lastBrace = clean.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1) {
-      return JSON.parse(text.substring(firstBrace, lastBrace + 1));
+      return JSON.parse(clean.substring(firstBrace, lastBrace + 1));
     }
     return null;
   } catch (e) { return null; }
 }
 
-async function fetchWithTimeout(url: string, options: any, timeout = 15000) {
+async function fetchWithTimeout(url: string, options: any, timeout = 10000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   try {
@@ -125,7 +126,7 @@ export const chatAIFlow = ai.defineFlow(
       if (res && res.resposta) return { resposta: res.resposta, engineUtilizada: engine.id.toUpperCase() };
     } catch (e) {}
 
-    // Fallback circular de segurança
+    // Fallback circular de segurança (Timeout reduzido para 10s por motor)
     for (const fallback of engines.filter(e => e.id !== modelId)) {
       try {
         const res = await fallback.call(input.pergunta, input.historico || []);
