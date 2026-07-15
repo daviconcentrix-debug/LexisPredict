@@ -1,3 +1,9 @@
+/**
+ * @fileOverview LexisPredict - W1 Capital Advanced Legal Operations
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
+ * @see LICENSE file for full terms.
+ */
 
 'use server';
 
@@ -6,40 +12,47 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v160.0 ELITE)
- * Estratégia de Sincronia Blindada contra Erros de Tipagem (Date/Text).
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v175.0 ELITE)
+ * Estratégia de Isolamento de Gabinete: Multi-tenancy por Empresa e Usuário.
  */
 
 async function getUserContext() {
   const cookieStore = await cookies();
   const userEmail = cookieStore.get('lexis_user_email')?.value;
   
-  if (!userEmail) return { auth_id: null, empresa_id: null, cargo: null };
+  if (!userEmail) return { auth_id: null, empresa_id: null, cargo: null, role: null };
 
   const { data: profile } = await supabase
     .from('usuarios')
-    .select('id, empresa_id, cargo, email, auth_user_id')
+    .select('id, empresa_id, cargo, email, auth_user_id, role')
     .eq('email', userEmail.toLowerCase().trim())
     .maybeSingle();
     
   return { 
     auth_id: profile?.auth_user_id || null,
     empresa_id: profile?.empresa_id || null, 
-    cargo: profile?.cargo || 'Operador'
+    cargo: profile?.cargo || 'Operador',
+    role: profile?.role || 'admin' // Padrão admin se não especificado, para não travar
   };
 }
 
 export async function getStoredCases(): Promise<LegalCase[]> {
   if (!isSupabaseConfigured) return [];
-  const { empresa_id } = await getUserContext();
-  if (!empresa_id) return [];
+  const { auth_id, empresa_id, role } = await getUserContext();
+  if (!empresa_id || !auth_id) return [];
 
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('processos')
       .select('*')
-      .eq('empresa_id', empresa_id)
-      .order('created_at', { ascending: false });
+      .eq('empresa_id', empresa_id);
+
+    // CADA UM DEVE TER ACESSO ÀS SUAS EVIDÊNCIAS (Isolamento por role: operador)
+    if (role === 'operador') {
+      query = query.eq('created_by', auth_id);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) throw error;
     return data ? data.map(item => ({
@@ -64,7 +77,6 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
     });
     
     const payload = Array.from(uniqueMap.values()).map(c => {
-      // SANEAMENTO ESTRITO: Garante que apenas datas reais cheguem às colunas date
       const isoPrazo = formatDateToISO(c.proximoPrazo);
       const isoRetorno = formatDateToISO(c.ultimoRetorno);
 
@@ -77,8 +89,8 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
         escritorio: c.escritorio || '',
         status: c.status || 'Sem Prazo',
         risco: c.risco || 'Normal',
-        proximo_retorno: isoPrazo, // Se for texto, isoPrazo será null
-        ultimo_retorno: isoRetorno,   // Se for texto, isoRetorno será null
+        proximo_retorno: isoPrazo, 
+        ultimo_retorno: isoRetorno,
         tribunal: c.tribunal || 'Outros',
         telefone: c.telefone || '',
         observacoes: c.observacao || '',
@@ -87,15 +99,16 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
       };
     });
 
-    if (payload.length === 0) return { success: true, message: "Nenhum dado para salvar." };
-
-    // Limpeza por empresa para evitar duplicatas infinitas
+    // LIMPEZA SEGMENTADA: Deleta apenas os registros DESTE usuário para não interferir nos colegas de gabinete
     const { error: deleteError } = await supabase
       .from('processos')
       .delete()
-      .eq('empresa_id', empresa_id);
+      .eq('empresa_id', empresa_id)
+      .eq('created_by', auth_id);
 
     if (deleteError) throw deleteError;
+
+    if (payload.length === 0) return { success: true, message: "Base limpa com sucesso." };
 
     const { error: insertError } = await supabase
       .from('processos')
@@ -111,15 +124,21 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 }
 
 export async function getStoredNotes(): Promise<CaseNote[]> {
-  const { empresa_id } = await getUserContext();
-  if (!empresa_id) return [];
+  const { auth_id, empresa_id, role } = await getUserContext();
+  if (!empresa_id || !auth_id) return [];
 
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('notes')
       .select('*')
-      .eq('empresa_id', empresa_id)
-      .order('created_at', { ascending: false });
+      .eq('empresa_id', empresa_id);
+
+    // CADA UM DEVE TER ACESSO ÀS SUAS EVIDÊNCIAS (Isolamento por role: operador)
+    if (role === 'operador') {
+      query = query.eq('created_by', auth_id);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) throw error;
     return data ? data.map(item => {
@@ -152,6 +171,11 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
   if (!empresa_id || !auth_id) return { success: false };
 
   try {
+    // Sincronia de Notas: Limpa apenas as notas do usuário logado
+    await supabase.from('notes').delete().eq('empresa_id', empresa_id).eq('created_by', auth_id);
+
+    if (notes.length === 0) return { success: true };
+
     const dbNotes = notes.map(n => ({
       title: n.title || 'Nota',
       content: n.imageUrl ? JSON.stringify({ text: n.content, imageUrl: n.imageUrl }) : n.content,
@@ -159,8 +183,8 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
       created_by: auth_id
     }));
     
-    await supabase.from('notes').upsert(dbNotes);
-    return { success: true };
+    const { error } = await supabase.from('notes').insert(dbNotes);
+    return { success: !error };
   } catch (error) {
     return { success: false };
   }
