@@ -1,9 +1,9 @@
-
-'use server';
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
+'use server';
+
 import { renderToBuffer } from '@react-pdf/renderer';
 import React from 'react';
 import { extrairDadosProcuracao } from '@/ai/flows/document-flow';
@@ -11,9 +11,10 @@ import { extrairDadosProcuracao } from '@/ai/flows/document-flow';
 export async function generateHabilitacaoPecaPDFAction(data: any) {
   try {
     const { HabilitacaoPecaPDF } = await import('@/components/pdf/habilitacao-peca-pdf');
-    const pdfBuffer = await renderToBuffer(React.createElement(HabilitacaoPecaPDF, { data }));
+    const pdfBuffer = await renderToBuffer(React.createElement(HabilitacaoPecaPDF, { data }) as any);
     return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
   } catch (e: any) {
+    console.error("PDF Fail:", e);
     return { error: "Falha ao selar a Habilitação." };
   }
 }
@@ -21,7 +22,7 @@ export async function generateHabilitacaoPecaPDFAction(data: any) {
 export async function generatePecaSubstabelecimentoPDFAction(data: any) {
   try {
     const { PecaSubstabelecimentoPDF } = await import('@/components/pdf/peca-substabelecimento-pdf');
-    const pdfBuffer = await renderToBuffer(React.createElement(PecaSubstabelecimentoPDF, { data }));
+    const pdfBuffer = await renderToBuffer(React.createElement(PecaSubstabelecimentoPDF, { data }) as any);
     return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
   } catch (e: any) {
     return { error: "Falha ao selar a Peça de Substabelecimento." };
@@ -31,7 +32,7 @@ export async function generatePecaSubstabelecimentoPDFAction(data: any) {
 export async function generateProcuracaoPDFAction(data: any) {
   try {
     const { ProcuracaoPDF } = await import('@/components/pdf/procuracao-pdf');
-    const pdfBuffer = await renderToBuffer(React.createElement(ProcuracaoPDF, { data }));
+    const pdfBuffer = await renderToBuffer(React.createElement(ProcuracaoPDF, { data }) as any);
     return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
   } catch (e: any) {
     return { error: "Falha ao selar o PDF." };
@@ -41,7 +42,7 @@ export async function generateProcuracaoPDFAction(data: any) {
 export async function generateSubstabelecimentoPDFAction(data: any) {
   try {
     const { SubstabelecimentoPDF } = await import('@/components/pdf/substabelecimento-pdf');
-    const pdfBuffer = await renderToBuffer(React.createElement(SubstabelecimentoPDF, { data }));
+    const pdfBuffer = await renderToBuffer(React.createElement(SubstabelecimentoPDF, { data }) as any);
     return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
   } catch (e: any) {
     return { error: "Falha ao selar o PDF do Substabelecimento." };
