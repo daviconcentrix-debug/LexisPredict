@@ -27,16 +27,17 @@ FORMATO:
 function cleanJsonResponse(text: string): any {
   if (!text) return null;
   try {
-    const firstBrace = text.indexOf('{');
-    const lastBrace = text.lastIndexOf('}');
+    let clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const firstBrace = clean.indexOf('{');
+    const lastBrace = clean.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1) {
-      return JSON.parse(text.substring(firstBrace, lastBrace + 1));
+      return JSON.parse(clean.substring(firstBrace, lastBrace + 1));
     }
     return null;
   } catch (e) { return null; }
 }
 
-async function fetchWithTimeout(url: string, options: any, timeout = 12000) {
+async function fetchWithTimeout(url: string, options: any, timeout = 15000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   try {
@@ -110,23 +111,43 @@ async function callGroqDeepSeek(datajud: any) {
 export const vereditoAIFlow = ai.defineFlow(
   { name: 'vereditoAIFlow', inputSchema: z.any(), outputSchema: z.any() },
   async input => {
-    const dataJudData = await fetchDataJud(input.cnj);
-    const engines = [
-      { id: 'xai', call: callXAI },
-      { id: 'airforce', call: callAirforce },
-      { id: 'groq-llama', call: callGroqLlama },
-      { id: 'groq-deepseek', call: callGroqDeepSeek }
-    ];
-    const model = input.preferredModel || 'xai';
-    const sorted = [engines.find(e => e.id === model) || engines[0], ...engines.filter(e => e.id !== model)].filter(Boolean);
+    try {
+      const dataJudData = await fetchDataJud(input.cnj);
+      
+      if (!dataJudData) {
+        return { resumoTecnico: "", error: true, message: "PROCESSO_NAO_LOCALIZADO" };
+      }
 
-    for (const engine of sorted) {
-      try {
-        const result = await engine!.call(dataJudData);
-        if (result && result.resumoTecnico) return { ...result, dataJudRaw: dataJudData, engineUtilizada: engine!.id.toUpperCase() };
-      } catch (e) {}
+      const engines = [
+        { id: 'xai', call: callXAI },
+        { id: 'airforce', call: callAirforce },
+        { id: 'groq-llama', call: callGroqLlama },
+        { id: 'groq-deepseek', call: callGroqDeepSeek }
+      ];
+      
+      const model = input.preferredModel || 'xai';
+      const sorted = [engines.find(e => e.id === model) || engines[0], ...engines.filter(e => e.id !== model)].filter(Boolean);
+
+      for (const engine of sorted) {
+        try {
+          const result = await engine!.call(dataJudData);
+          if (result && result.resumoTecnico) {
+            return { 
+              ...result, 
+              dataJudRaw: dataJudData, 
+              engineUtilizada: engine!.id.toUpperCase(),
+              success: true 
+            };
+          }
+        } catch (e) {
+          console.error(`Engine ${engine!.id} fail, trying fallback...`);
+        }
+      }
+      return { resumoTecnico: "", error: true, message: "FALHA_MOTORES_NEURAIS" };
+    } catch (criticalError: any) {
+      console.error("Critical Veredito Failure:", criticalError);
+      return { resumoTecnico: "", error: true, message: criticalError.message || "ERRO_INTERNO_SERVIDOR" };
     }
-    return { resumoTecnico: "", error: true };
   }
 );
 
