@@ -1,9 +1,4 @@
-
 "use client";
-/**
- * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved. See LICENSE file.
- */
 
 import React, { useState, useEffect, useMemo, useCallback, Suspense, useDeferredValue } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -21,8 +16,7 @@ import {
   ShieldCheck, 
   FileText, 
   MessageCircle, 
-  Info,
-  AlertTriangle
+  Info
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -285,21 +279,6 @@ function CasesContent() {
     }
   }, [cases, isOperador, toast]);
 
-  const handleClearAll = async () => {
-    if (!isOperador) return;
-    if (confirm('ATENÇÃO: Deseja apagar TODOS os processos deste perfil? Esta ação é irreversível e removerá todos os registros da nuvem.')) {
-      setLoading(true);
-      const result = await syncRepoCases([]);
-      if (result.success) {
-        setCases([]);
-        toast({ title: "Base Limpa", description: "Todos os registros foram removidos com sucesso." });
-      } else {
-        toast({ title: "Falha técnica", description: result.message, variant: "destructive" });
-      }
-      setLoading(false);
-    }
-  };
-
   const filtered = useMemo(() => {
     const searchLower = deferredSearch.toLowerCase();
     return cases.filter(c => 
@@ -390,17 +369,6 @@ function CasesContent() {
                   </form>
                 </DialogContent>
               </Dialog>
-            )}
-            {isOperador && (
-               <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleClearAll} 
-                className="h-10 w-10 text-red-600 border-2 border-black rounded-none bg-white hover:bg-red-600 hover:text-white transition-all"
-                title="Limpar Toda a Base"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
             )}
             <Button variant="ghost" size="icon" onClick={loadData} className="h-10 w-10 text-black border-2 border-black rounded-none bg-white">
               <RefreshCcw className={cn("w-4 h-4", loading && "animate-spin")} />

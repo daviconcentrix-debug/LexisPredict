@@ -5,7 +5,7 @@
 
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * W1 Capital / LexisPredict v220.0 ELITE
+ * W1 Capital / LexisPredict v212.0 ELITE
  */
 
 export type CaseStatus =
@@ -16,8 +16,7 @@ export type CaseStatus =
   | "Sem Prazo"
   | "Encerrado"
   | "Arquivado"
-  | "Caso Crítico"
-  | string; 
+  | "Caso Crítico";
 
 export type RiskLevel = "Crítico" | "Atenção" | "Normal";
 
@@ -81,14 +80,9 @@ export function fixEncoding(text: string): string {
 export function parseBrazilianDate(dateStr: string): Date | null {
   if (!dateStr) return null;
   const clean = dateStr.trim();
-  if (clean === "" || clean === "-" || clean === "00/00/0000" || clean === "0") return null;
+  if (clean === "" || clean === "-" || clean === "00/00/0000") return null;
   
-  // Suporte a ISO 2026-07-27
-  if (clean.includes('-') && clean.split('-')[0].length === 4) {
-     return new Date(clean);
-  }
-
-  const parts = clean.split(/[\/\-\.]/);
+  const parts = clean.split('/');
   if (parts.length !== 3) return null;
   
   const d = parseInt(parts[0], 10);
@@ -139,6 +133,9 @@ export function calcularDiasFaltando(proximoISO: string | null): number | null {
     const hojeDia = hoje.getDate();
     
     const [pAno, pMes, pDia] = proximoISO.split('-').map(Number);
+    
+    if (hojeAno === pAno && hojeMes === (pMes - 1) && hojeDia === pDia) return 0;
+
     const dataPrazo = new Date(pAno, pMes - 1, pDia, 12, 0, 0);
     const dataHojeMeioDia = new Date(hojeAno, hojeMes, hojeDia, 12, 0, 0);
     
@@ -151,7 +148,7 @@ export function calcularDiasFaltando(proximoISO: string | null): number | null {
 
 export function calcularStatus(proximoRetorno: string | null | undefined, situacao: string | null | undefined): CaseStatus {
   const sit = (situacao || "").toUpperCase();
-  if (sit.includes("ENCERRADO") || sit.includes("ARQUIVADO") || sit.includes("EXTINTO") || sit.includes("SUSPENSO")) return "Arquivado";
+  if (sit.includes("ENCERRADO") || sit.includes("ARQUIVADO") || sit.includes("EXTINTO") || sit.includes("SUSPENSO")) return "Sem Prazo";
 
   const iso = formatDateToISO(proximoRetorno);
   if (!iso) return "Sem Prazo";
@@ -187,10 +184,7 @@ export function extrairTribunal(protocolo: string): { tribunal: string; link: st
   const maps: Record<string, { tribunal: string; link: string }> = {
     "8.26": { tribunal: "TJSP", link: "https://esaj.tjsp.jus.br/cpopg/open.do" },
     "8.13": { tribunal: "TJMG", link: "https://pje.tjmg.jus.br/pje/ConsultaPublica/listView.seam" },
-    "8.19": { tribunal: "TJRJ", link: "http://www4.tjrj.jus.br/consultaProcessoPortal/consulta-principal.do" },
-    "8.02": { tribunal: "TJAL", link: "https://www2.tjal.jus.br/cpopg/open.do" },
-    "8.09": { tribunal: "TJGO", link: "https://projudi.tjgo.jus.br/BuscaProcessoPublica" },
-    "8.16": { tribunal: "TJPR", link: "https://projudi.tjpr.jus.br/projudi/" }
+    "8.19": { tribunal: "TJRJ", link: "http://www4.tjrj.jus.br/consultaProcessoPortal/consulta-principal.do" }
   };
 
   const found = maps[code];
@@ -199,23 +193,15 @@ export function extrairTribunal(protocolo: string): { tribunal: string; link: st
 }
 
 export function processarCaso(raw: any): LegalCase {
-  const normalized: any = {};
-  Object.keys(raw).forEach(k => {
-    normalized[k.toUpperCase().replace(/\s+/g, '_').trim()] = raw[k];
-  });
-
-  const cliente = fixEncoding(normalized.CLIENTE || 'CLIENTE NÃO IDENTIFICADO').toUpperCase();
-  const protocolo = (normalized.PROTOCOLO || '').trim();
-  const advogado = fixEncoding(normalized.ADVOGADO_RESPONSÁVEL || normalized.ADVOGADO || 'NÃO ATRIBUÍDO').toUpperCase();
-  const situacao = (normalized.SITUAÇÃO || normalized.SITUACAO || 'EM ANDAMENTO').toUpperCase();
-  
-  // Mapeamento Resiliente de Cabeçalhos
-  const proximoPrazo = normalized.PROXIMO_RETORNO || normalized.PRÓXIMO_RETORNO || normalized.PRÓXIMO_PRAZO || normalized.PROXIMO_PRAZO || normalized.PROXIMO_RETORNO || '';
-  const ultimoRetorno = normalized.ULTIMO_RETORNO || normalized.ÚLTIMO_RETORNO || normalized.RETORNO || normalized.ULTIMO_RETORNO || '';
-  const observacao = fixEncoding(normalized.OBSERVAÇÕES || normalized.OBSERVACAO || normalized.OBSERVAÇÃO || '');
-  const telefone = (normalized.TELEFONE || '').replace(/\D/g, '');
-  
-  const statusPlanilha = normalized.STATUS || normalized.STATUS_MANUAL || 'Automatico';
+  const cliente = fixEncoding(raw.CLIENTE || raw.cliente || 'CLIENTE NÃO IDENTIFICADO').toUpperCase();
+  const protocolo = (raw.PROTOCOLO || raw.protocolo || '').trim();
+  const advogado = fixEncoding(raw.ADVOCADO || raw['ADVOGADO RESPONSÁVEL'] || raw.advogado || 'NÃO ATRIBUÍDO').toUpperCase();
+  const situacao = (raw.SITUAÇÃO || raw.situacao || 'EM ANDAMENTO').toUpperCase();
+  const proximoPrazo = raw['PRÓXIMO PRAZO'] || raw.proximoPrazo || '';
+  const ultimoRetorno = raw.ULTIMO_RETORNO || raw.ultimoRetorno || '';
+  const statusManual = raw.STATUS_MANUAL || raw.statusManual || 'Automatico';
+  const observacao = fixEncoding(raw.OBSERVACAO || raw.observacao || '');
+  const telefone = (raw.TELEFONE || raw.telefone || '').replace(/\D/g, '');
 
   const tribunalData = extrairTribunal(protocolo);
   const statusCalculado = calcularStatus(proximoPrazo, situacao);
@@ -229,10 +215,10 @@ export function processarCaso(raw: any): LegalCase {
     situacao,
     proximoPrazo,
     ultimoRetorno,
-    status: (statusPlanilha && statusPlanilha !== 'Automatico' && statusPlanilha !== '') ? statusPlanilha : statusCalculado,
+    status: statusManual === 'Automatico' ? statusCalculado : (statusManual as any),
     risco: riscoCalculado,
     diasFaltando: calcularDiasFaltando(formatDateToISO(proximoPrazo)),
-    statusManual: statusPlanilha,
+    statusManual,
     tribunal: tribunalData.tribunal,
     linkConsulta: tribunalData.link,
     observacao,

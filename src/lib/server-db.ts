@@ -1,3 +1,4 @@
+
 'use server';
 
 import { supabase, isSupabaseConfigured, UserProfile } from './supabase';
@@ -5,7 +6,7 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v180.0 ELITE)
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v175.0 ELITE)
  * Estratégia de Isolamento de Gabinete: Multi-tenancy por Empresa e Usuário.
  */
 
@@ -25,7 +26,7 @@ async function getUserContext() {
     auth_id: profile?.auth_user_id || null,
     empresa_id: profile?.empresa_id || null, 
     cargo: profile?.cargo || 'Operador',
-    role: profile?.role || 'admin'
+    role: profile?.role || 'admin' // Padrão admin se não especificado, para não travar
   };
 }
 
@@ -40,6 +41,7 @@ export async function getStoredCases(): Promise<LegalCase[]> {
       .select('*')
       .eq('empresa_id', empresa_id);
 
+    // CADA UM DEVE TER ACESSO AOS SEUS PROCESSOS (Isolamento por role: operador)
     if (role === 'operador') {
       query = query.eq('created_by', auth_id);
     }
@@ -49,10 +51,7 @@ export async function getStoredCases(): Promise<LegalCase[]> {
     if (error) throw error;
     return data ? data.map(item => ({
       ...(item.dados as LegalCase),
-      db_id: item.id.toString(),
-      // Garante que os campos de data reflitam o que está na coluna estruturada se houver divergência
-      proximoPrazo: item.proximo_retorno || (item.dados as any).proximoPrazo || '',
-      ultimoRetorno: item.ultimo_retorno || (item.dados as any).ultimoRetorno || '',
+      db_id: item.id.toString()
     })) : [];
   } catch (error) {
     console.error('[DB] Fetch Fail:', error);
@@ -75,11 +74,8 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
       const isoPrazo = formatDateToISO(c.proximoPrazo);
       const isoRetorno = formatDateToISO(c.ultimoRetorno);
 
-      // Prepara o objeto para a coluna JSONB preservando os dados brutos
-      const dadosSalvar = { ...c };
-
       return { 
-        dados: dadosSalvar, 
+        dados: c, 
         empresa_id: empresa_id, 
         created_by: auth_id,
         protocolo_ref: c.protocolo,
@@ -97,6 +93,7 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
       };
     });
 
+    // LIMPEZA SEGMENTADA: Deleta apenas os registros DESTE usuário para não interferir nos colegas de gabinete
     const { error: deleteError } = await supabase
       .from('processos')
       .delete()
@@ -130,6 +127,7 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
       .select('*')
       .eq('empresa_id', empresa_id);
 
+    // CADA UM DEVE TER ACESSO ÀS SUAS EVIDÊNCIAS (Isolamento por role: operador)
     if (role === 'operador') {
       query = query.eq('created_by', auth_id);
     }
@@ -167,6 +165,7 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
   if (!empresa_id || !auth_id) return { success: false };
 
   try {
+    // Sincronia de Notas: Limpa apenas as notas do usuário logado
     await supabase.from('notes').delete().eq('empresa_id', empresa_id).eq('created_by', auth_id);
 
     if (notes.length === 0) return { success: true };
