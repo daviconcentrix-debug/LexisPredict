@@ -1,9 +1,3 @@
-/**
- * @fileOverview LexisPredict - W1 Capital Advanced Legal Operations
- * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
- * @see LICENSE file for full terms.
- */
 
 "use client";
 
@@ -127,13 +121,7 @@ export default function Dashboard() {
     return { totalRepo, activeDemands, vencidos, venceHoje, atencao, noPrazo, semPrazo, finalizados, tempoMedio, riskScore, statusData };
   }, [cases]);
 
-  if (!mounted) {
-    return (
-      <div className="flex h-screen bg-background items-center justify-center">
-        <RefreshCcw className="animate-spin text-primary" size={32} />
-      </div>
-    );
-  }
+  if (!mounted) return null;
 
   return (
     <div className="flex h-screen bg-background font-sans text-foreground overflow-hidden">
@@ -169,7 +157,7 @@ export default function Dashboard() {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <section className="bg-card border border-border/50 rounded-md p-6 h-[350px] flex flex-col">
                     <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Saúde da Carteira (Ativos: {metrics.activeDemands})</h3>
-                    <div className="flex-1 min-0">
+                    <div className="flex-1 min-h-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie data={metrics.statusData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
@@ -235,13 +223,13 @@ export default function Dashboard() {
                      <h3 className="text-[10px] font-bold uppercase tracking-[0.2em]">Processos que exigem ação imediata</h3>
                      <Badge className="bg-red-500 text-white font-black text-[9px] uppercase">{metrics.vencidos + metrics.venceHoje} ALERTA</Badge>
                   </div>
-                  <table className="mission-control-table w-full">
+                  <table className="mission-control-table">
                     <thead>
-                      <tr className="text-[10px] uppercase opacity-50 border-b border-border/10">
-                        <th className="p-4 text-left">Tribunal</th>
-                        <th className="p-4 text-left">Cliente</th>
-                        <th className="p-4 text-left">Protocolo</th>
-                        <th className="p-4 text-right">Atraso</th>
+                      <tr>
+                        <th>Tribunal</th>
+                        <th>Cliente</th>
+                        <th>Protocolo</th>
+                        <th className="text-right">Atraso</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -250,11 +238,11 @@ export default function Dashboard() {
                         .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
                         .slice(0, 50)
                         .map((c) => (
-                          <tr key={c.id} className="hover:bg-secondary/20 transition-colors border-b border-border/5">
-                            <td className="p-4"><Badge variant="outline" className="text-[9px] font-bold uppercase">{c.tribunal}</Badge></td>
-                            <td className="p-4 font-bold uppercase text-[11px]">{c.cliente}</td>
-                            <td className="p-4 font-mono text-[10px] text-muted-foreground">{c.protocolo}</td>
-                            <td className="p-4 text-right">
+                          <tr key={c.id} className="hover:bg-secondary/20 transition-colors">
+                            <td><Badge variant="outline" className="text-[9px] font-bold uppercase">{c.tribunal}</Badge></td>
+                            <td className="font-bold uppercase text-[11px]">{c.cliente}</td>
+                            <td className="font-mono text-[10px] text-muted-foreground">{c.protocolo}</td>
+                            <td className="text-right">
                               <span className={cn("text-[9px] font-black uppercase", (c.diasFaltando || 0) < 0 ? "text-red-500" : "text-orange-500")}>
                                 {c.status === 'É Hoje' ? "Hoje" : (c.diasFaltando || 0) < 0 ? `${Math.abs(c.diasFaltando || 0)}d atraso` : `Faltam ${c.diasFaltando}d`}
                               </span>
@@ -298,10 +286,6 @@ export default function Dashboard() {
             </aside>
           </div>
         </div>
-
-        <footer className="h-10 border-t border-border/30 bg-background/80 backdrop-blur-md flex items-center justify-center gap-6 text-[10px] text-muted-foreground/60 font-black uppercase tracking-[0.2em] shrink-0">
-          <div className="flex items-center gap-2"><Copyright size={10} /> 2026 Davi Alves Figueredo / W1 Capital. Todos os direitos reservados.</div>
-        </footer>
       </main>
     </div>
   );
