@@ -1,10 +1,3 @@
-/**
- * @fileOverview LexisPredict - W1 Capital Advanced Legal Operations
- * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
- * @see LICENSE file for full terms.
- */
-
 'use server';
 
 import { getStoredCases, saveStoredCases, getStoredNotes, saveStoredNotes } from '@/lib/server-db';
