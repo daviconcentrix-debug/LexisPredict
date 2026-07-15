@@ -1,4 +1,3 @@
-
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -18,7 +17,7 @@ export type CaseStatus =
   | "Encerrado"
   | "Arquivado"
   | "Caso Crítico"
-  | string; // Permitir status customizados de planilhas
+  | string; 
 
 export type RiskLevel = "Crítico" | "Atenção" | "Normal";
 
@@ -82,7 +81,7 @@ export function fixEncoding(text: string): string {
 export function parseBrazilianDate(dateStr: string): Date | null {
   if (!dateStr) return null;
   const clean = dateStr.trim();
-  if (clean === "" || clean === "-" || clean === "00/00/0000") return null;
+  if (clean === "" || clean === "-" || clean === "00/00/0000" || clean === "0") return null;
   
   const parts = clean.split('/');
   if (parts.length !== 3) return null;
@@ -135,8 +134,6 @@ export function calcularDiasFaltando(proximoISO: string | null): number | null {
     const hojeDia = hoje.getDate();
     
     const [pAno, pMes, pDia] = proximoISO.split('-').map(Number);
-    
-    // Comparação de data pura (meio-dia para evitar problemas de timezone)
     const dataPrazo = new Date(pAno, pMes - 1, pDia, 12, 0, 0);
     const dataHojeMeioDia = new Date(hojeAno, hojeMes, hojeDia, 12, 0, 0);
     
@@ -149,7 +146,7 @@ export function calcularDiasFaltando(proximoISO: string | null): number | null {
 
 export function calcularStatus(proximoRetorno: string | null | undefined, situacao: string | null | undefined): CaseStatus {
   const sit = (situacao || "").toUpperCase();
-  if (sit.includes("ENCERRADO") || sit.includes("ARQUIVADO") || sit.includes("EXTINTO") || sit.includes("SUSPENSO")) return "Sem Prazo";
+  if (sit.includes("ENCERRADO") || sit.includes("ARQUIVADO") || sit.includes("EXTINTO") || sit.includes("SUSPENSO")) return "Arquivado";
 
   const iso = formatDateToISO(proximoRetorno);
   if (!iso) return "Sem Prazo";
@@ -197,24 +194,21 @@ export function extrairTribunal(protocolo: string): { tribunal: string; link: st
 }
 
 export function processarCaso(raw: any): LegalCase {
-  // Normalização de chaves para suportar variações de planilhas
   const normalized: any = {};
   Object.keys(raw).forEach(k => {
-    normalized[k.toUpperCase().trim()] = raw[k];
+    normalized[k.toUpperCase().replace(/\s+/g, '_').trim()] = raw[k];
   });
 
   const cliente = fixEncoding(normalized.CLIENTE || 'CLIENTE NÃO IDENTIFICADO').toUpperCase();
   const protocolo = (normalized.PROTOCOLO || '').trim();
-  const advogado = fixEncoding(normalized['ADVOGADO RESPONSÁVEL'] || normalized.ADVOGADO || 'NÃO ATRIBUÍDO').toUpperCase();
-  const situacao = (normalized['SITUAÇÃO'] || normalized.SITUACAO || 'EM ANDAMENTO').toUpperCase();
+  const advogado = fixEncoding(normalized.ADVOGADO_RESPONSÁVEL || normalized.ADVOGADO || 'NÃO ATRIBUÍDO').toUpperCase();
+  const situacao = (normalized.SITUAÇÃO || normalized.SITUACAO || 'EM ANDAMENTO').toUpperCase();
   
-  // Mapeamento resiliente de datas e notas
-  const proximoPrazo = normalized['PRÓXIMO RETORNO'] || normalized['PRÓXIMO PRAZO'] || normalized.PROXIMO_PRAZO || '';
-  const ultimoRetorno = normalized.RETORNO || normalized.ULTIMO_RETORNO || normalized['ÚLTIMO RETORNO'] || '';
-  const observacao = fixEncoding(normalized['OBSERVAÇÕES'] || normalized.OBSERVACAO || normalized['OBSERVAÇÃO'] || '');
+  const proximoPrazo = normalized.PROXIMO_RETORNO || normalized.PRÓXIMO_RETORNO || normalized.PRÓXIMO_PRAZO || normalized.PROXIMO_PRAZO || '';
+  const ultimoRetorno = normalized.ULTIMO_RETORNO || normalized.ÚLTIMO_RETORNO || normalized.RETORNO || '';
+  const observacao = fixEncoding(normalized.OBSERVAÇÕES || normalized.OBSERVACAO || normalized.OBSERVAÇÃO || '');
   const telefone = (normalized.TELEFONE || '').replace(/\D/g, '');
   
-  // Status Manual vindo da planilha (ex: CUMPRIMENTO DE SENTENÇA)
   const statusPlanilha = normalized.STATUS || normalized.STATUS_MANUAL || 'Automatico';
 
   const tribunalData = extrairTribunal(protocolo);
@@ -229,7 +223,7 @@ export function processarCaso(raw: any): LegalCase {
     situacao,
     proximoPrazo,
     ultimoRetorno,
-    status: (statusPlanilha && statusPlanilha !== 'Automatico') ? statusPlanilha : statusCalculado,
+    status: (statusPlanilha && statusPlanilha !== 'Automatico' && statusPlanilha !== '') ? statusPlanilha : statusCalculado,
     risco: riscoCalculado,
     diasFaltando: calcularDiasFaltando(formatDateToISO(proximoPrazo)),
     statusManual: statusPlanilha,
