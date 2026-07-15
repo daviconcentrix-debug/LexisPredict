@@ -115,8 +115,7 @@ export function formatDateToISO(dateStr: string | null | undefined): string | nu
 
   if (isNaN(d) || isNaN(m) || isNaN(y)) return null;
   if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > 2100) return null;
-  if (d === 0 || m === 0) return null; // BLINDAGEM ANTI 00-00
-
+  
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
