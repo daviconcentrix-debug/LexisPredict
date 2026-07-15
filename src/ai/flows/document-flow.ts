@@ -1,12 +1,18 @@
 'use server';
 /**
- * @fileOverview Motor de Extração de Dados Jurídicos v860.0 ELITE
+ * @fileOverview Motor de Extração de Dados Jurídicos v870.0 ELITE
+ * Estratégia de Fallback Circular: xAI -> Airforce -> Groq.
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+
+const API_KEYS = {
+  XAI: 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE',
+  AIRFORCE: 'sk-air-Rxc7ygo5b0XpkZqUBqwSnhjwS0bZbWFnzwRLjfPtdAbYK6nj'
+};
 
 const BANCA_DATA = {
   "DIEGO GOMES DIAS": {
@@ -89,7 +95,7 @@ const BANCA_DATA = {
   }
 };
 
-const SYSTEM_PROMPT = `Você é o Arquiteto Jurídico da W1 Capital. Extraia os dados do contrato ou de uma procuração antiga.
+const SYSTEM_PROMPT = `Você é o Arquiteto Jurídico. Extraia os dados do contrato ou de uma procuração antiga.
 RETORNE APENAS JSON PLANO. Sem markdown.
 {
   "cliente": { "nome": "", "estadoCivil": "casado(a)", "profissao": "autônomo(a)", "rg": "", "cpf": "", "endereco": "", "email": "", "genero": "M"|"F", "nacionalidade": "brasileiro(a)" },
@@ -108,7 +114,7 @@ function cleanJsonResponse(text: string): any {
   } catch (e) { return null; }
 }
 
-async function fetchWithTimeout(url: string, options: any, timeout = 10000) {
+async function fetchWithTimeout(url: string, options: any, timeout = 15000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   try {
@@ -122,7 +128,6 @@ async function fetchWithTimeout(url: string, options: any, timeout = 10000) {
 }
 
 async function callXAI(text: string) {
-  const API_KEYS = { XAI: 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE' };
   const res = await fetchWithTimeout('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${API_KEYS.XAI}`, 'Content-Type': 'application/json' },
@@ -131,7 +136,21 @@ async function callXAI(text: string) {
       messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `DOCUMENTO: ${text}` }],
       response_format: { type: 'json_object' }
     })
-  }, 10000);
+  });
+  if (!res?.ok) return null;
+  const data = await res.json();
+  return cleanJsonResponse(data?.choices?.[0]?.message?.content);
+}
+
+async function callAirforce(text: string) {
+  const res = await fetchWithTimeout('https://api.airforce/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${API_KEYS.AIRFORCE}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'deepseek-v3',
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `DOCUMENTO: ${text}` }]
+    })
+  });
   if (!res?.ok) return null;
   const data = await res.json();
   return cleanJsonResponse(data?.choices?.[0]?.message?.content);
@@ -140,13 +159,20 @@ async function callXAI(text: string) {
 export const documentFlow = ai.defineFlow(
   { name: 'documentFlow', inputSchema: z.any(), outputSchema: z.any() },
   async (input) => {
-    const slicedText = (input.text || "").substring(0, 7000);
+    const slicedText = (input.text || "").substring(0, 8000);
     
     let parsed: any = null;
+
+    // TENTATIVA 1: xAI Grok
     try {
       parsed = await callXAI(slicedText);
-    } catch (e) {
-      return { error: true, code: "SISTEMA_INDISPONIVEL" };
+    } catch (e) {}
+
+    // TENTATIVA 2: Airforce DeepSeek (Fallback)
+    if (!parsed) {
+      try {
+        parsed = await callAirforce(slicedText);
+      } catch (e) {}
     }
 
     if (!parsed) return { error: true, code: "SISTEMA_INDISPONIVEL" };
