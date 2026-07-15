@@ -26,6 +26,7 @@ export interface UserProfile {
   nome: string;
   email: string;
   cargo: UserRole;
+  role?: string; // Coluna adicional conforme dump do usuário: 'operador' | 'admin'
   created_at: string;
 }
 
