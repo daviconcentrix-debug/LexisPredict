@@ -1,9 +1,9 @@
+
+'use server';
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
-'use server';
-
 import { renderToBuffer } from '@react-pdf/renderer';
 import React from 'react';
 import { extrairDadosProcuracao } from '@/ai/flows/document-flow';
