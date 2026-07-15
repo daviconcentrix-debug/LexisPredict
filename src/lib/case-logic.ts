@@ -7,7 +7,7 @@
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
  * W1 Capital / LexisPredict v210.0 ELITE
  */
- 
+
 export type CaseStatus =
   | "Vencido"
   | "É Hoje"
