@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -5,7 +6,7 @@
 
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * W1 Capital / LexisPredict v212.0 ELITE
+ * W1 Capital / LexisPredict v215.0 ELITE
  */
 
 export type CaseStatus =
@@ -16,7 +17,8 @@ export type CaseStatus =
   | "Sem Prazo"
   | "Encerrado"
   | "Arquivado"
-  | "Caso Crítico";
+  | "Caso Crítico"
+  | string; // Permitir status customizados de planilhas
 
 export type RiskLevel = "Crítico" | "Atenção" | "Normal";
 
@@ -134,8 +136,7 @@ export function calcularDiasFaltando(proximoISO: string | null): number | null {
     
     const [pAno, pMes, pDia] = proximoISO.split('-').map(Number);
     
-    if (hojeAno === pAno && hojeMes === (pMes - 1) && hojeDia === pDia) return 0;
-
+    // Comparação de data pura (meio-dia para evitar problemas de timezone)
     const dataPrazo = new Date(pAno, pMes - 1, pDia, 12, 0, 0);
     const dataHojeMeioDia = new Date(hojeAno, hojeMes, hojeDia, 12, 0, 0);
     
@@ -184,7 +185,10 @@ export function extrairTribunal(protocolo: string): { tribunal: string; link: st
   const maps: Record<string, { tribunal: string; link: string }> = {
     "8.26": { tribunal: "TJSP", link: "https://esaj.tjsp.jus.br/cpopg/open.do" },
     "8.13": { tribunal: "TJMG", link: "https://pje.tjmg.jus.br/pje/ConsultaPublica/listView.seam" },
-    "8.19": { tribunal: "TJRJ", link: "http://www4.tjrj.jus.br/consultaProcessoPortal/consulta-principal.do" }
+    "8.19": { tribunal: "TJRJ", link: "http://www4.tjrj.jus.br/consultaProcessoPortal/consulta-principal.do" },
+    "8.02": { tribunal: "TJAL", link: "https://www2.tjal.jus.br/cpopg/open.do" },
+    "8.09": { tribunal: "TJGO", link: "https://projudi.tjgo.jus.br/BuscaProcessoPublica" },
+    "8.16": { tribunal: "TJPR", link: "https://projudi.tjpr.jus.br/projudi/" }
   };
 
   const found = maps[code];
@@ -193,15 +197,25 @@ export function extrairTribunal(protocolo: string): { tribunal: string; link: st
 }
 
 export function processarCaso(raw: any): LegalCase {
-  const cliente = fixEncoding(raw.CLIENTE || raw.cliente || 'CLIENTE NÃO IDENTIFICADO').toUpperCase();
-  const protocolo = (raw.PROTOCOLO || raw.protocolo || '').trim();
-  const advogado = fixEncoding(raw.ADVOCADO || raw['ADVOGADO RESPONSÁVEL'] || raw.advogado || 'NÃO ATRIBUÍDO').toUpperCase();
-  const situacao = (raw.SITUAÇÃO || raw.situacao || 'EM ANDAMENTO').toUpperCase();
-  const proximoPrazo = raw['PRÓXIMO PRAZO'] || raw.proximoPrazo || '';
-  const ultimoRetorno = raw.ULTIMO_RETORNO || raw.ultimoRetorno || '';
-  const statusManual = raw.STATUS_MANUAL || raw.statusManual || 'Automatico';
-  const observacao = fixEncoding(raw.OBSERVACAO || raw.observacao || '');
-  const telefone = (raw.TELEFONE || raw.telefone || '').replace(/\D/g, '');
+  // Normalização de chaves para suportar variações de planilhas
+  const normalized: any = {};
+  Object.keys(raw).forEach(k => {
+    normalized[k.toUpperCase().trim()] = raw[k];
+  });
+
+  const cliente = fixEncoding(normalized.CLIENTE || 'CLIENTE NÃO IDENTIFICADO').toUpperCase();
+  const protocolo = (normalized.PROTOCOLO || '').trim();
+  const advogado = fixEncoding(normalized['ADVOGADO RESPONSÁVEL'] || normalized.ADVOGADO || 'NÃO ATRIBUÍDO').toUpperCase();
+  const situacao = (normalized['SITUAÇÃO'] || normalized.SITUACAO || 'EM ANDAMENTO').toUpperCase();
+  
+  // Mapeamento resiliente de datas e notas
+  const proximoPrazo = normalized['PRÓXIMO RETORNO'] || normalized['PRÓXIMO PRAZO'] || normalized.PROXIMO_PRAZO || '';
+  const ultimoRetorno = normalized.RETORNO || normalized.ULTIMO_RETORNO || normalized['ÚLTIMO RETORNO'] || '';
+  const observacao = fixEncoding(normalized['OBSERVAÇÕES'] || normalized.OBSERVACAO || normalized['OBSERVAÇÃO'] || '');
+  const telefone = (normalized.TELEFONE || '').replace(/\D/g, '');
+  
+  // Status Manual vindo da planilha (ex: CUMPRIMENTO DE SENTENÇA)
+  const statusPlanilha = normalized.STATUS || normalized.STATUS_MANUAL || 'Automatico';
 
   const tribunalData = extrairTribunal(protocolo);
   const statusCalculado = calcularStatus(proximoPrazo, situacao);
@@ -215,10 +229,10 @@ export function processarCaso(raw: any): LegalCase {
     situacao,
     proximoPrazo,
     ultimoRetorno,
-    status: statusManual === 'Automatico' ? statusCalculado : (statusManual as any),
+    status: (statusPlanilha && statusPlanilha !== 'Automatico') ? statusPlanilha : statusCalculado,
     risco: riscoCalculado,
     diasFaltando: calcularDiasFaltando(formatDateToISO(proximoPrazo)),
-    statusManual,
+    statusManual: statusPlanilha,
     tribunal: tribunalData.tribunal,
     linkConsulta: tribunalData.link,
     observacao,
