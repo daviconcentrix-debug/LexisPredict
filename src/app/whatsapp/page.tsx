@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -8,7 +7,6 @@ import {
   Search, 
   Send, 
   User, 
-  Phone, 
   ShieldCheck, 
   RefreshCcw,
   Zap,
@@ -19,7 +17,6 @@ import {
   FileText,
   Clock,
   Sparkles,
-  MessageSquare,
   ChevronRight,
   ChevronLeft,
   Info
@@ -46,7 +43,6 @@ export default function WhatsAppHub() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -90,8 +86,9 @@ export default function WhatsAppHub() {
 
   const handleGenerateAI = async (agent: 'legal' | 'comercial' | 'financeiro') => {
     if (!selectedContact || isGenerating) return;
+    
     setIsGenerating(true);
-    setAiResponse('');
+    setAiResponse(''); // Limpa resposta anterior
 
     const prompts = {
       legal: `Gere uma atualização jurídica profissional e humanizada para o cliente ${selectedContact.nome}. Processo: ${selectedContact.protocolo}. Tribunal: ${selectedContact.tribunal}. Status: ${selectedContact.status}. Última Observação: ${selectedContact.observacao || 'Nenhuma'}.`,
@@ -100,15 +97,25 @@ export default function WhatsAppHub() {
     };
 
     try {
+      const preferredIA = localStorage.getItem('lexisPredict_preferred_ia') || 'xai';
       const res = await perguntarIA({
         pergunta: prompts[agent],
-        preferredModel: localStorage.getItem('lexisPredict_preferred_ia') || 'openrouter',
-        deepThinking: true
+        preferredModel: preferredIA,
+        historico: []
       });
-      setAiResponse(res.resposta);
-      toast({ title: "Resposta Gerada pela IA" });
+
+      if (res.error) {
+        toast({ 
+          title: "Falha Neural", 
+          description: "Os motores estão instáveis. Tente trocar o motor em Configurações.", 
+          variant: "destructive" 
+        });
+      } else {
+        setAiResponse(res.resposta);
+        toast({ title: "Despacho Redigido" });
+      }
     } catch (error: any) {
-      toast({ title: "Erro na IA", description: error.message, variant: "destructive" });
+      toast({ title: "Erro de Conexão", description: "O servidor neural não respondeu a tempo.", variant: "destructive" });
     } finally {
       setIsGenerating(false);
     }
@@ -118,13 +125,17 @@ export default function WhatsAppHub() {
     if (!selectedContact || !aiResponse || isSending) return;
     setIsSending(true);
     
-    const result = await sendYCloudWhatsApp(selectedContact.telefone, aiResponse);
-    setIsSending(false);
-
-    if (result.success) {
-      toast({ title: "Mensagem Enviada", description: "O despacho via API foi entregue com sucesso." });
-    } else {
-      toast({ title: "Falha API", description: result.message, variant: "destructive" });
+    try {
+      const result = await sendYCloudWhatsApp(selectedContact.telefone, aiResponse);
+      if (result.success) {
+        toast({ title: "Mensagem Enviada", description: "O despacho via API foi entregue com sucesso." });
+      } else {
+        toast({ title: "Falha API", description: result.message, variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Erro de Rede", variant: "destructive" });
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -152,7 +163,6 @@ export default function WhatsAppHub() {
         </header>
 
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-          {/* PAINEL ESQUERDO: CONTATOS (OCULTO NO MOBILE SE CONTATO SELECIONADO) */}
           <aside className={cn(
             "w-full lg:w-80 border-r-2 border-black bg-white flex flex-col shrink-0 overflow-hidden transition-all",
             selectedContact ? "hidden lg:flex" : "flex"
@@ -200,7 +210,6 @@ export default function WhatsAppHub() {
             </ScrollArea>
           </aside>
 
-          {/* PAINEL CENTRAL: CONSOLE DE IA */}
           <section className={cn(
             "flex-1 bg-[#f3f2f2] flex flex-col overflow-hidden relative",
             !selectedContact ? "hidden lg:flex" : "flex"
@@ -208,7 +217,6 @@ export default function WhatsAppHub() {
              {selectedContact ? (
                <>
                  <div className="flex-1 flex flex-col p-4 lg:p-6 overflow-hidden">
-                    {/* MOBILE BACK BUTTON */}
                     <Button variant="ghost" onClick={() => setSelectedContact(null)} className="lg:hidden mb-4 self-start text-black font-black uppercase text-[10px]">
                       <ChevronLeft size={16} className="mr-1" /> Voltar para Agenda
                     </Button>
@@ -281,7 +289,7 @@ export default function WhatsAppHub() {
                                   <a href={formatWhatsAppLink(selectedContact.telefone, aiResponse)} target="_blank" rel="noopener noreferrer">
                                      <MessageCircle size={16} className="mr-2" /> Chat Pessoal
                                   </a>
-                               </Button>
+                                </Button>
                              </div>
                              
                              <div className="hidden sm:flex bg-blue-50 border border-blue-200 p-3 gap-3 items-start">
@@ -314,9 +322,8 @@ export default function WhatsAppHub() {
              )}
           </section>
 
-          {/* PAINEL DIREITO: DOSSIÊ (OCULTO NO MOBILE POR PADRÃO) */}
           {selectedContact && (
-            <aside className="hidden xl:flex w-96 border-l-2 border-black bg-white flex-col shrink-0 overflow-hidden shadow-2xl">
+            <aside className="hidden xl:flex w-96 border-l-2 border-black bg-white flex flex-col shrink-0 overflow-hidden shadow-2xl">
                <div className="p-6 bg-[#f8f9fb] border-b-2 border-black">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 mb-1">Dossiê de Atendimento</h3>
                   <h2 className="text-lg font-black uppercase leading-tight">{selectedContact.nome}</h2>
@@ -355,9 +362,7 @@ export default function WhatsAppHub() {
         </div>
 
         <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-4 lg:gap-6 text-[8px] lg:text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0">
-          <div className="flex items-center gap-2">
-            <Copyright size={10} /> 2026 W1 Capital.
-          </div>
+          <div className="flex items-center gap-2"><Copyright size={10} /> 2026 W1 Capital.</div>
           <span className="hidden sm:inline uppercase font-black">Relatório Consolidado • DAVI ALVES FIGUEREDO</span>
         </footer>
       </main>
