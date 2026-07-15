@@ -1,3 +1,4 @@
+
 "use client";
 /*
 @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
@@ -203,19 +204,19 @@ export default function SubstabelecimentoGenerator() {
   };
 
   return (
-    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
+    <div className="flex h-screen bg-transparent font-sans text-foreground relative z-10 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative glass-panel">
+        <header className="h-16 border-b border-border bg-background/40 backdrop-blur-xl flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <div className="icon-3d-wrapper">
-              <div className="icon-3d-block black w-10 h-10 rounded-sm">
-                <Repeat size={20} className="text-white" />
+              <div className="icon-3d-block black w-10 h-10 rounded-sm bg-primary flex items-center justify-center">
+                <Repeat size={20} className="text-primary-foreground" />
               </div>
             </div>
-            <h1 className="font-black text-xl text-black uppercase tracking-tighter">Gerador de Substabelecimentos</h1>
+            <h1 className="font-bold text-sm tracking-[0.2em] uppercase">Gerador de Substabelecimentos</h1>
           </div>
-          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Sem Reserva</Badge>
+          <Badge variant="outline" className="border-primary/40 text-primary font-black uppercase text-[10px]">Sem Reserva</Badge>
         </header>
 
         <div className="flex-1 overflow-auto p-4 lg:p-8 max-w-7xl mx-auto w-full">
@@ -223,8 +224,8 @@ export default function SubstabelecimentoGenerator() {
             <div className="space-y-8 animate-in fade-in duration-500">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
-                  <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
-                    <CardHeader className="bg-black text-white py-3">
+                  <Card className="bg-card border-2 border-border rounded-none shadow-[8px_8px_0px_#000]">
+                    <CardHeader className="bg-primary text-primary-foreground py-3">
                       <CardTitle className="text-[10px] font-black uppercase tracking-widest">1. Configuração de Gabinete</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-6">
@@ -232,10 +233,10 @@ export default function SubstabelecimentoGenerator() {
                         <div className="space-y-2">
                           <Label className="uppercase text-[10px] font-black">Advogado Substabelecente (Quem Sai)</Label>
                           <Select value={advLeaving} onValueChange={setAdvLeaving}>
-                            <SelectTrigger className="border-2 border-black h-12 font-black uppercase text-[10px] rounded-none bg-white">
+                            <SelectTrigger className="border-2 border-border h-12 font-black uppercase text-[10px] rounded-none bg-background">
                               <SelectValue placeholder="SELECIONE..." />
                             </SelectTrigger>
-                            <SelectContent className="bg-white border-2 border-black rounded-none">
+                            <SelectContent className="bg-background border-2 border-border rounded-none">
                               {ADVOGADOS_LIST.map((name) => (
                                 <SelectItem key={name} value={name} className="font-black uppercase text-[10px]">{name}</SelectItem>
                               ))}
@@ -245,10 +246,10 @@ export default function SubstabelecimentoGenerator() {
                         <div className="space-y-2">
                           <Label className="uppercase text-[10px] font-black">Advogado Substabelecido (Quem Entra)</Label>
                           <Select value={advEntering} onValueChange={setAdvEntering}>
-                            <SelectTrigger className="border-2 border-black h-12 font-black uppercase text-[10px] rounded-none bg-white">
+                            <SelectTrigger className="border-2 border-border h-12 font-black uppercase text-[10px] rounded-none bg-background">
                               <SelectValue placeholder="SELECIONE..." />
                             </SelectTrigger>
-                            <SelectContent className="bg-white border-2 border-black rounded-none">
+                            <SelectContent className="bg-background border-2 border-border rounded-none">
                               {ADVOGADOS_LIST.map((name) => (
                                 <SelectItem key={name} value={name} className="font-black uppercase text-[10px]">{name}</SelectItem>
                               ))}
@@ -259,10 +260,10 @@ export default function SubstabelecimentoGenerator() {
                       <div className="space-y-2">
                         <Label className="uppercase text-[10px] font-black">Estado da Comarca / OAB</Label>
                         <Select value={selectedState} onValueChange={setSelectedState}>
-                          <SelectTrigger className="border-2 border-black h-12 font-black uppercase text-[10px] rounded-none bg-white">
+                          <SelectTrigger className="border-2 border-border h-12 font-black uppercase text-[10px] rounded-none bg-background">
                             <SelectValue placeholder="SP" />
                           </SelectTrigger>
-                          <SelectContent className="bg-white border-2 border-black rounded-none">
+                          <SelectContent className="bg-background border-2 border-border rounded-none">
                             {["SP", "MG", "RJ", "PR", "SC", "RS", "BA", "CE", "MT", "GO", "DF", "TO", "RN", "PE", "PA", "AM", "AC", "RO", "AP", "RR", "SE", "PI", "MA", "PB", "AL", "ES", "MS"].map((uf) => (
                               <SelectItem key={uf} value={uf} className="font-black uppercase text-[10px]">{uf}</SelectItem>
                             ))}
@@ -272,16 +273,16 @@ export default function SubstabelecimentoGenerator() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
+                  <Card className="bg-card border-2 border-border rounded-none shadow-[8px_8px_0px_#000]">
                     <CardContent className="p-6 space-y-4">
                       <Label className="uppercase text-[10px] font-black">2. Dados do Processo (PDF ou Texto)</Label>
                       <Textarea 
                         placeholder="COLE O CONTRATO OU PROCURAÇÃO ANTIGA PARA EXTRAIR DADOS DO CLIENTE E PROCESSO..."
-                        className="min-h-[250px] border-2 border-black font-black uppercase text-[11px] rounded-none resize-none bg-white"
+                        className="min-h-[250px] border-2 border-border font-black uppercase text-[11px] rounded-none resize-none bg-background"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
                       />
-                      <Button onClick={handleExtract} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
+                      <Button onClick={handleExtract} disabled={loading} className="w-full h-14 bg-primary text-primary-foreground font-black uppercase text-xs rounded-none border-2 border-primary hover:bg-background hover:text-foreground transition-all shadow-[6px_6px_0px_rgba(var(--primary),0.3)]">
                         {loading ? <Loader2 className="animate-spin mr-2" /> : <Repeat size={16} className="mr-2" />}
                         Gerar Draft de Substabelecimento
                       </Button>
@@ -290,14 +291,14 @@ export default function SubstabelecimentoGenerator() {
                 </div>
 
                 <div className="space-y-6">
-                  <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
-                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
+                  <Card className="bg-card border-2 border-border rounded-none shadow-[8px_8px_0px_#000]">
+                    <CardHeader className="bg-secondary/50 border-b-2 border-border py-3">
                       <CardTitle className="text-[10px] font-black uppercase flex items-center gap-2"><Upload size={14} /> Importar Base PDF</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
-                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all">
-                        {fileLoading ? <Loader2 className="animate-spin text-black" size={32} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
-                        <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Arraste a procuração antiga</p>
+                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-border/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-secondary group transition-all">
+                        {fileLoading ? <Loader2 className="animate-spin text-foreground" size={32} /> : <FileUp size={48} className="text-foreground/20 group-hover:text-foreground mb-4" />}
+                        <p className="text-[10px] font-black uppercase text-foreground/40 group-hover:text-foreground">Arraste a procuração antiga</p>
                         <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                       </div>
                     </CardContent>
@@ -309,37 +310,37 @@ export default function SubstabelecimentoGenerator() {
 
           {step === 2 && extractedData && (
             <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
-              <div className="flex items-center justify-between border-b-2 border-black pb-4">
+              <div className="flex items-center justify-between border-b-2 border-border pb-4">
                 <div className="flex items-center gap-3">
                   <Edit3 size={20} />
                   <h2 className="text-xl font-black uppercase tracking-tight">Revisão Forense</h2>
                 </div>
-                <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-black rounded-none">Voltar</Button>
+                <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-border rounded-none">Voltar</Button>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
-                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
+                <Card className="bg-card border-2 border-border rounded-none shadow-[6px_6px_0px_#000]">
+                  <CardHeader className="bg-secondary/50 border-b-2 border-border py-3">
                     <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><User size={14} /> Dados da Transmissão</CardTitle>
                   </CardHeader>
                   <CardContent className="p-6 space-y-6">
                     <div className="grid gap-4">
                       <div className="space-y-2">
                         <Label className="text-[9px] font-black uppercase">Substabelecente (Cedente)</Label>
-                        <Input value={extractedData.substabelecente.nome} readOnly className="border-black font-black uppercase rounded-none bg-gray-50" />
+                        <Input value={extractedData.substabelecente.nome} readOnly className="border-border font-black uppercase rounded-none bg-secondary/50" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[9px] font-black uppercase">Substabelecido (Cessionário)</Label>
-                        <Input value={extractedData.substabelecido.nome} readOnly className="border-black font-black uppercase rounded-none bg-gray-50" />
+                        <Input value={extractedData.substabelecido.nome} readOnly className="border-border font-black uppercase rounded-none bg-secondary/50" />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="text-[9px] font-black uppercase">OAB Cedente</Label>
-                          <Input value={extractedData.substabelecente.oabCurta} readOnly className="border-black font-black uppercase rounded-none bg-gray-50" />
+                          <Input value={extractedData.substabelecente.oabCurta} readOnly className="border-border font-black uppercase rounded-none bg-secondary/50" />
                         </div>
                         <div className="space-y-2">
                           <Label className="text-[9px] font-black uppercase">OAB Cessionário</Label>
-                          <Input value={extractedData.substabelecido.oabCurta} readOnly className="border-black font-black uppercase rounded-none bg-gray-50" />
+                          <Input value={extractedData.substabelecido.oabCurta} readOnly className="border-border font-black uppercase rounded-none bg-secondary/50" />
                         </div>
                       </div>
                     </div>
@@ -347,31 +348,31 @@ export default function SubstabelecimentoGenerator() {
                 </Card>
 
                 <div className="space-y-6">
-                  <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
-                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
+                  <Card className="bg-card border-2 border-border rounded-none shadow-[6px_6px_0px_#000]">
+                    <CardHeader className="bg-secondary/50 border-b-2 border-border py-3">
                       <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados do Processo</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-6">
                       <div className="space-y-2">
                         <Label className="text-[9px] font-black uppercase">Cliente Outorgante</Label>
-                        <Input value={extractedData.cliente.nome} onChange={(e) => setExtractedData({...extractedData, cliente: {...extractedData.cliente, nome: e.target.value}})} className="border-black font-black uppercase rounded-none" />
+                        <Input value={extractedData.cliente.nome} onChange={(e) => setExtractedData({...extractedData, cliente: {...extractedData.cliente, nome: e.target.value}})} className="border-border font-black uppercase rounded-none" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[9px] font-black uppercase">Tipo de Ação</Label>
-                        <Input value={extractedData.processo.acao} onChange={(e) => setExtractedData({...extractedData, processo: {...extractedData.processo, acao: e.target.value}})} className="border-black font-black uppercase rounded-none" />
+                        <Input value={extractedData.processo.acao} onChange={(e) => setExtractedData({...extractedData, processo: {...extractedData.processo, acao: e.target.value}})} className="border-border font-black uppercase rounded-none" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[9px] font-black uppercase">Número do Processo (CNJ)</Label>
-                        <Input value={extractedData.processo.numero} onChange={(e) => setExtractedData({...extractedData, processo: {...extractedData.processo, numero: e.target.value}})} className="border-black font-black uppercase rounded-none font-mono" />
+                        <Input value={extractedData.processo.numero} onChange={(e) => setExtractedData({...extractedData, processo: {...extractedData.processo, numero: e.target.value}})} className="border-border font-black uppercase rounded-none font-mono" />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="text-[9px] font-black uppercase">Cidade / Comarca</Label>
-                          <Input value={extractedData.comarca} onChange={(e) => setExtractedData({...extractedData, comarca: e.target.value})} className="border-black font-black uppercase rounded-none" />
+                          <Input value={extractedData.comarca} onChange={(e) => setExtractedData({...extractedData, comarca: e.target.value})} className="border-border font-black uppercase rounded-none" />
                         </div>
                         <div className="space-y-2">
                           <Label className="text-[9px] font-black uppercase">Data Extenso</Label>
-                          <Input value={extractedData.dataExtenso} onChange={(e) => setExtractedData({...extractedData, dataExtenso: e.target.value})} className="border-black font-black uppercase rounded-none" />
+                          <Input value={extractedData.dataExtenso} onChange={(e) => setExtractedData({...extractedData, dataExtenso: e.target.value})} className="border-border font-black uppercase rounded-none" />
                         </div>
                       </div>
                     </CardContent>
@@ -381,9 +382,9 @@ export default function SubstabelecimentoGenerator() {
 
               {/* PREVISÃO VISUAL DO DOCUMENTO */}
               <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] overflow-hidden">
-                <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3 flex flex-row items-center justify-between">
+                <CardHeader className="bg-secondary/50 border-b-2 border-black py-3 flex flex-row items-center justify-between">
                   <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Eye size={14} /> Visualização do Documento</CardTitle>
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-[8px] font-black uppercase">Preview</Badge>
+                  <Badge variant="secondary" className="bg-primary/10 text-primary text-[8px] font-black uppercase">Preview</Badge>
                 </CardHeader>
                 <CardContent className="p-12 text-black font-serif text-[12pt] leading-relaxed bg-white">
                   <h1 className="text-center font-bold text-lg mb-8 uppercase tracking-widest">Substabelecimento</h1>
@@ -412,17 +413,17 @@ export default function SubstabelecimentoGenerator() {
                 </CardContent>
               </Card>
 
-              <div className="bg-blue-50 border-2 border-blue-200 p-4 flex gap-3 items-start">
-                <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
+              <div className="bg-primary/10 border-2 border-primary/20 p-4 flex gap-3 items-start">
+                <Info size={16} className="text-primary shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="text-[9px] font-black uppercase text-blue-900">Nota de Protocolo:</p>
-                  <p className="text-[8px] font-bold text-blue-700 uppercase leading-tight">
+                  <p className="text-[9px] font-black uppercase text-primary">Nota de Protocolo:</p>
+                  <p className="text-[8px] font-bold text-primary/80 uppercase leading-tight">
                     Este documento solicita a <b>exclusão</b> do advogado cedente da contracapa dos autos, cumprindo o Art. 272, §5º do CPC.
                   </p>
                 </div>
               </div>
 
-              <Button onClick={handleSeal} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
+              <Button onClick={handleSeal} disabled={loading} className="w-full h-14 bg-primary text-primary-foreground font-black uppercase text-xs rounded-none border-2 border-primary hover:bg-background hover:text-foreground transition-all shadow-[6px_6px_0px_rgba(var(--primary),0.3)]">
                 {loading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
                 Selar & Exportar Substabelecimento
               </Button>
