@@ -1,9 +1,3 @@
-/**
- * @fileOverview LexisPredict - W1 Capital Advanced Legal Operations
- * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
- * @see LICENSE file for full terms.
- */
 
 'use server';
 
@@ -47,7 +41,7 @@ export async function getStoredCases(): Promise<LegalCase[]> {
       .select('*')
       .eq('empresa_id', empresa_id);
 
-    // CADA UM DEVE TER ACESSO ÀS SUAS EVIDÊNCIAS (Isolamento por role: operador)
+    // CADA UM DEVE TER ACESSO AOS SEUS PROCESSOS (Isolamento por role: operador)
     if (role === 'operador') {
       query = query.eq('created_by', auth_id);
     }
