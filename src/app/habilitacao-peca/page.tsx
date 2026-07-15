@@ -4,7 +4,7 @@
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   FileText, 
@@ -44,31 +44,31 @@ import { extrairTextoDoPDFAction, extrairDadosProcuracaoAction, generateHabilita
 
 const BANCA_DATA: Record<string, any> = {
   "DIEGO GOMES DIAS": {
-    oabs: { "BA": "77510/BA", "CE": "52996-A/CE", "MT": "34044-A/MT", "PI": "22858/PI", "RN": "21766A/RN", "SP": "370.898/SP" },
+    oabs: { "BA": "77510", "CE": "52996-A", "MT": "34044-A", "PI": "22858", "RN": "21766A", "SP": "370.898" },
     endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
     email: "diego_gomesdias@yahoo.com.br",
     genero: "M"
   },
   "LETICIA ALVES GODOY DA CRUZ": {
-    oabs: { "TO": "12.528-A/TO", "AC": "6572/AC", "RS": "131831A/RS", "PB": "31888 A/PB", "PA": "36417-A/PA", "SP": "490.641/SP" },
+    oabs: { "TO": "12.528-A", "AC": "6572", "RS": "131831A", "PB": "31888 A", "PA": "36417-A", "SP": "490.641" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "leticiagodoy.adv@gmail.com",
     genero: "F"
   },
   "PABLO MATHEUS SILVA BASTOS PEREIRA": {
-    oabs: { "SP": "520783/SP", "MG": "249550/MG", "PR": "520783/PR" },
+    oabs: { "SP": "520783", "MG": "249550", "PR": "520783" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
     email: "pablobastos@adv.oabsp.org.br",
     genero: "M"
   },
   "INGRID MICHAELLY TELES PACHECO OLIVEIRA ALVES": {
-    oabs: { "MA": "490.641/SP", "RO": "13.438/RO", "AP": "5.819-A/AP", "SE": "1.601A/SE", "RR": "844-A/RR", "GO": "70699/GO", "SP": "490.641/SP" },
+    oabs: { "MA": "490.641", "RO": "13.438", "AP": "5.819-A", "SE": "1.601A", "RR": "844-A", "GO": "70699", "SP": "490.641" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "pachecoingrid.adv@gmail.com",
     genero: "F"
   },
   "LUCAS DOS SANTOS DE JESUS": {
-    oabs: { "DF": "78116/DF", "AL": "21512A/AL", "AM": "A2373/AM", "PE": "66465/PE", "RJ": "261767/RJ", "SP": "520783/SP" },
+    oabs: { "DF": "78116", "AL": "21512A", "AM": "A2373", "PE": "66465", "RJ": "261767", "SP": "520783" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
     email: "lucassj.adv01@gmail.com",
     genero: "M"
@@ -137,7 +137,7 @@ export default function HabilitacaoPecaGenerator() {
           numeroProcesso: data.processos?.[0]?.numero || "",
           cliente: {
             ...data.cliente,
-            nacionalidade: "brasileiro(a)",
+            nacionalidade: data.cliente.nacionalidade || "brasileiro(a)",
           },
           advogado: {
             nome: selectedLawyer.toUpperCase(),
@@ -150,7 +150,7 @@ export default function HabilitacaoPecaGenerator() {
           reuNome: data.processos?.[0]?.banco || "INSTITUIÇÃO FINANCEIRA",
           reuCnpj: data.processos?.[0]?.cnpjBanco || "",
           cidadeEmissao: selectedState === 'SP' ? 'São Paulo' : 'Comarca Local',
-          dataExtenso: new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
+          dataFormatada: new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
         });
         setStep(2);
         toast({ title: "Triagem Neural Concluída" });
@@ -165,11 +165,12 @@ export default function HabilitacaoPecaGenerator() {
   };
 
   const handleSeal = async () => {
+    if (!extractedData) return;
     setLoading(true);
     try {
       const res = await generateHabilitacaoPecaPDFAction({
         ...extractedData,
-        selectedState // Passamos o estado para o motor de PDF usar no prefixo OAB/UF
+        selectedState
       });
       if (res.success && res.base64) {
         const byteCharacters = atob(res.base64);
@@ -349,7 +350,7 @@ export default function HabilitacaoPecaGenerator() {
                           </div>
                           <div className="grid gap-1">
                              <Label className="text-[9px] font-black uppercase">Data Extenso</Label>
-                             <Input value={extractedData.dataExtenso} onChange={(e) => setExtractedData({...extractedData, dataExtenso: e.target.value})} className="border-black font-black uppercase rounded-none" />
+                             <Input value={extractedData.dataFormatada} onChange={(e) => setExtractedData({...extractedData, dataFormatada: e.target.value})} className="border-black font-black uppercase rounded-none" />
                           </div>
                        </div>
                     </CardContent>
@@ -379,7 +380,7 @@ export default function HabilitacaoPecaGenerator() {
                     <div className="text-center space-y-2">
                       <p>Nestes Termos</p>
                       <p>Pede Deferimento.</p>
-                      <p className="pt-4">{extractedData.cidadeEmissao}, {extractedData.dataExtenso}.</p>
+                      <p className="pt-4">{extractedData.cidadeEmissao}, {extractedData.dataFormatada}.</p>
                     </div>
                     <div className="flex flex-col items-center pt-10">
                       <div className="w-64 border-t border-black mb-2" />
@@ -402,7 +403,7 @@ export default function HabilitacaoPecaGenerator() {
                     <p className="text-justify indent-12">
                       <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <strong>"AD JUDICIA"</strong>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <strong>{extractedData.tipoAcao.toUpperCase()}</strong> promovida contra o <strong>{extractedData.reuNome.toUpperCase()}</strong>, inscrito no CNPJ nº {extractedData.reuCnpj}.
                     </p>
-                    <p className="text-center pt-10">{extractedData.cidadeEmissao}, {extractedData.dataExtenso}.</p>
+                    <p className="text-center pt-10">{extractedData.cidadeEmissao}, {extractedData.dataFormatada}.</p>
                     <div className="flex flex-col items-center pt-10">
                       <div className="w-64 border-t border-black mb-2" />
                       <p className="font-bold uppercase">{extractedData.cliente.nome}</p>
