@@ -60,7 +60,6 @@ export default function ChatPage() {
       ]);
       setChatInput('');
       toast({ title: "Portal Master Liberado", description: "Verifique a aba de Exportação em Configurações." });
-      // Dispara evento para atualizar outras abas se necessário
       window.dispatchEvent(new Event('storage'));
       return;
     }
@@ -78,11 +77,15 @@ export default function ChatPage() {
       });
 
       if (isMounted.current) {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: response.resposta }]);
+        if (response && response.resposta) {
+          setChatMessages(prev => [...prev, { role: 'assistant', content: response.resposta }]);
+        } else {
+          toast({ title: "Erro na IA", description: "O motor não retornou uma resposta válida. Tente trocar de motor.", variant: "destructive" });
+        }
       }
     } catch (error: any) {
       if (isMounted.current) {
-        toast({ title: "Falha na Resposta", description: error.message, variant: "destructive" });
+        toast({ title: "Erro na IA", description: error.message || "Falha na comunicação com o servidor.", variant: "destructive" });
       }
     } finally {
       if (isMounted.current) setLoading(false);

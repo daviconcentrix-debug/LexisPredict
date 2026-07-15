@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Motor de Consultoria Estratégica v9500.0 ELITE
@@ -126,7 +127,7 @@ export const chatAIFlow = ai.defineFlow(
       if (res && res.resposta) return { resposta: res.resposta, engineUtilizada: engine.id.toUpperCase() };
     } catch (e) {}
 
-    // Fallback circular de segurança (Timeout reduzido para 10s por motor)
+    // Fallback circular de segurança
     for (const fallback of engines.filter(e => e.id !== modelId)) {
       try {
         const res = await fallback.call(input.pergunta, input.historico || []);
@@ -139,5 +140,10 @@ export const chatAIFlow = ai.defineFlow(
 );
 
 export async function perguntarIA(input: any) {
-  return await chatAIFlow(input);
+  try {
+    const result = await chatAIFlow(input);
+    return result;
+  } catch (e: any) {
+    return { resposta: e.message || "ERRO_SISTEMA_AÇÃO", error: true };
+  }
 }

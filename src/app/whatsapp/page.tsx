@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -88,7 +89,7 @@ export default function WhatsAppHub() {
     if (!selectedContact || isGenerating) return;
     
     setIsGenerating(true);
-    setAiResponse(''); // Limpa resposta anterior
+    setAiResponse(''); 
 
     const prompts = {
       legal: `Gere uma atualização jurídica profissional e humanizada para o cliente ${selectedContact.nome}. Processo: ${selectedContact.protocolo}. Tribunal: ${selectedContact.tribunal}. Status: ${selectedContact.status}. Última Observação: ${selectedContact.observacao || 'Nenhuma'}.`,
@@ -104,18 +105,18 @@ export default function WhatsAppHub() {
         historico: []
       });
 
-      if (res.error) {
+      if (!res || res.error) {
         toast({ 
-          title: "Falha Neural", 
-          description: "Os motores estão instáveis. Tente trocar o motor em Configurações.", 
+          title: "Erro na IA", 
+          description: res?.resposta || "Os motores estão instáveis. Tente trocar o motor em Configurações.", 
           variant: "destructive" 
         });
       } else {
-        setAiResponse(res.resposta);
+        setAiResponse(res.resposta || "");
         toast({ title: "Despacho Redigido" });
       }
     } catch (error: any) {
-      toast({ title: "Erro de Conexão", description: "O servidor neural não respondeu a tempo.", variant: "destructive" });
+      toast({ title: "Erro na IA", description: error.message || "O servidor neural não respondeu a tempo.", variant: "destructive" });
     } finally {
       setIsGenerating(false);
     }
@@ -286,7 +287,7 @@ export default function WhatsAppHub() {
                                   variant="outline"
                                   className="flex-1 h-12 border-2 border-black font-black uppercase text-[10px] hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_#000] hover:shadow-none rounded-none bg-white"
                                >
-                                  <a href={formatWhatsAppLink(selectedContact.telefone, aiResponse)} target="_blank" rel="noopener noreferrer">
+                                  <a href={formatWhatsAppLink(selectedContact?.telefone || '', aiResponse)} target="_blank" rel="noopener noreferrer">
                                      <MessageCircle size={16} className="mr-2" /> Chat Pessoal
                                   </a>
                                 </Button>
