@@ -1,12 +1,8 @@
 /**
- * @fileOverview LexisPredict - W1 Capital Advanced Legal Operations
- * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
- */
-
-/**
  * MOTOR DE INTERNACIONALIZAÇÃO v3000.0 ELITE
  * Dicionários oficiais para o Gabinete W1 Capital.
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved. See LICENSE file.
  */
 export type Locale = 'pt' | 'en';
 
@@ -21,8 +17,9 @@ export const translations = {
     team: "Equipe",
     audit: "Auditoria 3D",
     documents: "Procurações",
-    habilitacao: "Habilitação + Proc.",
+    habilitacaoPeca: "Habilitação + Proc.",
     substabelecimento: "Substabelecimento",
+    substabelecimentoPeca: "Peça de Subst.",
     chat: "Consultoria",
     whatsapp: "Comunicação",
     import: "Ingestão",
@@ -58,8 +55,9 @@ export const translations = {
     team: "Team",
     audit: "3D Audit",
     documents: "Proxy Docs",
-    habilitacao: "Enablement + Proxy",
+    habilitacaoPeca: "Habilitation + Proxy",
     substabelecimento: "Substitution",
+    substabelecimentoPeca: "Subst. Pleading",
     chat: "Advisory Chat",
     whatsapp: "WhatsApp Hub",
     import: "Data Ingestion",
