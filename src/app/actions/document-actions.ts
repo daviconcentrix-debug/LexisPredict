@@ -1,22 +1,12 @@
-
-'use server';
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
+'use server';
+
 import { renderToBuffer } from '@react-pdf/renderer';
 import React from 'react';
-
-// ... (BANCA_DATA e outras funções de apoio permanecem iguais)
-const BANCA_DATA: Record<string, any> = {
-  "DIEGO GOMES DIAS": {
-    oabs: { "SP": "370.898/SP" },
-    endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
-    email: "diego_gomesdias@yahoo.com.br",
-    genero: "M"
-  },
-  // ... (outros advogados)
-};
+import { extrairDadosProcuracao } from '@/ai/flows/document-flow';
 
 export async function generateHabilitacaoPecaPDFAction(data: any) {
   try {
@@ -38,7 +28,6 @@ export async function generatePecaSubstabelecimentoPDFAction(data: any) {
   }
 }
 
-// ... (outras funções exportadas como generateProcuracaoPDFAction)
 export async function generateProcuracaoPDFAction(data: any) {
   try {
     const { ProcuracaoPDF } = await import('@/components/pdf/procuracao-pdf');
@@ -74,6 +63,19 @@ export async function extrairTextoDoPDFAction(formData: FormData) {
 }
 
 export async function extrairDadosProcuracaoAction(inputText: string, lawyer: string, state: string) {
-  // ... (implementação de extração permanece a mesma)
-  return { success: true, cliente: {}, advogado: {}, processos: [] }; 
+  try {
+    const res = await extrairDadosProcuracao({ 
+      text: inputText, 
+      preferredLawyer: lawyer, 
+      preferredState: state 
+    });
+    
+    if (!res || (res as any).error) {
+       return { success: false, error: (res as any).code || "Erro na triagem neural." };
+    }
+    
+    return { success: true, ...res };
+  } catch (e: any) {
+    return { success: false, error: e.message || "Falha na triagem neural." };
+  }
 }
