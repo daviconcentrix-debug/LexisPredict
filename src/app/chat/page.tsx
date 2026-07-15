@@ -7,11 +7,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { MessageSquare, Send, Bot, User, Copyright, RefreshCcw, Lock, Unlock } from 'lucide-react';
+import { MessageSquare, Send, Bot, RefreshCcw, Copyright } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { perguntarIA } from '@/ai/flows/chat-ai-flow';
 import { cn } from '@/lib/utils';
@@ -52,15 +51,17 @@ export default function ChatPage() {
 
     const inputClean = chatInput.trim();
 
-    // COMANDO SECRETO DE DESBLOQUEIO MASTER (Case-Insensitive)
+    // PROTOCOLO DE DESBLOQUEIO MASTER (Resiliente)
     if (inputClean.toUpperCase() === 'ASHDOPNEU') {
       localStorage.setItem('lexis_master_unlock', 'true');
       setChatMessages(prev => [...prev, 
         { role: 'user', content: chatInput },
-        { role: 'assistant', content: "PROTOCOLO MASTER IDENTIFICADO. O ACESSO AO PORTAL DE EXPORTAÇÃO DE INFRAESTRUTURA FOI LIBERADO NO MÓDULO DE CONFIGURAÇÕES." }
+        { role: 'assistant', content: "PROTOCOLO MASTER AUTORIZADO. ACESSO AO PORTAL DE EXPORTAÇÃO DE INFRAESTRUTURA LIBERADO EM CONFIGURAÇÕES." }
       ]);
       setChatInput('');
-      toast({ title: "Portal Master Liberado", description: "Verifique as Configurações." });
+      toast({ title: "Portal Master Liberado", description: "Verifique a aba de Exportação em Configurações." });
+      // Dispara evento para atualizar outras abas se necessário
+      window.dispatchEvent(new Event('storage'));
       return;
     }
 

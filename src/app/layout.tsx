@@ -82,7 +82,7 @@ export default function RootLayout({
 
                 const lum = getLuminance(bg);
                 
-                // Protocolo de Contraste AAA
+                // Protocolo de Contraste Dinâmico AAA
                 let font = fontSaved || (lum > 0.45 ? '#000000' : '#FFFFFF');
                 if (getContrast(bg, font) < 3.0) {
                   font = lum > 0.45 ? '#000000' : '#FFFFFF';
@@ -110,7 +110,7 @@ export default function RootLayout({
                 root.style.setProperty('--sidebar-opacity', sidebarOpacity);
                 root.style.setProperty('--glass-blur', glassBlur + 'px');
 
-                // Sidebar
+                // Hardware de Sidebar
                 setHsl('--sidebar-background', bg);
                 setHsl('--sidebar-foreground', font);
                 setHsl('--sidebar-border', border);
