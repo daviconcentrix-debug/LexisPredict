@@ -18,116 +18,85 @@ const styles = StyleSheet.create({
     padding: '30mm 25mm',
     fontFamily: 'Times-Roman',
     fontSize: 12,
-    lineHeight: 1.6,
+    lineHeight: 1.8,
     textAlign: 'justify',
-  },
-  header: {
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    marginBottom: 40,
-  },
-  processInfo: {
-    textAlign: 'right',
-    fontWeight: 'bold',
-    marginBottom: 40,
-  },
-  paragraph: {
-    marginBottom: 15,
-    textIndent: 50,
-  },
-  bold: {
-    fontWeight: 'bold',
-  },
-  center: {
-    textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  signatureArea: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    marginTop: 40,
-  },
-  line: {
-    width: '60%',
-    borderTop: '1pt solid black',
-    marginBottom: 5,
   },
   title: {
     textAlign: 'center',
     fontWeight: 'bold',
     fontSize: 14,
-    marginBottom: 20,
+    marginBottom: 5,
     textTransform: 'uppercase',
+  },
+  subtitle: {
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 12,
+    marginBottom: 60,
+  },
+  paragraph: {
+    marginBottom: 60,
+    textIndent: 60,
+  },
+  bold: {
+    fontWeight: 'bold',
+  },
+  dateArea: {
+    textAlign: 'center',
+    marginBottom: 80,
+  },
+  signatureArea: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 60,
+  },
+  signatureBlock: {
+    width: '60%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  line: {
+    width: '100%',
+    borderTop: '1pt solid black',
+    marginBottom: 5,
   }
 });
 
-export function HabilitacaoPecaPDF({ data }: { data: any }) {
+export function PecaSubstabelecimentoPDF({ data }: { data: any }) {
   const { 
-    vara, comarca, numeroProcesso, cliente, advogado, 
-    tipoAcao, reuNome, reuCnpj, cidadeEmissao, dataFormatada 
+    advogadoSubstabelecente, estadoCivilSubstabelecente, oabSubstabelecente, oabSubstabelecenteCurta,
+    advogadoSubstabelecido, oabSubstabelecido, oabSubstabelecidoCurta,
+    clienteNome, tipoAcao, numeroProcesso, cidadeComarca, dataFormatada 
   } = data;
 
   return (
     <Document>
-      {/* PÁGINA 1: PETIÇÃO DE HABILITAÇÃO */}
       <Page size="A4" style={styles.page}>
-        <Text style={styles.header}>
-          EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA {vara} DA COMARCA DE {comarca}.
-        </Text>
-
-        <Text style={styles.processInfo}>Processo nº {numeroProcesso}</Text>
+        <Text style={styles.title}>SUBSTABELECIMENTO</Text>
+        <Text style={styles.subtitle}>(sem reserva de poderes)</Text>
 
         <View style={styles.paragraph}>
           <Text>
-            <Text style={styles.bold}>{cliente.nome.toUpperCase()}</Text>, {cliente.nacionalidade}, {cliente.estadoCivil}, {cliente.profissao}, portador da cédula de identidade RG número {cliente.rg} e inscrito no CPF/MF sob o nº {cliente.cpf}, residente e domiciliado na {cliente.endereco}, CEP: {cliente.cep}, vem, respeitosamente, à presença de Vossa Excelência, por seu procurador, ora constituído, apresentar seu pedido de habilitação e requerer a juntada do anexo instrumento particular de mandato.
+            O <Text style={styles.bold}>{advogadoSubstabelecente}</Text>, brasileiro, {estadoCivilSubstabelecente}, advogado, inscrito na <Text style={styles.bold}>{oabSubstabelecente}</Text>, <Text style={styles.bold}>SUBSTABELECE SEM RESERVA DE PODERES</Text> na pessoa do <Text style={styles.bold}>{advogadoSubstabelecido}</Text>, inscrito na <Text style={styles.bold}>{oabSubstabelecido}</Text>, os poderes conferidos por <Text style={styles.bold}>{clienteNome}</Text>, <Text style={styles.bold}>PARA A PROMOÇÃO DE {tipoAcao}</Text>, processo de n.º <Text style={styles.bold}>{numeroProcesso}</Text> por meio do instrumento outrora outorgado, requerendo a exclusão do advogado substabelecente <Text style={styles.bold}>{advogadoSubstabelecente}</Text> sob <Text style={styles.bold}>{oabSubstabelecenteCurta}</Text> da contracapa dos autos, bem como de qualquer outro meio de intimação do processo, sendo assim que <Text style={styles.bold}>todas as futuras intimações passem a ser exclusivamente dirigidas ao substabelecido</Text>, <Text style={styles.bold}>{advogadoSubstabelecido}</Text> sob <Text style={styles.bold}>{oabSubstabelecidoCurta}</Text>, nos termos do artigo 272, §5º, do CPC, sob pena de nulidade.
           </Text>
         </View>
 
-        <View style={styles.paragraph}>
-          <Text>
-            Inicialmente, requer-se que as intimações sejam feitas em nome do procurador <Text style={styles.bold}>Dr. {advogado.nome.toUpperCase()}</Text>, inscrito na <Text style={styles.bold}>OAB/SP {advogado.oab}</Text>, com escritório profissional na {advogado.endereco}, CEP {advogado.cep}, e-mail: {advogado.email}, requerendo que seja feita as respectivas anotações que se fizerem necessárias.
-          </Text>
-        </View>
-
-        <Text style={styles.center}>Nestes Termos{"\n"}Pede Deferimento.</Text>
-        <Text style={styles.center}>{cidadeEmissao}, {dataFormatada}.</Text>
+        <Text style={styles.dateArea}>{cidadeComarca}, {dataFormatada}</Text>
 
         <View style={styles.signatureArea}>
-          <View style={styles.line} />
-          <Text style={styles.bold}>{advogado.nome.toUpperCase()}</Text>
-          <Text style={styles.bold}>OAB/SP Nº {advogado.oab}</Text>
-        </View>
-      </Page>
+          <View style={styles.signatureBlock}>
+            <View style={styles.line} />
+            <Text style={styles.bold}>{advogadoSubstabelecente}</Text>
+            <Text style={styles.bold}>{oabSubstabelecenteCurta}</Text>
+          </View>
 
-      {/* PÁGINA 2: PROCURAÇÃO AD JUDICIA */}
-      <Page size="A4" style={styles.page}>
-        <Text style={styles.title}>PROCURAÇÃO "AD JUDICIA"</Text>
-
-        <View style={styles.paragraph}>
-          <Text>
-            <Text style={styles.bold}>{cliente.nome.toUpperCase()}</Text>, {cliente.nacionalidade}, {cliente.estadoCivil}, {cliente.profissao}, portador do RG sob Nº {cliente.rg} e devidamente inscrito no CPF sob Nº {cliente.cpf}, residente e domiciliado à {cliente.endereco} CEP: {cliente.cep}, {cliente.email}, neste ato nomeia como seu procurador:
-          </Text>
-        </View>
-
-        <View style={styles.paragraph}>
-          <Text>
-            <Text style={styles.bold}>{advogado.nome.toUpperCase()}</Text>, brasileiro, advogado, inscrito na OAB/SP sob o número {advogado.oab}, com endereço profissional na {advogado.endereco}, CEP {advogado.cep}, e endereço eletrônico: {advogado.email}.
-          </Text>
-        </View>
-
-        <View style={styles.paragraph}>
-          <Text>
-            <Text style={styles.bold}>PODERES:</Text> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <Text style={styles.bold}>"AD JUDICIA"</Text>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <Text style={styles.bold}>{tipoAcao.toUpperCase()}</Text> promovida contra o <Text style={styles.bold}>{reuNome.toUpperCase()}</Text>, inscrito no CNPJ nº {reuCnpj}.
-          </Text>
-        </View>
-
-        <Text style={styles.center}>{cidadeEmissao}, {dataFormatada}.</Text>
-
-        <View style={styles.signatureArea}>
-          <View style={styles.line} />
-          <Text style={styles.bold}>{cliente.nome.toUpperCase()}</Text>
+          <View style={styles.signatureBlock}>
+            <View style={styles.line} />
+            <Text style={styles.bold}>{advogadoSubstabelecido}</Text>
+            <Text style={styles.bold}>{oabSubstabelecidoCurta}</Text>
+          </View>
         </View>
       </Page>
     </Document>

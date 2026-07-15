@@ -1,9 +1,8 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { FileText, FileSearch, History, Search, Copyright, Send, Bot, User, Clock, Copy, MessageCircle, Zap, Loader2, AlertCircle } from 'lucide-react';
+import { FileSearch, History, FileText, Search, Copyright, Send, Bot, Clock, Copy, MessageCircle, Zap, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -78,7 +77,7 @@ export default function VereditoPage() {
   };
 
   const handleSwitchAndRetry = () => {
-    const engines = ['xai', 'airforce', 'groq-llama', 'groq-deepseek', 'puter'];
+    const engines = ['xai', 'airforce', 'groq-llama', 'groq-deepseek'];
     const currentIndex = engines.indexOf(model);
     const nextIA = engines[(currentIndex + 1) % engines.length];
     
@@ -99,7 +98,7 @@ export default function VereditoPage() {
     setChatLoading(true);
 
     try {
-      const context = `Contexto Get Assessoria Financeira Ltda. DataJud: ${JSON.stringify(result.dataJudRaw)}. Resumo: ${result.resumoTecnico}. Pergunta: ${chatInput}`;
+      const context = `Contexto Procedural. DataJud: ${JSON.stringify(result.dataJudRaw)}. Resumo: ${result.resumoTecnico}. Pergunta: ${chatInput}`;
       const response = await perguntarIA({ 
         pergunta: context, 
         historico: chatMessages.slice(-6),
@@ -163,7 +162,6 @@ export default function VereditoPage() {
                   <SelectItem value="airforce" className="font-black uppercase text-[10px]">Airforce DeepSeek</SelectItem>
                   <SelectItem value="groq-llama" className="font-black uppercase text-[10px]">Groq Llama 3.3</SelectItem>
                   <SelectItem value="groq-deepseek" className="font-black uppercase text-[10px]">Groq DeepSeek R1</SelectItem>
-                  <SelectItem value="puter" className="font-black uppercase text-[10px]">Puter AI</SelectItem>
                 </SelectContent>
               </Select>
               {result && (
@@ -192,7 +190,7 @@ export default function VereditoPage() {
                   </Alert>
                 )}
 
-                <h2 className="text-xl lg:text-3xl font-black tracking-tighter uppercase">Unidade de Triagem Técnica - Get Assessoria</h2>
+                <h2 className="text-xl lg:text-3xl font-black tracking-tighter uppercase">Unidade de Triagem Técnica</h2>
                 <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3 bg-white p-2 rounded-none border-2 border-black shadow-xl relative z-50">
                   <Input 
                     placeholder="CNJ (20 DÍGITOS)..." 
@@ -212,7 +210,7 @@ export default function VereditoPage() {
                 <div className="lg:col-span-2 space-y-6">
                   <Tabs defaultValue="details" className="w-full">
                     <TabsList className="bg-[#e2e2e2] p-1 h-11 w-full justify-start rounded-none mb-0 border-2 border-black border-b-0 overflow-x-auto">
-                      <TabsTrigger value="details" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-[10px] lg:text-xs px-4 lg:px-6 h-9 uppercase rounded-none">Parecer Get Assessoria</TabsTrigger>
+                      <TabsTrigger value="details" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-[10px] lg:text-xs px-4 lg:px-6 h-9 uppercase rounded-none">Parecer de Gabinete</TabsTrigger>
                       <TabsTrigger value="whatsapp" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-[10px] lg:text-xs px-4 lg:px-6 h-9 uppercase rounded-none">Comunicação WhatsApp</TabsTrigger>
                       <TabsTrigger value="chatter" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-[10px] lg:text-xs px-4 lg:px-6 h-9 uppercase rounded-none">Consultoria Neural</TabsTrigger>
                     </TabsList>
@@ -288,7 +286,7 @@ export default function VereditoPage() {
                         </ScrollArea>
                         <div className="p-4 border-t-2 border-black bg-white">
                           <form onSubmit={handleChat} className="flex gap-2">
-                            <Input placeholder="DÚVIDA TÉCNICA (GET ASSESSORIA)..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 bg-[#f3f2f2] border-2 border-black text-[10px] font-black uppercase rounded-none" />
+                            <Input placeholder="INSIRA SUA DÚVIDA TÉCNICA..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 bg-[#f3f2f2] border-2 border-black text-[10px] font-black uppercase rounded-none" />
                             <Button type="submit" size="icon" className="bg-black text-white border-2 border-black rounded-none">
                               <Send size={16} />
                             </Button>

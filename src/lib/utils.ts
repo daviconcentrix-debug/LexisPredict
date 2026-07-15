@@ -20,16 +20,20 @@ export function formatWhatsAppLink(phone: string, text?: string) {
  * Calcula a luminância de uma cor hex para verificar contraste.
  */
 export function getLuminance(hex: string) {
-  const rgb = hex.replace(/^#/, '').match(/.{2}/g)?.map(x => {
-    let c = parseInt(x, 16) / 255;
+  const cleanHex = hex.replace(/^#/, '');
+  const rgb = cleanHex.length === 3 
+    ? cleanHex.split('').map(x => parseInt(x + x, 16) / 255)
+    : cleanHex.match(/.{2}/g)?.map(x => parseInt(x, 16) / 255) || [0, 0, 0];
+  
+  const res = rgb.map(c => {
     return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  }) || [0, 0, 0];
-  return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+  });
+  
+  return 0.2126 * res[0] + 0.7152 * res[1] + 0.0722 * res[2];
 }
 
 /**
  * Calcula a razão de contraste entre duas cores.
- * WCAG 2.1: 4.5:1 para AA, 7:1 para AAA.
  */
 export function getContrastRatio(hex1: string, hex2: string) {
   const l1 = getLuminance(hex1);
@@ -39,13 +43,16 @@ export function getContrastRatio(hex1: string, hex2: string) {
   return (brightest + 0.05) / (darkest + 0.05);
 }
 
+/**
+ * Retorna a cor de texto ideal (Preto ou Branco) baseada na cor de fundo.
+ */
 export function getIdealTextColor(bgColor: string) {
   return getLuminance(bgColor) > 0.45 ? "#000000" : "#FFFFFF";
 }
 
-export function getAccessibilityRating(bgColor: string, textColor: string) {
-  const ratio = getContrastRatio(bgColor, textColor);
-  if (ratio >= 7) return 'AAA';
-  if (ratio >= 4.5) return 'AA';
-  return 'FAIL';
+/**
+ * Retorna uma versão "muted" da cor de texto (Cinza escuro ou Cinza claro).
+ */
+export function getIdealMutedTextColor(bgColor: string) {
+  return getLuminance(bgColor) > 0.45 ? "#4B5563" : "#9CA3AF";
 }

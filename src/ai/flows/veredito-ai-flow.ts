@@ -2,7 +2,7 @@
 /**
  * @fileOverview Motor de Auditoria 3D v800.0 ELITE
  * Núcleo: Pentade de Motores Neurais (xAI, Airforce, Groq Llama, Groq DeepSeek)
- * Proprietário: W1 Capital | Cliente: Get Assessoria Financeira Ltda
+ * Proprietário: W1 Capital | Versão: SaaS White-Label
  */
 
 import {ai} from '@/ai/genkit';
@@ -15,12 +15,13 @@ const API_KEYS = {
   GROQ: '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'
 };
 
-const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI Elite da Get Assessoria Financeira Ltda. 
-Analise os dados e retorne JSON.
+const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI Elite do Gabinete Jurídico. 
+Analise os dados fornecidos e retorne um parecer estruturado em JSON.
 REGRAS:
 1. RESUMO CURTO (5-6 linhas).
-2. Defenda a Get Assessoria Financeira Ltda.
-3. Se houver custo judicial, cite a Cláusula 3.2.
+2. Defenda os interesses da Assessoria em relação ao processo.
+3. Se houver menção a custos judiciais, cite a Cláusula 3.2.
+FORMATO:
 { "resumoTecnico": "", "analiseRisco": "", "proximosPassos": "", "mensagemCliente": "" }`;
 
 function cleanJsonResponse(text: string): any {

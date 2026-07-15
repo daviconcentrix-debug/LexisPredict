@@ -1,9 +1,10 @@
 'use server';
 /**
- * @fileOverview Motor de Extração de Dados Jurídicos v850.0 ELITE
+ * @fileOverview Motor de Extração de Dados Jurídicos v860.0 ELITE
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
+
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
@@ -21,7 +22,7 @@ const BANCA_DATA = {
     genero: "F"
   },
   "PABLO MATHEUS SILVA BASTOS PEREIRA": {
-    oabs: { "SP": "520783", "RN": "520783", "PI": "520783", "MT": "520783", "CE": "520783", "BA": "520783", "MG": "249550", "SC": "520783", "ES": "520783", "MS": "520783", "PR": "520783" },
+    oabs: { "SP": "520783", "MG": "249550", "PR": "520783", "RN": "520783", "PI": "520783", "MT": "520783", "CE": "520783", "BA": "520783", "SC": "520783", "ES": "520783", "MS": "520783" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
     email: "pablobastos@adv.oabsp.org.br",
     genero: "M"
@@ -88,10 +89,10 @@ const BANCA_DATA = {
   }
 };
 
-const SYSTEM_PROMPT = `Você é o Arquiteto Jurídico da W1 Capital. Extraia os dados do contrato.
+const SYSTEM_PROMPT = `Você é o Arquiteto Jurídico da W1 Capital. Extraia os dados do contrato ou de uma procuração antiga.
 RETORNE APENAS JSON PLANO. Sem markdown.
 {
-  "cliente": { "nome": "", "estadoCivil": "", "profissao": "", "rg": "", "cpf": "", "endereco": "", "email": "", "genero": "M"|"F", "nacionalidade": "brasileiro(a)" },
+  "cliente": { "nome": "", "estadoCivil": "casado(a)", "profissao": "autônomo(a)", "rg": "", "cpf": "", "endereco": "", "email": "", "genero": "M"|"F", "nacionalidade": "brasileiro(a)" },
   "processos": [{ "banco": "", "cnpjBanco": "", "numero": "", "acao": "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA", "estado": "UF" }]
 }`;
 
@@ -127,38 +128,7 @@ async function callXAI(text: string) {
     headers: { 'Authorization': `Bearer ${API_KEYS.XAI}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'grok-4.5',
-      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text}` }],
-      response_format: { type: 'json_object' }
-    })
-  }, 10000);
-  if (!res?.ok) return null;
-  const data = await res.json();
-  return cleanJsonResponse(data?.choices?.[0]?.message?.content);
-}
-
-async function callAirforce(text: string) {
-  const API_KEYS = { AIRFORCE: 'sk-air-Rxc7ygo5b0XpkZqUBqwSnhjwS0bZbWFnzwRLjfPtdAbYK6nj' };
-  const res = await fetchWithTimeout('https://api.airforce/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${API_KEYS.AIRFORCE}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'deepseek-v3',
-      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text}` }]
-    })
-  }, 10000);
-  if (!res?.ok) return null;
-  const data = await res.json();
-  return cleanJsonResponse(data?.choices?.[0]?.message?.content);
-}
-
-async function callGroq(text: string) {
-  const API_KEYS = { GROQ: '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' };
-  const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${API_KEYS.GROQ}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `CONTRATO: ${text}` }],
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `DOCUMENTO: ${text}` }],
       response_format: { type: 'json_object' }
     })
   }, 10000);
@@ -170,23 +140,13 @@ async function callGroq(text: string) {
 export const documentFlow = ai.defineFlow(
   { name: 'documentFlow', inputSchema: z.any(), outputSchema: z.any() },
   async (input) => {
-    const slicedText = (input.text || "").substring(0, 6000);
+    const slicedText = (input.text || "").substring(0, 7000);
     
     let parsed: any = null;
-    const engines = [
-      { id: 'xai', call: callXAI },
-      { id: 'airforce', call: callAirforce },
-      { id: 'grok', call: callGroq }
-    ];
-
-    const pref = input.preferredModel || 'xai';
-    const sorted = [engines.find(e => e.id === pref) || engines[0], ...engines.filter(e => e.id !== pref)].filter(Boolean);
-
-    for (const engine of sorted) {
-      try {
-        parsed = await engine!.call(slicedText);
-        if (parsed && (parsed.cliente || parsed.processos)) break;
-      } catch (e) { continue; }
+    try {
+      parsed = await callXAI(slicedText);
+    } catch (e) {
+      return { error: true, code: "SISTEMA_INDISPONIVEL" };
     }
 
     if (!parsed) return { error: true, code: "SISTEMA_INDISPONIVEL" };

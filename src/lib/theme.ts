@@ -1,7 +1,11 @@
+
 /**
- * MOTOR DE ENGENHARIA CROMÁTICA v190000.0 ELITE
+ * @fileOverview MOTOR DE ENGENHARIA CROMÁTICA v190000.0 ELITE
  * Gerenciamento de Variáveis de Hardware e Presets Authority Series.
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  */
+
+import { getIdealTextColor, getIdealMutedTextColor, getContrastRatio, getLuminance } from './utils';
 
 export type ThemeColors = {
   background: string;
@@ -23,43 +27,87 @@ export type ThemePreset = {
 export const AUTHORITY_PRESETS: ThemePreset[] = [
   {
     id: 'minimal-steel',
-    name: 'Minimal Steel (Default)',
+    name: 'Minimal Steel',
     radius: 4,
     colors: {
       background: '#FFFFFF',
-      bgSecondary: '#F3F4F6',
-      foreground: '#0A0A0A',
-      fontMuted: '#6B7280',
+      bgSecondary: '#F8FAFC',
+      foreground: '#0F172A',
+      fontMuted: '#64748B',
       primary: '#00D1FF',
-      accent: '#E5E7EB',
-      border: '#000000'
+      accent: '#F1F5F9',
+      border: '#E2E8F0'
+    }
+  },
+  {
+    id: 'executive-gold',
+    name: 'Executive Elite',
+    radius: 0,
+    colors: {
+      background: '#000000',
+      bgSecondary: '#0A0A0A',
+      foreground: '#D4AF37',
+      fontMuted: '#A68A2D',
+      primary: '#D4AF37',
+      accent: '#1A1A1A',
+      border: '#D4AF37'
     }
   },
   {
     id: 'obsidian-prestige',
-    name: 'Obsidian Prestige',
+    name: 'Obsidian Deep',
+    radius: 2,
+    colors: {
+      background: '#020617',
+      bgSecondary: '#0F172A',
+      foreground: '#F8FAFC',
+      fontMuted: '#94A3B8',
+      primary: '#38BDF8',
+      accent: '#1E293B',
+      border: '#334155'
+    }
+  },
+  {
+    id: 'cobalt-commander',
+    name: 'Cobalt Night',
+    radius: 4,
+    colors: {
+      background: '#0B1120',
+      bgSecondary: '#1E293B',
+      foreground: '#E0E7FF',
+      fontMuted: '#818CF8',
+      primary: '#6366F1',
+      accent: '#312E81',
+      border: '#4338CA'
+    }
+  },
+  {
+    id: 'emerald-empire',
+    name: 'Emerald Court',
     radius: 0,
     colors: {
-      background: '#050505',
-      bgSecondary: '#111111',
-      foreground: '#F1F5F9',
-      fontMuted: '#94A3B8',
-      primary: '#00D1FF',
-      accent: '#1F2937',
-      border: '#FFFFFF'
+      background: '#022C22',
+      bgSecondary: '#064E3B',
+      foreground: '#ECFDF5',
+      fontMuted: '#34D399',
+      primary: '#10B981',
+      accent: '#065F46',
+      border: '#059669'
     }
   }
 ];
 
 export function hexToHsl(hex: string): string {
   if (!hex || hex[0] !== '#') return '0 0% 0%';
-  let r = parseInt(hex.slice(1, 3), 16) / 255;
-  let g = parseInt(hex.slice(3, 5), 16) / 255;
-  let b = parseInt(hex.slice(5, 7), 16) / 255;
+  const cleanHex = hex.replace(/^#/, '');
+  let r = parseInt(cleanHex.length === 3 ? cleanHex[0]+cleanHex[0] : cleanHex.slice(0, 2), 16) / 255;
+  let g = parseInt(cleanHex.length === 3 ? cleanHex[1]+cleanHex[1] : cleanHex.slice(2, 4), 16) / 255;
+  let b = parseInt(cleanHex.length === 3 ? cleanHex[2]+cleanHex[2] : cleanHex.slice(4, 6), 16) / 255;
+  
   let max = Math.max(r, g, b), min = Math.min(r, g, b);
   let h = 0, s = 0, l = (max + min) / 2;
-  if (max === min) h = s = 0;
-  else {
+
+  if (max !== min) {
     let d = max - min;
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
     switch (max) {
@@ -76,32 +124,52 @@ export function applyGlobalTheme(colors: ThemeColors, radius: number, bgOpacity?
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   
-  // Persistência local
+  // Protocolo de Verificação de Contraste (WCAG Compliance)
+  let finalForeground = colors.foreground;
+  if (getContrastRatio(colors.background, colors.foreground) < 3.0) {
+     finalForeground = getIdealTextColor(colors.background);
+  }
+  
+  let finalMuted = colors.fontMuted;
+  if (getContrastRatio(colors.background, colors.fontMuted) < 2.5) {
+     finalMuted = getIdealMutedTextColor(colors.background);
+  }
+
+  // Persistência local do Hardware
   localStorage.setItem('lexisPredict_bg_color', colors.background);
   localStorage.setItem('lexisPredict_bg_secondary_color', colors.bgSecondary);
-  localStorage.setItem('lexisPredict_font_color', colors.foreground);
-  localStorage.setItem('lexisPredict_font_muted_color', colors.fontMuted);
+  localStorage.setItem('lexisPredict_font_color', finalForeground);
+  localStorage.setItem('lexisPredict_font_muted_color', finalMuted);
   localStorage.setItem('lexisPredict_btn_bg_color', colors.primary);
   localStorage.setItem('lexisPredict_btn_inactive_color', colors.accent);
   localStorage.setItem('lexisPredict_border_color', colors.border);
   localStorage.setItem('lexisPredict_border_radius', radius.toString());
 
-  // Injeção de variáveis CSS
+  if (bgOpacity !== undefined) localStorage.setItem('lexisPredict_bg_opacity', bgOpacity.toString());
+  if (sidebarOpacity !== undefined) localStorage.setItem('lexisPredict_sidebar_opacity', sidebarOpacity.toString());
+  if (glassBlur !== undefined) localStorage.setItem('lexisPredict_glass_blur', glassBlur.toString());
+
+  // Injeção de variáveis CSS no Root
   root.style.setProperty('--background', hexToHsl(colors.background));
+  root.style.setProperty('--card', hexToHsl(colors.background));
+  root.style.setProperty('--popover', hexToHsl(colors.background));
   root.style.setProperty('--secondary', hexToHsl(colors.bgSecondary));
-  root.style.setProperty('--foreground', hexToHsl(colors.foreground));
-  root.style.setProperty('--muted-foreground', hexToHsl(colors.fontMuted));
+  root.style.setProperty('--foreground', hexToHsl(finalForeground));
+  root.style.setProperty('--muted-foreground', hexToHsl(finalMuted));
   root.style.setProperty('--primary', hexToHsl(colors.primary));
   root.style.setProperty('--accent', hexToHsl(colors.accent));
   root.style.setProperty('--border', hexToHsl(colors.border));
   root.style.setProperty('--radius', `${radius}px`);
   
-  // Sidebar e Cards seguem a lógica técnica
+  // Hardware de Sidebar
   root.style.setProperty('--sidebar-background', hexToHsl(colors.background));
-  root.style.setProperty('--sidebar-foreground', hexToHsl(colors.foreground));
-  root.style.setProperty('--card', hexToHsl(colors.background));
+  root.style.setProperty('--sidebar-foreground', hexToHsl(finalForeground));
+  root.style.setProperty('--sidebar-border', hexToHsl(colors.border));
+  root.style.setProperty('--sidebar-primary', hexToHsl(colors.primary));
 
   if (bgOpacity !== undefined) root.style.setProperty('--bg-opacity', bgOpacity.toString());
   if (sidebarOpacity !== undefined) root.style.setProperty('--sidebar-opacity', sidebarOpacity.toString());
   if (glassBlur !== undefined) root.style.setProperty('--glass-blur', `${glassBlur}px`);
+  
+  window.dispatchEvent(new Event("lexis-theme-changed"));
 }

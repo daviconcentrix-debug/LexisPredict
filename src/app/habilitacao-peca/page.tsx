@@ -11,18 +11,14 @@ import {
   Zap, 
   Loader2, 
   Edit3, 
-  Upload,
-  FileUp,
-  Shield,
-  CheckCircle2,
-  Building2,
-  AlertCircle,
-  MapPin,
-  CalendarDays,
-  User,
-  Info,
-  Eye,
-  Hash
+  Upload, 
+  FileUp, 
+  Shield, 
+  CheckCircle2, 
+  Building2, 
+  AlertCircle, 
+  User, 
+  Eye 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,12 +28,12 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
 } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { extrairTextoDoPDFAction, extrairDadosProcuracaoAction, generateHabilitacaoPecaPDFAction } from '@/app/actions/document-actions';
@@ -100,7 +96,7 @@ export default function HabilitacaoPecaGenerator() {
       const res = await extrairTextoDoPDFAction(formData);
       if (res.success) {
         setInputText(res.text || '');
-        toast({ title: "Contrato Transcrevido", description: "Texto pronto para triagem." });
+        toast({ title: "Documento Transcrevido", description: "Texto pronto para triagem." });
       } else {
         toast({ title: "Falha na Leitura", description: res.error, variant: "destructive" });
       }
@@ -134,7 +130,7 @@ export default function HabilitacaoPecaGenerator() {
         setExtractedData({
           vara: "02ª VARA CÍVEL",
           comarca: `${selectedState === 'SP' ? 'São Paulo' : 'Comarca Local'} - ${selectedState}`,
-          numeroProcesso: data.processos?.[0]?.numero || "",
+          numeroProcesso: data.processos?.[0]?.numero || "S/N",
           cliente: {
             ...data.cliente,
             nacionalidade: data.cliente.nacionalidade || "brasileiro(a)",
@@ -146,11 +142,12 @@ export default function HabilitacaoPecaGenerator() {
             email: lawyerInfo.email,
             cep: "03870-100"
           },
-          tipoAcao: data.processos?.[0]?.acao || "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA",
+          tipoAcao: data.processos?.[0]?.acao || "AÇÃO REVISIONAL DE CONTRATO BANCÁRIO",
           reuNome: data.processos?.[0]?.banco || "INSTITUIÇÃO FINANCEIRA",
           reuCnpj: data.processos?.[0]?.cnpjBanco || "",
           cidadeEmissao: selectedState === 'SP' ? 'São Paulo' : 'Comarca Local',
-          dataFormatada: new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
+          dataFormatada: new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }),
+          selectedState
         });
         setStep(2);
         toast({ title: "Triagem Neural Concluída" });
@@ -168,10 +165,7 @@ export default function HabilitacaoPecaGenerator() {
     if (!extractedData) return;
     setLoading(true);
     try {
-      const res = await generateHabilitacaoPecaPDFAction({
-        ...extractedData,
-        selectedState
-      });
+      const res = await generateHabilitacaoPecaPDFAction(extractedData);
       if (res.success && res.base64) {
         const byteCharacters = atob(res.base64);
         const byteNumbers = new Array(byteCharacters.length);
@@ -227,7 +221,7 @@ export default function HabilitacaoPecaGenerator() {
                 <div className="lg:col-span-2 space-y-6">
                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                     <CardHeader className="bg-black text-white py-3">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest">1. Configuração de Gabinete</CardTitle>
+                      <CardTitle className="text-[10px] font-black uppercase tracking-widest">1. Configuração de Banca</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-6">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -259,9 +253,9 @@ export default function HabilitacaoPecaGenerator() {
 
                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                     <CardContent className="p-6 space-y-4">
-                      <Label className="uppercase text-[10px] font-black">2. Texto do Contrato / Procuração</Label>
+                      <Label className="uppercase text-[10px] font-black">2. Texto do Contrato ou Procuração</Label>
                       <Textarea 
-                        placeholder="COLE O TEXTO DO CONTRATO OU USE O UPLOAD ABAIXO..."
+                        placeholder="COLE O TEXTO DO DOCUMENTO PARA TRIAGEM AUTOMÁTICA..."
                         className="min-h-[300px] border-2 border-black font-black uppercase text-[11px] rounded-none bg-white"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
@@ -365,7 +359,6 @@ export default function HabilitacaoPecaGenerator() {
                   <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-[8px] font-black uppercase">Preview</Badge>
                 </CardHeader>
                 <CardContent className="p-12 text-black font-serif text-[12pt] leading-relaxed bg-white space-y-20">
-                  {/* PÁGINA 1: HABILITAÇÃO */}
                   <div className="space-y-10">
                     <p className="font-bold uppercase leading-tight">
                       EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA {extractedData.vara.toUpperCase()} DA COMARCA DE {extractedData.comarca.toUpperCase()}.
@@ -375,7 +368,7 @@ export default function HabilitacaoPecaGenerator() {
                       <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, brasileiro(a), {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador da cédula de identidade RG número {extractedData.cliente.rg} e inscrito no CPF/MF sob o nº {extractedData.cliente.cpf}, residente e domiciliado na {extractedData.cliente.endereco}, vem, respeitosamente, à presença de Vossa Excelência, por seu procurador, ora constituído, apresentar seu pedido de habilitação e requerer a juntada do anexo instrumento particular de mandato.
                     </p>
                     <p className="text-justify indent-12">
-                      Inicialmente, requer-se que as intimações sejam feitas em nome do procurador <strong>Dr. {extractedData.advogado.nome.toUpperCase()}</strong>, inscrito na <strong>OAB/{selectedState} {extractedData.advogado.oab}</strong>, com escritório profissional na {extractedData.advogado.endereco}, CEP {extractedData.advogado.cep}, e-mail: {extractedData.advogado.email}, requerendo que seja feita as respectivas anotações que se fizerem necessárias.
+                      Inicialmente, requer-se que as intimações sejam feitas em nome do procurador <strong>Dr. {extractedData.advogado.nome.toUpperCase()}</strong>, inscrito na <strong>OAB/{extractedData.selectedState} {extractedData.advogado.oab}</strong>, com escritório profissional na {extractedData.advogado.endereco}, CEP {extractedData.advogado.cep}, e-mail: {extractedData.advogado.email}, requerendo que seja feita as respectivas anotações que se fizerem necessárias.
                     </p>
                     <div className="text-center space-y-2">
                       <p>Nestes Termos</p>
@@ -385,20 +378,19 @@ export default function HabilitacaoPecaGenerator() {
                     <div className="flex flex-col items-center pt-10">
                       <div className="w-64 border-t border-black mb-2" />
                       <p className="font-bold uppercase">{extractedData.advogado.nome}</p>
-                      <p className="font-bold">OAB/{selectedState} Nº {extractedData.advogado.oab}</p>
+                      <p className="font-bold">OAB/{extractedData.selectedState} Nº {extractedData.advogado.oab}</p>
                     </div>
                   </div>
 
                   <hr className="border-t-2 border-dashed border-black/20" />
 
-                  {/* PÁGINA 2: PROCURAÇÃO */}
                   <div className="space-y-10">
                     <h1 className="text-center font-bold text-lg uppercase tracking-widest">PROCURAÇÃO "AD JUDICIA"</h1>
                     <p className="text-justify indent-12">
                       <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, brasileiro(a), {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador do RG sob Nº {extractedData.cliente.rg} e devidamente inscrito no CPF sob Nº {extractedData.cliente.cpf}, residente e domiciliado à {extractedData.cliente.endereco}, neste ato nomeia como seu procurador:
                     </p>
                     <p className="text-justify indent-12">
-                      <strong>{extractedData.advogado.nome.toUpperCase()}</strong>, brasileiro, advogado, inscrito na OAB/{selectedState} sob o número {extractedData.advogado.oab}, com endereço profissional na {extractedData.advogado.endereco}, CEP {extractedData.advogado.cep}, e endereço eletrônico: {extractedData.advogado.email}.
+                      <strong>{extractedData.advogado.nome.toUpperCase()}</strong>, brasileiro, advogado, inscrito na OAB/{extractedData.selectedState} sob o número {extractedData.advogado.oab}, com endereço profissional na {extractedData.advogado.endereco}, CEP {extractedData.advogado.cep}, e endereço eletrônico: {extractedData.advogado.email}.
                     </p>
                     <p className="text-justify indent-12">
                       <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <strong>"AD JUDICIA"</strong>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <strong>{extractedData.tipoAcao.toUpperCase()}</strong> promovida contra o <strong>{extractedData.reuNome.toUpperCase()}</strong>, inscrito no CNPJ nº {extractedData.reuCnpj}.

@@ -1,9 +1,8 @@
-
 'use server';
 /**
  * @fileOverview Motor de Consultoria Estratégica v9500.0 ELITE
  * Núcleo: Pentade de Motores (xAI, Airforce, 2x Groq, Puter)
- * Proprietário: W1 Capital | Cliente: Get Assessoria Financeira Ltda
+ * Proprietário: W1 Capital | Versão: SaaS White-Label
  */
 
 import {ai} from '@/ai/genkit';
@@ -15,14 +14,14 @@ const API_KEYS = {
   GROQ: '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'
 };
 
-const SYSTEM_PROMPT = `Você é o Consultor Estratégico Sênior da Get Assessoria Financeira Ltda. 
+const SYSTEM_PROMPT = `Você é o Consultor Estratégico Sênior do Gabinete Jurídico. 
 REGRAS DE OURO:
 1. CURTO E DIRETO. Máximo 6 linhas.
-2. Defenda a empresa (Get Assessoria Financeira Ltda).
+2. Defenda os interesses da Assessoria/Escritório em todas as respostas.
 3. Se o cliente questionar valores, cite a Cláusula 3.2 do contrato (Custas do Juiz/Justiça são responsabilidade do cliente se a gratuidade for indeferida).
 4. Separe: Honorários da Assessoria ≠ Custas do Juiz.
 5. Estrutura: Reconhecer -> Fato/Prova -> Posição -> Próximo Passo.
-6. Assine: Gabinete Técnico — Get Assessoria Financeira Ltda.
+6. Assine: Gabinete Técnico.
 RETORNE APENAS JSON PLANO: { "resposta": "todo_o_texto" }.`;
 
 function cleanJsonResponse(text: string): any {
