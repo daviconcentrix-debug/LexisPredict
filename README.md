@@ -1,4 +1,4 @@
-# ⚖️ LexisPredict / W1 Capital — Advanced Legal Ops
+# LexisPredict
 
 **Plataforma de Operações Jurídicas Avançadas**  
 *W1 Capital • Advanced Legal Ops*
