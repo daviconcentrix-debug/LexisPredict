@@ -46,8 +46,14 @@ async function evolutionRequest(endpoint: string, method: string, data?: any) {
  * @param message Conteúdo da mensagem
  */
 export async function sendTextMessage(to: string, message: string) {
-  // Normalização de número para garantir apenas dígitos
-  const cleanNumber = to.replace(/\D/g, '');
+  // Normalização de número para garantir apenas dígitos e DDI Brasil
+  let cleanNumber = to.replace(/\D/g, '');
+  
+  // Se o número tiver 10 ou 11 dígitos, assume que falta o DDI 55
+  if (cleanNumber.length === 10 || cleanNumber.length === 11) {
+    cleanNumber = `55${cleanNumber}`;
+  }
+
   if (!cleanNumber) throw new Error("Número de telefone inválido.");
 
   return evolutionRequest(`/message/sendText/${EVOLUTION_CONFIG.instanceName}`, 'POST', {
