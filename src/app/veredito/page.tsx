@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { executarVereditoAI } from '@/ai/flows/veredito-ai-flow';
 import { perguntarIA } from '@/ai/flows/chat-ai-flow';
-import { sendYCloudWhatsApp } from '@/app/actions/whatsapp-actions';
+import { sendWhatsAppAction } from '@/app/actions/whatsapp-actions';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from '@/components/ui/label';
@@ -106,7 +106,9 @@ export default function VereditoPage() {
       });
 
       if (isMounted.current) {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: response.resposta }]);
+        if (response) {
+          setChatMessages(prev => [...prev, { role: 'assistant', content: response.resposta }]);
+        }
       }
     } catch (error: any) {
       if (isMounted.current) toast({ title: "Falha na Resposta", description: error.message, variant: "destructive" });
@@ -119,13 +121,22 @@ export default function VereditoPage() {
     if (!result || !result.mensagemCliente || sendingApi) return;
     const phone = result.dataJudRaw?.contatoTelefone || "";
     if (!phone) {
-      toast({ title: "Telefone Ausente", variant: "destructive" });
+      toast({ title: "Telefone Ausente", description: "O cadastro do DataJud não retornou telefone.", variant: "destructive" });
       return;
     }
     setSendingApi(true);
-    const res = await sendYCloudWhatsApp(phone, result.mensagemCliente);
-    setSendingApi(false);
-    if (res.success) toast({ title: "Enviado via API" });
+    try {
+      const res = await sendWhatsAppAction(phone, result.mensagemCliente);
+      if (res.success) {
+        toast({ title: "Enviado via Evolution API", description: "Despacho entregue com sucesso." });
+      } else {
+        toast({ title: "Falha no Envio", description: res.message, variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: "Erro de Conexão", description: "Falha ao atingir o motor Evolution.", variant: "destructive" });
+    } finally {
+      setSendingApi(false);
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -256,7 +267,7 @@ export default function VereditoPage() {
                            <div className="flex flex-col sm:flex-row gap-4">
                               <Button disabled={sendingApi} onClick={handleApiSend} className="flex-1 h-12 bg-black text-white border-2 border-black font-black uppercase text-[9px] lg:text-[10px] rounded-none">
                                 {sendingApi ? <Loader2 size={16} className="animate-spin mr-2" /> : <Zap size={16} className="mr-2 text-yellow-500 fill-yellow-500" />}
-                                Disparo API Profissional
+                                Disparo API Evolution
                               </Button>
                               <Button asChild className="flex-1 h-12 bg-white text-black border-2 border-black font-black uppercase text-[9px] lg:text-[10px] rounded-none">
                                 <a href={formatWhatsAppLink('', result.mensagemCliente)} target="_blank" rel="noopener noreferrer">
