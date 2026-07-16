@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -135,23 +136,25 @@ export default function WhatsAppHub() {
   };
 
   const handleGenerateAI = async (agent: 'legal' | 'comercial' | 'financeiro') => {
-    if (!selectedContact || isGenerating) return;
+    if (!selectedContact || isGenerating) {
+      toast({ title: "Ação Bloqueada", description: "Selecione um contato primeiro.", variant: "destructive" });
+      return;
+    }
     
     setIsGenerating(true);
-    setAiResponse(''); 
+    setAiResponse('Iniciando redação estratégica...'); 
 
     const systemContext = `Você é o Consultor Estratégico da Get Assessoria Financeira. 
-    REGRAS: 
-    1. Seja profissional e direto. 
-    2. Use o contexto do processo: ${selectedContact.protocolo} (${selectedContact.tribunal}). 
-    3. Status atual: ${selectedContact.status}. 
-    4. Se for financeiro, cite a Cláusula 3.2 sobre custas se necessário. 
-    5. Assine como Setor Processual.`;
+    DADOS DO CLIENTE: ${selectedContact.nome}
+    PROTOCOLO: ${selectedContact.protocolo}
+    STATUS ATUAL: ${selectedContact.status}
+    TRIBUNAL: ${selectedContact.tribunal}
+    REGRAS: Seja profissional, direto e resolutivo.`;
 
     const prompts = {
-      legal: `Gere uma atualização jurídica profissional para ${selectedContact.nome}. O processo está em fase de ${selectedContact.status}. Explique o andamento com clareza.`,
-      comercial: `Gere uma mensagem cordial de acompanhamento para ${selectedContact.nome}. Reafirme o compromisso da Get Assessoria com o sucesso do caso.`,
-      financeiro: `Gere uma mensagem educada sobre a necessidade de verificar pendências de custas processuais ou honorários para o processo ${selectedContact.protocolo}.`
+      legal: `Redija uma atualização jurídica formal explicando o status '${selectedContact.status}' do processo ${selectedContact.protocolo}.`,
+      comercial: `Redija uma mensagem de acompanhamento cordial para ${selectedContact.nome}, reafirmando nossa dedicação ao caso.`,
+      financeiro: `Redija uma mensagem solicitando o pagamento das custas processuais ou honorários pendentes, citando a Cláusula 3.2 do contrato.`
     };
 
     try {
@@ -162,34 +165,35 @@ export default function WhatsAppHub() {
         historico: []
       });
 
-      if (!res || res.error || !res.resposta) {
-        throw new Error("Falha no motor neural.");
+      if (res && res.resposta) {
+        setAiResponse(res.resposta);
+      } else {
+        throw new Error("O motor neural não retornou dados válidos.");
       }
-      setAiResponse(res.resposta);
     } catch (error: any) {
-      toast({ title: "Erro na IA", description: error.message || "Servidor neural não respondeu.", variant: "destructive" });
+      toast({ title: "Erro no Motor IA", description: error.message || "Falha ao gerar mensagem.", variant: "destructive" });
+      setAiResponse('');
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleGenerateFromHistory = async () => {
-    if (!selectedContact || !courtHistory.trim() || isGenerating) return;
+    if (!selectedContact || !courtHistory.trim() || isGenerating) {
+      toast({ title: "Dados Insuficientes", description: "Cole o histórico do tribunal para análise.", variant: "destructive" });
+      return;
+    }
     
     setIsGenerating(true);
-    setAiResponse('');
+    setAiResponse('Analisando cronologia processual...');
 
-    const prompt = `Analise o seguinte histórico de movimentações do tribunal para o cliente ${selectedContact.nome}:
+    const prompt = `Analise este histórico de movimentações:
+    ${courtHistory.substring(0, 10000)}
     
-    HISTÓRICO:
-    ${courtHistory}
+    CLIENTE: ${selectedContact.nome}
+    PROCESSO: ${selectedContact.protocolo}
     
-    CONTEXTO ATUAL:
-    Protocolo: ${selectedContact.protocolo}
-    Tribunal: ${selectedContact.tribunal}
-    Última Observação: ${selectedContact.observacao || 'N/A'}
-
-    TAREFA: Redija uma mensagem de WhatsApp clara, técnica e profissional para o cliente explicando o que aconteceu e quais são os próximos passos. Se houver decisões negativas, mantenha o tom de assessoria buscando soluções.`;
+    TAREFA: Gere uma mensagem de WhatsApp para o cliente resumindo o que aconteceu de forma simples e técnica, indicando os próximos passos.`;
 
     try {
       const preferredIA = localStorage.getItem('lexisPredict_preferred_ia') || 'xai';
@@ -199,11 +203,12 @@ export default function WhatsAppHub() {
         historico: []
       });
 
-      if (!res || res.error || !res.resposta) {
-        throw new Error("O motor neural falhou ao analisar o histórico.");
+      if (res && res.resposta) {
+        setAiResponse(res.resposta);
+        toast({ title: "Análise Concluída" });
+      } else {
+        throw new Error("Falha na análise neural do histórico.");
       }
-      setAiResponse(res.resposta);
-      toast({ title: "Análise de Tribunal Concluída" });
     } catch (error: any) {
       toast({ title: "Erro de Triagem", description: error.message, variant: "destructive" });
     } finally {
@@ -218,15 +223,21 @@ export default function WhatsAppHub() {
     try {
       const result = await sendWhatsAppAction(selectedContact.telefone, aiResponse);
       if (result.success) {
-        toast({ title: "Mensagem Enviada", description: "Entregue via Evolution API." });
+        toast({ title: "Mensagem Entregue", description: "Enviado com sucesso via Evolution API." });
       } else {
-        toast({ title: "Falha API", description: result.message, variant: "destructive" });
+        toast({ title: "Erro de Entrega", description: result.message, variant: "destructive" });
       }
-    } catch (e) {
-      toast({ title: "Erro de Rede", variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "Falha de Conexão", description: e.message, variant: "destructive" });
     } finally {
       setIsSending(false);
     }
+  };
+
+  const copyToClipboard = () => {
+    if (!aiResponse) return;
+    navigator.clipboard.writeText(aiResponse);
+    toast({ title: "Copiado para Área de Transferência" });
   };
 
   return (
@@ -360,13 +371,13 @@ export default function WhatsAppHub() {
 
                             <TabsContent value="ia" className="flex-1 flex flex-col gap-4 mt-4 min-h-0">
                               <div className="grid grid-cols-3 gap-2 lg:gap-3 shrink-0">
-                                <Button variant="outline" onClick={() => handleGenerateAI('legal')} className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white transition-all rounded-none bg-white">
+                                <Button variant="outline" onClick={() => handleGenerateAI('legal')} disabled={isGenerating} className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white transition-all rounded-none bg-white">
                                   <Scale size={12} className="mr-2 text-blue-600" /> Jurídico
                                 </Button>
-                                <Button variant="outline" onClick={() => handleGenerateAI('comercial')} className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white transition-all rounded-none bg-white">
+                                <Button variant="outline" onClick={() => handleGenerateAI('comercial')} disabled={isGenerating} className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white transition-all rounded-none bg-white">
                                   <Sparkles size={12} className="mr-2 text-orange-500" /> Comercial
                                 </Button>
-                                <Button variant="outline" onClick={() => handleGenerateAI('financeiro')} className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white transition-all rounded-none bg-white">
+                                <Button variant="outline" onClick={() => handleGenerateAI('financeiro')} disabled={isGenerating} className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white transition-all rounded-none bg-white">
                                   <Zap size={12} className="mr-2 text-yellow-500" /> Financeiro
                                 </Button>
                               </div>
@@ -379,6 +390,11 @@ export default function WhatsAppHub() {
                                   placeholder="REDIGIR MENSAGEM OU SELECIONAR MODELO..."
                                   className="w-full h-full bg-transparent border-none resize-none text-[11px] lg:text-sm font-black uppercase leading-relaxed text-black focus:ring-0"
                                 />
+                                {aiResponse && (
+                                   <Button variant="ghost" size="icon" onClick={copyToClipboard} className="absolute bottom-2 right-2 h-8 w-8 text-black/40 hover:text-black">
+                                      <Copy size={14} />
+                                   </Button>
+                                )}
                               </div>
                             </TabsContent>
 
@@ -393,7 +409,8 @@ export default function WhatsAppHub() {
                                   />
                                </div>
                                <Button onClick={handleGenerateFromHistory} disabled={!courtHistory.trim() || isGenerating} className="w-full bg-black text-white border-2 border-black font-black uppercase h-12 rounded-none">
-                                  <History size={16} className="mr-2" /> Analisar Histórico & Redigir
+                                  {isGenerating ? <Loader2 className="animate-spin mr-2" size={16} /> : <History size={16} className="mr-2" />}
+                                  Analisar Histórico & Redigir
                                </Button>
                                <div className="flex-1 bg-[#f8f9fb] border-2 border-dashed border-black/20 p-4 min-h-0">
                                   <textarea 
@@ -408,7 +425,7 @@ export default function WhatsAppHub() {
 
                           <div className="flex flex-col sm:flex-row gap-3 shrink-0 pt-4 border-t-2 border-black/5">
                              <Button 
-                                disabled={!aiResponse || isSending}
+                                disabled={!aiResponse || isSending || isGenerating}
                                 onClick={handleSendAPI}
                                 className="flex-1 h-12 bg-black text-white border-2 border-black font-black uppercase text-[10px] hover:bg-white hover:text-black transition-all shadow-[4px_4px_0px_#000] hover:shadow-none rounded-none"
                              >
@@ -470,7 +487,7 @@ export default function WhatsAppHub() {
                   </div>
                </ScrollArea>
                <footer className="p-6 border-t-2 border-black bg-[#f8f9fb]">
-                  <p className="text-[8px] font-black uppercase text-center text-black/40">Sincronizado v830.0 Elite</p>
+                  <p className="text-[8px] font-black uppercase text-center text-black/40">Sincronizado v840.0 Elite</p>
                </footer>
             </aside>
           )}
