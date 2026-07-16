@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -147,14 +148,12 @@ export default function WhatsAppHub() {
     }
     
     setIsGenerating(true);
-    setAiResponse('Iniciando redação estratégica...'); 
+    setAiResponse(''); // Limpa antes de gerar
 
-    const systemContext = `Você é o Consultor Estratégico da Get Assessoria Financeira. 
-    DADOS DO CLIENTE: ${selectedContact.nome}
+    const systemContext = `DADOS DO CLIENTE: ${selectedContact.nome}
     PROTOCOLO: ${selectedContact.protocolo}
     STATUS ATUAL: ${selectedContact.status}
-    TRIBUNAL: ${selectedContact.tribunal}
-    REGRAS: Seja profissional, direto e resolutivo.`;
+    TRIBUNAL: ${selectedContact.tribunal}`;
 
     const prompts = {
       legal: `Redija uma atualização jurídica formal explicando o status '${selectedContact.status}' do processo ${selectedContact.protocolo}.`,
@@ -169,13 +168,14 @@ export default function WhatsAppHub() {
         historico: []
       });
 
-      if (res && res.resposta) {
+      if (res && res.resposta && !res.error) {
         setAiResponse(res.resposta);
+        toast({ title: "Mensagem Gerada", description: `Via motor ${res.engineUtilizada}` });
       } else {
-        throw new Error("O motor neural não retornou dados válidos.");
+        throw new Error(res?.resposta || "O motor neural falhou. Tente alternar o núcleo técnico no topo da tela.");
       }
     } catch (error: any) {
-      toast({ title: "Erro no Motor IA", description: error.message || "Falha ao gerar mensagem.", variant: "destructive" });
+      toast({ title: "Erro de Triagem", description: error.message, variant: "destructive" });
       setAiResponse('');
     } finally {
       setIsGenerating(false);
@@ -189,15 +189,16 @@ export default function WhatsAppHub() {
     }
     
     setIsGenerating(true);
-    setAiResponse('Analisando cronologia processual...');
+    setAiResponse('');
 
-    const prompt = `Analise este histórico de movimentações:
-    ${courtHistory.substring(0, 10000)}
-    
+    const prompt = `Analise este histórico de movimentações processuais:
+    ---
+    ${courtHistory.substring(0, 8000)}
+    ---
     CLIENTE: ${selectedContact.nome}
     PROCESSO: ${selectedContact.protocolo}
     
-    TAREFA: Gere uma mensagem de WhatsApp para o cliente resumindo o que aconteceu de forma simples e técnica, indicando os próximos passos. Use o motor ${preferredModel.toUpperCase()}.`;
+    TAREFA: Gere uma mensagem de WhatsApp para o cliente resumindo os fatos de forma simples mas técnica, explicando o que aconteceu por último e quais os próximos passos esperados.`;
 
     try {
       const res = await perguntarIA({
@@ -206,14 +207,15 @@ export default function WhatsAppHub() {
         historico: []
       });
 
-      if (res && res.resposta) {
+      if (res && res.resposta && !res.error) {
         setAiResponse(res.resposta);
-        toast({ title: "Análise Concluída" });
+        toast({ title: "Análise Concluída", description: `Resumo técnico gerado via ${res.engineUtilizada}.` });
       } else {
-        throw new Error("Falha na análise neural do histórico.");
+        throw new Error(res?.resposta || "Falha na análise do histórico.");
       }
     } catch (error: any) {
-      toast({ title: "Erro de Triagem", description: error.message, variant: "destructive" });
+      toast({ title: "Falha Neural", description: error.message, variant: "destructive" });
+      setAiResponse('');
     } finally {
       setIsGenerating(false);
     }
@@ -240,7 +242,7 @@ export default function WhatsAppHub() {
   const copyToClipboard = () => {
     if (!aiResponse) return;
     navigator.clipboard.writeText(aiResponse);
-    toast({ title: "Copiado para Área de Transferência" });
+    toast({ title: "Copiado" });
   };
 
   return (
@@ -258,19 +260,21 @@ export default function WhatsAppHub() {
           </div>
           
           <div className="flex items-center gap-3 self-end lg:self-auto">
-            <Select value={preferredModel} onValueChange={(val) => { setPreferredModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); }}>
-              <SelectTrigger className="w-[180px] border-2 border-black font-black uppercase text-[10px] h-10 rounded-none bg-white">
-                <SelectValue placeholder="Motor Neural" />
-              </SelectTrigger>
-              <SelectContent className="bg-white border-2 border-black rounded-none">
-                <SelectItem value="xai" className="font-black uppercase text-[10px]">xAI Grok 4.5</SelectItem>
-                <SelectItem value="airforce" className="font-black uppercase text-[10px]">Airforce DeepSeek</SelectItem>
-                <SelectItem value="groq-llama" className="font-black uppercase text-[10px]">Groq Llama 3.3</SelectItem>
-                <SelectItem value="groq-deepseek" className="font-black uppercase text-[10px]">Groq DeepSeek R1</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col items-end mr-2">
+               <span className="text-[8px] font-black uppercase text-black/40 mb-0.5">Seletor de Núcleo</span>
+               <Select value={preferredModel} onValueChange={(val) => { setPreferredModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); }}>
+                <SelectTrigger className="w-[180px] border-2 border-black font-black uppercase text-[10px] h-9 rounded-none bg-white">
+                  <SelectValue placeholder="Motor Neural" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border-2 border-black rounded-none">
+                  <SelectItem value="xai" className="font-black uppercase text-[10px]">xAI Grok 4.5</SelectItem>
+                  <SelectItem value="groq-llama" className="font-black uppercase text-[10px]">Groq Llama 3.3</SelectItem>
+                  <SelectItem value="airforce" className="font-black uppercase text-[10px]">Airforce DeepSeek</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Badge variant="outline" className="hidden sm:flex text-black font-black border-black border-2 px-3 py-1 uppercase text-[10px]">
+            <Badge variant="outline" className="hidden sm:flex text-black font-black border-black border-2 px-3 py-1 uppercase text-[10px] h-9 items-center">
               <Zap size={10} className="mr-1.5 text-yellow-500 fill-yellow-500" /> Evolution API
             </Badge>
           </div>
@@ -399,7 +403,7 @@ export default function WhatsAppHub() {
                               </div>
                               
                               <div className="flex-1 bg-[#f8f9fb] border-2 border-dashed border-black/20 p-4 flex flex-col relative min-h-0">
-                                {isGenerating && <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center space-y-3 z-10 rounded-none"><Loader2 className="animate-spin text-black" size={32} /><p className="text-[10px] font-black uppercase tracking-[0.2em]">IA Redigindo...</p></div>}
+                                {isGenerating && <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center space-y-3 z-10 rounded-none"><Loader2 className="animate-spin text-black" size={32} /><p className="text-[10px] font-black uppercase tracking-[0.2em]">Sincronizando Resposta...</p></div>}
                                 <textarea 
                                   value={aiResponse}
                                   onChange={(e) => setAiResponse(e.target.value)}
@@ -424,11 +428,12 @@ export default function WhatsAppHub() {
                                     className="min-h-[120px] border-2 border-black rounded-none font-black uppercase text-[10px] bg-white"
                                   />
                                </div>
-                               <Button onClick={handleGenerateFromHistory} disabled={!courtHistory.trim() || isGenerating} className="w-full bg-black text-white border-2 border-black font-black uppercase h-12 rounded-none">
+                               <Button onClick={handleGenerateFromHistory} disabled={!courtHistory.trim() || isGenerating} className="w-full bg-black text-white border-2 border-black font-black uppercase h-12 rounded-none shadow-[4px_4px_0px_#22c55e]">
                                   {isGenerating ? <Loader2 className="animate-spin mr-2" size={16} /> : <History size={16} className="mr-2" />}
-                                  Analisar Histórico & Redigir
+                                  Analisar Histórico & Redigir Resumo
                                </Button>
-                               <div className="flex-1 bg-[#f8f9fb] border-2 border-dashed border-black/20 p-4 min-h-0">
+                               <div className="flex-1 bg-[#f8f9fb] border-2 border-dashed border-black/20 p-4 min-h-0 relative">
+                                  {isGenerating && <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center space-y-3 z-10 rounded-none"><Loader2 className="animate-spin text-black" size={32} /><p className="text-[10px] font-black uppercase tracking-[0.2em]">IA Analisando Tribunal...</p></div>}
                                   <textarea 
                                     value={aiResponse}
                                     onChange={(e) => setAiResponse(e.target.value)}
@@ -441,7 +446,7 @@ export default function WhatsAppHub() {
 
                           <div className="flex flex-col sm:flex-row gap-3 shrink-0 pt-4 border-t-2 border-black/5">
                              <Button 
-                                disabled={!aiResponse || isSending || isGenerating}
+                                disabled={!aiResponse || aiResponse.length < 5 || isSending || isGenerating}
                                 onClick={handleSendAPI}
                                 className="flex-1 h-12 bg-black text-white border-2 border-black font-black uppercase text-[10px] hover:bg-white hover:text-black transition-all shadow-[4px_4px_0px_#000] hover:shadow-none rounded-none"
                              >
@@ -503,7 +508,7 @@ export default function WhatsAppHub() {
                   </div>
                </ScrollArea>
                <footer className="p-6 border-t-2 border-black bg-[#f8f9fb]">
-                  <p className="text-[8px] font-black uppercase text-center text-black/40">Sincronizado v860.0 Elite</p>
+                  <p className="text-[8px] font-black uppercase text-center text-black/40">Sincronizado v870.0 Elite</p>
                </footer>
             </aside>
           )}
