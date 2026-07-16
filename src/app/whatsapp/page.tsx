@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -8,7 +7,6 @@ import {
   Search, 
   Send, 
   User, 
-  ShieldCheck, 
   RefreshCcw,
   Zap,
   Loader2,
@@ -18,12 +16,9 @@ import {
   FileText,
   Clock,
   Sparkles,
-  ChevronRight,
   ChevronLeft,
-  Info,
   BookOpen,
   Copy,
-  AlertTriangle,
   History,
   BrainCircuit
 } from 'lucide-react';
@@ -49,6 +44,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // REPOSITÓRIO OFICIAL DE SCRIPTS W1 CAPITAL
 const SCRIPTS_GABINETE = [
@@ -70,7 +72,14 @@ export default function WhatsAppHub() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [scriptSearch, setScriptSearch] = useState('');
+  const [preferredModel, setPreferredModel] = useState<string>('xai');
   const { toast } = useToast();
+
+  useEffect(() => {
+    const savedIA = localStorage.getItem('lexisPredict_preferred_ia') || 'xai';
+    setPreferredModel(savedIA);
+    loadData();
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -85,10 +94,6 @@ export default function WhatsAppHub() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const contacts = useMemo(() => {
     const uniqueContacts = new Map();
@@ -158,10 +163,9 @@ export default function WhatsAppHub() {
     };
 
     try {
-      const preferredIA = localStorage.getItem('lexisPredict_preferred_ia') || 'xai';
       const res = await perguntarIA({
         pergunta: `${systemContext}\n\nTarefa: ${prompts[agent]}`,
-        preferredModel: preferredIA,
+        preferredModel: preferredModel,
         historico: []
       });
 
@@ -193,13 +197,12 @@ export default function WhatsAppHub() {
     CLIENTE: ${selectedContact.nome}
     PROCESSO: ${selectedContact.protocolo}
     
-    TAREFA: Gere uma mensagem de WhatsApp para o cliente resumindo o que aconteceu de forma simples e técnica, indicando os próximos passos.`;
+    TAREFA: Gere uma mensagem de WhatsApp para o cliente resumindo o que aconteceu de forma simples e técnica, indicando os próximos passos. Use o motor ${preferredModel.toUpperCase()}.`;
 
     try {
-      const preferredIA = localStorage.getItem('lexisPredict_preferred_ia') || 'xai';
       const res = await perguntarIA({
         pergunta: prompt,
-        preferredModel: preferredIA,
+        preferredModel: preferredModel,
         historico: []
       });
 
@@ -244,7 +247,7 @@ export default function WhatsAppHub() {
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        <header className="h-16 border-b border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-between px-6 lg:px-8 shrink-0 z-40">
+        <header className="h-auto lg:h-16 border-b border-[#dddbda] bg-white/90 backdrop-blur-sm flex flex-col lg:flex-row lg:items-center justify-between px-6 lg:px-8 py-4 lg:py-0 shrink-0 z-40 gap-4">
           <div className="flex items-center gap-4 pl-10 lg:pl-0">
             <div className="icon-3d-wrapper scale-75 lg:scale-100">
               <div className="icon-3d-block black w-10 h-10 rounded-sm">
@@ -253,9 +256,22 @@ export default function WhatsAppHub() {
             </div>
             <h1 className="font-black text-sm lg:text-xl text-black uppercase tracking-tighter">Terminal WhatsApp</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <Badge variant="outline" className="text-black font-black border-black border-2 px-3 py-1 uppercase text-[10px]">
-              <Zap size={10} className="mr-1.5 text-yellow-500 fill-yellow-500" /> Evolution API Ativa
+          
+          <div className="flex items-center gap-3 self-end lg:self-auto">
+            <Select value={preferredModel} onValueChange={(val) => { setPreferredModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); }}>
+              <SelectTrigger className="w-[180px] border-2 border-black font-black uppercase text-[10px] h-10 rounded-none bg-white">
+                <SelectValue placeholder="Motor Neural" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-2 border-black rounded-none">
+                <SelectItem value="xai" className="font-black uppercase text-[10px]">xAI Grok 4.5</SelectItem>
+                <SelectItem value="airforce" className="font-black uppercase text-[10px]">Airforce DeepSeek</SelectItem>
+                <SelectItem value="groq-llama" className="font-black uppercase text-[10px]">Groq Llama 3.3</SelectItem>
+                <SelectItem value="groq-deepseek" className="font-black uppercase text-[10px]">Groq DeepSeek R1</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Badge variant="outline" className="hidden sm:flex text-black font-black border-black border-2 px-3 py-1 uppercase text-[10px]">
+              <Zap size={10} className="mr-1.5 text-yellow-500 fill-yellow-500" /> Evolution API
             </Badge>
           </div>
         </header>
@@ -487,7 +503,7 @@ export default function WhatsAppHub() {
                   </div>
                </ScrollArea>
                <footer className="p-6 border-t-2 border-black bg-[#f8f9fb]">
-                  <p className="text-[8px] font-black uppercase text-center text-black/40">Sincronizado v840.0 Elite</p>
+                  <p className="text-[8px] font-black uppercase text-center text-black/40">Sincronizado v860.0 Elite</p>
                </footer>
             </aside>
           )}
