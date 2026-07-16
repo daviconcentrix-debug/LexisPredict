@@ -41,12 +41,13 @@ export default function AnalyticsPage() {
   const metrics = useMemo(() => {
     const total = cases.length;
     
-    const vencidos = cases.filter(c => c.status === 'Vencido').length;
-    const hoje = cases.filter(c => c.status === 'É Hoje').length;
-    const atencao = cases.filter(c => c.status === 'Atenção').length;
-    const noPrazo = cases.filter(c => c.status === 'No Prazo').length;
-    const semPrazo = cases.filter(c => c.status === 'Sem Prazo').length;
-    const finalizados = cases.filter(c => ['Encerrado', 'Arquivado'].includes(c.status)).length;
+    const vencidos = cases.filter(c => c.status === 'Vencido' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
+    const hoje = cases.filter(c => c.status === 'É Hoje' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
+    const atencao = cases.filter(c => c.status === 'Atenção' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
+    const noPrazo = cases.filter(c => c.status === 'No Prazo' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
+    const semPrazo = cases.filter(c => (c.status === 'Sem Prazo' || !c.proximoPrazo) && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
+    
+    const finalizados = cases.filter(c => ['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase()) || c.status === 'Arquivado' || c.status === 'Encerrado').length;
 
     const tribunalCounts: Record<string, number> = {};
     cases.forEach(c => {
