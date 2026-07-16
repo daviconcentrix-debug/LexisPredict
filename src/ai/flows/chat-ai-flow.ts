@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview Motor de Consultoria Estratégica v9900.0 ELITE
- * Núcleo: Pentade de Motores Neurais com Detector de Erros de Provedor e Protocolo de Resgate.
+ * Núcleo: Cascata Neural de Resiliência com Detector de Erros de Provedor.
  * Proprietário: W1 Capital | Versão: SaaS White-Label
  */
 
@@ -30,10 +30,13 @@ function cleanJsonResponse(text: string): any {
   if (!text || typeof text !== 'string') return null;
 
   const textLower = text.toLowerCase();
-  const errorIndicators = ['discord.gg', 'rate limit', 'quota exceeded', 'api error', 'unauthorized', '404', 'not found', 'join our server', 'insufficient balance'];
+  const errorIndicators = [
+    'discord.gg', 'rate limit', 'quota exceeded', 'api error', 
+    'unauthorized', '404', 'not found', 'join our server', 
+    'insufficient balance', 'system unavailable', 'retry later'
+  ];
   
   if (errorIndicators.some(indicator => textLower.includes(indicator))) {
-    console.warn("[IA] Detectado erro de provedor no texto, tentando próximo motor...");
     return null; 
   }
 
@@ -49,16 +52,16 @@ function cleanJsonResponse(text: string): any {
       if (parsed.content) return { resposta: parsed.content };
     }
     
-    if (text.trim().length > 10) {
+    if (text.trim().length > 15) {
       return { resposta: text.trim() };
     }
     return null;
   } catch (e) { 
-    return text.trim().length > 10 ? { resposta: text.trim() } : null; 
+    return text.trim().length > 15 ? { resposta: text.trim() } : null; 
   }
 }
 
-async function fetchWithTimeout(url: string, options: any, timeout = 25000) {
+async function fetchWithTimeout(url: string, options: any, timeout = 22000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   try {
@@ -147,23 +150,24 @@ export const chatAIFlow = ai.defineFlow(
     for (const engine of sortedEngines) {
       try {
         const res = await engine.call(input.pergunta, input.historico || []);
-        if (res && res.resposta && res.resposta.length > 5) {
+        if (res && res.resposta && res.resposta.length > 10) {
           return { resposta: res.resposta, engineUtilizada: engine.id.toUpperCase() };
         }
       } catch (e) {
-        console.warn(`[IA] Engine ${engine.id} falhou, tentando próximo...`);
+        // Silencioso, pula para o próximo
       }
     }
 
-    return { resposta: "SISTEMA_INDISPONIVEL_TEMPORARIAMENTE", error: true };
+    // NUNCA retorne texto genérico para o usuário, deixe a interface lidar com o fallback
+    return { error: true, fallback: true };
   }
 );
 
 export async function perguntarIA(input: any) {
   try {
     const res = await chatAIFlow(input);
-    return res || { resposta: "ERRO_SEM_RETORNO", error: true };
+    return res || { error: true, fallback: true };
   } catch (e: any) {
-    return { resposta: "ERRO_CONEXÃO_CRITICA", error: true };
+    return { error: true, fallback: true };
   }
 }
