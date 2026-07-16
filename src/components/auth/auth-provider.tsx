@@ -33,25 +33,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     syncLockRef.current = userId;
 
     try {
-      // Prioridade 1: Buscar por auth_user_id (UUID)
-      let { data: profileData, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('usuarios')
         .select('*')
         .eq('auth_user_id', userId)
         .maybeSingle();
       
-      // Prioridade 2: Se falhar, buscar pelo email do usuário atual (caso de descompasso de ID)
-      if (!profileData || profileError) {
-         const { data: { user } } = await supabase.auth.getUser();
-         if (user?.email) {
-           const { data: altProfile } = await supabase
-             .from('usuarios')
-             .select('*')
-             .eq('email', user.email.toLowerCase().trim())
-             .maybeSingle();
-           profileData = altProfile;
-         }
-      }
+      if (profileError) return null;
 
       if (profileData) {
         setProfile(profileData as UserProfile);
@@ -65,7 +53,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       return null;
     } catch (e) {
-      console.error("Profile load crash:", e);
       return null;
     }
   };
@@ -73,11 +60,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const fetchSession = async () => {
       try {
-        // getUser é mais seguro que getSession para SSR
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setUser(user);
-          await loadProfile(user.id);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+          await loadProfile(session.user.id);
         }
       } catch (e) {
         // Silencioso em produção
