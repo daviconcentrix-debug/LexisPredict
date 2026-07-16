@@ -1,8 +1,7 @@
-
 'use server';
 /**
- * @fileOverview Motor de Consultoria Estratégica v9800.0 ELITE
- * Núcleo: Pentade de Motores Neurais com Resgate de Texto Plano e Filtro de Erros.
+ * @fileOverview Motor de Consultoria Estratégica v9900.0 ELITE
+ * Núcleo: Pentade de Motores Neurais com Detector de Erros de Provedor e Protocolo de Resgate.
  * Proprietário: W1 Capital | Versão: SaaS White-Label
  */
 
@@ -17,24 +16,23 @@ const API_KEYS = {
 
 const SYSTEM_PROMPT = `Você é o Consultor Estratégico Sênior do Gabinete Jurídico Get Assessoria. 
 REGRAS DE OURO:
-1. CURTO E DIRETO. Máximo 8 linhas.
+1. CURTO E DIRETO. Máximo 10 linhas.
 2. Defenda os interesses da Assessoria em todas as respostas.
 3. Se o cliente questionar valores, cite a Cláusula 3.2 do contrato (Custas do Juiz são responsabilidade do cliente).
 4. Tom profissional, transparente e resolutivo.
-5. Assine como Setor Processual.
+5. Assine sempre como Setor Processual.
 RETORNE JSON: { "resposta": "texto_aqui" }`;
 
 /**
- * Função de Limpeza Forense de Resposta IA com Filtro de Erros de API
+ * Limpeza Forense com Filtro de Falsos Positivos (Mensagens de Erro de API)
  */
 function cleanJsonResponse(text: string): any {
   if (!text || typeof text !== 'string') return null;
 
-  // Filtro de Falsos Sucessos (Mensagens de erro dos provedores)
-  const errorIndicators = ['discord.gg', 'rate limit', 'quota exceeded', 'api error', 'unauthorized', '404', 'not found', 'join our server'];
-  const isErrorMessage = errorIndicators.some(indicator => text.toLowerCase().includes(indicator));
+  const textLower = text.toLowerCase();
+  const errorIndicators = ['discord.gg', 'rate limit', 'quota exceeded', 'api error', 'unauthorized', '404', 'not found', 'join our server', 'insufficient balance'];
   
-  if (isErrorMessage) {
+  if (errorIndicators.some(indicator => textLower.includes(indicator))) {
     console.warn("[IA] Detectado erro de provedor no texto, tentando próximo motor...");
     return null; 
   }
@@ -51,17 +49,16 @@ function cleanJsonResponse(text: string): any {
       if (parsed.content) return { resposta: parsed.content };
     }
     
-    // Se não é JSON mas passou pelo filtro de erros, retorna o texto como resposta
-    if (text.length > 10) {
+    if (text.trim().length > 10) {
       return { resposta: text.trim() };
     }
     return null;
   } catch (e) { 
-    return text.length > 10 ? { resposta: text.trim() } : null; 
+    return text.trim().length > 10 ? { resposta: text.trim() } : null; 
   }
 }
 
-async function fetchWithTimeout(url: string, options: any, timeout = 12000) {
+async function fetchWithTimeout(url: string, options: any, timeout = 25000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   try {
@@ -89,20 +86,6 @@ async function callXAI(pergunta: string, historico: any[]) {
   return cleanJsonResponse(data?.choices?.[0]?.message?.content);
 }
 
-async function callAirforce(pergunta: string, historico: any[]) {
-  const res = await fetchWithTimeout('https://api.airforce/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${API_KEYS.AIRFORCE}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'deepseek-v3',
-      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }]
-    })
-  });
-  if (!res?.ok) return null;
-  const data = await res.json();
-  return cleanJsonResponse(data?.choices?.[0]?.message?.content);
-}
-
 async function callGroqLlama(pergunta: string, historico: any[]) {
   const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -117,12 +100,41 @@ async function callGroqLlama(pergunta: string, historico: any[]) {
   return cleanJsonResponse(data?.choices?.[0]?.message?.content);
 }
 
+async function callGroqDeepSeek(pergunta: string, historico: any[]) {
+  const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${API_KEYS.GROQ}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'deepseek-r1-distill-llama-70b',
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }]
+    })
+  });
+  if (!res?.ok) return null;
+  const data = await res.json();
+  return cleanJsonResponse(data?.choices?.[0]?.message?.content);
+}
+
+async function callAirforce(pergunta: string, historico: any[]) {
+  const res = await fetchWithTimeout('https://api.airforce/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${API_KEYS.AIRFORCE}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'deepseek-v3',
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }]
+    })
+  });
+  if (!res?.ok) return null;
+  const data = await res.json();
+  return cleanJsonResponse(data?.choices?.[0]?.message?.content);
+}
+
 export const chatAIFlow = ai.defineFlow(
   { name: 'chatAIFlow', inputSchema: z.any(), outputSchema: z.any() },
   async input => {
     const engines = [
       { id: 'xai', call: callXAI },
-      { id: 'groq-llama', call: callGroqLlama }, // Priorizando Groq sobre Airforce pela estabilidade
+      { id: 'groq-llama', call: callGroqLlama },
+      { id: 'groq-deepseek', call: callGroqDeepSeek },
       { id: 'airforce', call: callAirforce }
     ];
 
@@ -139,7 +151,7 @@ export const chatAIFlow = ai.defineFlow(
           return { resposta: res.resposta, engineUtilizada: engine.id.toUpperCase() };
         }
       } catch (e) {
-        console.warn(`Engine ${engine.id} falhou criticamente, tentando fallback...`);
+        console.warn(`[IA] Engine ${engine.id} falhou, tentando próximo...`);
       }
     }
 
@@ -149,8 +161,9 @@ export const chatAIFlow = ai.defineFlow(
 
 export async function perguntarIA(input: any) {
   try {
-    return await chatAIFlow(input);
+    const res = await chatAIFlow(input);
+    return res || { resposta: "ERRO_SEM_RETORNO", error: true };
   } catch (e: any) {
-    return { resposta: "ERRO_CONEXÃO_NEURAL", error: true };
+    return { resposta: "ERRO_CONEXÃO_CRITICA", error: true };
   }
 }

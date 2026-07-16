@@ -1,5 +1,5 @@
 /**
- * @fileOverview MOTOR DE MENSAGERIA EVOLUTION API v850.0 ELITE
+ * @fileOverview MOTOR DE MENSAGERIA EVOLUTION API v890.0 ELITE
  * Integração estável com Evolution API via Fetch Nativo.
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  */
@@ -42,14 +42,10 @@ async function evolutionRequest(endpoint: string, method: string, data?: any) {
 
 /**
  * Envia mensagem de texto via Evolution API utilizando mapeamento direto.
- * @param to Número no formato 5511999999999
- * @param message Conteúdo da mensagem
  */
 export async function sendTextMessage(to: string, message: string) {
-  // Normalização de número para garantir apenas dígitos e DDI Brasil
   let cleanNumber = to.replace(/\D/g, '');
   
-  // Se o número tiver 10 ou 11 dígitos, assume que falta o DDI 55
   if (cleanNumber.length === 10 || cleanNumber.length === 11) {
     cleanNumber = `55${cleanNumber}`;
   }
@@ -60,7 +56,7 @@ export async function sendTextMessage(to: string, message: string) {
     number: cleanNumber,
     text: message,
     options: {
-      delay: 1200,
+      delay: 1500,
       presence: 'composing',
       linkPreview: true
     }
