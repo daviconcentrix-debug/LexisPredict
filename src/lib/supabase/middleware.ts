@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -5,10 +6,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-/**
- * REPRODUÇÃO DE FALLBACKS PARA AMBIENTES DE BUILD (Netlify/Vercel)
- * Evita erro 500/400 se as variáveis de ambiente não forem injetadas no momento do refresh.
- */
 const DEFAULT_URL = 'https://segjskjlbeydlljnefai.supabase.co';
 const DEFAULT_KEY = 'sb_publishable_yEX6mVid3dpC7o7eOzuB1g_VhQodoTg';
 
@@ -65,13 +62,20 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Recupera o usuário de forma resiliente
+  // Recupera o usuário de forma resiliente usando getUser() (seguro para SSR)
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Redirecionamento de segurança se a sessão estiver corrompida ou expirada
+  // Redirecionamento de segurança: se não houver usuário e não estiver na tela de login/signup, vai para login
   if (!user && !['/login', '/signup'].includes(request.nextUrl.pathname)) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // Redirecionamento de conveniência: se já estiver logado e tentar ir para login, vai para a home
+  if (user && ['/login', '/signup'].includes(request.nextUrl.pathname)) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
     return NextResponse.redirect(url)
   }
 

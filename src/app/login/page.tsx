@@ -45,30 +45,46 @@ export default function LoginPage() {
 
       if (!data.user) throw new Error("Usuário não retornado pelo servidor.");
 
-      // 2. Busca de Perfil por auth_user_id (UUID)
+      // 2. Busca de Perfil por auth_user_id (UUID) - Tentativa de resiliência
       const { data: profile, error: profileError } = await supabase
         .from('usuarios')
         .select('id, auth_user_id, empresa_id, cargo, email')
         .eq('auth_user_id', data.user.id)
-        .single();
+        .maybeSingle();
 
       if (profileError || !profile) {
-        toast({ 
-          title: "Perfil Pendente", 
-          description: "Acesso autorizado, mas o perfil de gabinete não foi localizado. Contate o administrador.", 
-          variant: "destructive" 
-        });
-        setLoading(false);
-        return;
+        // Se o perfil não for encontrado pelo UUID, tentamos pelo e-mail (caso de inconsistência pós-migração)
+        const { data: profileByEmail } = await supabase
+          .from('usuarios')
+          .select('id, auth_user_id, empresa_id, cargo, email')
+          .eq('email', cleanEmail)
+          .maybeSingle();
+        
+        if (!profileByEmail) {
+          toast({ 
+            title: "Perfil Pendente", 
+            description: "Acesso autorizado, mas o perfil de gabinete não foi localizado. Contate o administrador.", 
+            variant: "destructive" 
+          });
+          setLoading(false);
+          return;
+        }
       }
 
+      const finalProfile = profile || (await supabase.from('usuarios').select('*').eq('email', cleanEmail).maybeSingle()).data;
+
       // 3. Persistência de Identidade para Server Actions
-      document.cookie = `lexis_user_email=${profile.email}; path=/; max-age=31536000; samesite=lax`;
+      if (finalProfile) {
+        document.cookie = `lexis_user_email=${finalProfile.email}; path=/; max-age=31536000; samesite=lax`;
+      }
 
       toast({ title: "Acesso Autorizado", description: "Sincronizando ambiente de gabinete..." });
-      router.push('/');
-      router.refresh();
+      
+      // Forçamos o reload completo para garantir que o middleware e os cookies de sessão SSR sejam validados
+      window.location.href = '/';
+      
     } catch (error: any) {
+      console.error("Login Error:", error);
       toast({ 
         title: "Erro de Conexão", 
         description: "Falha na comunicação com o servidor de segurança.", 
