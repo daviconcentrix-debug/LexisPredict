@@ -91,15 +91,17 @@ export default function Dashboard() {
 
   const metrics = useMemo(() => {
     const totalRepo = cases.length;
-    const ativos = cases.filter(c => !['Encerrado', 'Arquivado', 'Extinto', 'Suspenso'].includes(c.situacao));
+    // Situação normalizada para Uppercase
+    const ativos = cases.filter(c => !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase()));
     const activeDemands = ativos.length;
     
-    const vencidos = cases.filter(c => c.status === 'Vencido' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
-    const venceHoje = cases.filter(c => c.status === 'É Hoje' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
-    const atencao = cases.filter(c => c.status === 'Atenção' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
-    const noPrazo = cases.filter(c => c.status === 'No Prazo' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length; 
-    const semPrazo = cases.filter(c => (c.status === 'Sem Prazo' || !c.proximoPrazo) && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
-    const finalizados = cases.filter(c => ['Encerrado', 'Arquivado'].includes(c.situacao)).length;
+    const vencidos = cases.filter(c => c.status === 'Vencido' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
+    const venceHoje = cases.filter(c => c.status === 'É Hoje' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
+    const atencao = cases.filter(c => c.status === 'Atenção' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
+    const noPrazo = cases.filter(c => c.status === 'No Prazo' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length; 
+    const semPrazo = cases.filter(c => (c.status === 'Sem Prazo' || !c.proximoPrazo) && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
+    
+    const finalizados = cases.filter(c => ['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase()) || c.status === 'Arquivado' || c.status === 'Encerrado').length;
 
     const vencidosArray = cases.filter(c => c.status === 'Vencido' && c.diasFaltando !== null);
     const tempoMedio = vencidosArray.length > 0 
@@ -234,7 +236,7 @@ export default function Dashboard() {
                     </thead>
                     <tbody>
                       {cases
-                        .filter(c => ['Vencido', 'É Hoje', 'Atenção'].includes(c.status) && !['Encerrado', 'Arquivado'].includes(c.situacao))
+                        .filter(c => ['Vencido', 'É Hoje', 'Atenção'].includes(c.status) && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase()))
                         .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
                         .slice(0, 50)
                         .map((c) => (
