@@ -1,5 +1,6 @@
+
 /**
- * @fileOverview Serviço de Integração com a API Pública do DataJud (CNJ) v940.0
+ * @fileOverview Serviço de Integração com a API Pública do DataJud (CNJ) v2700.0
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -14,24 +15,16 @@ export const COURT_ALIASES: Record<string, string> = {
 };
 
 export async function fetchDataJud(cnj: string) {
-  const DATAJUD_API_KEY = 'cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw==';
+  const DATAJUD_API_KEY = process.env.DATAJUD_API_KEY;
   
   const cnjLimpo = cnj.replace(/\D/g, '');
-  if (cnjLimpo.length !== 20) throw new Error("CNJ_INVALIDO_TAMANHO");
+  if (cnjLimpo.length !== 20) return null;
   
   const aliasPart = `${cnjLimpo[13]}.${cnjLimpo.substring(14, 16)}`;
   const alias = COURT_ALIASES[aliasPart] || "tjsp";
 
   const url = `https://api-publica.datajud.cnj.jus.br/api_publica_${alias}/_search`;
   
-  const payload = {
-    query: {
-      term: {
-        "numeroProcesso.keyword": cnjLimpo
-      }
-    }
-  };
-
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -39,18 +32,26 @@ export async function fetchDataJud(cnj: string) {
         'Authorization': 'APIKey ' + DATAJUD_API_KEY,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        query: { term: { "numeroProcesso.keyword": cnjLimpo } }
+      }),
+      signal: AbortSignal.timeout(15000)
     });
 
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) throw new Error("DATAJUD_API_KEY_INVALIDA");
-      return null;
-    }
+    if (!response.ok) return { numeroProcesso: cnj, movimentos: [], error: true };
     
     const data = await response.json();
-    return data.hits?.hits?.[0]?._source || null;
-  } catch (error: any) {
-    console.error("[DataJud] Error:", error.message);
-    return null;
+    const source = data.hits?.hits?.[0]?._source;
+    
+    if (!source) return { numeroProcesso: cnj, movimentos: [], error: false };
+
+    return {
+      numeroProcesso: source.numeroProcesso || cnjLimpo,
+      classe: source.classe?.nome || 'N/A',
+      tribunal: source.tribunal || alias.toUpperCase(),
+      movimentos: source.movimentos || []
+    };
+  } catch {
+    return { numeroProcesso: cnj, movimentos: [], error: true };
   }
 }

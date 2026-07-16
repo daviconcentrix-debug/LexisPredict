@@ -1,13 +1,14 @@
+
 /**
- * @fileOverview MOTOR DE MENSAGERIA EVOLUTION API v890.0 ELITE
+ * @fileOverview MOTOR DE MENSAGERIA EVOLUTION API v2700.0 ELITE
  * Integração estável com Evolution API via Fetch Nativo.
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  */
 
 const EVOLUTION_CONFIG = {
-  baseUrl: 'https://evolution-api-0edm.onrender.com',
-  apiKey: 'lexis2026',
-  instanceName: 'Lexis'
+  baseUrl: process.env.EVOLUTION_BASE_URL || 'https://evolution-api-0edm.onrender.com',
+  apiKey: process.env.EVOLUTION_API_KEY || 'lexis2026',
+  instanceName: process.env.EVOLUTION_INSTANCE || 'Lexis'
 };
 
 /**

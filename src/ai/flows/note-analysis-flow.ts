@@ -1,8 +1,9 @@
+
 'use server';
 /**
- * @fileOverview Motor de Auditoria Operacional Jurídica v230000.0 ELITE
+ * @fileOverview Motor de Auditoria Operacional Jurídica v2700.0 ELITE
  * Analisa anotações para extrair pontos fortes e riscos detectados.
- * Estratégia: Triagem Local (Keywords) + Refinamento Neural (xAI/DeepSeek).
+ * Motor: Grok 4.5.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -10,29 +11,22 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const API_KEYS = {
-  XAI: 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE',
-  AIRFORCE: 'sk-air-Rxc7ygo5b0XpkZqUBqwSnhjwS0bZbWFnzwRLjfPtdAbYK6nj'
+  XAI: process.env.XAI_API_KEY,
+  AIRFORCE: process.env.AIRFORCE_API_KEY
 };
 
-/**
- * Motor de Inteligência de Evidências v230000.0 ELITE (Local & Offline)
- * Realiza a classificação imediata baseada em padrões de gabinete.
- */
 export async function analisarEvidenciasLocais(notas: string[]) {
   const pontosFortes: string[] = [];
   const riscosDetectados: string[] = [];
 
-  // 1. Unifica e limpa o texto, removendo timestamps do sistema
   const textoUnificado = notas.join('\n')
-    .replace(/\d{2}\/\d{2}\/\d{4},\s\d{2}:\d{2}:\d{2}/g, '') // Remove HH:MM:SS do sistema
-    .replace(/(dia\s+)?\d{2}\/\d{2}\/\d{4}/gi, '');        // Remove datas isoladas que confundem o motor
+    .replace(/\d{2}\/\d{2}\/\d{4},\s\d{2}:\d{2}:\d{2}/g, '')
+    .replace(/(dia\s+)?\d{2}\/\d{2}\/\d{4}/gi, '');
 
-  // 2. Divide em linhas/tópicos para análise cirúrgica
   const linhas = textoUnificado.split('\n')
     .map(l => l.trim().replace(/^-\s*/, ''))
     .filter(l => l.length > 5);
 
-  // Dicionário de palavras-chave para classificação inteligente
   const keywordsRisco = [
     'falha', 'erro', 'critico', 'crítico', 'atrasado', 'reclamar', 
     'reclame aqui', 'não assinou', 'busca e apreensão', 'vencido', 'problema'
@@ -46,10 +40,7 @@ export async function analisarEvidenciasLocais(notas: string[]) {
 
   linhas.forEach(linha => {
     const linhaMinuscula = linha.toLowerCase();
-
-    // Verifica se a linha indica um risco/negativo
     const ehRisco = keywordsRisco.some(kw => linhaMinuscula.includes(kw));
-    // Verifica se indica um ponto forte
     const ehForca = keywordsForca.some(kw => linhaMinuscula.includes(kw));
 
     if (ehRisco) {
@@ -98,6 +89,7 @@ function cleanJsonResponse(text: string): any {
 
 async function callNeuralEngine(text: string) {
   try {
+    if (!API_KEYS.XAI) throw new Error();
     const res = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${API_KEYS.XAI}`, 'Content-Type': 'application/json' },
@@ -105,20 +97,23 @@ async function callNeuralEngine(text: string) {
         model: 'grok-4.5',
         messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `RELATÓRIO:\n${text}` }],
         response_format: { type: 'json_object' }
-      })
+      }),
+      signal: AbortSignal.timeout(25000)
     });
     if (!res.ok) throw new Error();
     const data = await res.json();
     return cleanJsonResponse(data?.choices?.[0]?.message?.content);
   } catch {
     try {
+      if (!API_KEYS.AIRFORCE) return null;
       const res = await fetch('https://api.airforce/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${API_KEYS.AIRFORCE}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'deepseek-v3',
           messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `RELATÓRIO:\n${text}` }]
-        })
+        }),
+        signal: AbortSignal.timeout(25000)
       });
       const data = await res.json();
       return cleanJsonResponse(data?.choices?.[0]?.message?.content);
@@ -130,12 +125,8 @@ export const noteAnalysisFlow = ai.defineFlow(
   { name: 'noteAnalysisFlow', inputSchema: z.any(), outputSchema: z.any() },
   async (input) => {
     const rawNotes = input.notes.map((n: any) => `${n.title}: ${n.content}`);
-    
-    // 1. ANÁLISE LOCAL (IMEDIATA)
     const localResult = await analisarEvidenciasLocais(rawNotes);
     
-    // 2. REFINAMENTO NEURAL (OPCIONAL/FALLBACK)
-    // Tenta enriquecer a análise se houver conteúdo suficiente
     if (rawNotes.join(' ').length > 20) {
       const neuralResult = await callNeuralEngine(rawNotes.join('\n'));
       if (neuralResult && (neuralResult.pontosFortes?.length || neuralResult.riscosDetectados?.length)) {

@@ -24,7 +24,8 @@ import {
   ChevronRight,
   UserPlus,
   Repeat,
-  Shield
+  Shield,
+  Bot
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -66,6 +67,7 @@ export function Sidebar() {
     {
       title: t.operations,
       items: [
+        { label: "Chatbot IA", href: '/chat-ia', icon: Bot },
         { label: t.audit, href: '/veredito', icon: FileSearch },
         { label: t.documents, href: '/documents', icon: FileText },
         { label: t.habilitacaoPeca, href: '/habilitacao-peca', icon: Shield },
@@ -95,7 +97,7 @@ export function Sidebar() {
           {!collapsed && (
             <div className="flex flex-col">
               <span className="font-bold text-[11px] tracking-widest uppercase">LexisPredict</span>
-              <span className="text-[8px] text-primary font-bold uppercase tracking-[0.2em]">Elite v8.5</span>
+              <span className="text-[8px] text-primary font-bold uppercase tracking-[0.2em]">Elite v15.0</span>
             </div>
           )}
         </div>

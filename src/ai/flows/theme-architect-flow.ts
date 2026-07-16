@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Neural Theme Architect v7500.0 Elite
+ * @fileOverview Neural Theme Architect v2700.0 Elite
  * Motor: xAI Grok 4.5
  * Transforma inspiração natural em sistemas visuais técnicos com validação de contraste rigorosa.
  */
@@ -9,7 +9,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const XAI_API_KEY = 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE';
+const XAI_API_KEY = process.env.XAI_API_KEY;
 
 const ThemeOutputSchema = z.object({
   background: z.string().describe('Hex color for background'),
@@ -44,6 +44,7 @@ export async function generateNeuralTheme(prompt: string): Promise<z.infer<typeo
   }`;
 
   try {
+    if (!XAI_API_KEY) throw new Error("API Offline");
     const response = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${XAI_API_KEY}`, 'Content-Type': 'application/json' },

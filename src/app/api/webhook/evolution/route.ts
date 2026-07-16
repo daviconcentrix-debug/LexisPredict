@@ -1,5 +1,6 @@
 /**
- * @fileOverview Webhook Evolution API → Supabase
+ * @fileOverview Webhook Evolution API → Supabase v2500.0 ELITE
+ * Soberania de Dados com Service Role Key e Normalização de DDI 55.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -14,62 +15,45 @@ export async function POST(request: Request) {
   try {
     const payload = await request.json();
 
-    // Aceita MESSAGES_UPSERT
     if (payload.event !== 'MESSAGES_UPSERT') {
-      return NextResponse.json({ status: 'ignored', event: payload.event });
+      return NextResponse.json({ status: 'ignored' });
     }
 
     const data = payload.data;
-    if (!data) {
-      return NextResponse.json({ status: 'no_data' });
-    }
+    if (!data || !data.message) return NextResponse.json({ status: 'no_data' });
 
-    const instanceName = payload.instance || 'Lexis';
-    const messageId = data.key?.id || '';
-    const fromMe = data.key?.fromMe || false;
     const remoteJid = data.key?.remoteJid || '';
-    const contactNumber = remoteJid.split('@')[0];
-    const contactName = data.pushName || 'Contato WhatsApp';
-
-    // Extração de texto
-    const message = data.message || {};
-    let messageText = '';
-
-    if (message.conversation) {
-      messageText = message.conversation;
-    } else if (message.extendedTextMessage?.text) {
-      messageText = message.extendedTextMessage.text;
-    } else if (message.imageMessage?.caption) {
-      messageText = message.imageMessage.caption;
-    } else if (message.videoMessage?.caption) {
-      messageText = message.videoMessage.caption;
+    let contactNumber = remoteJid.split('@')[0].replace(/\D/g, '');
+    
+    // Normalização Global DDI 55
+    if (contactNumber.length === 10 || contactNumber.length === 11) {
+      contactNumber = `55${contactNumber}`;
     }
 
-    const timestamp = data.messageTimestamp
-      ? new Date(Number(data.messageTimestamp) * 1000).toISOString()
-      : new Date().toISOString();
+    const message = data.message;
+    let messageText = message.conversation || 
+                      message.extendedTextMessage?.text || 
+                      message.imageMessage?.caption || 
+                      message.videoMessage?.caption || 
+                      '';
 
     const { error } = await supabase
       .from('whatsapp_messages')
       .insert({
-        instance_name: instanceName,
+        instance_name: payload.instance || 'Lexis',
         contact_number: contactNumber,
-        contact_name: contactName,
-        message_id: messageId,
+        contact_name: data.pushName || 'Contato WhatsApp',
+        message_id: data.key?.id || '',
         message_text: messageText,
-        from_me: fromMe,
-        timestamp: timestamp,
+        from_me: data.key?.fromMe || false,
+        timestamp: new Date(Number(data.messageTimestamp || Date.now() / 1000) * 1000).toISOString(),
         raw_payload: payload
       });
 
-    if (error) {
-      console.error('[Webhook] Erro ao salvar no Supabase:', error.message);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    if (error) console.error('[Webhook Error]', error.message);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('[Webhook] Erro crítico:', error.message);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Error' }, { status: 500 });
   }
 }

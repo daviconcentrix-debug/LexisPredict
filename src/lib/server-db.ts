@@ -5,8 +5,7 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v200.0 ELITE)
- * Estratégia de Isolamento de Gabinete: Multi-tenancy por Empresa e Usuário.
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v1700.0 ELITE)
  */
 
 async function getUserContext() {
@@ -39,10 +38,6 @@ export async function getStoredCases(): Promise<LegalCase[]> {
       .from('processos')
       .select('*')
       .eq('empresa_id', empresa_id);
-
-    if (role === 'operador') {
-      query = query.eq('created_by', auth_id);
-    }
 
     const { data, error } = await query.order('created_at', { ascending: false });
 
@@ -119,10 +114,6 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
       .select('*')
       .eq('empresa_id', empresa_id);
 
-    if (role === 'operador') {
-      query = query.eq('created_by', auth_id);
-    }
-
     const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -175,11 +166,15 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
 }
 
 /**
- * MOTOR DE HISTÓRICO WHATSAPP
- * Busca mensagens capturadas via Webhook do Supabase.
+ * MOTOR DE HISTÓRICO WHATSAPP (Sincronização DDI Normalizada)
  */
 export async function getWhatsAppHistory(contactNumber: string) {
-  const cleanNum = contactNumber.replace(/\D/g, '');
+  let cleanNum = contactNumber.replace(/\D/g, '');
+  
+  // Normalização de DDI para busca resiliente
+  if (cleanNum.length === 10 || cleanNum.length === 11) {
+     cleanNum = `55${cleanNum}`;
+  }
   
   const { data, error } = await supabase
     .from('whatsapp_messages')

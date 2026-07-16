@@ -1,8 +1,8 @@
+
 'use server';
 /**
- * @fileOverview Motor de Auditoria 3D v940.0 ELITE
- * Núcleo: Pentade de Motores Neurais com Triagem de Dados do DataJud.
- * Integrado ao fluxo de Comunicação WhatsApp.
+ * @fileOverview Motor de Auditoria 3D v2700.0 ELITE
+ * Soberania Grok 4.5 integrada com DataJud.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -11,26 +11,20 @@ import {z} from 'genkit';
 import {fetchDataJud} from '@/lib/datajud';
 
 const API_KEYS = {
-  XAI: 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE',
-  GROQ: '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'
+  XAI: process.env.XAI_API_KEY,
+  AIRFORCE: process.env.AIRFORCE_API_KEY,
+  GROQ: process.env.GROQ_API_KEY
 };
 
-const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI Elite do Gabinete Jurídico Get Assessoria. 
-Analise os dados processuais (DataJud ou Histórico Bruto) e retorne um parecer técnico-comercial em JSON.
-
-REGRAS DE OURO:
-1. RESUMO DIRETO (MÁX 6 LINHAS).
-2. Defenda os interesses da Assessoria.
-3. Se houver menção a custos, cite a Cláusula 3.2 do contrato.
-4. Gere uma 'mensagemCliente' pronta para WhatsApp, cordial e profissional.
-5. Se não houver dados claros, sugira que a equipe técnica está analisando.
+const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI Elite v2700. 
+Analise os dados processuais e retorne um parecer rigoroso em JSON.
 
 FORMATO JSON OBRIGATÓRIO:
 { 
-  "resumoTecnico": "O que aconteceu no processo", 
-  "analiseRisco": "Risco baseado na Cláusula 3.2", 
-  "proximosPassos": "O que o escritório vai fazer agora", 
-  "mensagemCliente": "Texto pronto para enviar ao cliente no WhatsApp assinado pelo Setor Processual" 
+  "resumoTecnico": "Máximo 6 linhas", 
+  "analiseRisco": "Baseada na Cláusula 3.2", 
+  "proximosPassos": "Estratégia operativa", 
+  "mensagemCliente": "Texto para WhatsApp assinado pelo Setor Processual" 
 }`;
 
 function cleanJsonResponse(text: string): any {
@@ -42,62 +36,62 @@ function cleanJsonResponse(text: string): any {
     if (firstBrace !== -1 && lastBrace !== -1) {
       return JSON.parse(clean.substring(firstBrace, lastBrace + 1));
     }
-    // Resgate de Texto Plano caso o JSON falhe
-    if (text.length > 20) {
-      return { resumoTecnico: text.substring(0, 500), mensagemCliente: text };
-    }
-    return null;
-  } catch (e) { return null; }
+    return {
+      resumoTecnico: text.substring(0, 300),
+      analiseRisco: "Análise técnica em andamento.",
+      proximosPassos: "Monitoramento mantido.",
+      mensagemCliente: text
+    };
+  } catch { return null; }
 }
 
-async function callNeuralEngine(context: string, preferredModel: string = 'xai') {
-  const engineUrl = preferredModel === 'xai' ? 'https://api.x.ai/v1/chat/completions' : 'https://api.groq.com/openai/v1/chat/completions';
-  const apiKey = preferredModel === 'xai' ? API_KEYS.XAI : API_KEYS.GROQ;
-  const modelName = preferredModel === 'xai' ? 'grok-4.5' : 'llama-3.3-70b-versatile';
+async function callNeuralEngine(context: string) {
+  const engines = [
+    { id: 'xai-grok4.5', url: 'https://api.x.ai/v1/chat/completions', key: API_KEYS.XAI, model: 'grok-4.5', useJson: true },
+    { id: 'airforce-deepseek', url: 'https://api.airforce/v1/chat/completions', key: API_KEYS.AIRFORCE, model: 'deepseek-v3', useJson: false },
+    { id: 'groq-llama', url: 'https://api.groq.com/openai/v1/chat/completions', key: API_KEYS.GROQ, model: 'llama-3.3-70b-versatile', useJson: false }
+  ];
 
-  try {
-    const res = await fetch(engineUrl, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: modelName,
-        messages: [{ role: 'system', content: SYSTEM_INSTRUCTIONS }, { role: 'user', content: context }],
-        response_format: preferredModel === 'xai' ? { type: 'json_object' } : undefined
-      })
-    });
-    
-    if (!res.ok) return null;
-    const data = await res.json();
-    return cleanJsonResponse(data?.choices?.[0]?.message?.content);
-  } catch (e) { return null; }
+  for (const engine of engines) {
+    if (!engine.key) continue;
+    try {
+      const res = await fetch(engine.url, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${engine.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: engine.model,
+          messages: [{ role: 'system', content: SYSTEM_INSTRUCTIONS }, { role: 'user', content: context }],
+          response_format: engine.useJson ? { type: 'json_object' } : undefined
+        }),
+        signal: AbortSignal.timeout(45000)
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const parsed = cleanJsonResponse(data?.choices?.[0]?.message?.content);
+      if (parsed) return { ...parsed, engineUsed: engine.id.toUpperCase() };
+    } catch { continue; }
+  }
+  return null;
 }
 
 export const vereditoAIFlow = ai.defineFlow(
   { name: 'vereditoAIFlow', inputSchema: z.any(), outputSchema: z.any() },
   async input => {
     try {
-      let dataContext = "";
-      
-      // 1. Tenta DataJud
       const dataJudData = await fetchDataJud(input.cnj);
-      if (dataJudData) {
-        dataContext = `DADOS DATAJUD: ${JSON.stringify(dataJudData).substring(0, 10000)}`;
-      } else if (input.historicoBruto) {
-        // 2. Se DataJud falhar, usa o histórico colado pelo usuário
-        dataContext = `HISTÓRICO BRUTO DO TRIBUNAL: ${input.historicoBruto.substring(0, 10000)}`;
-      } else {
-        return { error: true, message: "DADOS_INSUFICIENTES" };
-      }
+      const context = (dataJudData && !dataJudData.error)
+        ? `DADOS DATAJUD: ${JSON.stringify(dataJudData)}` 
+        : `HISTÓRICO MANUAL: ${input.historicoBruto || "Sem dados de tribunal."}`;
 
-      const result = await callNeuralEngine(dataContext, input.preferredModel || 'xai');
+      const result = await callNeuralEngine(context);
       
-      if (result) {
-        return { ...result, success: true, source: dataJudData ? 'DATAJUD' : 'MANUAL' };
-      }
-
-      return { error: true, message: "FALHA_NA_ANALISE" };
+      return { 
+        ...result, 
+        success: !!result,
+        dataJudRaw: dataJudData || { numeroProcesso: input.cnj, movimentos: [] } 
+      };
     } catch (e) {
-      return { error: true, message: "ERRO_INTERNO" };
+      return { error: true, message: "ERRO_SISTEMICO", dataJudRaw: { numeroProcesso: input.cnj, movimentos: [] } };
     }
   }
 );

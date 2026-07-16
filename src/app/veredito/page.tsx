@@ -1,8 +1,27 @@
 "use client";
+/**
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved. See LICENSE file.
+ */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
-import { FileSearch, History, FileText, Search, Copyright, Send, Bot, Clock, Copy, MessageCircle, Zap, Loader2, AlertCircle } from 'lucide-react';
+import { 
+  FileSearch, 
+  History, 
+  FileText, 
+  Search, 
+  Copyright, 
+  Send, 
+  Bot, 
+  Clock, 
+  Copy, 
+  MessageCircle, 
+  Zap, 
+  Loader2, 
+  AlertCircle,
+  Gavel
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -56,20 +75,27 @@ export default function VereditoPage() {
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!cnj || loading) return;
+    
     setLoading(true);
     setResult(null);
     setChatMessages([]);
     setApiError(null);
+    
     try {
       const data = await executarVereditoAI({ cnj, preferredModel: model });
       if (isMounted.current) {
-        setResult(data);
-        toast({ title: "Auditoria Gerada" });
+        if (data.error) {
+           setApiError({ engine: model, message: data.message });
+           toast({ title: "Falha na Triagem", description: data.message, variant: "destructive" });
+        } else {
+           setResult(data);
+           toast({ title: "Auditoria 3D Concluída" });
+        }
       }
     } catch (error: any) {
       if (isMounted.current) {
-        setApiError({ engine: model, message: error.message });
-        toast({ title: "Erro na Auditoria", description: "O motor falhou. Tente alternar o núcleo técnico.", variant: "destructive" });
+        setApiError({ engine: model, message: "Instabilidade no motor neural." });
+        toast({ title: "Erro Crítico", variant: "destructive" });
       }
     } finally {
       if (isMounted.current) setLoading(false);
@@ -84,7 +110,7 @@ export default function VereditoPage() {
     setModel(nextIA);
     localStorage.setItem('lexisPredict_preferred_ia', nextIA);
     setApiError(null);
-    toast({ title: "Motor Alternado", description: `Migrando para ${nextIA.toUpperCase()}...` });
+    toast({ title: "Migrando Motor", description: `Iniciando via ${nextIA.toUpperCase()}...` });
     setTimeout(() => handleSearch(), 500);
   };
 
@@ -94,24 +120,23 @@ export default function VereditoPage() {
 
     const userMsg = { role: 'user', content: chatInput };
     setChatMessages(prev => [...prev, userMsg]);
+    const currentInput = chatInput;
     setChatInput('');
     setChatLoading(true);
 
     try {
-      const context = `Contexto Procedural. DataJud: ${JSON.stringify(result.dataJudRaw)}. Resumo: ${result.resumoTecnico}. Pergunta: ${chatInput}`;
+      const context = `Contexto Auditoria. DataJud: ${JSON.stringify(result.dataJudRaw)}. Resumo Anterior: ${result.resumoTecnico}. Pergunta: ${currentInput}`;
       const response = await perguntarIA({ 
         pergunta: context, 
         historico: chatMessages.slice(-6),
         preferredModel: model
       });
 
-      if (isMounted.current) {
-        if (response) {
-          setChatMessages(prev => [...prev, { role: 'assistant', content: response.resposta }]);
-        }
+      if (isMounted.current && response) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: response.resposta }]);
       }
     } catch (error: any) {
-      if (isMounted.current) toast({ title: "Falha na Resposta", description: error.message, variant: "destructive" });
+      if (isMounted.current) toast({ title: "Falha na Resposta", variant: "destructive" });
     } finally {
       if (isMounted.current) setChatLoading(false);
     }
@@ -119,21 +144,24 @@ export default function VereditoPage() {
 
   const handleApiSend = async () => {
     if (!result || !result.mensagemCliente || sendingApi) return;
+    
+    // Tenta obter telefone dos dados do DataJud ou solicita manual
     const phone = result.dataJudRaw?.contatoTelefone || "";
     if (!phone) {
-      toast({ title: "Telefone Ausente", description: "O cadastro do DataJud não retornou telefone.", variant: "destructive" });
+      toast({ title: "Aviso de Envio", description: "Telefone não identificado no DataJud. Use o link manual.", variant: "destructive" });
       return;
     }
+
     setSendingApi(true);
     try {
       const res = await sendWhatsAppAction(phone, result.mensagemCliente);
       if (res.success) {
-        toast({ title: "Enviado via Evolution API", description: "Despacho entregue com sucesso." });
+        toast({ title: "Evolution API: Sucesso", description: "Despacho entregue." });
       } else {
-        toast({ title: "Falha no Envio", description: res.message, variant: "destructive" });
+        toast({ title: "Falha no Envio API", description: res.message, variant: "destructive" });
       }
     } catch (err) {
-      toast({ title: "Erro de Conexão", description: "Falha ao atingir o motor Evolution.", variant: "destructive" });
+      toast({ title: "Erro de Conexão", variant: "destructive" });
     } finally {
       setSendingApi(false);
     }
@@ -141,111 +169,114 @@ export default function VereditoPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: "Copiado" });
+    toast({ title: "Copiado para Área de Transferência" });
   };
 
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden text-black relative z-20">
-        <header className="h-auto bg-white border-b border-[#dddbda] px-6 py-4 lg:py-6 shrink-0 z-40">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden text-black relative">
+        <header className="h-auto bg-white border-b border-[#dddbda] px-6 py-6 shrink-0 z-40">
           <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-            <div className="flex items-center gap-4 lg:gap-6 pl-10 lg:pl-0">
-              <div className="icon-3d-wrapper shrink-0 scale-75 lg:scale-100">
-                <div className="icon-3d-block black w-10 lg:w-14 h-10 lg:h-14 rounded-md">
+            <div className="flex items-center gap-6">
+              <div className="icon-3d-wrapper shrink-0">
+                <div className="icon-3d-block black w-14 h-14 rounded-md">
                   <FileSearch size={32} className="text-white" />
                 </div>
               </div>
               <div>
-                <p className="text-[9px] lg:text-[11px] font-black uppercase tracking-widest opacity-60">Auditoria 3D Elite</p>
-                <h1 className="text-sm lg:text-xl font-black uppercase truncate max-w-[200px] lg:max-w-none">
-                  {result ? `Processo ${result.dataJudRaw?.numeroProcesso}` : "Nova Triagem Técnica"}
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Unidade de Auditoria 3D</p>
+                <h1 className="text-xl font-black uppercase tracking-tighter">
+                  {result ? `Processo ${result.dataJudRaw?.numeroProcesso || cnj}` : "Triagem Técnica de Gabinete"}
                 </h1>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Select value={model} onValueChange={(val) => { setModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); }}>
-                <SelectTrigger className="w-[180px] border-2 border-black font-black uppercase text-[10px] h-10 rounded-none bg-white">
+                <SelectTrigger className="w-[200px] border-2 border-black font-black uppercase text-[10px] h-11 rounded-none bg-white">
                   <SelectValue placeholder="Motor Neural" />
                 </SelectTrigger>
                 <SelectContent className="bg-white border-2 border-black rounded-none">
-                  <SelectItem value="xai" className="font-black uppercase text-[10px]">xAI Grok 4.5</SelectItem>
+                  <SelectItem value="xai" className="font-black uppercase text-[10px]">xAI Grok 4.5 Elite</SelectItem>
                   <SelectItem value="airforce" className="font-black uppercase text-[10px]">Airforce DeepSeek</SelectItem>
                   <SelectItem value="groq-llama" className="font-black uppercase text-[10px]">Groq Llama 3.3</SelectItem>
                   <SelectItem value="groq-deepseek" className="font-black uppercase text-[10px]">Groq DeepSeek R1</SelectItem>
                 </SelectContent>
               </Select>
               {result && (
-                <Badge className="bg-black text-white font-black uppercase text-[8px] lg:text-[10px] px-2 lg:px-3 py-1 border-none flex items-center gap-1 whitespace-nowrap rounded-none">
-                  <Zap size={10} className="text-yellow-500 fill-yellow-500" /> Active
+                <Badge className="bg-black text-white font-black uppercase text-[10px] px-4 py-2 flex items-center gap-2 rounded-none">
+                  <Zap size={12} className="text-yellow-400 fill-yellow-400" /> Motor Ativo
                 </Badge>
               )}
             </div>
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-4 lg:p-6 relative z-30">
+        <div className="flex-1 overflow-auto p-6 relative">
           <div className="max-w-7xl mx-auto space-y-6">
             {!result && (
-              <div className="max-w-2xl mx-auto py-12 lg:py-20 text-center space-y-8">
+              <div className="max-w-2xl mx-auto py-20 text-center space-y-8">
                 {apiError && (
-                  <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 rounded-none shadow-[4px_4px_0px_#000] text-left">
-                    <AlertCircle className="h-4 w-4" />
+                  <Alert variant="destructive" className="border-2 border-red-600 bg-red-50 rounded-none shadow-[6px_6px_0px_#000] text-left">
+                    <AlertCircle className="h-5 w-5" />
                     <AlertTitle className="font-black uppercase text-xs">Erro de Triagem</AlertTitle>
-                    <AlertDescription className="flex flex-col gap-3 mt-2">
-                      <p className="text-[10px] font-bold uppercase">O motor {apiError.engine.toUpperCase()} falhou. Tentando alternar...</p>
-                      <Button onClick={handleSwitchAndRetry} className="bg-red-600 text-white border-2 border-black h-9 font-black uppercase text-[9px] rounded-none hover:bg-black transition-all w-fit px-6">
-                        Trocar Motor & Re-tentar
+                    <AlertDescription className="mt-2 space-y-3">
+                      <p className="text-[10px] font-bold uppercase">Motor {apiError.engine.toUpperCase()} indisponível ou CNJ não localizado.</p>
+                      <Button onClick={handleSwitchAndRetry} className="bg-black text-white border-2 border-black h-10 font-black uppercase text-[9px] rounded-none hover:bg-white hover:text-black transition-all px-6">
+                        Alternar Motor Neural & Tentar Novamente
                       </Button>
                     </AlertDescription>
                   </Alert>
                 )}
 
-                <h2 className="text-xl lg:text-3xl font-black tracking-tighter uppercase">Unidade de Triagem Técnica</h2>
-                <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3 bg-white p-2 rounded-none border-2 border-black shadow-xl relative z-50">
+                <h2 className="text-3xl font-black tracking-tighter uppercase">Audit 3D Elite</h2>
+                <p className="text-sm font-black text-black/40 uppercase tracking-widest">Insira o CNJ para iniciar a triagem neural completa.</p>
+                
+                <form onSubmit={handleSearch} className="flex gap-3 bg-white p-3 border-2 border-black shadow-[10px_10px_0px_#000]">
                   <Input 
-                    placeholder="CNJ (20 DÍGITOS)..." 
+                    placeholder="DIGITE O CNJ (20 DÍGITOS)..." 
                     value={cnj} 
                     onChange={(e) => setCnj(e.target.value)} 
-                    className="border-none h-12 lg:h-14 text-sm lg:text-lg focus-visible:ring-0 font-mono text-black bg-white rounded-none flex-1" 
+                    className="border-none h-14 text-xl focus-visible:ring-0 font-mono text-black bg-white rounded-none flex-1" 
                   />
-                  <Button type="submit" disabled={loading} className="h-12 lg:h-14 px-8 rounded-none bg-black text-white font-black uppercase text-[10px] border-2 border-black">
-                    {loading ? "Auditando..." : "Realizar Auditoria"}
+                  <Button type="submit" disabled={loading} className="h-14 px-10 rounded-none bg-black text-white font-black uppercase text-[10px] border-2 border-black hover:bg-white hover:text-black transition-all">
+                    {loading ? <Loader2 className="animate-spin mr-2" /> : <Search size={18} className="mr-2" />}
+                    Realizar Auditoria
                   </Button>
                 </form>
               </div>
             )}
 
             {result && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-12">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
                 <div className="lg:col-span-2 space-y-6">
                   <Tabs defaultValue="details" className="w-full">
-                    <TabsList className="bg-[#e2e2e2] p-1 h-11 w-full justify-start rounded-none mb-0 border-2 border-black border-b-0 overflow-x-auto">
-                      <TabsTrigger value="details" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-[10px] lg:text-xs px-4 lg:px-6 h-9 uppercase rounded-none">Parecer de Gabinete</TabsTrigger>
-                      <TabsTrigger value="whatsapp" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-[10px] lg:text-xs px-4 lg:px-6 h-9 uppercase rounded-none">Comunicação WhatsApp</TabsTrigger>
-                      <TabsTrigger value="chatter" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-[10px] lg:text-xs px-4 lg:px-6 h-9 uppercase rounded-none">Consultoria Neural</TabsTrigger>
+                    <TabsList className="bg-gray-200 p-1 h-12 w-full justify-start rounded-none mb-0 border-2 border-black border-b-0">
+                      <TabsTrigger value="details" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-xs px-8 h-10 uppercase rounded-none">Parecer de Gabinete</TabsTrigger>
+                      <TabsTrigger value="whatsapp" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-xs px-8 h-10 uppercase rounded-none">Despacho WhatsApp</TabsTrigger>
+                      <TabsTrigger value="chatter" className="data-[state=active]:bg-black data-[state=active]:text-white font-black text-xs px-8 h-10 uppercase rounded-none">Consultoria Neural</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="details" className="mt-0">
-                      <Card className="bg-white border-2 border-black shadow-none rounded-none border-t-0 overflow-hidden">
-                        <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                          <CardTitle className="text-[9px] lg:text-[10px] font-black text-black uppercase flex items-center gap-2">
-                            <FileText size={14} /> Diagnóstico Estratégico Senior
+                      <Card className="bg-white border-2 border-black shadow-none rounded-none border-t-0">
+                        <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-4">
+                          <CardTitle className="text-[10px] font-black text-black uppercase flex items-center gap-2">
+                            <FileText size={16} /> Diagnóstico Estratégico Senior
                           </CardTitle>
                         </CardHeader>
-                        <CardContent className="p-4 lg:p-6 space-y-8">
-                          <div className="space-y-2 p-4 bg-[#f3f2f2] border-2 border-black">
-                            <Label className="text-[9px] lg:text-[10px] font-black uppercase">Resumo Resolutivo</Label>
-                            <p className="text-xs lg:text-sm leading-relaxed text-black font-black uppercase italic">{result.resumoTecnico}</p>
+                        <CardContent className="p-8 space-y-10">
+                          <div className="space-y-3 p-6 bg-[#f3f2f2] border-2 border-black">
+                            <Label className="text-[10px] font-black uppercase opacity-60">Resumo Resolutivo</Label>
+                            <p className="text-sm leading-relaxed text-black font-black uppercase italic">{result.resumoTecnico}</p>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-                            <div className="space-y-2">
-                              <Label className="text-[9px] lg:text-[10px] font-black uppercase text-red-600">Análise de Risco (Cláusula 3.2)</Label>
-                              <p className="text-[10px] lg:text-xs text-black leading-relaxed border-l-4 border-black pl-4 font-black uppercase">{result.analiseRisco}</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                            <div className="space-y-3">
+                              <Label className="text-[10px] font-black uppercase text-red-600">Análise de Risco (Cláusula 3.2)</Label>
+                              <p className="text-[11px] text-black leading-relaxed border-l-4 border-black pl-5 font-black uppercase">{result.analiseRisco}</p>
                             </div>
-                            <div className="space-y-2">
-                              <Label className="text-[9px] lg:text-[10px] font-black uppercase">Estratégia de Gabinete</Label>
-                              <p className="text-[10px] lg:text-xs text-black leading-relaxed border-l-4 border-black pl-4 font-black uppercase">{result.proximosPassos}</p>
+                            <div className="space-y-3">
+                              <Label className="text-[10px] font-black uppercase text-blue-600">Estratégia Operacional</Label>
+                              <p className="text-[11px] text-black leading-relaxed border-l-4 border-black pl-5 font-black uppercase">{result.proximosPassos}</p>
                             </div>
                           </div>
                         </CardContent>
@@ -253,25 +284,25 @@ export default function VereditoPage() {
                     </TabsContent>
 
                     <TabsContent value="whatsapp" className="mt-0">
-                       <Card className="bg-white border-2 border-black shadow-none rounded-none border-t-0 overflow-hidden">
-                        <CardHeader className="bg-green-50 border-b-2 border-black py-3">
-                          <CardTitle className="text-[9px] lg:text-[10px] font-black text-green-800 uppercase flex items-center gap-2">
-                            <MessageCircle size={14} /> Despacho para o Cliente
+                       <Card className="bg-white border-2 border-black shadow-none rounded-none border-t-0">
+                        <CardHeader className="bg-green-50 border-b-2 border-black py-4">
+                          <CardTitle className="text-[10px] font-black text-green-900 uppercase flex items-center gap-2">
+                            <MessageCircle size={16} /> Mensagem Pronta para o Cliente
                           </CardTitle>
                         </CardHeader>
-                        <CardContent className="p-4 lg:p-8 space-y-6">
-                           <div className="bg-[#f9f9f9] border-2 border-dashed border-black/10 p-4 lg:p-6 rounded-none relative">
-                              <p className="text-xs lg:text-sm text-black font-black uppercase leading-relaxed italic">{result.mensagemCliente}</p>
-                              <Button variant="ghost" size="icon" onClick={() => copyToClipboard(result.mensagemCliente)} className="absolute top-2 right-2"><Copy size={14} /></Button>
+                        <CardContent className="p-8 space-y-6">
+                           <div className="bg-[#fafafa] border-2 border-dashed border-black/10 p-8 rounded-none relative">
+                              <p className="text-sm text-black font-black uppercase leading-relaxed italic">{result.mensagemCliente}</p>
+                              <Button variant="ghost" size="icon" onClick={() => copyToClipboard(result.mensagemCliente)} className="absolute top-4 right-4 hover:bg-black hover:text-white transition-all"><Copy size={16} /></Button>
                            </div>
-                           <div className="flex flex-col sm:flex-row gap-4">
-                              <Button disabled={sendingApi} onClick={handleApiSend} className="flex-1 h-12 bg-black text-white border-2 border-black font-black uppercase text-[9px] lg:text-[10px] rounded-none">
-                                {sendingApi ? <Loader2 size={16} className="animate-spin mr-2" /> : <Zap size={16} className="mr-2 text-yellow-500 fill-yellow-500" />}
+                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <Button disabled={sendingApi} onClick={handleApiSend} className="h-14 bg-black text-white border-2 border-black font-black uppercase text-[10px] rounded-none shadow-[6px_6px_0px_#00D1FF] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all">
+                                {sendingApi ? <Loader2 size={18} className="animate-spin mr-2" /> : <Zap size={18} className="mr-2 text-yellow-400 fill-yellow-400" />}
                                 Disparo API Evolution
                               </Button>
-                              <Button asChild className="flex-1 h-12 bg-white text-black border-2 border-black font-black uppercase text-[9px] lg:text-[10px] rounded-none">
+                              <Button asChild className="h-14 bg-white text-black border-2 border-black font-black uppercase text-[10px] rounded-none">
                                 <a href={formatWhatsAppLink('', result.mensagemCliente)} target="_blank" rel="noopener noreferrer">
-                                  <MessageCircle size={16} className="mr-2" /> Link WhatsApp Manual
+                                  <MessageCircle size={18} className="mr-2" /> Link Manual WhatsApp
                                 </a>
                               </Button>
                            </div>
@@ -280,53 +311,58 @@ export default function VereditoPage() {
                     </TabsContent>
 
                     <TabsContent value="chatter" className="mt-0">
-                      <Card className="bg-white border-2 border-black shadow-lg rounded-none border-t-0 flex flex-col h-[400px] lg:h-[500px] overflow-hidden">
-                        <ScrollArea className="flex-1 p-4 bg-[#f3f2f2]" ref={scrollRef}>
-                          <div className="space-y-4">
+                      <Card className="bg-white border-2 border-black shadow-none rounded-none border-t-0 flex flex-col h-[500px]">
+                        <ScrollArea className="flex-1 p-6 bg-[#f3f2f2]" ref={scrollRef}>
+                          <div className="space-y-6">
                             {chatMessages.map((msg, i) => (
                               <div key={i} className={cn("flex", msg.role === 'user' ? "justify-end" : "justify-start")}>
                                 <div className={cn(
-                                  "p-3 rounded-none max-w-[90%] shadow-sm text-[9px] lg:text-[10px] font-black uppercase border-2",
-                                  msg.role === 'user' ? "bg-black text-white border-black" : "bg-white border-black text-black"
+                                  "p-4 border-2 border-black shadow-sm max-w-[85%]",
+                                  msg.role === 'user' ? "bg-black text-white" : "bg-white text-black"
                                 )}>
-                                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                                  <p className="text-[11px] font-black uppercase leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                                 </div>
                               </div>
                             ))}
+                            {chatLoading && <div className="flex gap-2 text-black/40 animate-pulse font-black uppercase text-[10px]"><Bot size={14} /> IA Processando dúvida técnica...</div>}
                           </div>
                         </ScrollArea>
-                        <div className="p-4 border-t-2 border-black bg-white">
-                          <form onSubmit={handleChat} className="flex gap-2">
-                            <Input placeholder="INSIRA SUA DÚVIDA TÉCNICA..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 bg-[#f3f2f2] border-2 border-black text-[10px] font-black uppercase rounded-none" />
-                            <Button type="submit" size="icon" className="bg-black text-white border-2 border-black rounded-none">
-                              <Send size={16} />
-                            </Button>
-                          </form>
-                        </div>
+                        <form onSubmit={handleChat} className="p-4 border-t-2 border-black bg-white flex gap-3">
+                          <Input placeholder="DÚVIDA SOBRE O PARECER..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 bg-[#f3f2f2] border-2 border-black text-[10px] font-black uppercase h-12 rounded-none" />
+                          <Button type="submit" size="icon" className="h-12 w-12 bg-black text-white border-2 border-black rounded-none">
+                            <Send size={18} />
+                          </Button>
+                        </form>
                       </Card>
                     </TabsContent>
                   </Tabs>
                 </div>
+
                 <div className="space-y-6">
                    <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
-                      <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                         <CardTitle className="text-[9px] lg:text-[10px] font-black text-black uppercase flex items-center gap-2">
-                            <History size={14} /> Cronologia Processual
+                      <CardHeader className="bg-black text-white py-4">
+                         <CardTitle className="text-[10px] font-black uppercase flex items-center gap-2 tracking-widest">
+                            <History size={16} /> Cronologia DataJud
                          </CardTitle>
                       </CardHeader>
-                      <CardContent className="p-0">
-                         <div className="divide-y-2 divide-black/5 max-h-[400px] lg:max-h-[600px] overflow-auto">
-                            {result.dataJudRaw?.movimentos?.slice(0, 20).map((m: any, i: number) => (
-                               <div key={i} className="p-4 hover:bg-black group transition-all">
-                                  <div className="flex items-center gap-2 mb-1">
-                                     <Clock size={10} className="text-black/40 group-hover:text-white/40" />
-                                     <span className="text-[8px] lg:text-[9px] font-black text-black/60 group-hover:text-white/60 uppercase">
+                      <CardContent className="p-0 bg-white">
+                         <div className="divide-y-2 divide-black/5 max-h-[600px] overflow-auto">
+                            {result.dataJudRaw?.movimentos?.length > 0 ? result.dataJudRaw.movimentos.slice(0, 30).map((m: any, i: number) => (
+                               <div key={i} className="p-5 hover:bg-black group transition-all">
+                                  <div className="flex items-center gap-3 mb-2">
+                                     <Clock size={12} className="text-black/30 group-hover:text-white/40" />
+                                     <span className="text-[9px] font-black text-black/50 group-hover:text-white/60 uppercase">
                                        {m.dataHora ? new Date(m.dataHora).toLocaleDateString('pt-BR') : 'S/ DATA'}
                                      </span>
                                   </div>
-                                  <p className="text-[9px] lg:text-[10px] font-black text-black group-hover:text-white uppercase leading-tight">{m.nome}</p>
+                                  <p className="text-[11px] font-black text-black group-hover:text-white uppercase leading-tight tracking-tight">{m.nome}</p>
                                </div>
-                            ))}
+                            )) : (
+                              <div className="p-10 text-center space-y-4 opacity-20">
+                                 <Gavel size={32} className="mx-auto" />
+                                 <p className="text-[10px] font-black uppercase">Sem histórico cronológico.</p>
+                              </div>
+                            )}
                          </div>
                       </CardContent>
                    </Card>
@@ -335,8 +371,10 @@ export default function VereditoPage() {
             )}
           </div>
         </div>
-        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-4 lg:gap-6 text-[8px] lg:text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 z-40">
+
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0">
           <div className="flex items-center gap-2"><Copyright size={10} /> 2026 W1 Capital.</div>
+          <span className="text-black">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
         </footer>
       </main>
     </div>

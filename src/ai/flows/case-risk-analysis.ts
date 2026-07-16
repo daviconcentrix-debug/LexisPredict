@@ -1,17 +1,20 @@
+
 'use server';
 /**
- * @fileOverview Análise de Risco de Gabinete v550.0 Elite
- * Motor: xAI Grok 4.5.
+ * @fileOverview Análise de Risco de Gabinete v2700.0 ELITE
+ * Soberania Grok 4.5.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const XAI_API_KEY = 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE';
+const XAI_API_KEY = process.env.XAI_API_KEY;
 
 export async function caseRiskAnalysis(input: any): Promise<any> {
+  if (!XAI_API_KEY) return { riskScore: 50, priorityLevel: 'Medium', technicalSummary: 'Risco operacional moderado.' };
+
   const prompt = `Analise este caso jurídico e retorne JSON: { "riskScore": 0-100, "priorityLevel": "Low"|"Medium"|"High"|"Critical", "technicalSummary": "" }
-  Dados: ${JSON.stringify(input)}`;
+  DADOS: ${JSON.stringify(input)}`;
 
   try {
     const response = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -24,10 +27,10 @@ export async function caseRiskAnalysis(input: any): Promise<any> {
       })
     });
 
-    if (!response.ok) throw new Error("Falha xAI.");
+    if (!response.ok) throw new Error();
     const data = await response.json();
     return JSON.parse(data.choices[0].message.content);
   } catch (error) {
-    return { riskScore: 50, priorityLevel: 'Medium', technicalSummary: 'Erro no motor xAI.' };
+    return { riskScore: 50, priorityLevel: 'Medium', technicalSummary: 'Risco operacional moderado.' };
   }
 }

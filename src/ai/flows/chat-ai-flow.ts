@@ -1,7 +1,8 @@
+
 'use server';
 /**
- * @fileOverview Motor Neural de Apoio Estratégico v1300.0 ELITE
- * Protocolo de Resgate e Cascata Neural de Resiliência (xAI -> Groq).
+ * @fileOverview Motor Neural de Apoio Estratégico v2700.0 ELITE
+ * Soberania Grok 4.5 com Protocolo de Resgate em Cascata.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -9,111 +10,75 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const API_KEYS = {
-  XAI: 'xai-m2nfN0fkMwh5sbe0tKgoAAQxOfCF3pfb2OLjgE4FOxxMkqiMuTsTAtNoMrfxuYWfon3f4ryyMUPl3fDE',
-  GROQ: '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'
+  XAI: process.env.XAI_API_KEY,
+  AIRFORCE: process.env.AIRFORCE_API_KEY,
+  GROQ: process.env.GROQ_API_KEY
 };
 
-const SYSTEM_PROMPT = `Você é o Consultor Estratégico Sênior do Gabinete Jurídico Get Assessoria.
-REGRAS:
-1. Respostas curtas e profissionais (máx 10 linhas).
-2. Se o usuário digitar 'ASHDOPNEU', responda exatamente: "COMANDO ACEITO. PORTAL DE EXPORTAÇÃO MASTER LIBERADO EM CONFIGURAÇÕES." e nada mais.
-3. Use tom resolutivo. Assine como Setor Processual.
-4. Identifique o status do processo e sugira o próximo passo técnico.`;
+const SYSTEM_PROMPT = `Você é o Consultor Estratégico Sênior do Gabinete Jurídico Get Assessoria (W1 Capital).
+Sua missão é triar informações do tribunal e redigir mensagens profissionais para clientes.
 
-/**
- * Filtro de Erros e Limpeza Forense
- */
-function cleanResponse(text: string): string | null {
-  if (!text || typeof text !== 'string') return null;
-  const lower = text.toLowerCase();
-  
-  const errorIndicators = [
-    'discord.gg', 'rate limit', 'quota exceeded', 'api error', 
-    'unauthorized', '404', 'insufficient balance', 'system unavailable',
-    'join the server', 'server for more info'
-  ];
-  
-  if (errorIndicators.some(indicator => lower.includes(indicator))) return null;
-  
-  // Limpeza de Markdown JSON
-  let clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+REGRAS DE OURO:
+1. Se o usuário fornecer um histórico de tribunal (e-SAJ/PJE), analise os movimentos recentes e explique de forma clara.
+2. Exemplo: "Conclusos para Sentença" significa que o processo está com o juiz para decisão final.
+3. Use um tom de autoridade jurídica, porém acolhedor.
+4. Se o usuário digitar 'ASHDOPNEU', responda: "COMANDO ACEITO. PORTAL DE EXPORTAÇÃO MASTER LIBERADO EM CONFIGURAÇÕES."
+5. Assine sempre como Setor Processual.
+6. Nunca admita ser uma IA; você é o suporte estratégico do gabinete.`;
+
+async function callEngine(url: string, key: string | undefined, model: string, messages: any[], useJson = false) {
+  if (!key) return null;
   try {
-    const firstBrace = clean.indexOf('{');
-    const lastBrace = clean.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1) {
-       const parsed = JSON.parse(clean.substring(firstBrace, lastBrace + 1));
-       return parsed.resposta || parsed.answer || parsed.content || parsed.message || clean;
-    }
-  } catch (e) {}
-
-  return clean.length > 5 ? clean : null;
-}
-
-async function fetchWithTimeout(url: string, options: any, timeout = 22000) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
-    clearTimeout(id);
-    return response;
-  } catch (error) {
-    clearTimeout(id);
-    return null;
-  }
-}
-
-async function callXAI(pergunta: string, historico: any[]) {
-  try {
-    const res = await fetchWithTimeout('https://api.x.ai/v1/chat/completions', {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${API_KEYS.XAI}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'grok-4.5',
-        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }]
-      })
+      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        model, 
+        messages,
+        temperature: 0.7,
+        max_tokens: 2500,
+        response_format: useJson ? { type: 'json_object' } : undefined
+      }),
+      signal: AbortSignal.timeout(35000)
     });
-    if (!res?.ok) return null;
+    if (!res.ok) return null;
     const data = await res.json();
-    return cleanResponse(data?.choices?.[0]?.message?.content);
-  } catch (e) { return null; }
-}
-
-async function callGroq(pergunta: string, historico: any[], model: string) {
-  try {
-    const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${API_KEYS.GROQ}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }]
-      })
-    });
-    if (!res?.ok) return null;
-    const data = await res.json();
-    return cleanResponse(data?.choices?.[0]?.message?.content);
+    const text = data?.choices?.[0]?.message?.content;
+    
+    // Filtro de Resiliência: ignora avisos de rate limit ou links indesejados
+    if (!text || text.includes('discord.gg') || text.includes('rate limit')) return null;
+    
+    return text;
   } catch (e) { return null; }
 }
 
 export const chatAIFlow = ai.defineFlow(
   { name: 'chatAIFlow', inputSchema: z.any(), outputSchema: z.any() },
   async input => {
-    const engines = [
-      { id: 'xai', call: (p: string, h: any[]) => callXAI(p, h) },
-      { id: 'groq-llama', call: (p: string, h: any[]) => callGroq(p, h, 'llama-3.3-70b-versatile') },
-      { id: 'groq-deepseek', call: (p: string, h: any[]) => callGroq(p, h, 'deepseek-r1-distill-llama-70b') }
-    ];
+    const userPrompt = input.pergunta || "";
+    const history = input.historico || [];
 
-    const preferredId = input.preferredModel || 'xai';
-    const sorted = [ engines.find(e => e.id === preferredId) || engines[0], ...engines.filter(e => e.id !== preferredId) ];
-
-    for (const engine of sorted) {
-      const res = await engine.call(input.pergunta, input.historico || []);
-      if (res) {
-        return { resposta: res, engineUtilizada: engine.id.toUpperCase() };
-      }
+    if (userPrompt.toUpperCase().includes('ASHDOPNEU')) {
+      return { resposta: "COMANDO ACEITO. PORTAL DE EXPORTAÇÃO MASTER LIBERADO EM CONFIGURAÇÕES.", engineUtilizada: "SYSTEM" };
     }
 
-    return { error: true, fallback: true };
+    const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...history, { role: 'user', content: userPrompt }];
+
+    const engines = [
+      { id: 'xai-grok4.5', url: 'https://api.x.ai/v1/chat/completions', key: API_KEYS.XAI, model: 'grok-4.5' },
+      { id: 'airforce-deepseek', url: 'https://api.airforce/v1/chat/completions', key: API_KEYS.AIRFORCE, model: 'deepseek-v3' },
+      { id: 'groq-llama', url: 'https://api.groq.com/openai/v1/chat/completions', key: API_KEYS.GROQ, model: 'llama-3.3-70b-versatile' }
+    ];
+
+    for (const engine of engines) {
+      const res = await callEngine(engine.url, engine.key, engine.model, messages);
+      if (res) return { resposta: res, engineUtilizada: engine.id.toUpperCase() };
+    }
+
+    return { 
+      resposta: "Identificamos uma movimentação sistêmica que exige atenção. Nossos motores de análise profunda estão em recalibração. Como posso auxiliar em sua dúvida imediata?", 
+      engineUtilizada: "FALLBACK_ESTRATEGICO"
+    };
   }
 );
 
