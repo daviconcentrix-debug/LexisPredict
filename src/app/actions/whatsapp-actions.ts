@@ -1,15 +1,16 @@
+
 'use server';
 
 /**
  * @fileOverview Motor de Disparo Programático WhatsApp (Evolution API Elite)
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
  */
 
 import { sendTextMessage } from '@/lib/evolution-api';
+import { getWhatsAppHistory } from '@/lib/server-db';
 
 /**
- * Server Action para envio de mensagens oficiais de gabinete via Evolution API.
+ * Envia mensagens via Evolution API e atualiza o estado local.
  */
 export async function sendWhatsAppAction(to: string, message: string) {
   const cleanPhone = to.replace(/\D/g, '');
@@ -21,7 +22,6 @@ export async function sendWhatsAppAction(to: string, message: string) {
 
   try {
     const result = await sendTextMessage(finalPhone, message);
-
     return { 
       success: true, 
       data: result,
@@ -33,5 +33,17 @@ export async function sendWhatsAppAction(to: string, message: string) {
       success: false, 
       message: error.message || 'Erro ao processar envio via Evolution API' 
     };
+  }
+}
+
+/**
+ * Recupera o histórico de mensagens reais do banco de dados.
+ */
+export async function fetchWhatsAppHistoryAction(phone: string) {
+  try {
+    const messages = await getWhatsAppHistory(phone);
+    return { success: true, messages };
+  } catch (error: any) {
+    return { success: false, error: error.message };
   }
 }

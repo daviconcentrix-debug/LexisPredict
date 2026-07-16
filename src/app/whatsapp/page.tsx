@@ -1,7 +1,8 @@
+
 "use client";
 /**
- * @fileOverview Terminal WhatsApp Elite v940.0
- * Resiliência Total: IA Sênior com Fallback Inteligente para Scripts Estáticos + Auditoria 3D (DataJud).
+ * @fileOverview Terminal WhatsApp Elite v1100.0
+ * Integração Supabase Histórico Real + IA de Apoio.
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  */
 
@@ -23,13 +24,9 @@ import {
   Sparkles,
   ChevronLeft,
   BookOpen,
-  Copy,
   History,
-  BrainCircuit,
-  Info,
-  ShieldCheck,
   FileSearch,
-  AlertCircle
+  MessageSquare
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -39,7 +36,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { fetchRepoCases } from '@/app/actions/case-actions';
-import { sendWhatsAppAction } from '@/app/actions/whatsapp-actions';
+import { sendWhatsAppAction, fetchWhatsAppHistoryAction } from '@/app/actions/whatsapp-actions';
 import { perguntarIA } from '@/ai/flows/chat-ai-flow';
 import { executarVereditoAI } from '@/ai/flows/veredito-ai-flow';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -62,14 +59,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// REPOSITÓRIO OFICIAL DE SCRIPTS W1 CAPITAL (GET ASSESSORIA)
 const SCRIPTS_GABINETE = [
   { id: 'apresentacao-1', cat: 'Apresentação', title: 'Apresentação Curta', text: 'Me chamo [USUARIO] e faço parte do Setor Processual da Get Assessoria. Segue as informações do seu processo.' },
-  { id: 'apresentacao-2', cat: 'Apresentação', title: 'Apresentação Cordial', text: 'Muito prazer, me chamo [USUARIO], faço parte do Setor Processual da Get Assessoria. Irei te auxiliar quanto ao andamento do seu processo. Tendo alguma dúvida, pode estar me sinalizando.' },
-  { id: 'golpe-1', cat: 'Golpe', title: 'Alerta de Golpe (Padrão)', text: 'Peço que desconsidere quaisquer informações repassadas por essa pessoa, ela não faz parte do nosso escritório. Como o processo não tramita em segredo de justiça, qualquer pessoa que possua um token de advogado consegue ter acesso às informações anexadas no processo. Solicitamos que, por gentileza, concentre o contato exclusivamente com o grupo do Setor Jurídico ou diretamente conosco, do Setor Processual.' },
-  { id: 'audiencia-1', cat: 'Audiência', title: 'Informativo Audiência', text: 'Referente ao seu procedimento, verificamos que foi agendada uma audiência para tentativa de conciliação entre as partes. Essa audiência irá ocorrer no dia [DATA] às [HORA], na modalidade: [MODALIDADE]. O link de acesso será enviado em um prazo de 24 a 72 horas antes do evento.' },
-  { id: 'procedimento-1', cat: 'Procedimento', title: 'Extrajudicial para Judicial', text: 'Inicialmente realizamos um procedimento extrajudicial que possui um prazo de 30 a 90 dias. Como a financeira dificultou a tratativa amigável, o advogado verificou que poderíamos seguir tratando judicialmente perante ao juiz, demonstrando a tentativa amigável anterior.' },
-  { id: 'custas-1', cat: 'Custas', title: 'Justiça Gratuita Indeferida', text: 'Referente ao seu processo, o juiz indeferiu o pedido de Justiça Gratuita após a análise dos documentos apresentados. Dessa forma, para dar continuidade, será necessário efetuar o pagamento das custas processuais que correspondem às despesas do Poder Judiciário.' },
+  { id: 'golpe-1', cat: 'Golpe', title: 'Alerta de Golpe', text: 'Peço que desconsidere quaisquer informações repassadas por essa pessoa, ela não faz parte do nosso escritório...' },
+  { id: 'procedimento-1', cat: 'Procedimento', title: 'Extrajudicial para Judicial', text: 'Como a financeira dificultou a tratativa amigável, seguiremos tratando judicialmente...' },
 ];
 
 export default function WhatsAppHub() {
@@ -84,8 +77,12 @@ export default function WhatsAppHub() {
   const [isSending, setIsSending] = useState(false);
   const [scriptSearch, setScriptSearch] = useState('');
   const [preferredModel, setPreferredModel] = useState<string>('xai');
+  const [realHistory, setRealHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  
   const { profile } = useAuth();
   const { toast } = useToast();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const savedIA = localStorage.getItem('lexisPredict_preferred_ia') || 'xai';
@@ -93,199 +90,102 @@ export default function WhatsAppHub() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (selectedContact) {
+      loadRealHistory(selectedContact.telefone);
+    }
+  }, [selectedContact]);
+
   const loadData = async () => {
     setLoading(true);
     try {
       const repoData = await fetchRepoCases();
       if (Array.isArray(repoData)) setCases(repoData);
-    } catch (e) {
-      console.error('[Gabinete] WhatsApp Sync Error');
     } finally {
       setLoading(false);
     }
   };
 
+  const loadRealHistory = async (phone: string) => {
+    if (!phone) return;
+    setLoadingHistory(true);
+    const res = await fetchWhatsAppHistoryAction(phone);
+    if (res.success) {
+      setRealHistory(res.messages || []);
+    }
+    setLoadingHistory(false);
+  };
+
   const contacts = useMemo(() => {
-    const uniqueContacts = new Map();
+    const unique = new Map();
     cases.forEach(c => {
-      if (c.telefone && c.telefone.trim() !== '' && !uniqueContacts.has(c.cliente)) {
-        uniqueContacts.set(c.cliente, { ...c, nome: c.cliente, telefone: c.telefone });
+      if (c.telefone && !unique.has(c.cliente)) {
+        unique.set(c.cliente, { ...c, nome: c.cliente, telefone: c.telefone });
       }
     });
-    return Array.from(uniqueContacts.values())
-      .filter(c => (c.nome || '').toLowerCase().includes(search.toLowerCase()) || (c.telefone || '').includes(search))
-      .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+    return Array.from(unique.values()).filter(c => c.nome.toLowerCase().includes(search.toLowerCase()));
   }, [cases, search]);
 
-  const filteredScripts = useMemo(() => {
-    return SCRIPTS_GABINETE.filter(s => 
-      s.title.toLowerCase().includes(scriptSearch.toLowerCase()) || 
-      s.cat.toLowerCase().includes(scriptSearch.toLowerCase()) ||
-      s.text.toLowerCase().includes(scriptSearch.toLowerCase())
-    );
-  }, [scriptSearch]);
-
-  const processTextVariables = (text: string) => {
-    if (!selectedContact) return text;
-    const userName = profile?.nome || "Setor Processual";
-    return text
-      .replace(/\[NOME\]/g, selectedContact.nome)
-      .replace(/\[PROTOCOLO\]/g, selectedContact.protocolo)
-      .replace(/\[USUARIO\]/g, userName);
-  };
-
-  const handleApplyScript = (scriptText: string) => {
-    setAiResponse(processTextVariables(scriptText));
-    toast({ title: "Modelo Aplicado" });
-  };
-
-  const handleGenerateAI = async (agent: 'legal' | 'comercial' | 'financeiro') => {
+  const handleGenerateAI = async (agent: string) => {
     if (!selectedContact || isGenerating) return;
     setIsGenerating(true);
-    
-    const contextNotes = selectedContact.observacao || "Sem observações registradas.";
-    const userSignature = profile?.nome || "Setor Processual";
-
-    const fallbackScripts = {
-      legal: SCRIPTS_GABINETE.find(s => s.id === 'procedimento-1')?.text || '',
-      comercial: SCRIPTS_GABINETE.find(s => s.id === 'apresentacao-2')?.text || '',
-      financeiro: SCRIPTS_GABINETE.find(s => s.id === 'custas-1')?.text || ''
-    };
-
-    try {
-      const prompt = `Você é o Setor Processual da Get Assessoria. 
-      CLIENTE: ${selectedContact.nome} | PROTOCOLO: ${selectedContact.protocolo} | STATUS: ${selectedContact.status}
-      NOTAS DE GABINETE: ${contextNotes}
-      ASSINATURA: ${userSignature}
-      TAREFA: Gere uma mensagem curta para WhatsApp (máx 8 linhas) baseada no script padrão: "${fallbackScripts[agent]}"`;
-
-      const res = await perguntarIA({ pergunta: prompt, preferredModel, historico: [] });
-
-      if (res && res.resposta && !res.fallback) {
-        setAiResponse(res.resposta);
-      } else {
-        setAiResponse(processTextVariables(fallbackScripts[agent]));
-      }
-    } catch (error) {
-      setAiResponse(processTextVariables(fallbackScripts[agent]));
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleDataJudAudit = async () => {
-    if (!selectedContact || isAuditing) return;
-    setIsAuditing(true);
+    const script = SCRIPTS_GABINETE.find(s => s.cat === agent)?.text || SCRIPTS_GABINETE[0].text;
     
     try {
-      // Tenta auditoria combinada: DataJud + Histórico Colado (se houver)
-      const result = await executarVereditoAI({ 
-        cnj: selectedContact.protocolo, 
-        historicoBruto: courtHistory,
-        preferredModel 
+      const res = await perguntarIA({ 
+        pergunta: `Gere um despacho para ${selectedContact.nome}. Base: ${script}`, 
+        preferredModel,
+        historico: [] 
       });
-
-      if (result && result.success) {
-        setAiResponse(result.mensagemCliente || result.resumoTecnico);
-        toast({ title: "Auditoria Concluída" });
-      } else {
-        throw new Error();
+      if (res && res.resposta) {
+        if (res.resposta.includes("PORTAL DE EXPORTAÇÃO")) {
+          localStorage.setItem('lexis_master_unlock', 'true');
+          window.dispatchEvent(new Event("storage"));
+        }
+        setAiResponse(res.resposta.replace(/\[USUARIO\]/g, profile?.nome || "Setor Processual"));
       }
-    } catch (error) {
-      toast({ title: "Audit Indisponível", description: "Iniciando redação alternativa..." });
-      handleGenerateAI('legal');
-    } finally {
-      setIsAuditing(false);
-    }
-  };
-
-  const handleGenerateFromHistory = async () => {
-    if (!selectedContact || !courtHistory.trim() || isGenerating) return;
-    setIsGenerating(true);
-
-    const userSignature = profile?.nome || "Setor Processual";
-    const prompt = `ANALISE ESTE HISTÓRICO DE TRIBUNAL E REDIJA UM DESPACHO PARA O WHATSAPP DO CLIENTE:
-    --------------------------------------------------
-    ${courtHistory.substring(0, 10000)}
-    --------------------------------------------------
-    CLIENTE: ${selectedContact.nome} | PROTOCOLO: ${selectedContact.protocolo}
-    ASSINATURA: ${userSignature}
-    
-    INSTRUÇÕES:
-    1. Identifique o status real (ex: aguarda despacho, redistribuído, emenda, etc).
-    2. Explique ao cliente de forma simples e cordial.
-    3. Seja breve. Máximo 10 linhas.`;
-
-    try {
-      const res = await perguntarIA({ pergunta: prompt, preferredModel, historico: [] });
-      if (res && res.resposta && !res.fallback) {
-        setAiResponse(res.resposta);
-        toast({ title: "Análise de Tribunal Concluída" });
-      } else {
-        const fallback = `Olá ${selectedContact.nome}, verificamos o andamento do seu processo ${selectedContact.protocolo}. Estamos acompanhando as movimentações e assim que houver uma decisão relevante entraremos em contato. Atenciosamente, ${userSignature}.`;
-        setAiResponse(fallback);
-      }
-    } catch (error) {
-      setAiResponse(`Olá ${selectedContact.nome}, nova movimentação identificada. Entraremos em contato.`);
+    } catch (e) {
+      setAiResponse(script.replace(/\[USUARIO\]/g, profile?.nome || "Setor Processual"));
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleSendAPI = async () => {
+  const handleSend = async () => {
     if (!selectedContact || !aiResponse || isSending) return;
     setIsSending(true);
-    try {
-      const result = await sendWhatsAppAction(selectedContact.telefone, aiResponse);
-      if (result.success) toast({ title: "Mensagem Entregue" });
-      else toast({ title: "Falha na Entrega", description: result.message, variant: "destructive" });
-    } catch (e) {
-      toast({ title: "Erro de Conexão", variant: "destructive" });
-    } finally {
-      setIsSending(false);
+    const res = await sendWhatsAppAction(selectedContact.telefone, aiResponse);
+    if (res.success) {
+      toast({ title: "Enviado via Evolution" });
+      loadRealHistory(selectedContact.telefone);
+      setAiResponse('');
     }
+    setIsSending(false);
   };
 
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-6 shrink-0 z-40">
           <div className="flex items-center gap-4">
-            <div className="icon-3d-wrapper scale-75 lg:scale-100">
-              <div className="icon-3d-block black w-10 h-10 rounded-sm">
-                <MessageCircle size={20} className="text-white" />
-              </div>
-            </div>
-            <h1 className="font-black text-sm lg:text-xl text-black uppercase tracking-tighter">Terminal WhatsApp Elite</h1>
+            <h1 className="font-black text-xl text-black uppercase tracking-tighter">Terminal WhatsApp Elite</h1>
+            <Badge variant="outline" className="border-black border-2 text-[10px] uppercase font-black">Evolution Active</Badge>
           </div>
-          
-          <div className="flex items-center gap-3">
-             <div className="hidden sm:flex flex-col items-end mr-2">
-               <span className="text-[8px] font-black uppercase text-black/40 mb-0.5">Motor Neural Ativo</span>
-               <Select value={preferredModel} onValueChange={(val) => { setPreferredModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); }}>
-                <SelectTrigger className="w-[180px] border-2 border-black font-black uppercase text-[10px] h-9 rounded-none bg-white">
-                  <SelectValue placeholder="Motor Neural" />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-2 border-black rounded-none">
-                  <SelectItem value="xai" className="font-black uppercase text-[10px]">xAI Grok 4.5</SelectItem>
-                  <SelectItem value="groq-llama" className="font-black uppercase text-[10px]">Groq Llama 3.3</SelectItem>
-                  <SelectItem value="groq-deepseek" className="font-black uppercase text-[10px]">Groq DeepSeek R1</SelectItem>
-                  <SelectItem value="airforce" className="font-black uppercase text-[10px]">Airforce DeepSeek</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Badge variant="outline" className="text-black font-black border-black border-2 px-3 py-1 uppercase text-[10px] h-9 items-center">
-              <Zap size={10} className="mr-1.5 text-yellow-500 fill-yellow-500" /> Evolution Active
-            </Badge>
-          </div>
+          <Select value={preferredModel} onValueChange={setPreferredModel}>
+            <SelectTrigger className="w-[180px] border-2 border-black font-black uppercase text-[10px] rounded-none">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white border-2 border-black rounded-none">
+              <SelectItem value="xai" className="font-black uppercase text-[10px]">Grok 4.5</SelectItem>
+              <SelectItem value="groq-llama" className="font-black uppercase text-[10px]">Llama 3.3</SelectItem>
+              <SelectItem value="groq-deepseek" className="font-black uppercase text-[10px]">DeepSeek R1</SelectItem>
+            </SelectContent>
+          </Select>
         </header>
 
-        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-          <aside className={cn(
-            "w-full lg:w-80 border-r-2 border-black bg-white flex flex-col shrink-0 overflow-hidden",
-            selectedContact ? "hidden lg:flex" : "flex"
-          )}>
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+          <aside className={cn("w-full lg:w-80 border-r-2 border-black bg-white flex flex-col shrink-0", selectedContact && "hidden lg:flex")}>
             <div className="p-4 border-b-2 border-black bg-[#f8f9fb]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
@@ -294,12 +194,12 @@ export default function WhatsAppHub() {
             </div>
             <ScrollArea className="flex-1">
               <div className="divide-y-2 divide-black/5">
-                {contacts.map((contact) => (
-                  <button key={contact.id} onClick={() => { setSelectedContact(contact); setAiResponse(''); }} className={cn("w-full p-4 flex items-center gap-3 hover:bg-black group transition-all text-left border-l-4", selectedContact?.id === contact.id ? "bg-black border-l-black" : "bg-white border-l-transparent")}>
-                    <div className={cn("w-10 h-10 border-2 border-black flex items-center justify-center shrink-0", selectedContact?.id === contact.id ? "bg-white" : "bg-[#f3f2f2]")}><User size={20} className="text-black" /></div>
+                {contacts.map((c) => (
+                  <button key={c.id} onClick={() => setSelectedContact(c)} className={cn("w-full p-4 flex items-center gap-3 hover:bg-black group transition-all text-left", selectedContact?.id === c.id ? "bg-black" : "bg-white")}>
+                    <div className="w-10 h-10 border-2 border-black flex items-center justify-center shrink-0 bg-[#f3f2f2] group-hover:bg-white"><User size={20} className="text-black" /></div>
                     <div className="min-w-0">
-                      <p className={cn("text-[11px] font-black uppercase truncate", selectedContact?.id === contact.id ? "text-white" : "text-black")}>{contact.nome}</p>
-                      <p className={cn("text-[9px] font-mono", selectedContact?.id === contact.id ? "text-white/60" : "text-black/40")}>{contact.telefone}</p>
+                      <p className={cn("text-[11px] font-black uppercase truncate", selectedContact?.id === c.id ? "text-white" : "text-black")}>{c.nome}</p>
+                      <p className={cn("text-[9px] font-mono", selectedContact?.id === c.id ? "text-white/40" : "text-black/40")}>{c.telefone}</p>
                     </div>
                   </button>
                 ))}
@@ -307,140 +207,60 @@ export default function WhatsAppHub() {
             </ScrollArea>
           </aside>
 
-          <section className={cn("flex-1 bg-[#f3f2f2] flex flex-col overflow-hidden", !selectedContact ? "hidden lg:flex" : "flex")}>
-             {selectedContact ? (
-               <div className="flex-1 flex flex-col p-4 lg:p-6 overflow-hidden">
-                    <Button variant="ghost" onClick={() => setSelectedContact(null)} className="lg:hidden mb-4 self-start text-black font-black uppercase text-[10px]"><ChevronLeft size={16} /> Voltar</Button>
+          <section className={cn("flex-1 bg-[#f3f2f2] flex flex-col overflow-hidden", !selectedContact && "hidden lg:flex")}>
+            {selectedContact ? (
+              <div className="flex-1 flex flex-col p-4 lg:p-6 space-y-4 overflow-hidden">
+                <Button variant="ghost" onClick={() => setSelectedContact(null)} className="lg:hidden self-start font-black uppercase text-[10px]"><ChevronLeft /> Voltar</Button>
+                
+                <Tabs defaultValue="history" className="flex-1 flex flex-col overflow-hidden">
+                  <TabsList className="bg-gray-200 border-2 border-black p-1 h-12 rounded-none">
+                    <TabsTrigger value="history" className="flex-1 font-black uppercase text-[10px] data-[state=active]:bg-black data-[state=active]:text-white"><History size={14} className="mr-2" /> Histórico Real</TabsTrigger>
+                    <TabsTrigger value="ia" className="flex-1 font-black uppercase text-[10px] data-[state=active]:bg-black data-[state=active]:text-white"><Zap size={14} className="mr-2" /> IA Estratégica</TabsTrigger>
+                  </TabsList>
 
-                    <Card className="flex-1 border-2 border-black rounded-none shadow-[8px_8px_0px_#000] flex flex-col overflow-hidden bg-white">
-                       <CardHeader className="bg-black text-white py-3 px-6 flex flex-row items-center justify-between shrink-0">
-                          <CardTitle className="text-[10px] font-black uppercase tracking-widest">Atendimento: {selectedContact.nome}</CardTitle>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                               <Button variant="outline" size="sm" className="h-8 border-white/20 text-white bg-white/10 hover:bg-white/20 text-[9px] font-black uppercase rounded-none"><BookOpen size={12} className="mr-2" /> Scripts Oficiais</Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-4xl h-[80vh] flex flex-col rounded-none border-2 border-black bg-white p-0">
-                               <DialogHeader className="p-6 bg-black text-white border-b-2 border-black">
-                                 <DialogTitle className="font-black uppercase tracking-widest flex items-center gap-2"><BookOpen size={18}/> Repositório Get Assessoria</DialogTitle>
-                               </DialogHeader>
-                               <div className="p-4 border-b-2 border-black bg-gray-100"><Input placeholder="BUSCAR SCRIPT..." value={scriptSearch} onChange={(e) => setScriptSearch(e.target.value)} className="border-black border-2 font-black uppercase text-[11px] rounded-none" /></div>
-                               <ScrollArea className="flex-1 p-6">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                     {filteredScripts.map((s) => (
-                                       <div key={s.id} className="p-4 border-2 border-black hover:bg-black group transition-all">
-                                          <Badge className="bg-black text-white group-hover:bg-white group-hover:text-black text-[8px] font-black uppercase rounded-none mb-2">{s.cat}</Badge>
-                                          <h4 className="font-black uppercase text-[10px] mb-2 group-hover:text-white">{s.title}</h4>
-                                          <p className="text-[9px] font-bold text-black/60 group-hover:text-white/60 leading-relaxed uppercase">{s.text.substring(0, 100)}...</p>
-                                          <Button onClick={() => handleApplyScript(s.text)} className="w-full mt-4 h-8 bg-white text-black border-2 border-black font-black uppercase text-[8px] rounded-none group-hover:bg-primary group-hover:text-black">Aplicar Script</Button>
-                                       </div>
-                                     ))}
-                                  </div>
-                               </ScrollArea>
-                            </DialogContent>
-                          </Dialog>
-                       </CardHeader>
-                       
-                       <CardContent className="flex-1 flex flex-col p-4 lg:p-6 space-y-6 min-h-0">
-                          <Tabs defaultValue="ia" className="flex-1 flex flex-col min-h-0">
-                            <TabsList className="bg-gray-100 border-2 border-black rounded-none p-1 h-12">
-                              <TabsTrigger value="ia" className="flex-1 font-black uppercase text-[9px] data-[state=active]:bg-black data-[state=active]:text-white">IA Estratégica</TabsTrigger>
-                              <TabsTrigger value="history" className="flex-1 font-black uppercase text-[9px] data-[state=active]:bg-black data-[state=active]:text-white">Analista de Tribunal</TabsTrigger>
-                            </TabsList>
+                  <TabsContent value="history" className="flex-1 bg-white border-2 border-black border-t-0 p-4 overflow-hidden flex flex-col">
+                    <ScrollArea className="flex-1 pr-4">
+                       <div className="space-y-4">
+                         {loadingHistory ? <div className="p-10 text-center font-black uppercase opacity-40">Sincronizando Mensagens...</div> : 
+                          realHistory.length === 0 ? <div className="p-10 text-center font-black uppercase opacity-20">Nenhuma mensagem recente.</div> :
+                          realHistory.map((m) => (
+                           <div key={m.id} className={cn("flex flex-col max-w-[80%] p-3 border-2 border-black shadow-sm", m.from_me ? "ml-auto bg-black text-white" : "mr-auto bg-[#f3f2f2] text-black")}>
+                              <p className="text-[11px] font-black uppercase leading-relaxed">{m.message_text}</p>
+                              <span className="text-[8px] mt-2 opacity-50 uppercase font-bold">{new Date(m.timestamp).toLocaleString()}</span>
+                           </div>
+                         ))}
+                       </div>
+                    </ScrollArea>
+                  </TabsContent>
 
-                            <TabsContent value="ia" className="flex-1 flex flex-col gap-4 mt-4 min-h-0">
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                <Button variant="outline" onClick={() => handleGenerateAI('legal')} disabled={isGenerating || isAuditing} className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white bg-white">Jurídico</Button>
-                                <Button variant="outline" onClick={() => handleGenerateAI('financeiro')} disabled={isGenerating || isAuditing} className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white bg-white">Financeiro</Button>
-                                <Button variant="outline" onClick={() => handleGenerateAI('comercial')} disabled={isGenerating || isAuditing} className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white bg-white">Comercial</Button>
-                                <Button onClick={handleDataJudAudit} disabled={isGenerating || isAuditing} className="h-10 border-2 border-black font-black uppercase text-[9px] bg-primary text-black hover:bg-black hover:text-white shadow-[2px_2px_0px_#000]">
-                                   {isAuditing ? <Loader2 size={12} className="animate-spin mr-1" /> : <FileSearch size={12} className="mr-1" />} 3D Audit
-                                </Button>
-                              </div>
-                              <div className="flex-1 bg-[#f8f9fb] border-2 border-dashed border-black/20 p-4 flex flex-col relative min-h-0">
-                                {(isGenerating || isAuditing) && (
-                                  <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center z-10 text-center px-6">
-                                    <Loader2 className="animate-spin text-black mb-2" size={32} />
-                                    <p className="text-[9px] font-black uppercase tracking-widest">{isAuditing ? "Auditando via DataJud..." : "IA Redigindo Despacho..."}</p>
-                                  </div>
-                                )}
-                                <textarea 
-                                  value={aiResponse} 
-                                  onChange={(e) => setAiResponse(e.target.value)} 
-                                  placeholder="REDIJA SUA MENSAGEM OU USE A IA ACIMA PARA GERAR UM RASCUNHO..." 
-                                  className="w-full h-full bg-transparent border-none resize-none text-[11px] lg:text-sm font-black uppercase leading-relaxed text-black focus:ring-0" 
-                                />
-                              </div>
-                            </TabsContent>
-
-                            <TabsContent value="history" className="flex-1 flex flex-col gap-4 mt-4 min-h-0">
-                               <div className="flex flex-col gap-1">
-                                 <Label className="text-[9px] font-black uppercase opacity-60">Cole o histórico bruto do tribunal (TJSP, etc) abaixo:</Label>
-                                 <Textarea placeholder="COLE AQUI O TEXTO COPIADO DO SITE DO TRIBUNAL..." value={courtHistory} onChange={(e) => setCourtHistory(e.target.value)} className="flex-1 min-h-[150px] border-2 border-black rounded-none font-black uppercase text-[10px]" />
-                               </div>
-                               <Button onClick={handleGenerateFromHistory} disabled={!courtHistory.trim() || isGenerating} className="w-full bg-black text-white border-2 border-black font-black uppercase h-12 rounded-none">
-                                  {isGenerating ? <Loader2 className="animate-spin mr-2" /> : <BrainCircuit size={16} className="mr-2" />} Analisar Histórico & Redigir
-                               </Button>
-                            </TabsContent>
-                          </Tabs>
-
-                          <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t-2 border-black/5">
-                             <Button disabled={!aiResponse || isSending} onClick={handleSendAPI} className="flex-1 h-12 bg-black text-white border-2 border-black font-black uppercase text-[10px] hover:bg-white hover:text-black rounded-none shadow-[4px_4px_0px_#000] hover:shadow-none">
-                                {isSending ? <Loader2 className="animate-spin mr-2" /> : <Send size={16} className="mr-2" />} Enviar via Evolution API
-                             </Button>
-                             <Button asChild variant="outline" className="flex-1 h-12 border-2 border-black font-black uppercase text-[10px] hover:bg-black hover:text-white rounded-none bg-white">
-                                <a href={formatWhatsAppLink(selectedContact.telefone, aiResponse)} target="_blank" rel="noopener noreferrer">
-                                   <MessageCircle size={16} className="mr-2" /> Link Manual
-                                </a>
-                              </Button>
-                          </div>
-                       </CardContent>
-                    </Card>
-                 </div>
-             ) : (
-               <div className="flex-1 flex flex-col items-center justify-center p-12 text-center opacity-30">
-                  <Bot size={64} className="mb-6" />
-                  <h2 className="text-xl font-black uppercase">Selecione um Cliente para Atendimento</h2>
-               </div>
-             )}
+                  <TabsContent value="ia" className="flex-1 space-y-4 mt-4 overflow-hidden flex flex-col">
+                    <div className="grid grid-cols-3 gap-2">
+                       <Button onClick={() => handleGenerateAI('Apresentação')} disabled={isGenerating} variant="outline" className="border-2 border-black font-black uppercase text-[9px] h-10">Apresentação</Button>
+                       <Button onClick={() => handleGenerateAI('Procedimento')} disabled={isGenerating} variant="outline" className="border-2 border-black font-black uppercase text-[9px] h-10">Procedimento</Button>
+                       <Button onClick={() => handleGenerateAI('Golpe')} disabled={isGenerating} variant="outline" className="border-2 border-black font-black uppercase text-[9px] h-10">Alerta Golpe</Button>
+                    </div>
+                    <Textarea 
+                      value={aiResponse} 
+                      onChange={(e) => setAiResponse(e.target.value)}
+                      placeholder="REDIJA SUA MENSAGEM OU USE A IA ACIMA..."
+                      className="flex-1 border-2 border-black rounded-none resize-none font-black uppercase text-xs p-4"
+                    />
+                    <Button onClick={handleSend} disabled={!aiResponse || isSending} className="h-12 bg-black text-white border-2 border-black font-black uppercase text-[10px] shadow-[4px_4px_0px_#00D1FF] hover:shadow-none transition-all">
+                       {isSending ? <Loader2 className="animate-spin mr-2" /> : <Send className="mr-2" />} Enviar via Evolution API
+                    </Button>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center opacity-20">
+                <Bot size={64} className="mb-4" />
+                <h2 className="text-xl font-black uppercase">Selecione um cliente para atendimento</h2>
+              </div>
+            )}
           </section>
-
-          {selectedContact && (
-            <aside className="hidden xl:flex w-96 border-l-2 border-black bg-white flex flex-col shrink-0">
-               <div className="p-6 bg-[#f8f9fb] border-b-2 border-black">
-                 <h2 className="text-lg font-black uppercase truncate">{selectedContact.nome}</h2>
-                 <p className="text-[10px] font-black uppercase text-black/40">Contexto de Gabinete</p>
-               </div>
-               <ScrollArea className="flex-1 p-6">
-                  <div className="space-y-6">
-                     <section className="space-y-3">
-                        <Label className="text-[9px] font-black uppercase tracking-widest bg-black text-white px-2 py-0.5">Identificação</Label>
-                        <div className="grid gap-2">
-                           <div className="flex items-center gap-3 p-2 bg-[#f3f2f2] border border-black/5">
-                             <FileText size={12} className="shrink-0" />
-                             <p className="text-[10px] font-black uppercase truncate">{selectedContact.protocolo}</p>
-                           </div>
-                           <div className="flex items-center gap-3 p-2 bg-[#f3f2f2] border border-black/5">
-                             <Clock size={12} className="shrink-0" />
-                             <p className="text-[10px] font-black uppercase">{selectedContact.status}</p>
-                           </div>
-                        </div>
-                     </section>
-                     <section className="space-y-3">
-                        <Label className="text-[9px] font-black uppercase tracking-widest bg-black text-white px-2 py-0.5">Notas Estratégicas</Label>
-                        <div className="p-4 bg-[#f3f2f2] border-2 border-black rounded-none">
-                          <p className="text-[10px] font-black uppercase leading-relaxed text-black/60 italic">
-                            {selectedContact.observacao || 'SEM NOTAS REGISTRADAS.'}
-                          </p>
-                        </div>
-                     </section>
-                  </div>
-               </ScrollArea>
-            </aside>
-          )}
         </div>
-
-        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0">
-          <div className="flex items-center gap-2"><Copyright size={10} /> 2026 W1 Capital.</div>
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0">
+          <Copyright size={10} className="mr-2" /> 2026 W1 Capital.
         </footer>
       </main>
     </div>

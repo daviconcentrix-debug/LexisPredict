@@ -1,3 +1,4 @@
+
 'use server';
 
 import { supabase, isSupabaseConfigured, UserProfile } from './supabase';
@@ -5,7 +6,7 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v180.0 ELITE)
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v200.0 ELITE)
  * Estratégia de Isolamento de Gabinete: Multi-tenancy por Empresa e Usuário.
  */
 
@@ -50,7 +51,6 @@ export async function getStoredCases(): Promise<LegalCase[]> {
     return data ? data.map(item => ({
       ...(item.dados as LegalCase),
       db_id: item.id.toString(),
-      // Garante que os campos de data reflitam o que está na coluna estruturada se houver divergência
       proximoPrazo: item.proximo_retorno || (item.dados as any).proximoPrazo || '',
       ultimoRetorno: item.ultimo_retorno || (item.dados as any).ultimoRetorno || '',
     })) : [];
@@ -75,25 +75,19 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
       const isoPrazo = formatDateToISO(c.proximoPrazo);
       const isoRetorno = formatDateToISO(c.ultimoRetorno);
 
-      // Prepara o objeto para a coluna JSONB preservando os dados brutos
-      const dadosSalvar = { ...c };
-
       return { 
-        dados: dadosSalvar, 
+        dados: { ...c }, 
         empresa_id: empresa_id, 
         created_by: auth_id,
         protocolo_ref: c.protocolo,
         advogado: c.advogado || 'NÃO ATRIBUÍDO',
-        escritorio: c.escritorio || '',
         status: c.status || 'Sem Prazo',
         risco: c.risco || 'Normal',
         proximo_retorno: isoPrazo, 
         ultimo_retorno: isoRetorno,
         tribunal: c.tribunal || 'Outros',
         telefone: c.telefone || '',
-        observacoes: c.observacao || '',
-        status_interno: c.statusInterno || '',
-        produtos: c.produtos || ''
+        observacoes: c.observacao || ''
       };
     });
 
@@ -107,15 +101,11 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 
     if (payload.length === 0) return { success: true, message: "Base limpa com sucesso." };
 
-    const { error: insertError } = await supabase
-      .from('processos')
-      .insert(payload);
-
+    const { error: insertError } = await supabase.from('processos').insert(payload);
     if (insertError) throw insertError;
 
     return { success: true, message: "Sincronia concluída com sucesso." };
   } catch (error: any) {
-    console.error('[DB] Sync Error:', error.message);
     return { success: false, message: error.message };
   }
 }
@@ -183,6 +173,30 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
   } catch (error) {
     return { success: false };
   }
+}
+
+/**
+ * MOTOR DE HISTÓRICO WHATSAPP
+ * Busca mensagens capturadas via Webhook do Supabase.
+ */
+export async function getWhatsAppHistory(contactNumber: string) {
+  const { empresa_id } = await getUserContext();
+  if (!empresa_id) return [];
+
+  const cleanNum = contactNumber.replace(/\D/g, '');
+  
+  const { data, error } = await supabase
+    .from('whatsapp_messages')
+    .select('*')
+    .eq('contact_number', cleanNum)
+    .order('timestamp', { ascending: true });
+
+  if (error) {
+    console.error('[DB] Msg Fetch Error:', error.message);
+    return [];
+  }
+
+  return data || [];
 }
 
 export async function getEmpresaUsers(): Promise<UserProfile[]> {
