@@ -29,7 +29,8 @@ export default function LoginPage() {
     const cleanEmail = email.trim().toLowerCase();
 
     try {
-      // 1. Autenticação Supabase
+      console.log(`[Login] Tentando autenticação para: ${cleanEmail}`);
+      
       const { data, error: authError } = await supabase.auth.signInWithPassword({ 
         email: cleanEmail, 
         password: password 
@@ -45,30 +46,18 @@ export default function LoginPage() {
 
       if (!data.user) throw new Error("Usuário não retornado pelo servidor.");
 
-      // 2. Busca de Perfil por auth_user_id (UUID)
-      const { data: profile, error: profileError } = await supabase
-        .from('usuarios')
-        .select('id, auth_user_id, empresa_id, cargo, email')
-        .eq('auth_user_id', data.user.id)
-        .single();
-
-      if (profileError || !profile) {
-        toast({ 
-          title: "Perfil Pendente", 
-          description: "Acesso autorizado, mas o perfil de gabinete não foi localizado. Contate o administrador.", 
-          variant: "destructive" 
-        });
-        setLoading(false);
-        return;
-      }
-
-      // 3. Persistência de Identidade para Server Actions
-      document.cookie = `lexis_user_email=${profile.email}; path=/; max-age=31536000; samesite=lax`;
+      console.log("[Login] Autenticação válida. Redirecionando para sincronização...");
+      
+      // Persistência de Identidade para Server Actions
+      document.cookie = `lexis_user_email=${cleanEmail}; path=/; max-age=31536000; samesite=lax`;
 
       toast({ title: "Acesso Autorizado", description: "Sincronizando ambiente de gabinete..." });
-      router.push('/');
-      router.refresh();
+      
+      // Forçamos o reload completo para garantir que o middleware e os cookies de sessão SSR sejam validados
+      window.location.href = '/';
+      
     } catch (error: any) {
+      console.error("[Login] Crash crítico:", error);
       toast({ 
         title: "Erro de Conexão", 
         description: "Falha na comunicação com o servidor de segurança.", 
