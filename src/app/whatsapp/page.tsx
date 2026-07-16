@@ -1,7 +1,7 @@
 "use client";
 /**
- * @fileOverview Terminal WhatsApp Elite v910.0
- * Resiliência Total: IA Sênior com Fallback para Scripts Estáticos + Auditoria 3D (DataJud).
+ * @fileOverview Terminal WhatsApp Elite v940.0
+ * Resiliência Total: IA Sênior com Fallback Inteligente para Scripts Estáticos + Auditoria 3D (DataJud).
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  */
 
@@ -113,8 +113,8 @@ export default function WhatsAppHub() {
       }
     });
     return Array.from(uniqueContacts.values())
-      .filter(c => c.nome.toLowerCase().includes(search.toLowerCase()) || c.telefone.includes(search))
-      .sort((a, b) => a.nome.localeCompare(b.nome));
+      .filter(c => (c.nome || '').toLowerCase().includes(search.toLowerCase()) || (c.telefone || '').includes(search))
+      .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
   }, [cases, search]);
 
   const filteredScripts = useMemo(() => {
@@ -127,12 +127,11 @@ export default function WhatsAppHub() {
 
   const processTextVariables = (text: string) => {
     if (!selectedContact) return text;
+    const userName = profile?.nome || "Setor Processual";
     return text
       .replace(/\[NOME\]/g, selectedContact.nome)
       .replace(/\[PROTOCOLO\]/g, selectedContact.protocolo)
-      .replace(/\[DATA\]/g, "---")
-      .replace(/\[HORA\]/g, "---")
-      .replace(/\[USUARIO\]/g, profile?.nome || "Setor Processual");
+      .replace(/\[USUARIO\]/g, userName);
   };
 
   const handleApplyScript = (scriptText: string) => {
@@ -143,20 +142,9 @@ export default function WhatsAppHub() {
   const handleGenerateAI = async (agent: 'legal' | 'comercial' | 'financeiro') => {
     if (!selectedContact || isGenerating) return;
     setIsGenerating(true);
-    setAiResponse('');
-
+    
     const contextNotes = selectedContact.observacao || "Sem observações registradas.";
     const userSignature = profile?.nome || "Setor Processual";
-
-    const systemContext = `Você é o Setor Processual da Get Assessoria.
-    CLIENTE: ${selectedContact.nome} | PROTOCOLO: ${selectedContact.protocolo} | STATUS: ${selectedContact.status}
-    OBSERVAÇÕES: ${contextNotes} | ASSINATURA: ${userSignature}`;
-
-    const prompts = {
-      legal: `Redija uma atualização jurídica sobre o status '${selectedContact.status}'. Use o estilo do script 'procedimento-1'.`,
-      comercial: `Redija uma mensagem cordial. Use o estilo do script 'apresentacao-2'.`,
-      financeiro: `Redija uma mensagem sobre custas judiciais. Use o estilo do script 'custas-1'.`
-    };
 
     const fallbackScripts = {
       legal: SCRIPTS_GABINETE.find(s => s.id === 'procedimento-1')?.text || '',
@@ -165,17 +153,18 @@ export default function WhatsAppHub() {
     };
 
     try {
-      const res = await perguntarIA({
-        pergunta: `${systemContext}\n\nTarefa: ${prompts[agent]}`,
-        preferredModel,
-        historico: []
-      });
+      const prompt = `Você é o Setor Processual da Get Assessoria. 
+      CLIENTE: ${selectedContact.nome} | PROTOCOLO: ${selectedContact.protocolo} | STATUS: ${selectedContact.status}
+      NOTAS DE GABINETE: ${contextNotes}
+      ASSINATURA: ${userSignature}
+      TAREFA: Gere uma mensagem curta para WhatsApp (máx 8 linhas) baseada no script padrão: "${fallbackScripts[agent]}"`;
+
+      const res = await perguntarIA({ pergunta: prompt, preferredModel, historico: [] });
 
       if (res && res.resposta && !res.fallback) {
         setAiResponse(res.resposta);
       } else {
         setAiResponse(processTextVariables(fallbackScripts[agent]));
-        toast({ title: "Fallback Ativado", description: "Usando script padrão por indisponibilidade neural." });
       }
     } catch (error) {
       setAiResponse(processTextVariables(fallbackScripts[agent]));
@@ -186,27 +175,25 @@ export default function WhatsAppHub() {
 
   const handleDataJudAudit = async () => {
     if (!selectedContact || isAuditing) return;
-    const protocol = selectedContact.protocolo || "";
-    if (protocol.replace(/\D/g, '').length !== 20) {
-      toast({ title: "Protocolo Inválido", description: "O CNJ do cliente não possui 20 dígitos.", variant: "destructive" });
-      return;
-    }
-
     setIsAuditing(true);
-    setAiResponse('');
     
     try {
-      const result = await executarVereditoAI({ cnj: protocol, preferredModel });
+      // Tenta auditoria combinada: DataJud + Histórico Colado (se houver)
+      const result = await executarVereditoAI({ 
+        cnj: selectedContact.protocolo, 
+        historicoBruto: courtHistory,
+        preferredModel 
+      });
+
       if (result && result.success) {
         setAiResponse(result.mensagemCliente || result.resumoTecnico);
-        toast({ title: "Auditoria 3D Concluída", description: "Dados capturados do DataJud." });
+        toast({ title: "Auditoria Concluída" });
       } else {
-        toast({ title: "Falha na Auditoria", description: "Processo não localizado ou motor offline.", variant: "destructive" });
-        // Fallback para script de análise inicial
-        handleGenerateAI('legal');
+        throw new Error();
       }
     } catch (error) {
-      toast({ title: "Erro de Conexão", description: "Falha ao atingir o motor DataJud.", variant: "destructive" });
+      toast({ title: "Audit Indisponível", description: "Iniciando redação alternativa..." });
+      handleGenerateAI('legal');
     } finally {
       setIsAuditing(false);
     }
@@ -215,23 +202,31 @@ export default function WhatsAppHub() {
   const handleGenerateFromHistory = async () => {
     if (!selectedContact || !courtHistory.trim() || isGenerating) return;
     setIsGenerating(true);
-    setAiResponse('');
 
-    const prompt = `Analise este histórico de tribunal: ${courtHistory.substring(0, 8000)}
-    CLIENTE: ${selectedContact.nome} | ASSINATURA: ${profile?.nome || "Setor Processual"}
-    TAREFA: Gere uma mensagem curta para o WhatsApp explicando o que aconteceu por último e os próximos passos.`;
+    const userSignature = profile?.nome || "Setor Processual";
+    const prompt = `ANALISE ESTE HISTÓRICO DE TRIBUNAL E REDIJA UM DESPACHO PARA O WHATSAPP DO CLIENTE:
+    --------------------------------------------------
+    ${courtHistory.substring(0, 10000)}
+    --------------------------------------------------
+    CLIENTE: ${selectedContact.nome} | PROTOCOLO: ${selectedContact.protocolo}
+    ASSINATURA: ${userSignature}
+    
+    INSTRUÇÕES:
+    1. Identifique o status real (ex: aguarda despacho, redistribuído, emenda, etc).
+    2. Explique ao cliente de forma simples e cordial.
+    3. Seja breve. Máximo 10 linhas.`;
 
     try {
       const res = await perguntarIA({ pergunta: prompt, preferredModel, historico: [] });
       if (res && res.resposta && !res.fallback) {
         setAiResponse(res.resposta);
+        toast({ title: "Análise de Tribunal Concluída" });
       } else {
-        const fallbackText = `Olá ${selectedContact.nome}, verificamos uma nova movimentação no seu processo. Estamos analisando os detalhes técnicos e em breve traremos mais informações sobre os próximos passos. Atenciosamente, ${profile?.nome || "Setor Processual"}.`;
-        setAiResponse(fallbackText);
-        toast({ title: "Análise Padrão", description: "IA ocupada. Gerado resumo de segurança." });
+        const fallback = `Olá ${selectedContact.nome}, verificamos o andamento do seu processo ${selectedContact.protocolo}. Estamos acompanhando as movimentações e assim que houver uma decisão relevante entraremos em contato. Atenciosamente, ${userSignature}.`;
+        setAiResponse(fallback);
       }
     } catch (error) {
-      setAiResponse(`Olá ${selectedContact.nome}, nova atualização identificada. Entraremos em contato com detalhes técnicos.`);
+      setAiResponse(`Olá ${selectedContact.nome}, nova movimentação identificada. Entraremos em contato.`);
     } finally {
       setIsGenerating(false);
     }
@@ -251,11 +246,6 @@ export default function WhatsAppHub() {
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({ title: "Copiado" });
-  };
-
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
@@ -272,7 +262,7 @@ export default function WhatsAppHub() {
           
           <div className="flex items-center gap-3">
              <div className="hidden sm:flex flex-col items-end mr-2">
-               <span className="text-[8px] font-black uppercase text-black/40 mb-0.5">Cascata Neural Ativa</span>
+               <span className="text-[8px] font-black uppercase text-black/40 mb-0.5">Motor Neural Ativo</span>
                <Select value={preferredModel} onValueChange={(val) => { setPreferredModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); }}>
                 <SelectTrigger className="w-[180px] border-2 border-black font-black uppercase text-[10px] h-9 rounded-none bg-white">
                   <SelectValue placeholder="Motor Neural" />
@@ -324,10 +314,10 @@ export default function WhatsAppHub() {
 
                     <Card className="flex-1 border-2 border-black rounded-none shadow-[8px_8px_0px_#000] flex flex-col overflow-hidden bg-white">
                        <CardHeader className="bg-black text-white py-3 px-6 flex flex-row items-center justify-between shrink-0">
-                          <CardTitle className="text-[10px] font-black uppercase tracking-widest">Painel de Atendimento Elite</CardTitle>
+                          <CardTitle className="text-[10px] font-black uppercase tracking-widest">Atendimento: {selectedContact.nome}</CardTitle>
                           <Dialog>
                             <DialogTrigger asChild>
-                               <Button variant="outline" size="sm" className="h-8 border-white/20 text-white bg-white/10 hover:bg-white/20 text-[9px] font-black uppercase rounded-none"><BookOpen size={12} className="mr-2" /> Modelos Oficiais</Button>
+                               <Button variant="outline" size="sm" className="h-8 border-white/20 text-white bg-white/10 hover:bg-white/20 text-[9px] font-black uppercase rounded-none"><BookOpen size={12} className="mr-2" /> Scripts Oficiais</Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-4xl h-[80vh] flex flex-col rounded-none border-2 border-black bg-white p-0">
                                <DialogHeader className="p-6 bg-black text-white border-b-2 border-black">
@@ -354,7 +344,7 @@ export default function WhatsAppHub() {
                           <Tabs defaultValue="ia" className="flex-1 flex flex-col min-h-0">
                             <TabsList className="bg-gray-100 border-2 border-black rounded-none p-1 h-12">
                               <TabsTrigger value="ia" className="flex-1 font-black uppercase text-[9px] data-[state=active]:bg-black data-[state=active]:text-white">IA Estratégica</TabsTrigger>
-                              <TabsTrigger value="history" className="flex-1 font-black uppercase text-[9px] data-[state=active]:bg-black data-[state=active]:text-white">Análise Tribunal</TabsTrigger>
+                              <TabsTrigger value="history" className="flex-1 font-black uppercase text-[9px] data-[state=active]:bg-black data-[state=active]:text-white">Analista de Tribunal</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="ia" className="flex-1 flex flex-col gap-4 mt-4 min-h-0">
@@ -362,7 +352,7 @@ export default function WhatsAppHub() {
                                 <Button variant="outline" onClick={() => handleGenerateAI('legal')} disabled={isGenerating || isAuditing} className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white bg-white">Jurídico</Button>
                                 <Button variant="outline" onClick={() => handleGenerateAI('financeiro')} disabled={isGenerating || isAuditing} className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white bg-white">Financeiro</Button>
                                 <Button variant="outline" onClick={() => handleGenerateAI('comercial')} disabled={isGenerating || isAuditing} className="h-10 border-2 border-black font-black uppercase text-[9px] hover:bg-black hover:text-white bg-white">Comercial</Button>
-                                <Button variant="outline" onClick={handleDataJudAudit} disabled={isGenerating || isAuditing} className="h-10 border-2 border-black font-black uppercase text-[9px] bg-primary text-black hover:bg-black hover:text-white shadow-[2px_2px_0px_#000]">
+                                <Button onClick={handleDataJudAudit} disabled={isGenerating || isAuditing} className="h-10 border-2 border-black font-black uppercase text-[9px] bg-primary text-black hover:bg-black hover:text-white shadow-[2px_2px_0px_#000]">
                                    {isAuditing ? <Loader2 size={12} className="animate-spin mr-1" /> : <FileSearch size={12} className="mr-1" />} 3D Audit
                                 </Button>
                               </div>
@@ -370,33 +360,36 @@ export default function WhatsAppHub() {
                                 {(isGenerating || isAuditing) && (
                                   <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center z-10 text-center px-6">
                                     <Loader2 className="animate-spin text-black mb-2" size={32} />
-                                    <p className="text-[9px] font-black uppercase tracking-widest">{isAuditing ? "Consultando DataJud & Triagem Neural..." : "Sincronizando Resiliência Neural..."}</p>
+                                    <p className="text-[9px] font-black uppercase tracking-widest">{isAuditing ? "Auditando via DataJud..." : "IA Redigindo Despacho..."}</p>
                                   </div>
                                 )}
                                 <textarea 
                                   value={aiResponse} 
                                   onChange={(e) => setAiResponse(e.target.value)} 
-                                  placeholder="REDIJA SUA MENSAGEM OU USE A IA ACIMA..." 
+                                  placeholder="REDIJA SUA MENSAGEM OU USE A IA ACIMA PARA GERAR UM RASCUNHO..." 
                                   className="w-full h-full bg-transparent border-none resize-none text-[11px] lg:text-sm font-black uppercase leading-relaxed text-black focus:ring-0" 
                                 />
                               </div>
                             </TabsContent>
 
                             <TabsContent value="history" className="flex-1 flex flex-col gap-4 mt-4 min-h-0">
-                               <Textarea placeholder="COLE O HISTÓRICO DO TRIBUNAL AQUI..." value={courtHistory} onChange={(e) => setCourtHistory(e.target.value)} className="min-h-[120px] border-2 border-black rounded-none font-black uppercase text-[10px]" />
+                               <div className="flex flex-col gap-1">
+                                 <Label className="text-[9px] font-black uppercase opacity-60">Cole o histórico bruto do tribunal (TJSP, etc) abaixo:</Label>
+                                 <Textarea placeholder="COLE AQUI O TEXTO COPIADO DO SITE DO TRIBUNAL..." value={courtHistory} onChange={(e) => setCourtHistory(e.target.value)} className="flex-1 min-h-[150px] border-2 border-black rounded-none font-black uppercase text-[10px]" />
+                               </div>
                                <Button onClick={handleGenerateFromHistory} disabled={!courtHistory.trim() || isGenerating} className="w-full bg-black text-white border-2 border-black font-black uppercase h-12 rounded-none">
-                                  {isGenerating ? <Loader2 className="animate-spin mr-2" /> : <BrainCircuit size={16} className="mr-2" />} Analisar & Gerar Despacho
+                                  {isGenerating ? <Loader2 className="animate-spin mr-2" /> : <BrainCircuit size={16} className="mr-2" />} Analisar Histórico & Redigir
                                </Button>
                             </TabsContent>
                           </Tabs>
 
                           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t-2 border-black/5">
                              <Button disabled={!aiResponse || isSending} onClick={handleSendAPI} className="flex-1 h-12 bg-black text-white border-2 border-black font-black uppercase text-[10px] hover:bg-white hover:text-black rounded-none shadow-[4px_4px_0px_#000] hover:shadow-none">
-                                {isSending ? <Loader2 className="animate-spin mr-2" /> : <Send size={16} className="mr-2" />} Enviar Evolution API
+                                {isSending ? <Loader2 className="animate-spin mr-2" /> : <Send size={16} className="mr-2" />} Enviar via Evolution API
                              </Button>
                              <Button asChild variant="outline" className="flex-1 h-12 border-2 border-black font-black uppercase text-[10px] hover:bg-black hover:text-white rounded-none bg-white">
                                 <a href={formatWhatsAppLink(selectedContact.telefone, aiResponse)} target="_blank" rel="noopener noreferrer">
-                                   <MessageCircle size={16} className="mr-2" /> WhatsApp Manual
+                                   <MessageCircle size={16} className="mr-2" /> Link Manual
                                 </a>
                               </Button>
                           </div>
@@ -415,12 +408,12 @@ export default function WhatsAppHub() {
             <aside className="hidden xl:flex w-96 border-l-2 border-black bg-white flex flex-col shrink-0">
                <div className="p-6 bg-[#f8f9fb] border-b-2 border-black">
                  <h2 className="text-lg font-black uppercase truncate">{selectedContact.nome}</h2>
-                 <p className="text-[10px] font-black uppercase text-black/40">Gabinete de Atendimento</p>
+                 <p className="text-[10px] font-black uppercase text-black/40">Contexto de Gabinete</p>
                </div>
                <ScrollArea className="flex-1 p-6">
                   <div className="space-y-6">
                      <section className="space-y-3">
-                        <Label className="text-[9px] font-black uppercase tracking-widest bg-black text-white px-2 py-0.5">Contexto Processual</Label>
+                        <Label className="text-[9px] font-black uppercase tracking-widest bg-black text-white px-2 py-0.5">Identificação</Label>
                         <div className="grid gap-2">
                            <div className="flex items-center gap-3 p-2 bg-[#f3f2f2] border border-black/5">
                              <FileText size={12} className="shrink-0" />

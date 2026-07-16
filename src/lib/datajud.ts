@@ -1,5 +1,5 @@
 /**
- * @fileOverview Serviço de Integração com a API Pública do DataJud (CNJ)
+ * @fileOverview Serviço de Integração com a API Pública do DataJud (CNJ) v940.0
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -44,19 +44,13 @@ export async function fetchDataJud(cnj: string) {
 
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) throw new Error("DATAJUD_API_KEY_INVALIDA");
-      throw new Error(`TRIBUNAL_${alias.toUpperCase()}_OFFLINE`);
-    }
-    
-    const data = await response.json();
-    const result = data.hits?.hits?.[0]?._source || null;
-    
-    if (!result) {
       return null;
     }
     
-    return result;
+    const data = await response.json();
+    return data.hits?.hits?.[0]?._source || null;
   } catch (error: any) {
-    console.error("DataJud Integration Failure:", error);
-    throw error;
+    console.error("[DataJud] Error:", error.message);
+    return null;
   }
 }
