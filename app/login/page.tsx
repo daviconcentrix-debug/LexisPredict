@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -9,33 +9,45 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Lock, Mail, Copyright } from 'lucide-react';
+import { Lock, Mail, Copyright, Loader2, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useAuth } from '@/components/auth/auth-provider';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const { user, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const logoAsset = PlaceHolderImages.find(img => img.id === 'app-logo');
 
+  // REGRA 1: Redirecionamento Determinístico Automático
+  useEffect(() => {
+    if (!authLoading && user && profile) {
+      console.log("[Login] 🚀 Perfil verificado. Forçando entrada no gabinete...");
+      window.location.href = '/';
+    }
+  }, [user, profile, authLoading]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+    
     setLoading(true);
-
     const cleanEmail = email.trim().toLowerCase();
 
+    console.log(`[Login] 🔐 Tentativa de acesso: ${cleanEmail}`);
+
     try {
-      // 1. Autenticação Supabase
       const { data, error: authError } = await supabase.auth.signInWithPassword({ 
         email: cleanEmail, 
         password: password 
       });
 
       if (authError) {
+        console.error("[Login] ❌ Erro Auth:", authError.message);
         let errMsg = authError.message;
         if (errMsg === "Invalid login credentials") errMsg = "E-mail ou senha incorretos.";
         toast({ title: "Erro de Acesso", description: errMsg, variant: "destructive" });
@@ -43,40 +55,34 @@ export default function LoginPage() {
         return;
       }
 
-      if (!data.user) throw new Error("Usuário não retornado pelo servidor.");
-
-      // 2. Busca de Perfil por auth_user_id (UUID)
-      const { data: profile, error: profileError } = await supabase
-        .from('usuarios')
-        .select('id, auth_user_id, empresa_id, cargo, email')
-        .eq('auth_user_id', data.user.id)
-        .single();
-
-      if (profileError || !profile) {
-        toast({ 
-          title: "Perfil Pendente", 
-          description: "Acesso autorizado, mas o perfil de gabinete não foi localizado. Contate o administrador.", 
-          variant: "destructive" 
-        });
-        setLoading(false);
-        return;
+      if (data.user) {
+        console.log("[Login] ✅ Credenciais aceitas. Aguardando sincronização do AuthProvider...");
+        // O useEffect acima cuidará do redirecionamento assim que o profile for carregado
+        // mas forçamos um cookie de segurança para as Server Actions
+        document.cookie = `lexis_user_email=${cleanEmail}; path=/; max-age=31536000; samesite=lax`;
+        toast({ title: "Acesso Autorizado", description: "Carregando ambiente estratégico..." });
       }
-
-      // 3. Persistência de Identidade para Server Actions
-      document.cookie = `lexis_user_email=${profile.email}; path=/; max-age=31536000; samesite=lax`;
-
-      toast({ title: "Acesso Autorizado", description: "Sincronizando ambiente de gabinete..." });
-      router.push('/');
-      router.refresh();
+      
     } catch (error: any) {
+      console.error("[Login] 💥 Falha crítica:", error);
       toast({ 
         title: "Erro de Conexão", 
-        description: "Falha na comunicação com o servidor de segurança.", 
+        description: "Falha na comunicação com o servidor.", 
         variant: "destructive" 
       });
       setLoading(false);
     }
   };
+
+  // REGRA 4: Impedir montagem se já autenticado
+  if (!authLoading && user && profile) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f3f2f2] space-y-4">
+        <Loader2 className="animate-spin text-black" size={32} />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em]">Entrada Liberada. Redirecionando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f3f2f2] p-6 font-sans text-black">
@@ -96,7 +102,7 @@ export default function LoginPage() {
               )}
             </div>
           </div>
-          <div className="group cursor-default">
+          <div>
             <h1 className="text-2xl font-black text-black uppercase tracking-tighter">LexisPredict Elite</h1>
             <p className="text-[10px] font-black text-black uppercase tracking-[0.3em] opacity-60">W1 Capital Cloud CRM</p>
           </div>
@@ -119,6 +125,7 @@ export default function LoginPage() {
                     className="pl-10 border-2 border-black h-12 text-black font-black uppercase text-xs bg-white focus-visible:ring-black placeholder:text-black/20 rounded-none" 
                     required 
                     placeholder="NOME@EMPRESA.COM"
+                    disabled={loading || authLoading}
                   />
                 </div>
               </div>
@@ -132,11 +139,12 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)} 
                     className="pl-10 border-2 border-black h-12 text-black font-black uppercase text-xs bg-white focus-visible:ring-black rounded-none" 
                     required 
+                    disabled={loading || authLoading}
                   />
                 </div>
               </div>
-              <Button type="submit" disabled={loading} className="w-full h-12 bg-white text-black border-2 border-black font-black uppercase text-[10px] hover:bg-black hover:text-white transition-all shadow-[8px_8px_0px_#000] hover:shadow-none mt-4 rounded-none">
-                {loading ? "Sincronizando..." : "Acessar Sistema"}
+              <Button type="submit" disabled={loading || authLoading} className="w-full h-12 bg-white text-black border-2 border-black font-black uppercase text-[10px] hover:bg-black hover:text-white transition-all shadow-[8px_8px_0px_#000] hover:shadow-none mt-4 rounded-none">
+                {(loading || (authLoading && user)) ? <><Loader2 className="animate-spin mr-2" size={14} /> Sincronizando...</> : "Acessar Sistema"}
               </Button>
             </form>
           </CardContent>
