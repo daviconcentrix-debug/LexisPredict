@@ -1,7 +1,6 @@
-
 /**
- * @fileOverview MOTOR DE MENSAGERIA EVOLUTION API v840.0 ELITE
- * Central de integração oficial para disparos via WhatsApp do Gabinete.
+ * @fileOverview MOTOR DE MENSAGERIA EVOLUTION API v850.0 ELITE
+ * Integração estável com Evolution API via Fetch Nativo.
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  */
 
@@ -12,7 +11,7 @@ const EVOLUTION_CONFIG = {
 };
 
 /**
- * Realiza requisições autenticadas à Evolution API com tratamento de erros verboso.
+ * Realiza requisições autenticadas à Evolution API.
  */
 async function evolutionRequest(endpoint: string, method: string, data?: any) {
   const url = `${EVOLUTION_CONFIG.baseUrl}${endpoint}`;
@@ -30,9 +29,8 @@ async function evolutionRequest(endpoint: string, method: string, data?: any) {
     const result = await response.json();
 
     if (!response.ok) {
-      const errorMsg = result.message || `Erro HTTP ${response.status}`;
-      console.error(`[Evolution API Error] ${response.status}:`, result);
-      throw new Error(errorMsg);
+      console.error(`[Evolution API Error ${response.status}]`, result);
+      throw new Error(result.message || 'Erro ao comunicar com Evolution API');
     }
 
     return result;
@@ -43,24 +41,22 @@ async function evolutionRequest(endpoint: string, method: string, data?: any) {
 }
 
 /**
- * Envia uma mensagem de texto simples para um número.
+ * Envia mensagem de texto via Evolution API utilizando mapeamento direto.
  * @param to Número no formato 5511999999999
  * @param message Conteúdo da mensagem
  */
 export async function sendTextMessage(to: string, message: string) {
-  // Normalização agressiva de número
+  // Normalização de número para garantir apenas dígitos
   const cleanNumber = to.replace(/\D/g, '');
   if (!cleanNumber) throw new Error("Número de telefone inválido.");
 
   return evolutionRequest(`/message/sendText/${EVOLUTION_CONFIG.instanceName}`, 'POST', {
     number: cleanNumber,
+    text: message,
     options: {
-      delay: 1500,
+      delay: 1200,
       presence: 'composing',
       linkPreview: true
-    },
-    textMessage: {
-      text: message
     }
   });
 }
