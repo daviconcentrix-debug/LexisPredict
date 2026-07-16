@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Lock, Mail, Copyright } from 'lucide-react';
+import { Lock, Mail, Copyright, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -24,19 +24,21 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+    
     setLoading(true);
-
     const cleanEmail = email.trim().toLowerCase();
 
+    console.log(`[Login] 🔐 Tentando autenticação: ${cleanEmail}`);
+
     try {
-      console.log(`[Login] Tentando autenticação para: ${cleanEmail}`);
-      
       const { data, error: authError } = await supabase.auth.signInWithPassword({ 
         email: cleanEmail, 
         password: password 
       });
 
       if (authError) {
+        console.error("[Login] ❌ Falha Supabase Auth:", authError.message);
         let errMsg = authError.message;
         if (errMsg === "Invalid login credentials") errMsg = "E-mail ou senha incorretos.";
         toast({ title: "Erro de Acesso", description: errMsg, variant: "destructive" });
@@ -46,18 +48,20 @@ export default function LoginPage() {
 
       if (!data.user) throw new Error("Usuário não retornado pelo servidor.");
 
-      console.log("[Login] Autenticação válida. Redirecionando para sincronização...");
+      console.log("[Login] ✅ Autenticação Supabase OK. Sincronizando Perfil...");
       
       // Persistência de Identidade para Server Actions
       document.cookie = `lexis_user_email=${cleanEmail}; path=/; max-age=31536000; samesite=lax`;
 
       toast({ title: "Acesso Autorizado", description: "Sincronizando ambiente de gabinete..." });
       
+      console.log("[Login] 🚀 Iniciando Redirecionamento Master para '/'");
+      
       // Forçamos o reload completo para garantir que o middleware e os cookies de sessão SSR sejam validados
-      window.location.href = '/';
+      window.location.replace('/');
       
     } catch (error: any) {
-      console.error("[Login] Crash crítico:", error);
+      console.error("[Login] 💥 Crash crítico no fluxo de entrada:", error);
       toast({ 
         title: "Erro de Conexão", 
         description: "Falha na comunicação com o servidor de segurança.", 
@@ -108,6 +112,7 @@ export default function LoginPage() {
                     className="pl-10 border-2 border-black h-12 text-black font-black uppercase text-xs bg-white focus-visible:ring-black placeholder:text-black/20 rounded-none" 
                     required 
                     placeholder="NOME@EMPRESA.COM"
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -121,11 +126,12 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)} 
                     className="pl-10 border-2 border-black h-12 text-black font-black uppercase text-xs bg-white focus-visible:ring-black rounded-none" 
                     required 
+                    disabled={loading}
                   />
                 </div>
               </div>
               <Button type="submit" disabled={loading} className="w-full h-12 bg-white text-black border-2 border-black font-black uppercase text-[10px] hover:bg-black hover:text-white transition-all shadow-[8px_8px_0px_#000] hover:shadow-none mt-4 rounded-none">
-                {loading ? "Sincronizando..." : "Acessar Sistema"}
+                {loading ? <><Loader2 className="animate-spin mr-2" size={14} /> Sincronizando...</> : "Acessar Sistema"}
               </Button>
             </form>
           </CardContent>

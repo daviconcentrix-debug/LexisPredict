@@ -23,12 +23,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const syncLockRef = useRef<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
   const loadProfile = async (userId: string) => {
-    console.log(`[AuthProvider] Iniciando carga de perfil para: ${userId}`);
+    console.log(`[AuthProvider] 🚀 Iniciando carga de perfil para: ${userId}`);
     
     try {
       // Prioridade 1: Buscar por auth_user_id (UUID)
@@ -40,7 +39,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       // Prioridade 2: Busca resiliente por e-mail se o UUID falhar
       if (!profileData || profileError) {
-         console.warn("[AuthProvider] UUID não localizado, tentando via e-mail...");
+         console.warn("[AuthProvider] ⚠️ UUID não localizado, tentando via e-mail...");
          const { data: { user: authUser } } = await supabase.auth.getUser();
          if (authUser?.email) {
            const { data: altProfile } = await supabase
@@ -53,7 +52,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (profileData) {
-        console.log("[AuthProvider] Perfil localizado com sucesso.");
+        console.log("[AuthProvider] ✅ Perfil localizado com sucesso.");
         setProfile(profileData as UserProfile);
         
         // Sincroniza identidade com cookie para Server Actions
@@ -63,33 +62,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return profileData as UserProfile;
       }
       
-      console.warn("[AuthProvider] Nenhum perfil de gabinete encontrado para este usuário.");
+      console.warn("[AuthProvider] ❌ Nenhum perfil de gabinete encontrado para este usuário.");
       return null;
     } catch (e) {
-      console.error("[AuthProvider] Falha crítica ao carregar perfil:", e);
+      console.error("[AuthProvider] 💥 Falha crítica ao carregar perfil:", e);
       return null;
     }
   };
 
   useEffect(() => {
     const initializeAuth = async () => {
-      console.log("[AuthProvider] Verificando sessão ativa...");
+      console.log("[AuthProvider] 🔍 Verificando sessão ativa...");
       try {
-        const { data: { user: activeUser }, error } = await supabase.auth.getUser();
+        const { data: { user: activeUser } } = await supabase.auth.getUser();
         
         if (activeUser) {
-          console.log(`[AuthProvider] Sessão detectada para: ${activeUser.email}`);
+          console.log(`[AuthProvider] 👤 Sessão detectada para: ${activeUser.email}`);
           setUser(activeUser);
           await loadProfile(activeUser.id);
         } else {
-          console.log("[AuthProvider] Nenhuma sessão ativa encontrada.");
+          console.log("[AuthProvider] 🚫 Nenhuma sessão ativa encontrada.");
           setUser(null);
           setProfile(null);
         }
       } catch (e) {
-        console.error("[AuthProvider] Erro na inicialização:", e);
+        console.error("[AuthProvider] ❌ Erro na inicialização:", e);
       } finally {
-        console.log("[AuthProvider] Finalizando estado de loading inicial.");
+        console.log("[AuthProvider] 🏁 Finalizando estado de loading inicial. Entrada Liberada.");
         setLoading(false);
       }
     };
@@ -97,23 +96,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthProvider] Evento de Auth: ${event}`);
+      console.log(`[AuthProvider] 📡 Evento de Auth: ${event}`);
       
       if (session?.user) {
         setUser(session.user);
         if (event === 'SIGNED_IN' || !profile) {
+          console.log("[AuthProvider] ⚡ Evento SIGNED_IN detectado. Atualizando perfil...");
           await loadProfile(session.user.id);
+          console.log("[AuthProvider] 🔓 Redirecionamento autorizado.");
         }
         setLoading(false);
       } else {
-        console.log("[AuthProvider] Usuário deslogado. Limpando estados...");
+        console.log("[AuthProvider] 🔒 Usuário deslogado. Limpando estados...");
         setUser(null);
         setProfile(null);
         setLoading(false);
         
         // Limpar cookies de identidade
         document.cookie = "lexis_user_email=; path=/; max-age=0";
-        document.cookie = "lexis_master_unlock=; path=/; max-age=0";
 
         if (!['/login', '/signup'].includes(pathname)) {
           router.push('/login');
@@ -125,7 +125,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [pathname, router]);
 
   const signOut = async () => {
-    console.log("[AuthProvider] Executando log-out...");
+    console.log("[AuthProvider] 🚪 Executando log-out...");
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);

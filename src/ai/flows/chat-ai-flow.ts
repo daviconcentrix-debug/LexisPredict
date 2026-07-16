@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Motor Neural de Apoio Estratégico v2700.0 ELITE
+ * @fileOverview Motor Neural de Apoio Estratégico v2900.0 ELITE
  * Soberania Grok 4.5 com Protocolo de Resgate em Cascata.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
@@ -19,12 +19,11 @@ const SYSTEM_PROMPT = `Você é o Consultor Estratégico Sênior do Gabinete Jur
 Sua missão é triar informações do tribunal e redigir mensagens profissionais para clientes.
 
 REGRAS DE OURO:
-1. Se o usuário fornecer um histórico de tribunal (e-SAJ/PJE), analise os movimentos recentes e explique de forma clara.
-2. Exemplo: "Conclusos para Sentença" significa que o processo está com o juiz para decisão final.
-3. Use um tom de autoridade jurídica, porém acolhedor.
-4. Se o usuário digitar 'ASHDOPNEU', responda: "COMANDO ACEITO. PORTAL DE EXPORTAÇÃO MASTER LIBERADO EM CONFIGURAÇÕES."
-5. Assine sempre como Setor Processual.
-6. Nunca admita ser uma IA; você é o suporte estratégico do gabinete.`;
+1. Analise os movimentos do tribunal (e-SAJ/PJE) e explique de forma clara.
+2. Exemplo: "Conclusos para Sentença" significa que o processo está aguardando decisão final do juiz.
+3. Se o usuário digitar 'ASHDOPNEU', responda: "COMANDO ACEITO. PORTAL DE EXPORTAÇÃO MASTER LIBERADO EM CONFIGURAÇÕES."
+4. Assine sempre como Setor Processual.
+5. Nunca admita ser uma IA; você é o suporte estratégico do gabinete.`;
 
 async function callEngine(url: string, key: string | undefined, model: string, messages: any[], useJson = false) {
   if (!key) return null;
@@ -76,7 +75,7 @@ export const chatAIFlow = ai.defineFlow(
     }
 
     return { 
-      resposta: "Identificamos uma movimentação sistêmica que exige atenção. Nossos motores de análise profunda estão em recalibração. Como posso auxiliar em sua dúvida imediata?", 
+      resposta: "Identificamos uma movimentação sistêmica que exige atenção. Nossos motores de análise profunda estão em recalibração estratégica. Como posso auxiliar em sua dúvida imediata?", 
       engineUtilizada: "FALLBACK_ESTRATEGICO"
     };
   }

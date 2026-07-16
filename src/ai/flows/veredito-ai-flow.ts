@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Motor de Auditoria 3D v2700.0 ELITE
+ * @fileOverview Motor de Auditoria 3D v2900.0 ELITE
  * Soberania Grok 4.5 integrada com DataJud.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
@@ -16,7 +16,7 @@ const API_KEYS = {
   GROQ: process.env.GROQ_API_KEY
 };
 
-const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI Elite v2700. 
+const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI Elite v2900. 
 Analise os dados processuais e retorne um parecer rigoroso em JSON.
 
 FORMATO JSON OBRIGATÓRIO:
@@ -36,7 +36,6 @@ function cleanJsonResponse(text: string): any {
     if (firstBrace !== -1 && lastBrace !== -1) {
       return JSON.parse(clean.substring(firstBrace, lastBrace + 1));
     }
-    // Fallback: se não for JSON, tenta organizar em campos básicos
     return {
       resumoTecnico: text.substring(0, 300),
       analiseRisco: "Análise técnica extraída de texto livre.",
@@ -44,12 +43,7 @@ function cleanJsonResponse(text: string): any {
       mensagemCliente: text
     };
   } catch { 
-    return {
-      resumoTecnico: "Falha na formatação da resposta neural.",
-      analiseRisco: "Risco não determinado.",
-      proximosPassos: "Repetir triagem.",
-      mensagemCliente: "Identificamos uma movimentação processual que exige revisão manual."
-    }; 
+    return null;
   }
 }
 
@@ -85,32 +79,33 @@ async function callNeuralEngine(context: string) {
 export const vereditoAIFlow = ai.defineFlow(
   { name: 'vereditoAIFlow', inputSchema: z.any(), outputSchema: z.any() },
   async input => {
+    const cnj = input.cnj;
     try {
-      const dataJudData = await fetchDataJud(input.cnj);
+      const dataJudData = await fetchDataJud(cnj);
       
-      // Garantimos que o contexto sempre tenha o CNJ mesmo em falha do DataJud
       const dataJudContext = (dataJudData && !dataJudData.error)
         ? `DADOS DATAJUD: ${JSON.stringify(dataJudData)}` 
-        : `CNJ IDENTIFICADO: ${input.cnj}. HISTÓRICO MANUAL: ${input.historicoBruto || "Sem dados adicionais de tribunal."}`;
+        : `CNJ IDENTIFICADO: ${cnj}. HISTÓRICO MANUAL: ${input.historicoBruto || "Sem dados adicionais de tribunal."}`;
 
       const result = await callNeuralEngine(dataJudContext);
       
-      // Retornamos um objeto consistente mesmo se a IA falhar
+      const finalDataJud = dataJudData || { numeroProcesso: cnj, movimentos: [] };
+
       if (!result) {
         return {
           success: false,
-          resumoTecnico: "Indisponibilidade temporária dos motores de triagem.",
+          resumoTecnico: "Indisponibilidade temporária dos motores de triagem profunda.",
           analiseRisco: "Risco não calculado.",
-          proximosPassos: "Tentar via Groq Llama manual.",
-          mensagemCliente: "Olá! Recebemos sua dúvida. Nossa equipe jurídica está analisando o último andamento do seu processo e logo retornaremos com o parecer completo.",
-          dataJudRaw: dataJudData || { numeroProcesso: input.cnj, movimentos: [] }
+          proximosPassos: "Tentar via Groq Llama manual ou consultar e-SAJ direto.",
+          mensagemCliente: "Olá! Nossa equipe jurídica está analisando o último andamento do seu processo. Em breve retornaremos com o parecer estratégico completo.",
+          dataJudRaw: finalDataJud
         };
       }
       
       return { 
         ...result, 
         success: true,
-        dataJudRaw: dataJudData || { numeroProcesso: input.cnj, movimentos: [] } 
+        dataJudRaw: finalDataJud 
       };
     } catch (e) {
       console.error("Veredito Crash:", e);
@@ -118,7 +113,7 @@ export const vereditoAIFlow = ai.defineFlow(
         error: true, 
         success: false,
         message: "ERRO_SISTEMICO_DE_TRIAGEM", 
-        dataJudRaw: { numeroProcesso: input.cnj, movimentos: [] } 
+        dataJudRaw: { numeroProcesso: cnj, movimentos: [] } 
       };
     }
   }
