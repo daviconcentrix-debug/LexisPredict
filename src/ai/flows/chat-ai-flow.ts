@@ -1,9 +1,8 @@
-
 'use server';
 /**
- * @fileOverview Motor Neural de Apoio Estratégico v1100.0 ELITE
- * Protocolo de Resgate e Cascata Neural de Resiliência.
- * Proprietário: W1 Capital | Versão: SaaS White-Label
+ * @fileOverview Motor Neural de Apoio Estratégico v1300.0 ELITE
+ * Protocolo de Resgate e Cascata Neural de Resiliência (xAI -> Groq).
+ * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
 import {ai} from '@/ai/genkit';
@@ -14,13 +13,12 @@ const API_KEYS = {
   GROQ: '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'
 };
 
-const SYSTEM_PROMPT = `Você é o Consultor Estratégico Sênior da Get Assessoria. 
+const SYSTEM_PROMPT = `Você é o Consultor Estratégico Sênior do Gabinete Jurídico Get Assessoria.
 REGRAS:
 1. Respostas curtas e profissionais (máx 10 linhas).
-2. Defenda os interesses da assessoria.
-3. Se o usuário digitar 'ASHDOPNEU', responda: "COMANDO ACEITO. PORTAL DE EXPORTAÇÃO MASTER LIBERADO EM CONFIGURAÇÕES." e nada mais.
-4. Use tom resolutivo. Assine como Setor Processual.
-5. Prefira retornar texto limpo e direto.`;
+2. Se o usuário digitar 'ASHDOPNEU', responda exatamente: "COMANDO ACEITO. PORTAL DE EXPORTAÇÃO MASTER LIBERADO EM CONFIGURAÇÕES." e nada mais.
+3. Use tom resolutivo. Assine como Setor Processual.
+4. Identifique o status do processo e sugira o próximo passo técnico.`;
 
 /**
  * Filtro de Erros e Limpeza Forense
@@ -31,7 +29,8 @@ function cleanResponse(text: string): string | null {
   
   const errorIndicators = [
     'discord.gg', 'rate limit', 'quota exceeded', 'api error', 
-    'unauthorized', '404', 'insufficient balance', 'system unavailable'
+    'unauthorized', '404', 'insufficient balance', 'system unavailable',
+    'join the server', 'server for more info'
   ];
   
   if (errorIndicators.some(indicator => lower.includes(indicator))) return null;
@@ -50,9 +49,22 @@ function cleanResponse(text: string): string | null {
   return clean.length > 5 ? clean : null;
 }
 
+async function fetchWithTimeout(url: string, options: any, timeout = 22000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    return null;
+  }
+}
+
 async function callXAI(pergunta: string, historico: any[]) {
   try {
-    const res = await fetch('https://api.x.ai/v1/chat/completions', {
+    const res = await fetchWithTimeout('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${API_KEYS.XAI}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -60,7 +72,7 @@ async function callXAI(pergunta: string, historico: any[]) {
         messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }]
       })
     });
-    if (!res.ok) return null;
+    if (!res?.ok) return null;
     const data = await res.json();
     return cleanResponse(data?.choices?.[0]?.message?.content);
   } catch (e) { return null; }
@@ -68,7 +80,7 @@ async function callXAI(pergunta: string, historico: any[]) {
 
 async function callGroq(pergunta: string, historico: any[], model: string) {
   try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${API_KEYS.GROQ}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -76,7 +88,7 @@ async function callGroq(pergunta: string, historico: any[], model: string) {
         messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...historico, { role: 'user', content: pergunta }]
       })
     });
-    if (!res.ok) return null;
+    if (!res?.ok) return null;
     const data = await res.json();
     return cleanResponse(data?.choices?.[0]?.message?.content);
   } catch (e) { return null; }
@@ -97,9 +109,6 @@ export const chatAIFlow = ai.defineFlow(
     for (const engine of sorted) {
       const res = await engine.call(input.pergunta, input.historico || []);
       if (res) {
-        if (res.includes("PORTAL DE EXPORTAÇÃO")) {
-           // Lado do servidor não salva LS, a interface deve detectar esta string
-        }
         return { resposta: res, engineUtilizada: engine.id.toUpperCase() };
       }
     }

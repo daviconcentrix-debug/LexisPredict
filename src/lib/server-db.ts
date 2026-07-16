@@ -1,4 +1,3 @@
-
 'use server';
 
 import { supabase, isSupabaseConfigured, UserProfile } from './supabase';
@@ -180,9 +179,6 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
  * Busca mensagens capturadas via Webhook do Supabase.
  */
 export async function getWhatsAppHistory(contactNumber: string) {
-  const { empresa_id } = await getUserContext();
-  if (!empresa_id) return [];
-
   const cleanNum = contactNumber.replace(/\D/g, '');
   
   const { data, error } = await supabase

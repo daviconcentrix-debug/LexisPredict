@@ -37,7 +37,8 @@ export async function sendWhatsAppAction(to: string, message: string) {
 }
 
 /**
- * Recupera o histórico de mensagens reais do banco de dados.
+ * Recupera o histórico de mensagens reais do banco de dados (Supabase).
+ * URL: https://segjskjlbeydlljnefai.supabase.co/rest/v1/whatsapp_messages
  */
 export async function fetchWhatsAppHistoryAction(phone: string) {
   try {

@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       : new Date().toISOString();
 
     // 4. Persistência no Supabase
-    // Nota: O campo empresa_id pode ser nulo se não houver mapeamento de instância por empresa
+    // O campo empresa_id será preenchido via trigger ou lookup se necessário futuramente
     const { error } = await supabase
       .from('whatsapp_messages')
       .insert({
