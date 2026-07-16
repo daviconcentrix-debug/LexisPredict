@@ -1,8 +1,8 @@
 
 'use server';
 /**
- * @fileOverview Motor de Consultoria Estratégica v9600.0 ELITE
- * Núcleo: Pentade de Motores Neurais com Resgate de Texto Plano.
+ * @fileOverview Motor de Consultoria Estratégica v9800.0 ELITE
+ * Núcleo: Pentade de Motores Neurais com Resgate de Texto Plano e Filtro de Erros.
  * Proprietário: W1 Capital | Versão: SaaS White-Label
  */
 
@@ -22,26 +22,42 @@ REGRAS DE OURO:
 3. Se o cliente questionar valores, cite a Cláusula 3.2 do contrato (Custas do Juiz são responsabilidade do cliente).
 4. Tom profissional, transparente e resolutivo.
 5. Assine como Setor Processual.
-RETORNE JSON: { "resposta": "texto_aqui" } ou apenas o texto direto.`;
+RETORNE JSON: { "resposta": "texto_aqui" }`;
 
 /**
- * Função de Limpeza Forense de Resposta IA
- * Tenta extrair JSON, se falhar, retorna o texto bruto como resposta.
+ * Função de Limpeza Forense de Resposta IA com Filtro de Erros de API
  */
 function cleanJsonResponse(text: string): any {
-  if (!text) return null;
+  if (!text || typeof text !== 'string') return null;
+
+  // Filtro de Falsos Sucessos (Mensagens de erro dos provedores)
+  const errorIndicators = ['discord.gg', 'rate limit', 'quota exceeded', 'api error', 'unauthorized', '404', 'not found', 'join our server'];
+  const isErrorMessage = errorIndicators.some(indicator => text.toLowerCase().includes(indicator));
+  
+  if (isErrorMessage) {
+    console.warn("[IA] Detectado erro de provedor no texto, tentando próximo motor...");
+    return null; 
+  }
+
   try {
     let clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
     const firstBrace = clean.indexOf('{');
     const lastBrace = clean.lastIndexOf('}');
+    
     if (firstBrace !== -1 && lastBrace !== -1) {
       const parsed = JSON.parse(clean.substring(firstBrace, lastBrace + 1));
       if (parsed.resposta) return parsed;
+      if (parsed.answer) return { resposta: parsed.answer };
+      if (parsed.content) return { resposta: parsed.content };
     }
-    // Fallback: Se não é JSON ou não tem a chave, usa o texto todo
-    return { resposta: text.trim() };
+    
+    // Se não é JSON mas passou pelo filtro de erros, retorna o texto como resposta
+    if (text.length > 10) {
+      return { resposta: text.trim() };
+    }
+    return null;
   } catch (e) { 
-    return { resposta: text.trim() }; 
+    return text.length > 10 ? { resposta: text.trim() } : null; 
   }
 }
 
@@ -106,8 +122,8 @@ export const chatAIFlow = ai.defineFlow(
   async input => {
     const engines = [
       { id: 'xai', call: callXAI },
-      { id: 'airforce', call: callAirforce },
-      { id: 'groq-llama', call: callGroqLlama }
+      { id: 'groq-llama', call: callGroqLlama }, // Priorizando Groq sobre Airforce pela estabilidade
+      { id: 'airforce', call: callAirforce }
     ];
 
     const modelId = input.preferredModel || 'xai';
@@ -119,9 +135,11 @@ export const chatAIFlow = ai.defineFlow(
     for (const engine of sortedEngines) {
       try {
         const res = await engine.call(input.pergunta, input.historico || []);
-        if (res && res.resposta) return { resposta: res.resposta, engineUtilizada: engine.id.toUpperCase() };
+        if (res && res.resposta && res.resposta.length > 5) {
+          return { resposta: res.resposta, engineUtilizada: engine.id.toUpperCase() };
+        }
       } catch (e) {
-        console.warn(`Engine ${engine.id} falhou, tentando fallback...`);
+        console.warn(`Engine ${engine.id} falhou criticamente, tentando fallback...`);
       }
     }
 
@@ -131,8 +149,7 @@ export const chatAIFlow = ai.defineFlow(
 
 export async function perguntarIA(input: any) {
   try {
-    const result = await chatAIFlow(input);
-    return result;
+    return await chatAIFlow(input);
   } catch (e: any) {
     return { resposta: "ERRO_CONEXÃO_NEURAL", error: true };
   }
