@@ -1,14 +1,13 @@
 /**
- * @fileOverview MOTOR DE MENSAGERIA EVOLUTION API v810.0 ELITE
+ * @fileOverview MOTOR DE MENSAGERIA EVOLUTION API v830.0 ELITE
  * Central de integração oficial para disparos via WhatsApp do Gabinete.
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  */
 
 const EVOLUTION_CONFIG = {
   baseUrl: 'https://evolution-api-0edm.onrender.com',
-  globalApiKey: 'lexis2026',
-  instanceName: 'Lexis',
-  instanceToken: '39188EC8330F-4CA2-9AA4-36B71FD06B0C'
+  apiKey: 'lexis2026',
+  instanceName: 'Lexis'
 };
 
 /**
@@ -22,7 +21,7 @@ async function evolutionRequest(endpoint: string, method: string, data?: any) {
       method,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': EVOLUTION_CONFIG.globalApiKey
+        'apikey': EVOLUTION_CONFIG.apiKey
       },
       body: data ? JSON.stringify(data) : undefined
     });
@@ -47,7 +46,7 @@ async function evolutionRequest(endpoint: string, method: string, data?: any) {
  * @param message Conteúdo da mensagem
  */
 export async function sendTextMessage(to: string, message: string) {
-  // Evolution API espera o número sem o '+' no endpoint sendText
+  // Normalização de número para Evolution (sem +)
   const cleanNumber = to.replace(/\D/g, '');
   
   return evolutionRequest(`/message/sendText/${EVOLUTION_CONFIG.instanceName}`, 'POST', {
@@ -59,22 +58,6 @@ export async function sendTextMessage(to: string, message: string) {
     },
     textMessage: {
       text: message
-    }
-  });
-}
-
-/**
- * Exemplo de função para Template ou Media se necessário futuramente
- */
-export async function sendMediaMessage(to: string, caption: string, mediaUrl: string, type: 'image' | 'video' | 'document' = 'image') {
-  const cleanNumber = to.replace(/\D/g, '');
-  
-  return evolutionRequest(`/message/sendMedia/${EVOLUTION_CONFIG.instanceName}`, 'POST', {
-    number: cleanNumber,
-    mediaMessage: {
-      mediatype: type,
-      caption: caption,
-      media: mediaUrl
     }
   });
 }
