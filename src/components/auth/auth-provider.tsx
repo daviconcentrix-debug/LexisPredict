@@ -2,8 +2,8 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { supabase, UserProfile } from '@/lib/supabase';
-import { useRouter, usePathname } from 'next/navigation';
+import { supabase, UserProfile, isSupabaseConfigured } from '@/lib/supabase';
+import { usePathname } from 'next/navigation';
 
 interface AuthContextType {
   user: any | null;
@@ -23,23 +23,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
   const pathname = usePathname();
+  const initialized = useRef(false);
 
   const loadProfile = async (userId: string) => {
-    console.log(`[AuthProvider] 🚀 Iniciando carga de perfil para: ${userId}`);
+    if (!isSupabaseConfigured) {
+       console.error("[AuthProvider] ❌ Supabase não configurado via ENV VARS.");
+       setLoading(false);
+       return null;
+    }
+
+    console.log(`[AuthProvider] 🚀 Buscando perfil de gabinete para UID: ${userId}`);
     
     try {
-      // Prioridade 1: Buscar por auth_user_id (UUID)
+      // Prioridade 1: Buscar por auth_user_id (UUID oficial)
       let { data: profileData, error: profileError } = await supabase
         .from('usuarios')
         .select('*')
         .eq('auth_user_id', userId)
         .maybeSingle();
       
-      // Prioridade 2: Busca resiliente por e-mail se o UUID falhar
+      // Prioridade 2: Busca resiliente por e-mail caso o UUID falhe
       if (!profileData || profileError) {
-         console.warn("[AuthProvider] ⚠️ UUID não localizado, tentando via e-mail...");
+         console.warn("[AuthProvider] ⚠️ UUID não localizado no perfil, tentando via e-mail corporativo...");
          const { data: { user: authUser } } = await supabase.auth.getUser();
          if (authUser?.email) {
            const { data: altProfile } = await supabase
@@ -52,43 +58,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (profileData) {
-        console.log("[AuthProvider] ✅ Perfil localizado com sucesso.");
+        console.log("[AuthProvider] ✅ Perfil localizado. Entrada Liberada.");
         setProfile(profileData as UserProfile);
         
-        // Sincroniza identidade com cookie para Server Actions
+        // Garante cookie de identidade para as Server Actions
         if (profileData.email) {
-           document.cookie = `lexis_user_email=${profileData.email}; path=/; max-age=31536000; samesite=lax`;
+           document.cookie = `lexis_user_email=${profileData.email.toLowerCase().trim()}; path=/; max-age=31536000; samesite=lax`;
         }
         return profileData as UserProfile;
       }
       
-      console.warn("[AuthProvider] ❌ Nenhum perfil de gabinete encontrado para este usuário.");
+      console.warn("[AuthProvider] ❌ Nenhum perfil corporativo encontrado para este usuário.");
       return null;
     } catch (e) {
-      console.error("[AuthProvider] 💥 Falha crítica ao carregar perfil:", e);
+      console.error("[AuthProvider] 💥 Falha fatal no carregamento de perfil:", e);
       return null;
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     const initializeAuth = async () => {
-      console.log("[AuthProvider] 🔍 Verificando sessão ativa...");
+      if (initialized.current) return;
+      initialized.current = true;
+
+      console.log("[AuthProvider] 🔍 Analisando sessão local...");
       try {
-        const { data: { user: activeUser } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
         
-        if (activeUser) {
-          console.log(`[AuthProvider] 👤 Sessão detectada para: ${activeUser.email}`);
-          setUser(activeUser);
-          await loadProfile(activeUser.id);
+        if (session?.user) {
+          console.log(`[AuthProvider] 👤 Sessão detectada: ${session.user.email}`);
+          setUser(session.user);
+          await loadProfile(session.user.id);
         } else {
-          console.log("[AuthProvider] 🚫 Nenhuma sessão ativa encontrada.");
+          console.log("[AuthProvider] 🔒 Nenhuma sessão ativa.");
           setUser(null);
           setProfile(null);
+          setLoading(false);
         }
       } catch (e) {
-        console.error("[AuthProvider] ❌ Erro na inicialização:", e);
-      } finally {
-        console.log("[AuthProvider] 🏁 Finalizando estado de loading inicial. Entrada Liberada.");
+        console.error("[AuthProvider] ❌ Erro na inicialização de hardware:", e);
         setLoading(false);
       }
     };
@@ -96,40 +106,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthProvider] 📡 Evento de Auth: ${event}`);
+      console.log(`[AuthProvider] 📡 Evento Global: ${event}`);
       
       if (session?.user) {
         setUser(session.user);
         if (event === 'SIGNED_IN' || !profile) {
-          console.log("[AuthProvider] ⚡ Evento SIGNED_IN detectado. Atualizando perfil...");
           await loadProfile(session.user.id);
-          console.log("[AuthProvider] 🔓 Redirecionamento autorizado.");
         }
-        setLoading(false);
       } else {
-        console.log("[AuthProvider] 🔒 Usuário deslogado. Limpando estados...");
         setUser(null);
         setProfile(null);
         setLoading(false);
         
-        // Limpar cookies de identidade
+        // Limpeza de rastros de sessão
         document.cookie = "lexis_user_email=; path=/; max-age=0";
 
         if (!['/login', '/signup'].includes(pathname)) {
-          router.push('/login');
+          window.location.href = '/login';
         }
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [pathname, router]);
+  }, [pathname, profile]);
 
   const signOut = async () => {
-    console.log("[AuthProvider] 🚪 Executando log-out...");
+    console.log("[AuthProvider] 🚪 Executando log-out oficial do gabinete...");
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
-    router.push('/login');
+    document.cookie = "lexis_user_email=; path=/; max-age=0";
+    window.location.href = '/login';
   };
 
   return (

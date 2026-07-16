@@ -1,8 +1,8 @@
 
 'use server';
 /**
- * @fileOverview Motor de Auditoria 3D v2900.0 ELITE
- * Soberania Grok 4.5 integrada com DataJud.
+ * @fileOverview Motor de Auditoria 3D v3000.0 ELITE
+ * Soberania Grok 4.5 integrada com DataJud e Resiliência de Fallback.
  * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
  */
 
@@ -16,7 +16,7 @@ const API_KEYS = {
   GROQ: process.env.GROQ_API_KEY
 };
 
-const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI Elite v2900. 
+const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI Elite v3000. 
 Analise os dados processuais e retorne um parecer rigoroso em JSON.
 
 FORMATO JSON OBRIGATÓRIO:
@@ -81,6 +81,7 @@ export const vereditoAIFlow = ai.defineFlow(
   async input => {
     const cnj = input.cnj;
     try {
+      console.log(`[Veredito] 🔍 Iniciando auditoria para CNJ: ${cnj}`);
       const dataJudData = await fetchDataJud(cnj);
       
       const dataJudContext = (dataJudData && !dataJudData.error)
@@ -89,7 +90,8 @@ export const vereditoAIFlow = ai.defineFlow(
 
       const result = await callNeuralEngine(dataJudContext);
       
-      const finalDataJud = dataJudData || { numeroProcesso: cnj, movimentos: [] };
+      // Garante que o retorno contenha os dados básicos para o frontend, eliminando o erro "Undefined"
+      const finalDataJud = (dataJudData && !dataJudData.error) ? dataJudData : { numeroProcesso: cnj, movimentos: [] };
 
       if (!result) {
         return {

@@ -4,15 +4,16 @@ import { createClient } from '@supabase/supabase-js';
 /**
  * CLIENTE SUPABASE LEXISPREDICT - CONFIGURAÇÃO SaaS MULTI-TENANT
  * Propriedade de W1 Capital | Fundador: Davi Alves Figueredo
+ * Nota: Todas as chaves devem ser configuradas no painel do Vercel.
  */
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://segjskjlbeydlljnefai.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_yEX6mVid3dpC7o7eOzuB1g_VhQodoTg';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const isSupabaseConfigured = 
   supabaseUrl && 
-  supabaseUrl !== 'https://placeholder.supabase.co' && 
+  supabaseUrl !== '' && 
   supabaseAnonKey &&
-  supabaseAnonKey !== 'placeholder';
+  supabaseAnonKey !== '';
 
 // Inicialização segura para garantir a conexão com o banco PostgreSQL e Auth
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
