@@ -63,18 +63,18 @@ export default function UnifiedReport() {
 
   const metrics = useMemo(() => {
     const totalRepo = cases.length;
-    // Carteira Ativa: Exclui registros já finalizados estrategicamente
-    const ativos = cases.filter(c => !['Encerrado', 'Arquivado', 'Extinto', 'Suspenso'].includes(c.situacao));
+    // Carteira Ativa: Exclui registros já finalizados estrategicamente (Usa Uppercase para match resiliente)
+    const ativos = cases.filter(c => !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase()));
     const activeTotal = ativos.length;
     
     // Categorização Estrita (Soma exata)
-    const countVencido = cases.filter(c => c.status === 'Vencido' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
-    const countHoje = cases.filter(c => c.status === 'É Hoje' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
-    const countAtencao = cases.filter(c => c.status === 'Atenção' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
-    const countSaudavel = cases.filter(c => c.status === 'No Prazo' && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
-    const countSemPrazo = cases.filter(c => (c.status === 'Sem Prazo' || !c.proximoPrazo) && !['Encerrado', 'Arquivado'].includes(c.situacao)).length;
+    const countVencido = cases.filter(c => c.status === 'Vencido' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
+    const countHoje = cases.filter(c => c.status === 'É Hoje' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
+    const countAtencao = cases.filter(c => c.status === 'Atenção' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
+    const countSaudavel = cases.filter(c => c.status === 'No Prazo' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
+    const countSemPrazo = cases.filter(c => (c.status === 'Sem Prazo' || !c.proximoPrazo) && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
     
-    const countFinalizados = cases.filter(c => ['Encerrado', 'Arquivado'].includes(c.situacao)).length;
+    const countFinalizados = cases.filter(c => ['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase()) || c.status === 'Arquivado' || c.status === 'Encerrado').length;
 
     // Índice de Risco Ponderado (Somente sobre Ativos)
     const riskSum = (countVencido * 1.0) + (countHoje * 0.8) + (countAtencao * 0.5) + (countSaudavel * 0.1);
@@ -94,7 +94,7 @@ export default function UnifiedReport() {
 
   const prioritaryCases = useMemo(() => {
     return cases
-      .filter(c => ["Vencido", "É Hoje", "Atenção"].includes(c.status) && !['Encerrado', 'Arquivado'].includes(c.situacao))
+      .filter(c => ["Vencido", "É Hoje", "Atenção"].includes(c.status) && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase()))
       .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
       .slice(0, 50);
   }, [cases]);
