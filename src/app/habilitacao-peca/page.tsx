@@ -148,7 +148,7 @@ export default function HabilitacaoPecaGenerator() {
             email: lawyerInfo.email,
             cep: "03870-100"
           },
-          tipoAcao: data.processos?.[0]?.acao || "AÇÃO REVISIONAL DE CONTRATO BANCÁRIO",
+          tipoAcao: data.processos?.[0]?.acao || "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA",
           reuNome: data.processos?.[0]?.banco || "INSTITUIÇÃO FINANCEIRA",
           reuCnpj: data.processos?.[0]?.cnpjBanco || "",
           cidadeEmissao: selectedState === 'SP' ? 'São Paulo' : 'Comarca Local',
@@ -412,13 +412,13 @@ export default function HabilitacaoPecaGenerator() {
                   <div className="space-y-10">
                     <h1 className="text-center font-bold text-lg uppercase tracking-widest">PROCURAÇÃO "AD JUDICIA"</h1>
                     <p className="text-justify indent-12">
-                      <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, brasileiro(a), {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador do RG sob Nº {extractedData.cliente.rg} e devidamente inscrito no CPF sob Nº {extractedData.cliente.cpf}, residente e domiciliado à {extractedData.cliente.endereco}, neste ato nomeia como seu procurador:
+                      <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, {extractedData.cliente.nacionalidade || "brasileiro(a)"}, {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador do RG sob Nº {extractedData.cliente.rg} e devidamente inscrito no CPF sob Nº {extractedData.cliente.cpf}, residente e domiciliado à {extractedData.cliente.endereco}, com endereço eletrônico: {extractedData.cliente.email || 'Não informado'}, neste ato nomeia como seu procurador:
                     </p>
                     <p className="text-justify indent-12">
                       <strong>{extractedData.advogado.nome.toUpperCase()}</strong>, brasileiro, advogado, inscrito na OAB/{extractedData.selectedState} sob o número {extractedData.advogado.oab}, com endereço profissional na {extractedData.advogado.endereco}, CEP {extractedData.advogado.cep}, e endereço eletrônico: {extractedData.advogado.email}.
                     </p>
                     <p className="text-justify indent-12">
-                      <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <strong>"AD JUDICIA"</strong>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <strong>{extractedData.tipoAcao.toUpperCase()}</strong> promovida contra o <strong>{extractedData.reuNome.toUpperCase()}</strong>, inscrito no CNPJ nº {extractedData.reuCnpj}.
+                      <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <strong>"AD JUDICIA"</strong>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <strong>{extractedData.tipoAcao.toUpperCase()}</strong> promovida contra o <strong>{extractedData.reuNome.toUpperCase()}</strong>, processo nº {extractedData.numeroProcesso}.
                     </p>
                     <p className="text-center pt-10">{extractedData.cidadeEmissao}, {extractedData.dataFormatada}.</p>
                     <div className="flex flex-col items-center pt-10">
