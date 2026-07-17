@@ -1,9 +1,9 @@
 
 'use server';
 /**
- * @fileOverview Motor de Extração de Dados Jurídicos v3700.0 ELITE
- * Soberania Grok 4.5 com Cascata de Resiliência e Resgate Heurístico (Regex) 3.0.
- * Otimizado para identificar endereços, datas grudadas em nomes e dados de contato.
+ * @fileOverview Motor de Extração de Dados Jurídicos v3800.0 ELITE
+ * Soberania Grok 4.5 com Cascata de Resiliência e Resgate Heurístico (Regex) 4.0.
+ * Especialista em separar Nomes de Datas e identificar Instituições Financeiras.
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  */
 
@@ -35,9 +35,9 @@ const SYSTEM_PROMPT = `Você é o Arquiteto Jurídico Sênior da W1 Capital.
 Sua missão é extrair dados de documentos para gerar novas peças.
 
 REGRAS OBRIGATÓRIAS DE EXTRAÇÃO:
-1. NOME E DATA: O nome do cliente pode vir grudado com a data de nascimento (ex: Adriana Mesquita29/12/1975). SEPARE-OS.
-2. EXTRAÇÃO DE CONTATO: Localize o e-mail e os telefones. Geralmente aparecem na mesma linha.
-3. ENDEREÇO RESIDENCIAL: Ignore o endereço da Get Assessoria (Paraguassu Paulista). Capture o endereço do cliente.
+1. NOME E DATA: O nome do cliente vem grudado com a data de nascimento (ex: Adriana Mesquita29/12/1975). SEPARE-OS IMEDIATAMENTE.
+2. BANCO RESPONSÁVEL: Identifique o banco no campo "Banco responsável" ou no texto do objeto do instrumento.
+3. EXTRAÇÃO DE CONTATO: Localize o e-mail e os telefones. Geralmente aparecem na mesma linha.
 4. Retorne EXCLUSIVAMENTE um JSON plano no formato:
 {
   "cliente": { "nome": "", "cpf": "", "rg": "", "endereco": "", "cep": "", "dataNascimento": "", "email": "", "telefone": "", "estadoCivil": "", "profissao": "", "nacionalidade": "" },
@@ -45,8 +45,8 @@ REGRAS OBRIGATÓRIAS DE EXTRAÇÃO:
 }`;
 
 /**
- * PROTOCOLO DE RESGATE HEURÍSTICO (REGEX) 3.0
- * Especialista em padrões GET Assessoria (Data grudada no nome, Email e Tel na mesma linha).
+ * PROTOCOLO DE RESGATE HEURÍSTICO (REGEX) 4.0
+ * Especialista em descolar Nome/Data e capturar Bancos.
  */
 function dumbExtract(text: string) {
   const cpfMatch = text.match(/\d{3}\.\d{3}\.\d{3}-\d{2}/) || text.match(/\d{11}/);
@@ -56,13 +56,17 @@ function dumbExtract(text: string) {
   const telMatch = text.match(/\(\d{2}\)\d{4,5}-\d{4}/g);
   const dateMatch = text.match(/\d{2}\/\d{2}\/\d{4}/);
   
+  // Busca Banco (Padrão GET: Banco responsável: NomeDoBanco)
+  const bankMatch = text.match(/Banco responsável:\s*([^\n\r]*)/i);
+  let banco = bankMatch ? bankMatch[1].trim() : "BANCO";
+
   const lines = text.split('\n').map(l => l.trim());
   let nome = "NÃO IDENTIFICADO";
   let endereco = "REVISAR MANUALMENTE";
   let dataNasc = dateMatch ? dateMatch[0] : "";
 
   for (const line of lines) {
-    // Busca endereço (Linha com Rua/Av, vírgula e sem ser a sede da Get)
+    // Busca endereço residencial (Ignora sede da empresa)
     if (endereco === "REVISAR MANUALMENTE" && 
         (line.toUpperCase().includes("RUA") || line.toUpperCase().includes("AV.")) && 
         line.includes(",") && 
@@ -70,40 +74,30 @@ function dumbExtract(text: string) {
       endereco = line;
     }
 
-    // Busca nome (Trata o caso do Nome29/12/1975)
-    if (nome === "NÃO IDENTIFICADO" && 
-        line.length > 10 && 
-        !line.includes("SISTEMA") &&
-        !line.includes("CONTRATO") &&
-        !line.includes("AV.") &&
-        !line.includes("@")) {
-      
-      let cleanName = line;
-      // Se a data estiver grudada no final da linha
+    // Busca nome (Separa a data grudada se houver)
+    if (nome === "NÃO IDENTIFICADO" && line.length > 5 && !line.includes("@") && !line.includes("SISTEMA")) {
       const dateInLine = line.match(/\d{2}\/\d{2}\/\d{4}/);
       if (dateInLine) {
-        cleanName = line.replace(dateInLine[0], '').trim();
-        if (!dataNasc) dataNasc = dateInLine[0];
-      }
-      
-      if (cleanName.split(' ').length >= 2) {
-        nome = cleanName;
+        dataNasc = dateInLine[0];
+        nome = line.replace(dataNasc, '').trim().toUpperCase();
+      } else if (line.split(' ').length >= 2 && !line.includes("AV.") && !line.includes("CEP")) {
+        nome = line.toUpperCase();
       }
     }
   }
 
   return {
     cliente: { 
-      nome: nome.toUpperCase(), 
+      nome: nome, 
       cpf: cpfMatch ? cpfMatch[0] : "---", 
       rg: rgMatch ? rgMatch[0] : "---", 
-      endereco: endereco.toUpperCase(), 
+      endereco: endereco, 
       cep: cepMatch ? cepMatch[0] : "",
       dataNascimento: dataNasc,
       email: emailMatch ? emailMatch[0] : "",
       telefone: telMatch ? telMatch[0] : ""
     },
-    processos: [{ banco: "BANCO", numero: "S/N" }]
+    processos: [{ banco: banco, numero: "S/N", action: "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA" }]
   };
 }
 
@@ -160,17 +154,19 @@ export const documentFlow = ai.defineFlow(
     let parsed = await callNeuralEngine(text);
 
     // RESGATE HEURÍSTICO SE A IA FALHAR OU DADOS CRÍTICOS ESTIVEREM VAZIOS
-    if (!parsed || !parsed.cliente?.endereco || parsed.cliente.endereco.includes("REVISAR") || !parsed.cliente.dataNascimento) {
-      console.warn("[Triagem] IA incompleta. Iniciando resgate Heurístico 3.0...");
+    if (!parsed || !parsed.cliente?.nome || !parsed.cliente?.dataNascimento) {
       const fallback = dumbExtract(text);
       if (!parsed) {
-        parsed = { ...fallback, engineUsed: "RESGATE_HEURISTICO_3.0" };
+        parsed = { ...fallback, engineUsed: "RESGATE_HEURISTICO_4.0" };
       } else {
-        // Preserva o que a IA acertou e completa com o Regex
-        if (!parsed.cliente.endereco || parsed.cliente.endereco.includes("REVISAR")) parsed.cliente.endereco = fallback.cliente.endereco;
+        if (!parsed.cliente.nome || parsed.cliente.nome === "NÃO IDENTIFICADO") parsed.cliente.nome = fallback.cliente.nome;
         if (!parsed.cliente.dataNascimento) parsed.cliente.dataNascimento = fallback.cliente.dataNascimento;
-        if (!parsed.cliente.email) parsed.cliente.email = fallback.cliente.email;
-        if (!parsed.cliente.telefone) parsed.cliente.telefone = fallback.cliente.telefone;
+        if (!parsed.cliente.endereco || parsed.cliente.endereco.includes("REVISAR")) parsed.cliente.endereco = fallback.cliente.endereco;
+        if (!parsed.processos?.[0]?.banco || parsed.processos[0].banco === "BANCO") {
+           if (!parsed.processos) parsed.processos = [];
+           if (parsed.processos.length === 0) parsed.processos.push(fallback.processos[0]);
+           else parsed.processos[0].banco = fallback.processos[0].banco;
+        }
       }
     }
 
@@ -208,7 +204,7 @@ export const documentFlow = ai.defineFlow(
         acao: p.acao || 'AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA',
         estado: finalState
       })),
-      engineUsed: parsed.engineUsed
+      engineUsed: parsed.engineUsed || "FALLBACK_SYSTEM"
     };
   }
 );

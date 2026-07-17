@@ -1,3 +1,4 @@
+
 "use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
@@ -50,14 +51,6 @@ const ADVOGADOS_BANCA = [
   { id: 'diego', nome: 'DIEGO GOMES DIAS', estados: ["BA", "CE", "MT", "PI", "RN", "SP"] },
   { id: 'lucas', nome: 'LUCAS DOS SANTOS DE JESUS', estados: ["DF", "AL", "AM", "PE", "RJ", "SP"] },
   { id: 'leticia', nome: 'LETICIA ALVES GODOY DA CRUZ', estados: ["TO", "AC", "RS", "PB", "PA", "SP"] },
-  { id: 'eraldo', nome: 'ERALDO FRANCISCO DA SILVA JUNIOR', estados: ["SP"] },
-  { id: 'isai', nome: 'ISAI SAMPAIO MOREIRA', estados: ["SP"] },
-  { id: 'gilberto', nome: 'GILBERTO BONFIM CAVALCANTI FILHO', estados: ["SP"] },
-  { id: 'fabio', nome: 'FABIO RODRIGUES SAMPAIO MOREIRA', estados: ["SP"] },
-  { id: 'matheus_dias', nome: 'MATHEUS SANTOS DIAS', estados: ["SP"] },
-  { id: 'maikon', nome: 'MAIKON ALVES LOPES DOS SANTOS', estados: ["SP"] },
-  { id: 'andressa_tavares', nome: 'ANDRESSA EDUARDA TAVARES MATOS', estados: ["MG", "SP"] },
-  { id: 'renato_stevanin', nome: 'RENATO PRINCIPE STEVANIN', estados: ["PR", "SP"] },
 ];
 
 export default function DocumentGenerator() {
@@ -119,9 +112,9 @@ export default function DocumentGenerator() {
       if (res.success) {
         setExtractedData(res);
         setStep(2);
-        toast({ title: "Triagem Neural Concluída" });
+        toast({ title: "Triagem Concluída" });
       } else {
-        setApiError(res.error || "Falha na triagem neural.");
+        setApiError(res.error || "FALHA_CRITICA_TRIAGEM_NEURAL");
       }
     } catch (err) {
       setApiError("Erro crítico de comunicação com o servidor.");
@@ -147,21 +140,13 @@ export default function DocumentGenerator() {
       };
       const res = await generateProcuracaoPDFAction(payload);
       if (res.success && res.base64) {
-        const byteCharacters = atob(res.base64);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = url;
+        link.href = `data:application/pdf;base64,${res.base64}`;
         link.download = `Procuracao_${extractedData.cliente.nome}.pdf`;
         link.click();
         toast({ title: "Documento Selado" });
       } else {
-        toast({ title: "Erro ao gerar PDF", description: res.error, variant: "destructive" });
+        toast({ title: "Erro na Selagem", description: res.error, variant: "destructive" });
       }
     } catch (err) {
       toast({ title: "Erro na Selagem", variant: "destructive" });
@@ -184,7 +169,7 @@ export default function DocumentGenerator() {
             <h1 className="font-bold text-sm tracking-[0.2em] uppercase">Gerador de Procurações Elite</h1>
           </div>
           <div className="flex items-center gap-3">
-             <Badge variant="outline" className="border-primary/40 text-primary font-black uppercase text-[10px]">v15.0 Elite</Badge>
+             <Badge variant="outline" className="border-primary/40 text-primary font-black uppercase text-[10px]">v18.0 Elite</Badge>
           </div>
         </header>
 
@@ -248,7 +233,7 @@ export default function DocumentGenerator() {
                         </Button>
                       </div>
                       <Textarea 
-                        placeholder="COLE O TEXTO DO CONTRATO OU PROCURAÇÃO AQUI OU FAÇA O UPLOAD DO PDF..."
+                        placeholder="COLE O CONTRATO OU LEAD DA GET ASSESSORIA AQUI..."
                         className="min-h-[300px] border-2 border-border font-black uppercase text-[11px] rounded-none resize-none leading-relaxed bg-background"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
@@ -317,7 +302,7 @@ export default function DocumentGenerator() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-1">
                         <Label className="text-[9px] font-black uppercase flex items-center gap-1.5 text-primary"><CalendarDays size={10} /> Data de Nascimento</Label>
-                        <Input type="date" value={extractedData.cliente.dataNascimento} onChange={(e) => updateField('cliente', 'dataNascimento', e.target.value)} className="border-border font-black rounded-none h-10 bg-background" />
+                        <Input value={extractedData.cliente.dataNascimento} onChange={(e) => updateField('cliente', 'dataNascimento', e.target.value)} className="border-border font-black rounded-none h-10 bg-background" placeholder="DD/MM/AAAA" />
                       </div>
                       <div className="grid gap-1">
                         <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><MapPin size={10} /> CEP</Label>
@@ -349,46 +334,58 @@ export default function DocumentGenerator() {
                       <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados Processuais</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
-                      {extractedData.processos.map((p: any, i: number) => (
-                        <div key={i} className="p-5 bg-secondary/20 border-2 border-dashed border-border/10 space-y-4">
-                           <div className="grid gap-1">
-                             <Label className="text-[9px] font-black uppercase">Instituição Financeira (Banco)</Label>
-                             <Input value={p.banco} onChange={(e) => {
-                               const newProcessos = [...extractedData.processos];
-                               newProcessos[i].banco = e.target.value;
-                               setExtractedData({...extractedData, processos: newProcessos});
-                             }} className="border-border font-black uppercase rounded-none bg-background" />
-                           </div>
-                           
-                           <div className="grid grid-cols-2 gap-4">
-                             <div className="grid gap-1">
-                               <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Hash size={10} /> CNPJ do Banco</Label>
-                               <Input value={p.cnpjBanco} onChange={(e) => {
-                                 const newProcessos = [...extractedData.processos];
-                                 newProcessos[i].cnpjBanco = e.target.value;
-                                 setExtractedData({...extractedData, processos: newProcessos});
-                               }} className="border-border font-black rounded-none bg-background" placeholder="00.000.000/0000-00" />
-                             </div>
-                             <div className="grid gap-1">
-                               <Label className="text-[9px] font-black uppercase">Processo (CNJ)</Label>
-                               <Input value={p.numero} onChange={(e) => {
-                                 const newProcessos = [...extractedData.processos];
-                                 newProcessos[i].numero = e.target.value;
-                                 setExtractedData({...extractedData, processos: newProcessos});
-                               }} className="border-border font-black uppercase rounded-none bg-background font-mono" />
-                             </div>
-                           </div>
+                        <div className="grid gap-1">
+                          <Label className="text-[9px] font-black uppercase">Instituição Financeira (Banco)</Label>
+                          <Input 
+                            value={extractedData.processos?.[0]?.banco || "BANCO"} 
+                            onChange={(e) => {
+                              const newProcessos = [...extractedData.processos];
+                              if (!newProcessos[0]) newProcessos[0] = { banco: '', cnpjBanco: '', numero: '', acao: '', estado: 'SP' };
+                              newProcessos[0].banco = e.target.value;
+                              setExtractedData({...extractedData, processos: newProcessos});
+                            }} 
+                            className="border-border font-black uppercase rounded-none bg-background" 
+                          />
                         </div>
-                      ))}
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-1">
+                            <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Hash size={10} /> CNPJ do Banco</Label>
+                            <Input 
+                              value={extractedData.processos?.[0]?.cnpjBanco || ""} 
+                              onChange={(e) => {
+                                const newProcessos = [...extractedData.processos];
+                                if (!newProcessos[0]) newProcessos[0] = { banco: '', cnpjBanco: '', numero: '', acao: '', estado: 'SP' };
+                                newProcessos[0].cnpjBanco = e.target.value;
+                                setExtractedData({...extractedData, processos: newProcessos});
+                              }} 
+                              className="border-border font-black rounded-none bg-background" 
+                              placeholder="00.000.000/0000-00" 
+                            />
+                          </div>
+                          <div className="grid gap-1">
+                            <Label className="text-[9px] font-black uppercase">Processo (CNJ)</Label>
+                            <Input 
+                              value={extractedData.processos?.[0]?.numero || "S/N"} 
+                              onChange={(e) => {
+                                const newProcessos = [...extractedData.processos];
+                                if (!newProcessos[0]) newProcessos[0] = { banco: '', cnpjBanco: '', numero: '', acao: '', estado: 'SP' };
+                                newProcessos[0].numero = e.target.value;
+                                setExtractedData({...extractedData, processos: newProcessos});
+                              }} 
+                              className="border-border font-black uppercase rounded-none bg-background font-mono" 
+                            />
+                          </div>
+                        </div>
                     </CardContent>
                   </Card>
 
                   <div className="bg-primary/10 border-2 border-primary/20 p-4 flex gap-3 items-start">
                     <Info size={16} className="text-primary shrink-0 mt-0.5" />
                     <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase text-primary">Aviso de Compliance:</p>
+                      <p className="text-[9px] font-black uppercase text-primary">Aviso de Triagem:</p>
                       <p className="text-[8px] font-bold text-primary/80 uppercase leading-tight">
-                        O <b>CNPJ do Banco</b> é capturado para fins de auditoria, mas <b>não será impresso no PDF final</b> do documento atual.
+                        O motor Elite identificou que a <b>data de nascimento</b> e o <b>banco</b> foram separados do texto original para fins forenses.
                       </p>
                     </div>
                   </div>
