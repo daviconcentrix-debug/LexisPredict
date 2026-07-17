@@ -37,8 +37,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { extrairTextoDoPDFAction, extrairDadosProcuracaoAction, generatePecaSubstabelecimentoPDFAction } from '@/app/actions/document-actions';
+import { extrairTextoDoPDFAction, generatePecaSubstabelecimentoPDFAction } from '@/app/actions/document-actions';
+import { extrairDadosSoberanosAction } from '@/app/actions/transcription-actions';
 
 const BANCA_DATA: Record<string, any> = {
   "DIEGO GOMES DIAS": {
@@ -133,7 +133,7 @@ export default function SubstabelecimentoGenerator() {
   };
 
   const handleExtract = async () => {
-    if (!inputText || inputText.length < 50) {
+    if (!inputText || inputText.length < 10) {
       toast({ title: "Dados Insuficientes", description: "Insira o texto para triagem.", variant: "destructive" });
       return;
     }
@@ -145,7 +145,7 @@ export default function SubstabelecimentoGenerator() {
     setLoading(true);
     setApiError(null);
     try {
-      const res = await extrairDadosProcuracaoAction(inputText, advEntering, selectedState);
+      const res = await extrairDadosSoberanosAction(inputText);
       if (res.success) {
         const leavingInfo = BANCA_DATA[advLeaving];
         const enteringInfo = BANCA_DATA[advEntering];
@@ -166,9 +166,9 @@ export default function SubstabelecimentoGenerator() {
           advogadoSubstabelecido: advEntering,
           oabSubstabelecido: `OAB/${selectedState} sob o n.º ${oabEnteringNum}`,
           oabSubstabelecidoCurta: `OAB/${selectedState} ${oabEnteringNum}`,
-          clienteNome: (res as any).cliente?.nome || "NOME DO CLIENTE",
-          tipoAcao: (res as any).processos?.[0]?.acao || "AÇÃO REVISIONAL DE CONTRATO BANCÁRIO",
-          numeroProcesso: (res as any).processos?.[0]?.numero || "S/N",
+          clienteNome: res.outorgante.nome || "NOME DO CLIENTE",
+          tipoAcao: res.poderes_especificos || "AÇÃO REVISIONAL DE CONTRATO BANCÁRIO",
+          numeroProcesso: "S/N",
           cidadeComarca: selectedState === 'SP' ? 'São Paulo' : 'Comarca Local',
           dataFormatada: new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }),
           selectedState

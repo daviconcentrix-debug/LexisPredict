@@ -37,7 +37,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { extrairTextoDoPDFAction, extrairDadosProcuracaoAction, generateSubstabelecimentoPDFAction } from '@/app/actions/document-actions';
+import { extrairTextoDoPDFAction, generateSubstabelecimentoPDFAction } from '@/app/actions/document-actions';
+import { extrairDadosSoberanosAction } from '@/app/actions/transcription-actions';
 
 const BANCA_DATA: Record<string, any> = {
   "DIEGO GOMES DIAS": {
@@ -100,7 +101,7 @@ export default function SubstabelecimentoGenerator() {
   };
 
   const handleExtract = async () => {
-    if (!inputText || inputText.length < 50) {
+    if (!inputText || inputText.length < 10) {
       toast({ title: "Dados Insuficientes", description: "Insira o texto ou transcreva um PDF.", variant: "destructive" });
       return;
     }
@@ -112,14 +113,19 @@ export default function SubstabelecimentoGenerator() {
     setLoading(true);
     setApiError(null);
     try {
-      const res = await extrairDadosProcuracaoAction(inputText, advEntering, selectedState);
+      const res = await extrairDadosSoberanosAction(inputText);
       if (res.success) {
         const leavingInfo = BANCA_DATA[advLeaving];
         const enteringInfo = BANCA_DATA[advEntering];
 
         const finalData = {
-          cliente: res.cliente,
-          processo: res.processos[0],
+          cliente: {
+            nome: res.outorgante.nome,
+          },
+          processo: {
+            acao: res.poderes_especificos,
+            numero: "S/N"
+          },
           substabelecente: {
             nome: advLeaving,
             estadoCivil: leavingInfo.estadoCivil,

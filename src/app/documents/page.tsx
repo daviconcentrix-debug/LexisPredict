@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved.
@@ -19,11 +20,10 @@ import {
   AlertCircle,
   MapPin,
   User,
-  Mail,
-  Phone,
   Trash2,
   Eye,
-  Calendar
+  Calendar,
+  ScanText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -41,7 +41,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { extrairTextoDoPDFAction, extrairDadosProcuracaoAction, generateProcuracaoPDFAction } from '@/app/actions/document-actions';
+import { extrairTextoDoPDFAction, generateProcuracaoPDFAction } from '@/app/actions/document-actions';
+import { extrairDadosSoberanosAction } from '@/app/actions/transcription-actions';
+import Link from 'next/link';
 
 const BANCA_DATA: Record<string, any> = {
   "DIEGO GOMES DIAS": {
@@ -82,6 +84,7 @@ export default function DocumentGenerator() {
   const [selectedState, setSelectedState] = useState('SP');
   const [extractedData, setExtractedData] = useState<any>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isScanDetected, setIsScanDetected] = useState(false);
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,14 +94,20 @@ export default function DocumentGenerator() {
     if (!file) return;
 
     setFileLoading(true);
+    setIsScanDetected(false);
     const formData = new FormData();
     formData.append('pdf', file);
 
     try {
       const res = await extrairTextoDoPDFAction(formData);
       if (res.success) {
-        setInputText(res.text || '');
-        toast({ title: "Transcrição Concluída", description: "O conteúdo do PDF está pronto para análise neural." });
+        if (!res.text || res.text.trim().length < 10) {
+          setIsScanDetected(true);
+          toast({ title: "Digitalização Detectada", description: "Este PDF parece ser uma imagem.", variant: "destructive" });
+        } else {
+          setInputText(res.text || '');
+          toast({ title: "Transcrição Concluída" });
+        }
       } else {
         toast({ title: "Falha na Leitura", description: res.error, variant: "destructive" });
       }
@@ -110,8 +119,8 @@ export default function DocumentGenerator() {
   };
 
   const handleExtract = async () => {
-    if (!inputText || inputText.length < 50) {
-      toast({ title: "Dados Insuficientes", description: "Insira o texto ou transcreva um PDF para triagem.", variant: "destructive" });
+    if (!inputText) {
+      toast({ title: "Dados Insuficientes", description: "Insira o texto para triagem.", variant: "destructive" });
       return;
     }
     if (!selectedLawyer || !selectedState) {
@@ -123,30 +132,42 @@ export default function DocumentGenerator() {
     setApiError(null);
 
     try {
-      const res = await extrairDadosProcuracaoAction(inputText, selectedLawyer, selectedState);
+      const res = await extrairDadosSoberanosAction(inputText);
       if (res.success) {
-        setExtractedData({
-          ...res,
-          local: selectedState,
-          dataExtenso: `${selectedState}, ${new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}`
-        });
-        setStep(2);
-        toast({ title: "Triagem Concluída" });
+        if (res.erro) {
+           setApiError(res.erro);
+           toast({ title: "Erro de Triagem", variant: "destructive" });
+        } else {
+           setExtractedData({
+             cliente: {
+               nome: String(res.outorgante.nome).toUpperCase(),
+               nacionalidade: res.outorgante.nacionalidade,
+               estadoCivil: res.outorgante.estado_civil,
+               profissao: res.outorgante.profissao,
+               rg: res.outorgante.rg,
+               cpf: res.outorgante.cpf,
+               endereco: res.outorgante.endereco,
+               email: res.outorgante.email
+             },
+             processos: [{ 
+               banco: "BANCO", 
+               numero: "S/N", 
+               acao: res.poderes_especificos 
+             }],
+             local: res.cidade || "São Paulo",
+             dataExtenso: res.data || `${res.cidade || "São Paulo"}, ${new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}`
+           });
+           setStep(2);
+           toast({ title: "Triagem Neural GET Concluída" });
+        }
       } else {
         setApiError(res.error || "Falha crítica na triagem neural.");
       }
     } catch (err) {
-      setApiError("Erro de comunicação com o servidor neural.");
+      setApiError("Erro de comunicação.");
     } finally {
       setLoading(false);
     }
-  };
-
-  const updateField = (category: string, field: string, value: string) => {
-    setExtractedData((prev: any) => ({
-      ...prev,
-      [category]: { ...prev[category], [field]: value }
-    }));
   };
 
   const handleSeal = async () => {
@@ -179,6 +200,13 @@ export default function DocumentGenerator() {
     }
   };
 
+  const updateField = (category: string, field: string, value: string) => {
+    setExtractedData((prev: any) => ({
+      ...prev,
+      [category]: { ...prev[category], [field]: value }
+    }));
+  };
+
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
@@ -190,19 +218,26 @@ export default function DocumentGenerator() {
                 <Shield size={20} className="text-white" />
               </div>
             </div>
-            <h1 className="font-black text-xl text-black uppercase tracking-tighter">Gerador Universal de Procurações</h1>
+            <h1 className="font-black text-xl text-black uppercase tracking-tighter">Procurações Soberanas GET</h1>
           </div>
-          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Transcrição Livre Ativa</Badge>
+          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Transcrição Incondicional</Badge>
         </header>
 
         <div className="flex-1 overflow-auto p-4 lg:p-8 max-w-7xl mx-auto w-full">
           {step === 1 && (
             <div className="space-y-8 animate-in fade-in duration-500">
-              {apiError && (
-                <Alert variant="destructive" className="border-2 border-red-600 rounded-none shadow-[8px_8px_0px_#000]">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle className="font-black uppercase text-xs">Erro de Triagem</AlertTitle>
-                  <AlertDescription className="text-[10px] font-bold uppercase">{apiError}</AlertDescription>
+              {isScanDetected && (
+                <Alert className="border-2 border-red-600 bg-red-50 rounded-none shadow-[4px_4px_0px_#000]">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                  <div className="ml-4">
+                    <AlertTitle className="font-black uppercase text-xs text-red-600">PDF de Imagem Detectado</AlertTitle>
+                    <AlertDescription className="text-[10px] font-bold uppercase text-red-800/80 leading-relaxed mt-1">
+                      O arquivo enviado não contém texto selecionável. Para transcrever este documento, utilize o nosso Motor de OCR.
+                      <Button asChild variant="link" className="h-auto p-0 text-red-600 font-black uppercase text-[10px] ml-2 underline">
+                        <Link href="/tools/ocr">Acessar Transcrição Visual <ScanText size={12} className="ml-1" /></Link>
+                      </Button>
+                    </AlertDescription>
+                  </div>
                 </Alert>
               )}
 
@@ -210,16 +245,14 @@ export default function DocumentGenerator() {
                 <div className="lg:col-span-2 space-y-6">
                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                     <CardHeader className="bg-black text-white py-3">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                        1. Configuração de Gabinete
-                      </CardTitle>
+                      <CardTitle className="text-[10px] font-black uppercase tracking-widest">1. Configuração de Gabinete</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-6">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="uppercase text-[10px] font-black">Advogado Responsável</Label>
                           <Select value={selectedLawyer} onValueChange={setSelectedLawyer}>
-                            <SelectTrigger className="w-full border-2 border-black h-12 font-black uppercase text-[11px] rounded-none bg-white">
+                            <SelectTrigger className="border-2 border-black h-12 font-black uppercase text-[11px] rounded-none bg-white">
                               <SelectValue placeholder="SELECIONE..." />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-2 border-black rounded-none">
@@ -232,11 +265,11 @@ export default function DocumentGenerator() {
                         <div className="space-y-2">
                           <Label className="uppercase text-[10px] font-black">Estado (OAB)</Label>
                           <Select value={selectedState} onValueChange={setSelectedState}>
-                            <SelectTrigger className="w-full border-2 border-black h-12 font-black uppercase text-[11px] rounded-none bg-white">
+                            <SelectTrigger className="border-2 border-black h-12 font-black uppercase text-[11px] rounded-none bg-white">
                               <SelectValue placeholder="ESTADO..." />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-2 border-black rounded-none">
-                              {["SP", "RJ", "MG", "PR", "BA", "CE", "RN", "PE", "PA", "MA", "SC", "ES", "MS", "RS", "MT", "GO", "DF", "TO", "PI"].map((uf) => (
+                              {["SP", "RJ", "MG", "PR", "BA", "CE", "RN", "PE", "PA", "MA", "SC", "ES", "MS", "RS", "MT", "GO", "DF", "TO"].map((uf) => (
                                 <SelectItem key={uf} value={uf} className="font-black uppercase text-[10px]">{uf}</SelectItem>
                               ))}
                             </SelectContent>
@@ -250,22 +283,17 @@ export default function DocumentGenerator() {
                     <CardContent className="p-6 space-y-4">
                       <div className="flex items-center justify-between">
                         <Label className="uppercase text-[10px] font-black">2. Conteúdo do PDF ou Texto</Label>
-                        <Button variant="ghost" size="sm" onClick={() => setInputText('')} className="h-6 text-[8px] font-black uppercase hover:bg-red-600 hover:text-white">
-                          <Trash2 size={10} className="mr-1" /> Limpar Tudo
-                        </Button>
+                        <Badge variant="outline" className="text-[8px] border-black/20 font-black uppercase">Prioridade HTML Ativa</Badge>
                       </div>
                       <Textarea 
-                        placeholder="COLE O CONTRATO OU QUALQUER DOCUMENTO PARA TRANSCRIÇÃO AQUI..."
-                        className="min-h-[300px] border-2 border-black font-black uppercase text-[11px] rounded-none resize-none leading-relaxed bg-white"
+                        placeholder="COLE QUALQUER DOCUMENTO OU CONTRATO AQUI PARA TRANSCRIÇÃO..."
+                        className="min-h-[300px] border-2 border-black font-black uppercase text-[11px] rounded-none resize-none bg-white"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
                       />
-                      <Button 
-                        onClick={handleExtract} 
-                        disabled={loading}
-                        className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]"
-                      >
-                        {loading ? <Loader2 className="animate-spin mr-2" /> : <><Zap size={16} className="mr-2" /> Iniciar Triagem Neural Universal</>}
+                      <Button onClick={handleExtract} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
+                        {loading ? <Loader2 className="animate-spin mr-2" /> : <Zap size={16} className="mr-2" />}
+                        Iniciar Extração Soberana
                       </Button>
                     </CardContent>
                   </Card>
@@ -274,15 +302,31 @@ export default function DocumentGenerator() {
                 <div className="space-y-6">
                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                     <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Upload size={14} /> Importar Qualquer PDF</CardTitle>
+                      <CardTitle className="text-[10px] font-black uppercase flex items-center gap-2"><Upload size={14} /> Leitura PDF</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
-                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all">
+                      <div onClick={() => fileInputRef.current?.click()} className={cn(
+                        "border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all",
+                        fileLoading && "pointer-events-none opacity-50"
+                      )}>
                         {fileLoading ? <Loader2 className="animate-spin text-black" size={32} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
-                        <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Selecione o arquivo para transcrever</p>
+                        <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Procurar PDF</p>
                         <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                       </div>
-                      <p className="text-[8px] font-bold text-black/40 uppercase mt-4 text-center">Transcrevemos qualquer formato jurídico de forma livre.</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-primary/5 border-2 border-primary/20 rounded-none shadow-[6px_6px_0px_rgba(0,209,255,0.1)]">
+                    <CardContent className="p-6 space-y-4">
+                      <div className="flex items-center gap-2 text-primary font-black uppercase text-[10px]">
+                        <ScanText size={16} /> Unidade OCR Recomendada
+                      </div>
+                      <p className="text-[9px] font-bold uppercase leading-relaxed text-black/60">
+                        Para melhores resultados em documentos digitalizados, utilize o Motor de OCR para transcrever antes de realizar a triagem.
+                      </p>
+                      <Button asChild variant="outline" className="w-full h-10 border-black border-2 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all">
+                        <Link href="/tools/ocr">Abrir Motor OCR Web</Link>
+                      </Button>
                     </CardContent>
                   </Card>
                 </div>
@@ -295,9 +339,9 @@ export default function DocumentGenerator() {
               <div className="flex items-center justify-between border-b-2 border-black pb-4">
                 <div className="flex items-center gap-3">
                   <Edit3 size={20} />
-                  <h2 className="text-xl font-black uppercase tracking-tight text-black">Revisão de Dados Auditados</h2>
+                  <h2 className="text-xl font-black uppercase tracking-tight">Revisão de Dados</h2>
                 </div>
-                <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-black rounded-none">Voltar ao Upload</Button>
+                <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-black rounded-none">Voltar</Button>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -310,7 +354,10 @@ export default function DocumentGenerator() {
                       <Label className="text-[9px] font-black uppercase">Nome Completo</Label>
                       <Input value={extractedData.cliente.nome} onChange={(e) => updateField('cliente', 'nome', e.target.value)} className="border-black font-black uppercase rounded-none" />
                     </div>
-                    
+                    <div className="grid gap-1">
+                      <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><MapPin size={10} /> Endereço Residencial</Label>
+                      <Input value={extractedData.cliente.endereco} onChange={(e) => updateField('cliente', 'endereco', e.target.value)} className="border-black font-black uppercase rounded-none" />
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-1">
                         <Label className="text-[9px] font-black uppercase">CPF</Label>
@@ -321,79 +368,19 @@ export default function DocumentGenerator() {
                         <Input value={extractedData.cliente.rg} onChange={(e) => updateField('cliente', 'rg', e.target.value)} className="border-black font-black rounded-none" />
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-1">
-                        <Label className="text-[9px] font-black uppercase">Estado Civil</Label>
-                        <Input value={extractedData.cliente.estadoCivil} onChange={(e) => updateField('cliente', 'estadoCivil', e.target.value)} className="border-black font-black uppercase rounded-none" />
-                      </div>
-                      <div className="grid gap-1">
-                        <Label className="text-[9px] font-black uppercase">Profissão</Label>
-                        <Input value={extractedData.cliente.profissao} onChange={(e) => updateField('cliente', 'profissao', e.target.value)} className="border-black font-black uppercase rounded-none" />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-1">
-                      <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><MapPin size={10} /> Endereço Residencial</Label>
-                      <Input value={extractedData.cliente.endereco} onChange={(e) => updateField('cliente', 'endereco', e.target.value)} className="border-black font-black uppercase rounded-none" />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-1">
-                        <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Mail size={10} /> Email</Label>
-                        <Input type="email" value={extractedData.cliente.email} onChange={(e) => updateField('cliente', 'email', e.target.value)} className="border-black font-black lowercase rounded-none" />
-                      </div>
-                      <div className="grid gap-1">
-                        <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Phone size={10} /> Telefone</Label>
-                        <Input value={extractedData.cliente.telefone} onChange={(e) => updateField('cliente', 'telefone', e.target.value)} className="border-black font-black rounded-none" />
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
 
                 <div className="space-y-6">
                   <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                     <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados do Processo & Data</CardTitle>
+                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Calendar size={14} /> Local e Data</CardTitle>
                     </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                        <div className="grid gap-1">
-                          <Label className="text-[9px] font-black uppercase">Instituição Financeira</Label>
-                          <Input 
-                            value={extractedData.processos?.[0]?.banco || "BANCO"} 
-                            onChange={(e) => {
-                              const newProcessos = [...extractedData.processos];
-                              if (!newProcessos[0]) newProcessos[0] = { banco: '', cnpjBanco: '', numero: '', acao: '', estado: 'SP' };
-                              newProcessos[0].banco = e.target.value;
-                              setExtractedData({...extractedData, processos: newProcessos});
-                            }} 
-                            className="border-black font-black uppercase rounded-none bg-white" 
-                          />
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="grid gap-1">
-                            <Label className="text-[9px] font-black uppercase">Processo (CNJ)</Label>
-                            <Input 
-                              value={extractedData.processos?.[0]?.numero || "S/N"} 
-                              onChange={(e) => {
-                                const newProcessos = [...extractedData.processos];
-                                if (!newProcessos[0]) newProcessos[0] = { banco: '', cnpjBanco: '', numero: '', acao: '', estado: 'SP' };
-                                newProcessos[0].numero = e.target.value;
-                                setExtractedData({...extractedData, processos: newProcessos});
-                              }} 
-                              className="border-black font-black uppercase rounded-none bg-white font-mono" 
-                            />
-                          </div>
-                          <div className="grid gap-1">
-                            <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Calendar size={10} /> Local e Data (Extenso)</Label>
-                            <Input 
-                              value={extractedData.dataExtenso} 
-                              onChange={(e) => setExtractedData({...extractedData, dataExtenso: e.target.value})} 
-                              className="border-black font-black uppercase rounded-none bg-white" 
-                            />
-                          </div>
-                        </div>
+                    <CardContent className="p-6">
+                       <div className="grid gap-1">
+                         <Label className="text-[9px] font-black uppercase">Local e Data (Extenso)</Label>
+                         <Input value={extractedData.dataExtenso} onChange={(e) => setExtractedData({...extractedData, dataExtenso: e.target.value})} className="border-black font-black uppercase rounded-none" />
+                       </div>
                     </CardContent>
                   </Card>
 
@@ -405,13 +392,10 @@ export default function DocumentGenerator() {
                     <CardContent className="p-10 text-black font-serif text-[11pt] leading-relaxed bg-white space-y-6">
                       <h3 className="text-center font-bold uppercase underline">PROCURAÇÃO "AD JUDICIA"</h3>
                       <p className="text-justify indent-10">
-                        <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, {extractedData.cliente.nacionalidade || "brasileiro(a)"}, {extractedData.cliente.estadoCivil || "casado(a)"}, {extractedData.cliente.profissao || "autônomo(a)"}, portador do RG sob Nº {extractedData.cliente.rg} e devidamente inscrito no CPF sob Nº {extractedData.cliente.cpf}, residente e domiciliado à {extractedData.cliente.endereco}, com endereço eletrônico: {extractedData.cliente.email || 'Não informado'}, neste ato nomeia como seu procurador:
+                        <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, {extractedData.cliente.nacionalidade || "brasileiro(a)"}, {extractedData.cliente.estadoCivil || "casado(a)"}, portador do RG Nº {extractedData.cliente.rg} e inscrito no CPF Nº {extractedData.cliente.cpf}, residente à {extractedData.cliente.endereco}, nomeia como seu procurador:
                       </p>
                       <p className="text-justify indent-10">
-                        <strong>{selectedLawyer.toUpperCase()}</strong>, brasileiro, advogado, inscrito na OAB/{selectedState} sob o número {BANCA_DATA[selectedLawyer].oabs[selectedState] || BANCA_DATA[selectedLawyer].oabs['SP']}, com endereço profissional na {BANCA_DATA[selectedLawyer].endereco}, e endereço eletrônico: {BANCA_DATA[selectedLawyer].email}.
-                      </p>
-                      <p className="text-justify indent-10">
-                        <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <strong>"AD JUDICIA"</strong>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <strong>AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA</strong> promovida contra <strong>{(extractedData.processos?.[0]?.banco || "BANCO").toUpperCase()}</strong>, processo nº {extractedData.processos?.[0]?.numero || "S/N"}.
+                        <strong>{selectedLawyer.toUpperCase()}</strong>, brasileiro, advogado, inscrito na OAB/{selectedState} sob o número {BANCA_DATA[selectedLawyer].oabs[selectedState] || BANCA_DATA[selectedLawyer].oabs['SP']}, com endereço na {BANCA_DATA[selectedLawyer].endereco}.
                       </p>
                       <div className="text-center mt-10">
                         <p>{extractedData.dataExtenso}</p>
@@ -420,7 +404,7 @@ export default function DocumentGenerator() {
                     </CardContent>
                   </Card>
 
-                  <Button onClick={handleSeal} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
+                  <Button onClick={handleSeal} setLoading={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
                     {loading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
                     Selar & Exportar PDF
                   </Button>
@@ -433,4 +417,3 @@ export default function DocumentGenerator() {
     </div>
   );
 }
-
