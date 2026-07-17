@@ -17,7 +17,7 @@ const SYSTEM_PROMPT = `Você é o Arquiteto Jurídico Sênior Elite.
 Sua missão é extrair dados de documentos e leads da GET ASSESSORIA.
 
 REGRAS OBRIGATÓRIAS:
-1. DATA NASCIMENTO: Identifique a data DD/MM/AAAA. Ela vem colada ao final do nome do cliente. Separe-as.
+1. NOME E DATA: O nome do cliente muitas vezes vem colado com a data de nascimento (ex: João Silva20/10/1980). Separe-os.
 2. BANCO: Localize o "Banco responsável" no objeto do contrato. Ex: "Banco responsável: Votorantim".
 3. CONTATO: Capture e-mail e telefones.
 4. ENDEREÇO: Priorize o endereço do CONTRATANTE (Rua/Av).
@@ -42,28 +42,61 @@ function cleanJsonResponse(text: string): any {
 
 function dumbExtract(text: string) {
   const cpfMatch = text.match(/\d{3}\.\d{3}\.\d{3}-\d{2}/) || text.match(/\d{11}/);
-  const rgMatch = text.match(/\d{1,2}\.\d{3}\.\d{3}-[\dX]/i) || text.match(/\d{7,10}/);
+  const rgMatch = text.match(/\d{1,2}\.?\d{3}\.?\d{3}-?[\dX]/i) || text.match(/\d{7,10}/);
   const dateMatch = text.match(/\d{2}\/\d{2}\/\d{4}/);
+  const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  const phoneMatch = text.match(/\(\d{2}\)\s?\d{4,5}-\d{4}/);
   const bankMatch = text.match(/Banco responsável:\s*([^\n\r]*)/i);
   
-  let dataNasc = dateMatch ? dateMatch[0] : "";
-  let endereco = "REVISAR MANUALMENTE";
   const lines = text.split('\n').map(l => l.trim());
+  let nome = "REVISAR";
+  let endereco = "REVISAR MANUALMENTE";
+  let dataNasc = dateMatch ? dateMatch[0] : "";
+
+  // Lógica de de-concatenação (Nome + Data)
+  if (dateMatch) {
+    for (const line of lines) {
+      if (line.includes(dateMatch[0])) {
+        // Pega o que vem antes da data na mesma linha
+        const potentialName = line.split(dateMatch[0])[0].trim();
+        if (potentialName.length > 3) {
+          nome = potentialName.toUpperCase();
+          break;
+        }
+      }
+    }
+  }
+
   for (const line of lines) {
     if ((line.startsWith('Rua') || line.startsWith('Av')) && line.includes(',') && !line.includes('Paraguassu')) {
       endereco = line.toUpperCase();
+    }
+    // Caso o nome ainda seja REVISAR, tenta pegar na primeira linha significativa
+    if (nome === "REVISAR" && line.length > 5 && !line.includes('|') && !line.includes('http') && !line.includes('SISTEMA')) {
+      nome = line.split(/\d/)[0].trim().toUpperCase();
     }
   }
 
   return {
     cliente: { 
-      nome: "REVISAR", 
+      nome: nome || "REVISAR", 
       cpf: cpfMatch ? cpfMatch[0] : "---", 
       rg: rgMatch ? rgMatch[0] : "---", 
       endereco: endereco, 
-      dataNascimento: dataNasc
+      dataNascimento: dataNasc,
+      email: emailMatch ? emailMatch[0] : "",
+      telefone: phoneMatch ? phoneMatch[0] : "",
+      estadoCivil: text.includes('Divorciada') ? 'divorciado(a)' : text.includes('Casado') ? 'casado(a)' : 'solteiro(a)',
+      profissao: "Autônomo(a)",
+      nacionalidade: "brasileiro(a)"
     },
-    processos: [{ banco: bankMatch ? bankMatch[1].trim() : "BANCO", numero: "S/N", acao: "AÇÃO DE REVISÃO CONTRATUAL" }]
+    processos: [{ 
+      banco: bankMatch ? bankMatch[1].trim() : "BANCO", 
+      numero: "S/N", 
+      acao: "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA",
+      cnpjBanco: "00.000.000/0000-00",
+      estado: "SP"
+    }]
   };
 }
 

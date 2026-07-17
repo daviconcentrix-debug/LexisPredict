@@ -206,17 +206,18 @@ export function processarCaso(raw: any, thresholds?: { alertLimit: number }): Le
     normalized[k.toUpperCase().replace(/\s+/g, '_').trim()] = raw[k];
   });
 
-  const cliente = fixEncoding(normalized.CLIENTE || 'CLIENTE NÃO IDENTIFICADO').toUpperCase();
-  const protocolo = (normalized.PROTOCOLO || '').trim();
-  const advogado = fixEncoding(normalized.ADVOGADO_RESPONSÁVEL || normalized.ADVOGADO || 'NÃO ATRIBUÍDO').toUpperCase();
-  const situacao = (normalized.SITUAÇÃO || normalized.SITUACAO || 'EM ANDAMENTO').toUpperCase();
+  const cliente = fixEncoding(normalized.CLIENTE || raw.cliente || 'CLIENTE NÃO IDENTIFICADO').toUpperCase();
+  const protocolo = (normalized.PROTOCOLO || raw.protocolo || '').trim();
+  const advogado = fixEncoding(normalized.ADVOGADO_RESPONSÁVEL || normalized.ADVOGADO || raw.advogado || 'NÃO ATRIBUÍDO').toUpperCase();
+  const situacao = (normalized.SITUAÇÃO || normalized.SITUACAO || raw.situacao || 'EM ANDAMENTO').toUpperCase();
   
-  const proximoPrazo = normalized.PROXIMO_RETORNO || normalized.PRÓXIMO_RETORNO || normalized.PRÓXIMO_PRAZO || normalized.PROXIMO_PRAZO || normalized.PROXIMO_RETORNO || '';
-  const ultimoRetorno = normalized.ULTIMO_RETORNO || normalized.ÚLTIMO_RETORNO || normalized.RETORNO || normalized.ULTIMO_RETORNO || '';
-  const observacao = fixEncoding(normalized.OBSERVAÇÕES || normalized.OBSERVACAO || normalized.OBSERVAÇÃO || '');
-  const telefone = (normalized.TELEFONE || '').replace(/\D/g, '');
+  // FALLBACKS para recalibração (onde os dados já são camelCase no objeto raw)
+  const proximoPrazo = normalized.PROXIMO_RETORNO || normalized.PRÓXIMO_RETORNO || normalized.PRÓXIMO_PRAZO || normalized.PROXIMO_PRAZO || normalized.PROXIMOPRAZO || raw.proximoPrazo || '';
+  const ultimoRetorno = normalized.ULTIMO_RETORNO || normalized.ÚLTIMO_RETORNO || normalized.RETORNO || normalized.ULTIMORETORNO || raw.ultimoRetorno || '';
+  const observacao = fixEncoding(normalized.OBSERVAÇÕES || normalized.OBSERVACAO || normalized.OBSERVAÇÃO || raw.observacao || '');
+  const telefone = (normalized.TELEFONE || raw.telefone || '').replace(/\D/g, '');
   
-  const statusPlanilha = normalized.STATUS || normalized.STATUS_MANUAL || 'Automatico';
+  const statusPlanilha = normalized.STATUS || normalized.STATUS_MANUAL || raw.statusManual || 'Automatico';
 
   const tribunalData = extrairTribunal(protocolo);
   const statusCalculado = calcularStatus(proximoPrazo, situacao, thresholds?.alertLimit);

@@ -1,4 +1,3 @@
-
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -9,7 +8,7 @@ import React from 'react';
 import { extrairDadosProcuracao } from '@/ai/flows/document-flow';
 
 /**
- * Motor de Selagem Digital v750.0 ELITE
+ * Motor de Selagem Digital v800.0
  * Processa e converte documentos jurídicos em buffers PDF via @react-pdf/renderer.
  */
 
@@ -25,8 +24,8 @@ export async function generateHabilitacaoPecaPDFAction(data: any) {
     const pdfBuffer = await renderToBuffer(React.createElement(HabilitacaoPecaPDF as any, { data }));
     return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
   } catch (e: any) {
-    console.error("PDF Habilitacao Fail:", e);
-    return { error: "Falha ao selar a Habilitação Digital." };
+    console.error("[Selagem] Falha na Habilitação:", e.message || e);
+    return { error: "Falha técnica ao selar a Habilitação. Verifique os dados e tente novamente." };
   }
 }
 
@@ -37,8 +36,8 @@ export async function generatePecaSubstabelecimentoPDFAction(data: any) {
     const pdfBuffer = await renderToBuffer(React.createElement(PecaSubstabelecimentoPDF as any, { data }));
     return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
   } catch (e: any) {
-    console.error("PDF Peca Substabelecimento Fail:", e);
-    return { error: "Falha ao selar a Peça de Substabelecimento." };
+    console.error("[Selagem] Falha na Peça Substabelecimento:", e.message || e);
+    return { error: "Falha técnica ao selar a Peça de Substabelecimento." };
   }
 }
 
@@ -49,8 +48,8 @@ export async function generateProcuracaoPDFAction(data: any) {
     const pdfBuffer = await renderToBuffer(React.createElement(ProcuracaoPDF as any, { data }));
     return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
   } catch (e: any) {
-    console.error("PDF Procuracao Fail:", e);
-    return { error: "Falha ao selar o PDF da Procuração." };
+    console.error("[Selagem] Falha na Procuração:", e.message || e);
+    return { error: "Falha técnica ao selar o PDF da Procuração." };
   }
 }
 
@@ -61,8 +60,8 @@ export async function generateSubstabelecimentoPDFAction(data: any) {
     const pdfBuffer = await renderToBuffer(React.createElement(SubstabelecimentoPDF as any, { data }));
     return { success: true, base64: Buffer.from(pdfBuffer).toString('base64') };
   } catch (e: any) {
-    console.error("PDF Substabelecimento Fail:", e);
-    return { error: "Falha ao selar o PDF do Substabelecimento." };
+    console.error("[Selagem] Falha no Substabelecimento:", e.message || e);
+    return { error: "Falha técnica ao selar o PDF do Substabelecimento." };
   }
 }
 
@@ -96,7 +95,6 @@ export async function extrairDadosProcuracaoAction(inputText: string, lawyer: st
     return { success: true, ...res };
   } catch (e: any) {
     console.error("Neural Extraction Action Fail:", e);
-    // Retorna erro amigável mas específico para depuração
     return { success: false, error: e.message || "FALHA_NA_TRIAGEM_TECNICA" };
   }
 }

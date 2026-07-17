@@ -3,15 +3,7 @@
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Font } from '@react-pdf/renderer';
-
-Font.register({
-  family: 'Times-Roman',
-  fonts: [
-    { src: 'https://cdn.jsdelivr.net/npm/@canvas-fonts/times-new-roman@1.0.4/Times-New-Roman.ttf' },
-    { src: 'https://cdn.jsdelivr.net/npm/@canvas-fonts/times-new-roman@1.0.4/Times-New-Roman-Bold.ttf', fontWeight: 'bold' }
-  ]
-});
+import { Page, Text, View, Document, StyleSheet } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
   page: {
@@ -55,9 +47,18 @@ const styles = StyleSheet.create({
 });
 
 export function ProcuracaoPDF({ data }: { data: any }) {
+  if (!data || !data.cliente || !data.advogado) {
+    return (
+      <Document>
+        <Page size="A4" style={styles.page}>
+          <Text>Erro: Dados insuficientes para gerar a procuração.</Text>
+        </Page>
+      </Document>
+    );
+  }
+
   const { cliente, advogado, processos, local, dataExtenso } = data;
   
-  // Extração de dados do primeiro processo para o modelo padrão
   const acaoPrincipal = processos?.[0]?.acao || "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA";
   const bancoPrincipal = processos?.[0]?.banco || "INSTITUIÇÃO FINANCEIRA";
   const numeroPrincipal = processos?.[0]?.numero || "S/N";

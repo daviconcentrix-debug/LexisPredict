@@ -1,6 +1,6 @@
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
+ * @license Proprietary - All rights reserved. See LICENSE file.
  */
 "use client";
 
@@ -129,7 +129,7 @@ const CaseRow = React.memo(({
               >
                 <CheckCircle size={18} />
               </Button>
-              <Button title="Editar" variant="ghost" size="icon" onClick={() => handleEditClick(c)} className="text-black group-hover:text-white hover:bg-black transition-all h-9 w-9 border-2 border-transparent hover:border-white">
+              <Button title="Editar" variant="ghost" size="icon" onClick={() => onEdit(c)} className="text-black group-hover:text-white hover:bg-black transition-all h-9 w-9 border-2 border-transparent hover:border-white">
                 <Edit2 size={18} />
               </Button>
             </>
@@ -211,7 +211,8 @@ function CasesContent() {
     try {
       const updatedCases = cases.map(c => {
         if (c.statusManual === 'Automatico' || !c.statusManual) {
-          return processarCaso({ ...c, id: c.id }, thresholds);
+          // Passamos o objeto inteiro. O processarCaso atualizado vai reconhecer as chaves camelCase.
+          return processarCaso({ ...c }, thresholds);
         }
         return c;
       });

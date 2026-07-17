@@ -3,15 +3,7 @@
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Font } from '@react-pdf/renderer';
-
-Font.register({
-  family: 'Times-Roman',
-  fonts: [
-    { src: 'https://cdn.jsdelivr.net/npm/@canvas-fonts/times-new-roman@1.0.4/Times-New-Roman.ttf' },
-    { src: 'https://cdn.jsdelivr.net/npm/@canvas-fonts/times-new-roman@1.0.4/Times-New-Roman-Bold.ttf', fontWeight: 'bold' }
-  ]
-});
+import { Page, Text, View, Document, StyleSheet } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
   page: {
@@ -72,7 +64,6 @@ export function HabilitacaoPecaPDF({ data }: { data: any }) {
 
   return (
     <Document>
-      {/* PÁGINA 1: PETIÇÃO DE HABILITAÇÃO */}
       <Page size="A4" style={styles.page}>
         <Text style={styles.header}>
           EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA {vara} DA COMARCA DE {comarca}.
@@ -105,7 +96,6 @@ export function HabilitacaoPecaPDF({ data }: { data: any }) {
         </View>
       </Page>
 
-      {/* PÁGINA 2: PROCURAÇÃO AD JUDICIA (MODELO PADRONIZADO) */}
       <Page size="A4" style={styles.page}>
         <Text style={styles.title}>PROCURAÇÃO "AD JUDICIA"</Text>
 
@@ -123,7 +113,7 @@ export function HabilitacaoPecaPDF({ data }: { data: any }) {
 
         <View style={styles.paragraph}>
           <Text>
-            <Text style={styles.bold}>PODERES:</Text> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <Text style={styles.bold}>"AD JUDICIA"</Text>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <Text style={styles.bold}>{tipoAcao.toUpperCase()}</Text> promovida contra o <Text style={styles.bold}>{reuNome.toUpperCase()}</Text>, processo nº {numeroProcesso}.
+            <Text style={styles.bold}>PODERES:</Text> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <Text style={styles.bold}>"AD JUDICIA"</Text>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou aquisições de acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <Text style={styles.bold}>{tipoAcao.toUpperCase()}</Text> promovida contra o <Text style={styles.bold}>{reuNome.toUpperCase()}</Text>, processo nº {numeroProcesso}.
           </Text>
         </View>
 
