@@ -5,7 +5,6 @@
 
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * W1 Capital / LexisPredict v220.0 ELITE
  */
 
 export type CaseStatus =
@@ -83,7 +82,6 @@ export function parseBrazilianDate(dateStr: string): Date | null {
   const clean = dateStr.trim();
   if (clean === "" || clean === "-" || clean === "00/00/0000" || clean === "0") return null;
   
-  // Suporte a ISO 2026-07-27
   if (clean.includes('-') && clean.split('-')[0].length === 4) {
      return new Date(clean);
   }
@@ -149,7 +147,11 @@ export function calcularDiasFaltando(proximoISO: string | null): number | null {
   }
 }
 
-export function calcularStatus(proximoRetorno: string | null | undefined, situacao: string | null | undefined): CaseStatus {
+export function calcularStatus(
+  proximoRetorno: string | null | undefined, 
+  situacao: string | null | undefined,
+  alertLimit: number = 3
+): CaseStatus {
   const sit = (situacao || "").toUpperCase();
   if (sit.includes("ENCERRADO") || sit.includes("ARQUIVADO") || sit.includes("EXTINTO") || sit.includes("SUSPENSO")) return "Arquivado";
 
@@ -160,7 +162,7 @@ export function calcularStatus(proximoRetorno: string | null | undefined, situac
   if (dias === null) return "Sem Prazo";
   if (dias < 0) return "Vencido";
   if (dias === 0) return "É Hoje";
-  if (dias <= 3) return "Atenção";
+  if (dias <= alertLimit) return "Atenção";
   return "No Prazo";
 }
 
@@ -198,7 +200,7 @@ export function extrairTribunal(protocolo: string): { tribunal: string; link: st
   return { tribunal: "Outros", link: `https://www.google.com/search?q=consulta+processo+judicial+${encodeURIComponent(original)}` };
 }
 
-export function processarCaso(raw: any): LegalCase {
+export function processarCaso(raw: any, thresholds?: { alertLimit: number }): LegalCase {
   const normalized: any = {};
   Object.keys(raw).forEach(k => {
     normalized[k.toUpperCase().replace(/\s+/g, '_').trim()] = raw[k];
@@ -209,7 +211,6 @@ export function processarCaso(raw: any): LegalCase {
   const advogado = fixEncoding(normalized.ADVOGADO_RESPONSÁVEL || normalized.ADVOGADO || 'NÃO ATRIBUÍDO').toUpperCase();
   const situacao = (normalized.SITUAÇÃO || normalized.SITUACAO || 'EM ANDAMENTO').toUpperCase();
   
-  // Mapeamento Resiliente de Cabeçalhos
   const proximoPrazo = normalized.PROXIMO_RETORNO || normalized.PRÓXIMO_RETORNO || normalized.PRÓXIMO_PRAZO || normalized.PROXIMO_PRAZO || normalized.PROXIMO_RETORNO || '';
   const ultimoRetorno = normalized.ULTIMO_RETORNO || normalized.ÚLTIMO_RETORNO || normalized.RETORNO || normalized.ULTIMO_RETORNO || '';
   const observacao = fixEncoding(normalized.OBSERVAÇÕES || normalized.OBSERVACAO || normalized.OBSERVAÇÃO || '');
@@ -218,7 +219,7 @@ export function processarCaso(raw: any): LegalCase {
   const statusPlanilha = normalized.STATUS || normalized.STATUS_MANUAL || 'Automatico';
 
   const tribunalData = extrairTribunal(protocolo);
-  const statusCalculado = calcularStatus(proximoPrazo, situacao);
+  const statusCalculado = calcularStatus(proximoPrazo, situacao, thresholds?.alertLimit);
   const riscoCalculado = calcularRisco(observacao, '', situacao);
 
   return {

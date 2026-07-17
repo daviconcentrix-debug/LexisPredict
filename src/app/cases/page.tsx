@@ -1,9 +1,8 @@
-
-"use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved. See LICENSE file.
+ * @license Proprietary - All rights reserved.
  */
+"use client";
 
 import React, { useState, useEffect, useMemo, useCallback, Suspense, useDeferredValue } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -22,10 +21,12 @@ import {
   FileText, 
   MessageCircle, 
   Info,
+  Zap,
+  Loader2,
   AlertTriangle,
-  Zap
+  CalendarDays
 } from 'lucide-react';
-import { LegalCase, processarCaso, calcularStatus } from '@/lib/case-logic';
+import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +47,7 @@ import { format } from 'date-fns';
 import { useAdmin } from '@/hooks/use-admin';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from '@/components/ui/textarea';
+import { EmptyState } from '@/components/ui/empty-state';
 
 const CaseRow = React.memo(({ 
   c, 
@@ -63,11 +65,11 @@ const CaseRow = React.memo(({
   onShowObs: (obs: string) => void
 }) => {
   return (
-    <tr className="hover:bg-black group transition-all cursor-default">
+    <tr className="hover:bg-black group transition-all cursor-default border-b border-black/5 hover:border-black/20">
       <td className="px-6 py-5">
         <div className="flex flex-col">
           <span className="text-black font-black text-xs lg:text-sm group-hover:text-white transition-colors uppercase leading-none">{c.cliente}</span>
-          <span className="text-[9px] lg:text-[10px] font-mono text-black/60 group-hover:text-white/60 mt-1 uppercase">{c.protocolo}</span>
+          <span className="text-[9px] lg:text-[10px] font-mono text-black/60 group-hover:text-white/60 mt-2 uppercase">{c.protocolo}</span>
         </div>
       </td>
       <td className="px-6 py-5">
@@ -79,25 +81,30 @@ const CaseRow = React.memo(({
         {c.advogado}
       </td>
       <td className="px-6 py-5">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <StatusBadge status={c.status} />
-          <p className="text-[9px] lg:text-[10px] text-black/60 group-hover:text-white/60 font-black uppercase">{c.proximoPrazo || 'Sem Prazo'}</p>
+          <div className="flex items-center gap-1 text-[9px] lg:text-[10px] text-black/60 group-hover:text-white/60 font-black uppercase">
+            <CalendarDays size={10} />
+            <span>{c.proximoPrazo || 'Sem Prazo'}</span>
+          </div>
         </div>
       </td>
       <td className="px-6 py-5">
         <div className="flex items-center gap-2">
-          <Clock className="w-3.5 h-3.5 text-black/40 group-hover:text-white/40" />
+          <div className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center bg-gray-50 group-hover:bg-white/10 group-hover:border-white/20 transition-all">
+            <Clock className="w-3.5 h-3.5 text-black/40 group-hover:text-white/40" />
+          </div>
           <span className="text-[10px] lg:text-[11px] text-black group-hover:text-white font-black uppercase whitespace-nowrap">
             {c.ultimoRetorno || 'S/ Registro'}
           </span>
         </div>
       </td>
       <td className="px-6 py-5 text-right">
-        <div className="flex items-center justify-end gap-1">
+        <div className="flex items-center justify-end gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
           {c.telefone && (
-             <Button title="WhatsApp" variant="ghost" size="icon" asChild className="text-green-600 group-hover:text-green-400 hover:bg-black transition-all h-8 w-8">
+             <Button title="WhatsApp" variant="ghost" size="icon" asChild className="text-green-600 group-hover:text-green-400 hover:bg-black transition-all h-9 w-9 border-2 border-transparent hover:border-green-600">
                <a href={formatWhatsAppLink(c.telefone)} target="_blank" rel="noopener noreferrer">
-                 <MessageCircle size={16} />
+                 <MessageCircle size={18} />
                </a>
              </Button>
           )}
@@ -105,10 +112,10 @@ const CaseRow = React.memo(({
             <Button 
               variant="ghost" 
               size="icon" 
-              className="text-black group-hover:text-white h-8 w-8" 
+              className="text-black group-hover:text-white h-9 w-9 border-2 border-transparent hover:border-white" 
               onClick={() => onShowObs(c.observacao || '')}
             >
-              <FileText size={16} />
+              <FileText size={18} />
             </Button>
           )}
           {isOperador && (
@@ -118,23 +125,23 @@ const CaseRow = React.memo(({
                 variant="ghost" 
                 size="icon" 
                 onClick={() => onLogReturn(c.protocolo)} 
-                className="text-black group-hover:text-white hover:bg-black transition-all h-8 w-8"
+                className="text-black group-hover:text-[#00D1FF] hover:bg-black transition-all h-9 w-9 border-2 border-transparent hover:border-[#00D1FF]"
               >
-                <CheckCircle size={16} />
+                <CheckCircle size={18} />
               </Button>
-              <Button title="Editar" variant="ghost" size="icon" onClick={() => onEdit(c)} className="text-black group-hover:text-white hover:bg-black transition-all h-8 w-8">
-                <Edit2 size={16} />
+              <Button title="Editar" variant="ghost" size="icon" onClick={() => handleEditClick(c)} className="text-black group-hover:text-white hover:bg-black transition-all h-9 w-9 border-2 border-transparent hover:border-white">
+                <Edit2 size={18} />
               </Button>
             </>
           )}
-          <Button title="Tribunal" variant="ghost" size="icon" asChild className="text-black group-hover:text-white hover:bg-black transition-all h-8 w-8">
+          <Button title="Tribunal" variant="ghost" size="icon" asChild className="text-black group-hover:text-white hover:bg-black transition-all h-9 w-9 border-2 border-transparent hover:border-white">
             <a href={c.linkConsulta} target="_blank" rel="noopener noreferrer">
-              <ExternalLink size={16} />
+              <ExternalLink size={18} />
             </a>
           </Button>
           {isOperador && (
-            <Button title="Excluir" variant="ghost" size="icon" onClick={() => onDelete(c.id)} className="text-black group-hover:text-red-500 hover:bg-black transition-all h-8 w-8">
-              <Trash2 size={16} />
+            <Button title="Excluir" variant="ghost" size="icon" onClick={() => onDelete(c.id)} className="text-black group-hover:text-red-500 hover:bg-black transition-all h-9 w-9 border-2 border-transparent hover:border-red-500">
+              <Trash2 size={18} />
             </Button>
           )}
         </div>
@@ -172,6 +179,11 @@ function CasesContent() {
     telefone: ''
   });
 
+  const getThresholds = useCallback(() => {
+    const saved = localStorage.getItem('lexisPredict_urgency_alert');
+    return { alertLimit: saved ? parseInt(saved) : 3 };
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -190,17 +202,16 @@ function CasesContent() {
     loadData();
   }, [loadData]);
 
-  // MOTOR DE ATUALIZAÇÃO AUTOMÁTICA (60 SEGUNDOS)
   const handleBatchUpdateStatus = useCallback(async (silent = false) => {
     if (!isOperador || cases.length === 0 || isUpdating) return;
     
     if (!silent) setIsUpdating(true);
+    const thresholds = getThresholds();
     
     try {
       const updatedCases = cases.map(c => {
-        // Se o status for automático, recalculamos com base no prazo atual
         if (c.statusManual === 'Automatico' || !c.statusManual) {
-          return processarCaso({ ...c, id: c.id });
+          return processarCaso({ ...c, id: c.id }, thresholds);
         }
         return c;
       });
@@ -208,20 +219,19 @@ function CasesContent() {
       const result = await syncRepoCases(updatedCases);
       if (result.success) {
         setCases(updatedCases);
-        if (!silent) toast({ title: "Gabinete Recalibrado", description: "Todos os status foram atualizados conforme o relógio do tribunal." });
+        if (!silent) toast({ title: "Gabinete Recalibrado", description: "Todos os status foram atualizados conforme os parâmetros de urgência." });
       }
     } catch (e) {
       if (!silent) toast({ title: "Falha na Recalibração", variant: "destructive" });
     } finally {
       if (!silent) setIsUpdating(false);
     }
-  }, [cases, isOperador, isUpdating, toast]);
+  }, [cases, isOperador, isUpdating, toast, getThresholds]);
 
   useEffect(() => {
     if (!isOperador) return;
     
     const interval = setInterval(() => {
-      console.log("[Temporizador] Iniciando revisão de prazos de 60 segundos...");
       handleBatchUpdateStatus(true);
     }, 60000);
 
@@ -237,6 +247,8 @@ function CasesContent() {
       return;
     }
 
+    const thresholds = getThresholds();
+
     try {
       const processed = processarCaso({
         id: editingCase?.id,
@@ -250,7 +262,7 @@ function CasesContent() {
         STATUS_MANUAL: formState.statusManual,
         OBSERVACAO: formState.observacao,
         TELEFONE: formState.telefone
-      });
+      }, thresholds);
 
       const updated = editingCase 
         ? cases.map(c => c.id === editingCase.id ? processed : c)
@@ -315,7 +327,7 @@ function CasesContent() {
     setIsModalOpen(true);
   }, [isOperador]);
 
-  const deleteCase = useCallback(async (id: string) => {
+  const handleDeleteCase = useCallback(async (id: string) => {
     if (!isOperador) return;
     if (confirm('Tem certeza que deseja excluir este caso?')) {
       const updated = cases.filter(c => c.id !== id);
@@ -324,21 +336,6 @@ function CasesContent() {
       toast({ title: "Caso Excluído" });
     }
   }, [cases, isOperador, toast]);
-
-  const handleClearAll = async () => {
-    if (!isOperador) return;
-    if (confirm('ATENÇÃO: Deseja apagar TODOS os processos deste perfil? Esta ação é irreversível e removerá todos os registros da nuvem.')) {
-      setLoading(true);
-      const result = await syncRepoCases([]);
-      if (result.success) {
-        setCases([]);
-        toast({ title: "Base Limpa", description: "Todos os registros foram removidos com sucesso." });
-      } else {
-        toast({ title: "Falha técnica", description: result.message, variant: "destructive" });
-      }
-      setLoading(false);
-    }
-  };
 
   const filtered = useMemo(() => {
     const searchLower = deferredSearch.toLowerCase();
@@ -442,17 +439,6 @@ function CasesContent() {
                 </DialogContent>
               </Dialog>
             )}
-            {isOperador && (
-               <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleClearAll} 
-                className="h-10 w-10 text-red-600 border-2 border-black rounded-none bg-white hover:bg-red-600 hover:text-white transition-all"
-                title="Limpar Toda a Base"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
             <Button variant="ghost" size="icon" onClick={loadData} className="h-10 w-10 text-black border-2 border-black rounded-none bg-white">
               <RefreshCcw className={cn("w-4 h-4", loading && "animate-spin")} />
             </Button>
@@ -477,40 +463,43 @@ function CasesContent() {
             </div>
 
             <div className="flex-1 overflow-auto min-h-0 bg-white">
-              <table className="w-full text-left border-collapse min-w-[1200px]">
-                <thead className="sticky top-0 bg-[#f3f2f2] z-20 border-b-2 border-black">
-                  <tr className="text-[9px] lg:text-[10px] uppercase font-black text-black/40 tracking-widest">
-                    <th className="px-6 py-4">Conta / Protocolo</th>
-                    <th className="px-6 py-4">Tribunal</th>
-                    <th className="px-6 py-4">Advogado</th>
-                    <th className="px-6 py-4">Status / Prazo</th>
-                    <th className="px-6 py-4">Último Contato</th>
-                    <th className="px-6 py-4 text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y-2 divide-black/5">
-                  {filtered.length > 0 ? filtered.map((c) => (
-                    <CaseRow 
-                      key={c.id} 
-                      c={c} 
-                      isOperador={isOperador} 
-                      onLogReturn={handleLogReturn} 
-                      onEdit={handleEditClick} 
-                      onDelete={deleteCase}
-                      onShowObs={onShowObs}
-                    />
-                  )) : (
-                    <tr>
-                      <td colSpan={6} className="py-24 text-center">
-                        <div className="max-w-xs mx-auto space-y-4 opacity-30">
-                          <Briefcase className="mx-auto" size={48} />
-                          <h3 className="font-black uppercase text-sm">Base Vazia</h3>
-                        </div>
-                      </td>
+              {filtered.length > 0 ? (
+                <table className="w-full text-left border-collapse min-w-[1200px]">
+                  <thead className="sticky top-0 bg-[#f3f2f2] z-20 border-b-2 border-black shadow-sm">
+                    <tr className="text-[9px] lg:text-[10px] uppercase font-black text-black/40 tracking-widest">
+                      <th className="px-6 py-5">Conta / Protocolo</th>
+                      <th className="px-6 py-5">Tribunal</th>
+                      <th className="px-6 py-5">Advogado</th>
+                      <th className="px-6 py-5">Status / Prazo</th>
+                      <th className="px-6 py-5">Último Contato</th>
+                      <th className="px-6 py-5 text-right">Ações de Gabinete</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y-2 divide-black/5 bg-white">
+                    {filtered.map((c) => (
+                      <CaseRow 
+                        key={c.id} 
+                        c={c} 
+                        isOperador={isOperador} 
+                        onLogReturn={handleLogReturn} 
+                        onEdit={handleEditClick} 
+                        onDelete={handleDeleteCase}
+                        onShowObs={onShowObs}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <EmptyState 
+                    icon={Briefcase} 
+                    title={loading ? "Sincronizando..." : "Nenhum processo encontrado"} 
+                    description={loading ? "Carregando registros da nuvem W1 Capital." : "A base de dados atual está vazia ou não condiz com sua busca."}
+                    actionLabel={!loading && isOperador ? "Adicionar Primeiro Caso" : undefined}
+                    onAction={() => setIsModalOpen(true)}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -519,7 +508,7 @@ function CasesContent() {
           <div className="flex items-center gap-2">
             <Copyright size={10} /> 2026 W1 Capital
           </div>
-          <span className="hidden sm:inline">Relatório Consolidado • DAVI ALVES FIGUEREDO</span>
+          <span className="hidden sm:inline text-black">Relatório Consolidado • DAVI ALVES FIGUEREDO</span>
         </footer>
 
         <Dialog open={!!obsDialogOpen} onOpenChange={(open) => !open && setObsDialogOpen(null)}>
@@ -545,19 +534,22 @@ function CasesContent() {
 }
 
 function StatusBadge({ status }: { status: any }) {
-  const styles: Record<string, string> = {
-    'Vencido': "bg-red-600 text-white",
-    'É Hoje': "bg-blue-600 text-white font-black animate-pulse",
-    'Caso Crítico': "bg-red-600 text-white",
-    'Atenção': "bg-orange-500 text-white",
-    'No Prazo': "bg-green-600 text-white",
-    'Arquivado': "bg-black text-white",
-    'Encerrado': "bg-gray-800 text-white",
-    'Sem Prazo': "bg-gray-400 text-white",
+  const styles: Record<string, { bg: string, icon: React.ReactNode }> = {
+    'Vencido': { bg: "bg-red-600 text-white", icon: <AlertTriangle size={10} /> },
+    'É Hoje': { bg: "bg-blue-600 text-white font-black animate-pulse", icon: <Clock size={10} /> },
+    'Caso Crítico': { bg: "bg-red-600 text-white", icon: <AlertTriangle size={10} /> },
+    'Atenção': { bg: "bg-orange-500 text-white", icon: <AlertTriangle size={10} /> },
+    'No Prazo': { bg: "bg-green-600 text-white", icon: <CheckCircle size={10} /> },
+    'Arquivado': { bg: "bg-black text-white", icon: <Briefcase size={10} /> },
+    'Encerrado': { bg: "bg-gray-800 text-white", icon: <CheckCircle size={10} /> },
+    'Sem Prazo': { bg: "bg-gray-400 text-white", icon: <Info size={10} /> },
   };
 
+  const config = styles[status] || styles['Sem Prazo'];
+
   return (
-    <Badge className={cn("px-2 py-0.5 font-black text-[8px] lg:text-[9px] uppercase border-none shadow-sm rounded-none", styles[status] || "bg-gray-400 text-white")}>
+    <Badge className={cn("px-2 py-0.5 font-black text-[8px] lg:text-[9px] uppercase border-none shadow-sm rounded-none flex items-center gap-1.5 w-fit", config.bg)}>
+      {config.icon}
       {status}
     </Badge>
   );

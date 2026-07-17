@@ -1,4 +1,7 @@
-
+/**
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
+ */
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
@@ -28,14 +31,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const loadProfile = async (userId: string) => {
     if (!isSupabaseConfigured) {
-       console.error("[AuthProvider] ❌ Supabase não configurado via ENV VARS.");
+       console.warn("[AuthProvider] Supabase não configurado.");
        setLoading(false);
        return null;
     }
 
-    console.log(`[AuthProvider] 🚀 Buscando perfil de gabinete para UID: ${userId}`);
-    
     try {
+      console.log(`[AuthProvider] 🚀 Buscando perfil de gabinete para: ${userId}`);
+      
       // Prioridade 1: Buscar por auth_user_id (UUID oficial)
       let { data: profileData, error: profileError } = await supabase
         .from('usuarios')
@@ -45,7 +48,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       // Prioridade 2: Busca resiliente por e-mail caso o UUID falhe
       if (!profileData || profileError) {
-         console.warn("[AuthProvider] ⚠️ UUID não localizado no perfil, tentando via e-mail corporativo...");
+         console.log("[AuthProvider] 📡 UUID não localizado, tentando busca resiliente por e-mail...");
          const { data: { user: authUser } } = await supabase.auth.getUser();
          if (authUser?.email) {
            const { data: altProfile } = await supabase
@@ -58,7 +61,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (profileData) {
-        console.log("[AuthProvider] ✅ Perfil localizado. Entrada Liberada.");
+        console.log("[AuthProvider] ✅ Perfil localizado com sucesso.");
         setProfile(profileData as UserProfile);
         
         // Garante cookie de identidade para as Server Actions
@@ -68,10 +71,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return profileData as UserProfile;
       }
       
-      console.warn("[AuthProvider] ❌ Nenhum perfil corporativo encontrado para este usuário.");
+      console.warn("[AuthProvider] ⚠️ Perfil não encontrado no banco de dados.");
       return null;
     } catch (e) {
-      console.error("[AuthProvider] 💥 Falha fatal no carregamento de perfil:", e);
+      console.error("[AuthProvider] ❌ Falha crítica no carregamento do perfil:", e);
       return null;
     } finally {
       setLoading(false);
@@ -83,22 +86,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (initialized.current) return;
       initialized.current = true;
 
-      console.log("[AuthProvider] 🔍 Analisando sessão local...");
       try {
+        console.log("[AuthProvider] 🔍 Analisando sessão local...");
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
-          console.log(`[AuthProvider] 👤 Sessão detectada: ${session.user.email}`);
           setUser(session.user);
           await loadProfile(session.user.id);
         } else {
-          console.log("[AuthProvider] 🔒 Nenhuma sessão ativa.");
+          console.log("[AuthProvider] 👤 Nenhuma sessão ativa detectada.");
           setUser(null);
           setProfile(null);
           setLoading(false);
         }
       } catch (e) {
-        console.error("[AuthProvider] ❌ Erro na inicialização de hardware:", e);
         setLoading(false);
       }
     };
@@ -118,10 +119,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setProfile(null);
         setLoading(false);
         
-        // Limpeza de rastros de sessão
         document.cookie = "lexis_user_email=; path=/; max-age=0";
 
         if (!['/login', '/signup'].includes(pathname)) {
+          console.log("[AuthProvider] 🚪 Sessão encerrada, redirecionando para login.");
           window.location.href = '/login';
         }
       }
@@ -131,7 +132,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [pathname, profile]);
 
   const signOut = async () => {
-    console.log("[AuthProvider] 🚪 Executando log-out oficial do gabinete...");
+    console.log("[AuthProvider] 🔒 Iniciando encerramento de gabinete...");
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);

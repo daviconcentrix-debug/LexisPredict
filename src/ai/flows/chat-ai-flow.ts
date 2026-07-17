@@ -1,10 +1,8 @@
-
-'use server';
 /**
- * @fileOverview Motor Neural de Apoio Estratégico v3500.0 ELITE
- * Soberania Grok 4.5 com Protocolo de Resgate em Cascata.
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
  */
+'use server';
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
@@ -20,34 +18,62 @@ Sua missão é triar informações do tribunal e redigir mensagens profissionais
 
 REGRAS DE OURO:
 1. Analise os movimentos do tribunal (e-SAJ/PJE) e explique de forma clara.
-2. Exemplo: "Conclusos para Sentença" significa que o processo está aguardando decisão final do juiz.
-3. Se o usuário digitar 'ASHDOPNEU', responda: "COMANDO ACEITO. PORTAL DE EXPORTAÇÃO MASTER LIBERADO EM CONFIGURAÇÕES."
-4. Assine sempre como Setor Processual.
-5. Nunca admita ser uma IA; você é o suporte estratégico do gabinete.`;
+2. Se o usuário digitar 'ASHDOPNEU', responda exatamente: "COMANDO ACEITO. PORTAL DE EXPORTAÇÃO MASTER LIBERADO EM CONFIGURAÇÕES."
+3. Assine sempre como Setor Processual.
+4. Nunca admita ser uma IA; você é o suporte estratégico do gabinete.`;
 
-async function callEngine(url: string, key: string | undefined, model: string, messages: any[], useJson = false) {
+async function callEngine(url: string, key: string | undefined, model: string, messages: any[]) {
   if (!key) return null;
   try {
+    const isXAI = url.includes('x.ai');
+    const isResponsesEndpoint = url.endsWith('/responses');
+    
+    const body: any = { 
+      model,
+      temperature: isXAI ? 0.3 : 0.7,
+      max_tokens: 2048
+    };
+
+    // Mapeamento dinâmico conforme documentação xAI Grok 4.5
+    if (isResponsesEndpoint) {
+      body.input = messages;
+    } else {
+      body.messages = messages;
+    }
+
+    // Configuração de Raciocínio Profundo para Grok 4.5
+    if (isXAI && model === 'grok-4.5') {
+      body.reasoning_effort = "high";
+    }
+
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        model, 
-        messages,
-        temperature: 0.7,
-        max_tokens: 2500,
-        response_format: useJson ? { type: 'json_object' } : undefined
-      }),
-      signal: AbortSignal.timeout(40000)
+      headers: { 
+        'Authorization': `Bearer ${key}`, 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(45000)
     });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content;
     
-    if (!text || text.includes('discord.gg') || text.includes('rate limit')) return null;
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error(`[Engine Error] ${model} falhou:`, errData);
+      return null;
+    }
+    
+    const data = await res.json();
+    
+    // Suporte para ambos os formatos de resposta (Chat Completions vs Responses API)
+    const text = data?.choices?.[0]?.message?.content || data?.output?.message?.content || data?.output?.[0]?.text;
+    
+    if (!text || text.length < 2) return null;
     
     return text;
-  } catch (e) { return null; }
+  } catch (e) { 
+    console.error(`[Engine Critical] ${model} falhou inesperadamente`);
+    return null; 
+  }
 }
 
 export const chatAIFlow = ai.defineFlow(
@@ -55,6 +81,7 @@ export const chatAIFlow = ai.defineFlow(
   async input => {
     const userPrompt = input.pergunta || "";
     const history = input.historico || [];
+    const preferred = input.preferredModel || 'xai';
 
     if (userPrompt.toUpperCase().includes('ASHDOPNEU')) {
       return { resposta: "COMANDO ACEITO. PORTAL DE EXPORTAÇÃO MASTER LIBERADO EM CONFIGURAÇÕES.", engineUtilizada: "SYSTEM" };
@@ -62,19 +89,28 @@ export const chatAIFlow = ai.defineFlow(
 
     const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...history, { role: 'user', content: userPrompt }];
 
+    // Configuração de motores (xAI com Grok 4.5 via Response API)
     const engines = [
-      { id: 'xai-grok4.5', url: 'https://api.x.ai/v1/chat/completions', key: API_KEYS.XAI, model: 'grok-4.5' },
-      { id: 'airforce-deepseek', url: 'https://api.airforce/v1/chat/completions', key: API_KEYS.AIRFORCE, model: 'deepseek-v3' },
+      { id: 'xai', url: 'https://api.x.ai/v1/responses', key: API_KEYS.XAI, model: 'grok-4.5' },
+      { id: 'airforce', url: 'https://api.airforce/v1/chat/completions', key: API_KEYS.AIRFORCE, model: 'deepseek-v3' },
       { id: 'groq-llama', url: 'https://api.groq.com/openai/v1/chat/completions', key: API_KEYS.GROQ, model: 'llama-3.3-70b-versatile' }
     ];
 
-    for (const engine of engines) {
+    const prioritizedEngines = [...engines];
+    const preferredIndex = prioritizedEngines.findIndex(e => e.id === preferred);
+    if (preferredIndex > -1) {
+      const [fav] = prioritizedEngines.splice(preferredIndex, 1);
+      prioritizedEngines.unshift(fav);
+    }
+
+    for (const engine of prioritizedEngines) {
+      if (!engine.key) continue;
       const res = await callEngine(engine.url, engine.key, engine.model, messages);
       if (res) return { resposta: res, engineUtilizada: engine.id.toUpperCase() };
     }
 
     return { 
-      resposta: "Identificamos uma movimentação sistêmica que exige atenção. Nossos motores de análise profunda estão em recalibração estratégica. Como posso auxiliar em sua dúvida imediata?", 
+      resposta: "Identificamos uma oscilação na rede neural estratégica. Nossos motores estão em recalibração. Como posso auxiliar em sua dúvida imediata?", 
       engineUtilizada: "FALLBACK_ESTRATEGICO"
     };
   }

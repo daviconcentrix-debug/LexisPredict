@@ -1,18 +1,18 @@
-
+/**
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
+ */
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   Upload, 
   Database, 
   Zap, 
   Eye, 
-  CheckCircle2, 
   Loader2,
   Copyright,
-  ShieldCheck,
-  AlertCircle
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
@@ -33,10 +33,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-/**
- * Função de auxílio para fazer o parse correto de uma linha CSV 
- * lidando com campos entre aspas que podem conter vírgulas.
- */
 function parseCsvRow(row: string, separator: string): string[] {
   const result: string[] = [];
   let current = '';
@@ -69,12 +65,15 @@ export default function ImportPage() {
   const [preview, setPreview] = useState<LegalCase[]>([]);
   const [step, setStep] = useState<'upload' | 'preview'>('upload');
   const [textInput, setTextInput] = useState('');
-  
-  // CORREÇÃO: Restaurado o identificador 'stats' e removido '统计' (erro de tradução)
   const [stats, setStats] = useState({ total: 0, critical: 0, tribunals: 0 });
 
   const { isOperador } = useAdmin();
   const { toast } = useToast();
+
+  const getThresholds = useCallback(() => {
+    const saved = localStorage.getItem('lexisPredict_urgency_alert');
+    return { alertLimit: saved ? parseInt(saved) : 3 };
+  }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
@@ -111,6 +110,7 @@ export default function ImportPage() {
 
   const processRawText = async (text: string) => {
     const separator = text.includes(';') ? ';' : ',';
+    const thresholds = getThresholds();
     
     const lines: string[] = [];
     let currentLine = '';
@@ -148,7 +148,7 @@ export default function ImportPage() {
 
       if (Object.keys(rowData).length > 0) {
         try {
-          const processed = processarCaso(rowData);
+          const processed = processarCaso(rowData, thresholds);
           parsedCases.push(processed);
         } catch (e) {
           console.warn(`Erro ao processar linha ${i}:`, e);
@@ -230,7 +230,7 @@ export default function ImportPage() {
           {step === 'upload' ? (
             <Tabs defaultValue="text" className="space-y-8 animate-in fade-in duration-500">
                <div className="text-center space-y-4 mb-8">
-                  <h2 className="text-3xl font-black uppercase tracking-tighter">Unidade de Migração Elite</h2>
+                  <h2 className="text-3xl font-black uppercase tracking-tighter">Unidade de Migração</h2>
                   <p className="text-black/60 max-w-2xl mx-auto text-sm font-black uppercase leading-relaxed">
                     Carregue seu dump de banco ou cole o texto do CSV. O sistema detectará automaticamente o formato e corrigirá erros de codificação e datas.
                   </p>
@@ -337,7 +337,7 @@ export default function ImportPage() {
           <div className="flex items-center gap-2">
             <Copyright size={10} /> 2026 W1 Capital.
           </div>
-          <span className="uppercase">Relatório Consolidado • DAVI ALVES FIGUEREDO</span>
+          <span className="uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
         </footer>
       </main>
     </div>

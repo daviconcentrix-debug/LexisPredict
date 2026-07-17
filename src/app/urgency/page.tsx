@@ -1,7 +1,10 @@
-
+/**
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
+ */
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { ShieldAlert, AlertTriangle, CheckCircle2, Lock, Copyright } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -10,14 +13,43 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { useAdmin } from '@/hooks/use-admin';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 export default function UrgencyEngine() {
   const { isAdmin } = useAdmin();
+  const { toast } = useToast();
+  const [alertLimit, setAlertLimit] = useState(3);
+  const [criticalBuffer, setCriticalBuffer] = useState(1);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const savedAlert = localStorage.getItem('lexisPredict_urgency_alert');
+    const savedCritical = localStorage.getItem('lexisPredict_urgency_critical');
+    if (savedAlert) setAlertLimit(parseInt(savedAlert));
+    if (savedCritical) setCriticalBuffer(parseInt(savedCritical));
+  }, []);
+
+  const handleAlertChange = (val: number[]) => {
+    const newVal = val[0];
+    setAlertLimit(newVal);
+    localStorage.setItem('lexisPredict_urgency_alert', newVal.toString());
+    window.dispatchEvent(new Event('lexis-urgency-changed'));
+  };
+
+  const handleCriticalChange = (val: number[]) => {
+    const newVal = val[0];
+    setCriticalBuffer(newVal);
+    localStorage.setItem('lexisPredict_urgency_critical', newVal.toString());
+    window.dispatchEvent(new Event('lexis-urgency-changed'));
+  };
+
+  if (!mounted) return null;
 
   return (
-    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black">
+    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-black uppercase hover:bg-black hover:text-white px-2 py-1 transition-all rounded-sm cursor-default">Motor de Prioridade</h1>
@@ -31,7 +63,7 @@ export default function UrgencyEngine() {
         </header>
 
         <div className="flex-1 overflow-auto p-8 max-w-5xl mx-auto w-full space-y-8">
-          <section className="bg-white border border-black rounded-sm p-8 shadow-xl relative overflow-hidden group hover:bg-black transition-all cursor-default">
+          <section className="bg-white border-2 border-black rounded-none p-8 shadow-[8px_8px_0px_#000] relative overflow-hidden group hover:bg-black transition-all cursor-default">
             <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 group-hover:text-white transition-all">
               <ShieldAlert size={120} />
             </div>
@@ -45,13 +77,13 @@ export default function UrgencyEngine() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <UrgencyLevelCard icon={<ShieldAlert className="text-red-600" />} label="Vencido (Crítico)" condition="Data < Hoje" description="Prioridade máxima. Impacto direto na compliance jurídica." color="border-red-600" />
-            <UrgencyLevelCard icon={<AlertTriangle className="text-orange-500" />} label="Atenção (Alerta)" condition="Dias ≤ 3" description="Ação imediata recomendada para revisão interna." color="border-orange-500" />
-            <UrgencyLevelCard icon={<CheckCircle2 className="text-green-600" />} label="No Prazo (Saudável)" condition="Dias > 3" description="Monitoramento rotineiro mantido sem alertas críticos." color="border-green-600" />
+            <UrgencyLevelCard icon={<AlertTriangle className="text-orange-500" />} label="Atenção (Alerta)" condition={`Dias ≤ ${alertLimit}`} description="Ação imediata recomendada para revisão interna." color="border-orange-500" />
+            <UrgencyLevelCard icon={<CheckCircle2 className="text-green-600" />} label="No Prazo (Saudável)" condition={`Dias > ${alertLimit}`} description="Monitoramento rotineiro mantido sem alertas críticos." color="border-green-600" />
           </div>
 
-          <Card className={cn("bg-white border-black shadow-sm rounded-sm overflow-hidden", !isAdmin && "opacity-50")}>
-            <CardHeader className="bg-[#f8f9fb] border-b border-black">
-              <CardTitle className="text-black font-black uppercase text-sm">Calibração do Motor</CardTitle>
+          <Card className={cn("bg-white border-2 border-black shadow-[8px_8px_0px_#000] rounded-none overflow-hidden", !isAdmin && "opacity-50")}>
+            <CardHeader className="bg-[#f8f9fb] border-b-2 border-black">
+              <CardTitle className="text-black font-black uppercase text-sm tracking-widest">Calibração do Motor</CardTitle>
               <CardDescription className="text-black/60 font-bold uppercase text-[10px]">
                 {isAdmin ? "Ajuste os limites matemáticos para os alertas processuais." : "Acesso restrito a Administradores."}
               </CardDescription>
@@ -60,27 +92,44 @@ export default function UrgencyEngine() {
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <Label className="text-black font-black uppercase text-xs">Limite de Alerta (Dias)</Label>
-                  <span className="text-black font-black uppercase text-xs bg-[#f3f2f2] px-3 py-1 border border-black">3 Dias</span>
+                  <span className="text-black font-black uppercase text-xs bg-[#f3f2f2] px-3 py-1 border-2 border-black font-mono">{alertLimit} Dias</span>
                 </div>
-                <Slider defaultValue={[3]} max={30} step={1} className="[&_[role=slider]]:bg-black" disabled={!isAdmin} />
+                <Slider 
+                  value={[alertLimit]} 
+                  max={30} 
+                  min={1}
+                  step={1} 
+                  onValueChange={handleAlertChange}
+                  className="[&_[role=slider]]:bg-black [&_[role=slider]]:border-black" 
+                  disabled={!isAdmin} 
+                />
+                <p className="text-[9px] font-black uppercase text-black/40">Define a partir de quantos dias o processo entra em estado de "Atenção".</p>
               </div>
 
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <Label className="text-black font-black uppercase text-xs">Buffer Crítico (Dias)</Label>
-                  <span className="text-red-600 font-black uppercase text-xs bg-red-50 px-3 py-1 border border-red-600">1 Dia</span>
+                  <Label className="text-black font-black uppercase text-xs">Buffer Crítico (Segurança)</Label>
+                  <span className="text-red-600 font-black uppercase text-xs bg-red-50 px-3 py-1 border-2 border-red-600 font-mono">{criticalBuffer} Dias</span>
                 </div>
-                <Slider defaultValue={[1]} max={10} step={1} className="[&_[role=slider]]:bg-red-600" disabled={!isAdmin} />
+                <Slider 
+                  value={[criticalBuffer]} 
+                  max={10} 
+                  min={0}
+                  step={1} 
+                  onValueChange={handleCriticalChange}
+                  className="[&_[role=slider]]:bg-red-600 [&_[role=slider]]:border-red-600" 
+                  disabled={!isAdmin} 
+                />
+                <p className="text-[9px] font-black uppercase text-black/40">Margem de segurança para disparar notificações de risco máximo.</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 hover:text-black transition-colors cursor-default">
+        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 hover:bg-black hover:text-white transition-all cursor-default">
           <div className="flex items-center gap-2">
-            <Copyright size={10} /> 2026 W1 Capital. Todos os direitos reservados.
+            <Copyright size={10} /> 2026 W1 Capital.
           </div>
-          <span className="w-1 h-1 bg-black rounded-full opacity-30" />
           <span className="text-black uppercase">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</span>
         </footer>
       </main>
@@ -90,9 +139,9 @@ export default function UrgencyEngine() {
 
 function UrgencyLevelCard({ icon, label, condition, description, color }: { icon: React.ReactNode, label: string, condition: string, description: string, color: string }) {
   return (
-    <div className={cn("bg-white border p-6 rounded-sm space-y-3 hover:bg-black transition-all group cursor-default", color)}>
+    <div className={cn("bg-white border-2 p-6 rounded-none space-y-3 hover:bg-black transition-all group cursor-default shadow-sm hover:shadow-none", color)}>
       <div className="icon-3d-wrapper w-fit">
-        <div className="icon-3d-block white w-10 h-10 rounded-sm group-hover:bg-white border-black">
+        <div className="icon-3d-block white w-10 h-10 rounded-none group-hover:bg-white border-2 border-black">
           {icon}
         </div>
       </div>
