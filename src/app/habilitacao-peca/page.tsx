@@ -1,10 +1,10 @@
-"use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved. See LICENSE file.
+ * @license Proprietary - All rights reserved.
  */
+"use client";
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   FileText, 
@@ -21,7 +21,9 @@ import {
   Eye,
   MapPin,
   Briefcase,
-  Users
+  Users,
+  Fingerprint,
+  Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -45,32 +47,27 @@ const BANCA_DATA: Record<string, any> = {
   "DIEGO GOMES DIAS": {
     oabs: { "BA": "77510", "CE": "52996-A", "MT": "34044-A", "PI": "22858", "RN": "21766A", "SP": "370.898" },
     endereco: "Av. São Miguel, nº 4810 – Jardim Cotinha – São Paulo – SP – CEP: 03870-100",
-    email: "diego_gomesdias@yahoo.com.br",
-    genero: "M"
+    email: "diego_gomesdias@yahoo.com.br"
   },
   "LETICIA ALVES GODOY DA CRUZ": {
     oabs: { "TO": "12.528-A", "AC": "6572", "RS": "131831A", "PB": "31888 A", "PA": "36417-A", "SP": "490.641" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
-    email: "leticiagodoy.adv@gmail.com",
-    genero: "F"
+    email: "leticiagodoy.adv@gmail.com"
   },
   "PABLO MATHEUS SILVA BASTOS PEREIRA": {
     oabs: { "SP": "520783", "MG": "249550", "PR": "520783" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
-    email: "pablobastos@adv.oabsp.org.br",
-    genero: "M"
+    email: "pablobastos@adv.oabsp.org.br"
   },
   "INGRID MICHAELLY TELES PACHECO OLIVEIRA ALVES": {
     oabs: { "MA": "490.641", "RO": "13.438", "AP": "5.819-A", "SE": "1.601A", "RR": "844-A", "GO": "70699", "SP": "490.641" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
-    email: "pachecoingrid.adv@gmail.com",
-    genero: "F"
+    email: "pachecoingrid.adv@gmail.com"
   },
   "LUCAS DOS SANTOS DE JESUS": {
     oabs: { "DF": "78116", "AL": "21512A", "AM": "A2373", "PE": "66465", "RJ": "261767", "SP": "520783" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
-    email: "lucassj.adv01@gmail.com",
-    genero: "M"
+    email: "lucassj.adv01@gmail.com"
   }
 };
 
@@ -132,14 +129,14 @@ export default function HabilitacaoPecaGenerator() {
 
         setExtractedData({
           vara: "02ª VARA CÍVEL",
-          comarca: `${selectedState === 'SP' ? 'São Paulo' : 'Comarca Local'} - ${selectedState}`,
+          comarca: `${selectedState === 'SP' ? 'SÃO PAULO' : 'COMARCA LOCAL'} - ${selectedState}`,
           numeroProcesso: data.processos?.[0]?.numero || "S/N",
           cliente: {
             ...data.cliente,
             nacionalidade: data.cliente.nacionalidade || "brasileiro(a)",
             estadoCivil: data.cliente.estadoCivil || "casado(a)",
             profissao: data.cliente.profissao || "autônomo(a)",
-            endereco: data.cliente.endereco || "Não localizado"
+            endereco: data.cliente.endereco || "NÃO LOCALIZADO"
           },
           advogado: {
             nome: selectedLawyer.toUpperCase(),
@@ -151,7 +148,7 @@ export default function HabilitacaoPecaGenerator() {
           tipoAcao: data.processos?.[0]?.acao || "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA",
           reuNome: data.processos?.[0]?.banco || "INSTITUIÇÃO FINANCEIRA",
           reuCnpj: data.processos?.[0]?.cnpjBanco || "",
-          cidadeEmissao: selectedState === 'SP' ? 'São Paulo' : 'Comarca Local',
+          cidadeEmissao: selectedState === 'SP' ? 'SÃO PAULO' : 'COMARCA LOCAL',
           dataFormatada: new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }),
           selectedState
         });
@@ -300,7 +297,7 @@ export default function HabilitacaoPecaGenerator() {
           )}
 
           {step === 2 && extractedData && (
-            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto pb-20">
               <div className="flex items-center justify-between border-b-2 border-black pb-4">
                 <div className="flex items-center gap-3">
                   <Edit3 size={20} />
@@ -351,16 +348,16 @@ export default function HabilitacaoPecaGenerator() {
                 <div className="space-y-6">
                   <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                     <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados do Juízo</CardTitle>
+                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados do Juízo & Banco</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
                        <div className="grid gap-1">
-                         <Label className="text-[9px] font-black uppercase">Vara (Ex: 02ª VARA CÍVEL)</Label>
-                         <Input value={extractedData.vara} onChange={(e) => setExtractedData({...extractedData, vara: e.target.value})} className="border-black font-black uppercase rounded-none" />
+                         <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Building2 size={10} /> Instituição Financeira (Banco)</Label>
+                         <Input value={extractedData.reuNome} onChange={(e) => setExtractedData({...extractedData, reuNome: e.target.value})} className="border-black font-black uppercase rounded-none" />
                        </div>
                        <div className="grid gap-1">
-                         <Label className="text-[9px] font-black uppercase">Comarca (Ex: SÃO PAULO - SP)</Label>
-                         <Input value={extractedData.comarca} onChange={(e) => setExtractedData({...extractedData, comarca: e.target.value})} className="border-black font-black uppercase rounded-none" />
+                         <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Fingerprint size={10} /> CNPJ do Banco</Label>
+                         <Input value={extractedData.reuCnpj} onChange={(e) => setExtractedData({...extractedData, reuCnpj: e.target.value})} className="border-black font-black uppercase rounded-none font-mono" />
                        </div>
                        <div className="grid grid-cols-2 gap-4">
                           <div className="grid gap-1">
@@ -368,9 +365,13 @@ export default function HabilitacaoPecaGenerator() {
                             <Input value={extractedData.numeroProcesso} onChange={(e) => setExtractedData({...extractedData, numeroProcesso: e.target.value})} className="border-black font-black uppercase rounded-none font-mono" />
                           </div>
                           <div className="grid gap-1">
-                             <Label className="text-[9px] font-black uppercase">Data Extenso</Label>
-                             <Input value={extractedData.dataFormatada} onChange={(e) => setExtractedData({...extractedData, dataFormatada: e.target.value})} className="border-black font-black uppercase rounded-none" />
+                             <Label className="text-[9px] font-black uppercase">Vara Cível</Label>
+                             <Input value={extractedData.vara} onChange={(e) => setExtractedData({...extractedData, vara: e.target.value})} className="border-black font-black uppercase rounded-none" />
                           </div>
+                       </div>
+                       <div className="grid gap-1">
+                         <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Calendar size={10} /> Data por Extenso</Label>
+                         <Input value={extractedData.dataFormatada} onChange={(e) => setExtractedData({...extractedData, dataFormatada: e.target.value})} className="border-black font-black uppercase rounded-none" />
                        </div>
                     </CardContent>
                   </Card>

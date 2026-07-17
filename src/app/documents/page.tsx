@@ -1,10 +1,10 @@
-"use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved. See LICENSE file.
+ * @license Proprietary - All rights reserved.
  */
+"use client";
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   FileText, 
@@ -18,14 +18,12 @@ import {
   Building2,
   AlertCircle,
   MapPin,
-  CalendarDays,
   User,
   Mail,
   Phone,
-  Hash,
-  Info,
   Trash2,
-  Eye
+  Eye,
+  Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -100,7 +98,7 @@ export default function DocumentGenerator() {
       const res = await extrairTextoDoPDFAction(formData);
       if (res.success) {
         setInputText(res.text || '');
-        toast({ title: "Documento Transcrevido", description: "Texto pronto para triagem neural." });
+        toast({ title: "Transcrição Concluída", description: "O conteúdo do PDF está pronto para análise neural." });
       } else {
         toast({ title: "Falha na Leitura", description: res.error, variant: "destructive" });
       }
@@ -113,7 +111,7 @@ export default function DocumentGenerator() {
 
   const handleExtract = async () => {
     if (!inputText || inputText.length < 50) {
-      toast({ title: "Dados Insuficientes", description: "Insira o texto do documento para triagem.", variant: "destructive" });
+      toast({ title: "Dados Insuficientes", description: "Insira o texto ou transcreva um PDF para triagem.", variant: "destructive" });
       return;
     }
     if (!selectedLawyer || !selectedState) {
@@ -127,14 +125,18 @@ export default function DocumentGenerator() {
     try {
       const res = await extrairDadosProcuracaoAction(inputText, selectedLawyer, selectedState);
       if (res.success) {
-        setExtractedData(res);
+        setExtractedData({
+          ...res,
+          local: selectedState,
+          dataExtenso: `${selectedState}, ${new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}`
+        });
         setStep(2);
         toast({ title: "Triagem Concluída" });
       } else {
-        setApiError(res.error || "FALHA_CRITICA_TRIAGEM_NEURAL");
+        setApiError(res.error || "Falha crítica na triagem neural.");
       }
     } catch (err) {
-      setApiError("Erro crítico de comunicação com o servidor.");
+      setApiError("Erro de comunicação com o servidor neural.");
     } finally {
       setLoading(false);
     }
@@ -158,15 +160,13 @@ export default function DocumentGenerator() {
           oab: lawyerInfo.oabs[selectedState] || lawyerInfo.oabs['SP'],
           endereco: lawyerInfo.endereco,
           email: lawyerInfo.email
-        },
-        local: selectedState,
-        dataExtenso: new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
+        }
       };
       const res = await generateProcuracaoPDFAction(payload);
       if (res.success && res.base64) {
         const link = document.createElement('a');
         link.href = `data:application/pdf;base64,${res.base64}`;
-        link.download = `Procuracao_${extractedData.cliente.nome}.pdf`;
+        link.download = `Procuracao_${extractedData.cliente.nome.replace(/\s/g, '_')}.pdf`;
         link.click();
         toast({ title: "Documento Selado" });
       } else {
@@ -190,9 +190,9 @@ export default function DocumentGenerator() {
                 <Shield size={20} className="text-white" />
               </div>
             </div>
-            <h1 className="font-black text-xl text-black uppercase tracking-tighter">Gerador de Procurações Elite</h1>
+            <h1 className="font-black text-xl text-black uppercase tracking-tighter">Gerador Universal de Procurações</h1>
           </div>
-          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">v20.0 Elite</Badge>
+          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Transcrição Livre Ativa</Badge>
         </header>
 
         <div className="flex-1 overflow-auto p-4 lg:p-8 max-w-7xl mx-auto w-full">
@@ -249,13 +249,13 @@ export default function DocumentGenerator() {
                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                     <CardContent className="p-6 space-y-4">
                       <div className="flex items-center justify-between">
-                        <Label className="uppercase text-[10px] font-black">2. Texto do Documento</Label>
+                        <Label className="uppercase text-[10px] font-black">2. Conteúdo do PDF ou Texto</Label>
                         <Button variant="ghost" size="sm" onClick={() => setInputText('')} className="h-6 text-[8px] font-black uppercase hover:bg-red-600 hover:text-white">
-                          <Trash2 size={10} className="mr-1" /> Limpar
+                          <Trash2 size={10} className="mr-1" /> Limpar Tudo
                         </Button>
                       </div>
                       <Textarea 
-                        placeholder="COLE O CONTRATO OU LEAD DA GET ASSESSORIA AQUI..."
+                        placeholder="COLE O CONTRATO OU QUALQUER DOCUMENTO PARA TRANSCRIÇÃO AQUI..."
                         className="min-h-[300px] border-2 border-black font-black uppercase text-[11px] rounded-none resize-none leading-relaxed bg-white"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
@@ -265,7 +265,7 @@ export default function DocumentGenerator() {
                         disabled={loading}
                         className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]"
                       >
-                        {loading ? <Loader2 className="animate-spin mr-2" /> : <><Zap size={16} className="mr-2" /> Extrair & Iniciar Gabinete</>}
+                        {loading ? <Loader2 className="animate-spin mr-2" /> : <><Zap size={16} className="mr-2" /> Iniciar Triagem Neural Universal</>}
                       </Button>
                     </CardContent>
                   </Card>
@@ -274,14 +274,15 @@ export default function DocumentGenerator() {
                 <div className="space-y-6">
                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                     <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Upload size={14} /> Leitura PDF</CardTitle>
+                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Upload size={14} /> Importar Qualquer PDF</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
                       <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all">
                         {fileLoading ? <Loader2 className="animate-spin text-black" size={32} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
-                        <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Arraste o PDF aqui</p>
+                        <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Selecione o arquivo para transcrever</p>
                         <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                       </div>
+                      <p className="text-[8px] font-bold text-black/40 uppercase mt-4 text-center">Transcrevemos qualquer formato jurídico de forma livre.</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -294,9 +295,9 @@ export default function DocumentGenerator() {
               <div className="flex items-center justify-between border-b-2 border-black pb-4">
                 <div className="flex items-center gap-3">
                   <Edit3 size={20} />
-                  <h2 className="text-xl font-black uppercase tracking-tight text-black">Revisão de Dados Extraídos</h2>
+                  <h2 className="text-xl font-black uppercase tracking-tight text-black">Revisão de Dados Auditados</h2>
                 </div>
-                <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-black rounded-none">Voltar</Button>
+                <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-black rounded-none">Voltar ao Upload</Button>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -333,7 +334,7 @@ export default function DocumentGenerator() {
                     </div>
 
                     <div className="grid gap-1">
-                      <Label className="text-[9px] font-black uppercase">Endereço Residencial</Label>
+                      <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><MapPin size={10} /> Endereço Residencial</Label>
                       <Input value={extractedData.cliente.endereco} onChange={(e) => updateField('cliente', 'endereco', e.target.value)} className="border-black font-black uppercase rounded-none" />
                     </div>
 
@@ -353,11 +354,11 @@ export default function DocumentGenerator() {
                 <div className="space-y-6">
                   <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                     <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados Processuais</CardTitle>
+                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados do Processo & Data</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
                         <div className="grid gap-1">
-                          <Label className="text-[9px] font-black uppercase">Instituição Financeira (Banco)</Label>
+                          <Label className="text-[9px] font-black uppercase">Instituição Financeira</Label>
                           <Input 
                             value={extractedData.processos?.[0]?.banco || "BANCO"} 
                             onChange={(e) => {
@@ -372,19 +373,6 @@ export default function DocumentGenerator() {
                         
                         <div className="grid grid-cols-2 gap-4">
                           <div className="grid gap-1">
-                            <Label className="text-[9px] font-black uppercase">CNPJ do Banco</Label>
-                            <Input 
-                              value={extractedData.processos?.[0]?.cnpjBanco || ""} 
-                              onChange={(e) => {
-                                const newProcessos = [...extractedData.processos];
-                                if (!newProcessos[0]) newProcessos[0] = { banco: '', cnpjBanco: '', numero: '', acao: '', estado: 'SP' };
-                                newProcessos[0].cnpjBanco = e.target.value;
-                                setExtractedData({...extractedData, processos: newProcessos});
-                              }} 
-                              className="border-black font-black rounded-none bg-white" 
-                            />
-                          </div>
-                          <div className="grid gap-1">
                             <Label className="text-[9px] font-black uppercase">Processo (CNJ)</Label>
                             <Input 
                               value={extractedData.processos?.[0]?.numero || "S/N"} 
@@ -395,6 +383,14 @@ export default function DocumentGenerator() {
                                 setExtractedData({...extractedData, processos: newProcessos});
                               }} 
                               className="border-black font-black uppercase rounded-none bg-white font-mono" 
+                            />
+                          </div>
+                          <div className="grid gap-1">
+                            <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Calendar size={10} /> Local e Data (Extenso)</Label>
+                            <Input 
+                              value={extractedData.dataExtenso} 
+                              onChange={(e) => setExtractedData({...extractedData, dataExtenso: e.target.value})} 
+                              className="border-black font-black uppercase rounded-none bg-white" 
                             />
                           </div>
                         </div>
@@ -414,6 +410,13 @@ export default function DocumentGenerator() {
                       <p className="text-justify indent-10">
                         <strong>{selectedLawyer.toUpperCase()}</strong>, brasileiro, advogado, inscrito na OAB/{selectedState} sob o número {BANCA_DATA[selectedLawyer].oabs[selectedState] || BANCA_DATA[selectedLawyer].oabs['SP']}, com endereço profissional na {BANCA_DATA[selectedLawyer].endereco}, e endereço eletrônico: {BANCA_DATA[selectedLawyer].email}.
                       </p>
+                      <p className="text-justify indent-10">
+                        <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <strong>"AD JUDICIA"</strong>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <strong>AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA</strong> promovida contra <strong>{(extractedData.processos?.[0]?.banco || "BANCO").toUpperCase()}</strong>, processo nº {extractedData.processos?.[0]?.numero || "S/N"}.
+                      </p>
+                      <div className="text-center mt-10">
+                        <p>{extractedData.dataExtenso}</p>
+                        <p className="mt-8 font-bold uppercase">{extractedData.cliente.nome}</p>
+                      </div>
                     </CardContent>
                   </Card>
 
@@ -430,3 +433,4 @@ export default function DocumentGenerator() {
     </div>
   );
 }
+
