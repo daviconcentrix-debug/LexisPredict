@@ -105,13 +105,13 @@ export function HabilitacaoPecaPDF({ data }: { data: any }) {
         </View>
       </Page>
 
-      {/* PÁGINA 2: PROCURAÇÃO AD JUDICIA */}
+      {/* PÁGINA 2: PROCURAÇÃO AD JUDICIA (MODELO PADRONIZADO) */}
       <Page size="A4" style={styles.page}>
         <Text style={styles.title}>PROCURAÇÃO "AD JUDICIA"</Text>
 
         <View style={styles.paragraph}>
           <Text>
-            <Text style={styles.bold}>{cliente.nome.toUpperCase()}</Text>, brasileiro(a), {cliente.estadoCivil}, {cliente.profissao}, portador do RG sob Nº {cliente.rg} e devidamente inscrito no CPF sob Nº {cliente.cpf}, residente e domiciliado à {cliente.endereco}, neste ato nomeia como seu procurador:
+            <Text style={styles.bold}>{cliente.nome.toUpperCase()}</Text>, {cliente.nacionalidade || "brasileiro(a)"}, {cliente.estadoCivil}, {cliente.profissao}, portador do RG sob Nº {cliente.rg} e devidamente inscrito no CPF sob Nº {cliente.cpf}, residente e domiciliado à {cliente.endereco}, com endereço eletrônico: {cliente.email || 'Não informado'}, neste ato nomeia como seu procurador:
           </Text>
         </View>
 
@@ -123,7 +123,7 @@ export function HabilitacaoPecaPDF({ data }: { data: any }) {
 
         <View style={styles.paragraph}>
           <Text>
-            <Text style={styles.bold}>PODERES:</Text> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <Text style={styles.bold}>"AD JUDICIA"</Text>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <Text style={styles.bold}>{tipoAcao.toUpperCase()}</Text> promovida contra o <Text style={styles.bold}>{reuNome.toUpperCase()}</Text>, inscrito no CNPJ nº {reuCnpj}.
+            <Text style={styles.bold}>PODERES:</Text> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <Text style={styles.bold}>"AD JUDICIA"</Text>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <Text style={styles.bold}>{tipoAcao.toUpperCase()}</Text> promovida contra o <Text style={styles.bold}>{reuNome.toUpperCase()}</Text>, processo nº {numeroProcesso}.
           </Text>
         </View>
 
