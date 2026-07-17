@@ -34,14 +34,12 @@ async function callEngine(url: string, key: string | undefined, model: string, m
       max_tokens: 2048
     };
 
-    // Mapeamento dinâmico conforme documentação xAI Grok 4.5
     if (isResponsesEndpoint) {
       body.input = messages;
     } else {
       body.messages = messages;
     }
 
-    // Configuração de Raciocínio Profundo para Grok 4.5
     if (isXAI && model === 'grok-4.5') {
       body.reasoning_effort = "high";
     }
@@ -56,22 +54,20 @@ async function callEngine(url: string, key: string | undefined, model: string, m
       signal: AbortSignal.timeout(45000)
     });
     
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      console.error(`[Engine Error] ${model} falhou:`, errData);
-      return null;
-    }
+    if (!res.ok) return null;
     
     const data = await res.json();
     
-    // Suporte para ambos os formatos de resposta (Chat Completions vs Responses API)
-    const text = data?.choices?.[0]?.message?.content || data?.output?.message?.content || data?.output?.[0]?.text;
+    // Suporte Universal para Respostas (Choices vs Response API)
+    const text = data?.choices?.[0]?.message?.content || 
+                 data?.output?.message?.content || 
+                 (Array.isArray(data?.output) ? data?.output?.[0]?.text : null) ||
+                 data?.message?.content;
     
     if (!text || text.length < 2) return null;
     
     return text;
   } catch (e) { 
-    console.error(`[Engine Critical] ${model} falhou inesperadamente`);
     return null; 
   }
 }
@@ -89,7 +85,6 @@ export const chatAIFlow = ai.defineFlow(
 
     const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...history, { role: 'user', content: userPrompt }];
 
-    // Configuração de motores (xAI com Grok 4.5 via Response API)
     const engines = [
       { id: 'xai', url: 'https://api.x.ai/v1/responses', key: API_KEYS.XAI, model: 'grok-4.5' },
       { id: 'airforce', url: 'https://api.airforce/v1/chat/completions', key: API_KEYS.AIRFORCE, model: 'deepseek-v3' },

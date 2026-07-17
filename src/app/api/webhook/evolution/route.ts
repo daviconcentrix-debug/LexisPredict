@@ -1,18 +1,20 @@
 /**
- * @fileOverview Webhook Evolution API → Supabase v2500.0 ELITE
- * Soberania de Dados com Service Role Key e Normalização de DDI 55.
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
  */
-
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
 export async function POST(request: Request) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[Webhook] Supabase credentials missing');
+      return NextResponse.json({ error: 'Config Error' }, { status: 500 });
+    }
+
     const payload = await request.json();
 
     if (payload.event !== 'MESSAGES_UPSERT') {
@@ -37,6 +39,8 @@ export async function POST(request: Request) {
                       message.videoMessage?.caption || 
                       '';
 
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
     const { error } = await supabase
       .from('whatsapp_messages')
       .insert({

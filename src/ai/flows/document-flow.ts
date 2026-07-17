@@ -96,7 +96,7 @@ async function callNeuralEngine(text: string) {
       
       if (!res.ok) continue;
       const data = await res.json();
-      const content = data?.choices?.[0]?.message?.content || data?.output?.message?.content;
+      const content = data?.choices?.[0]?.message?.content || data?.output?.message?.content || data?.output?.[0]?.text;
       const parsed = cleanJsonResponse(content);
       if (parsed) return parsed;
     } catch { continue; }
