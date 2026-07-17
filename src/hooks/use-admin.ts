@@ -15,14 +15,11 @@ export function useAdmin() {
   const isOperador = profile?.cargo === 'Operador' || isAdmin;
   
   /**
-   * Validação de senha mestre para portais sensíveis.
-   * Utiliza variável de ambiente para evitar exposição de segredos.
+   * Validação de senha mestre via Variável de Ambiente.
+   * Não utilizar strings hardcoded para evitar bloqueios de segurança.
    */
   const login = (password: string) => {
-    // Em ambiente de desenvolvimento ou produção, a senha deve vir de env vars.
-    // Para Next.js client-side, deve ser prefixada com NEXT_PUBLIC_ se necessária aqui,
-    // mas o ideal é que validações críticas ocorram via Server Actions.
-    const masterPass = process.env.NEXT_PUBLIC_MASTER_PASSWORD || 'Ashley@25472053';
+    const masterPass = process.env.NEXT_PUBLIC_MASTER_PASSWORD;
     return password === masterPass;
   };
 

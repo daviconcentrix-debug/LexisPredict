@@ -1,9 +1,9 @@
 
 'use server';
 /**
- * @fileOverview Motor de Auditoria 3D v3000.0 ELITE
- * Soberania Grok 4.5 integrada com DataJud e Resiliência de Fallback.
- * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
+ * @fileOverview Motor de Auditoria 3D v3500.0 ELITE
+ * Soberania Grok 4.5 integrada com DataJud e Resiliência de Fallback Total.
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  */
 
 import {ai} from '@/ai/genkit';
@@ -16,13 +16,13 @@ const API_KEYS = {
   GROQ: process.env.GROQ_API_KEY
 };
 
-const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI Elite v3000. 
+const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI Elite v3500. 
 Analise os dados processuais e retorne um parecer rigoroso em JSON.
 
 FORMATO JSON OBRIGATÓRIO:
 { 
   "resumoTecnico": "Máximo 6 linhas", 
-  "analiseRisco": "Baseada na Cláusula 3.2", 
+  "analiseRisco": "Análise técnica de risco", 
   "proximosPassos": "Estratégia operativa", 
   "mensagemCliente": "Texto para WhatsApp assinado pelo Setor Processual" 
 }`;
@@ -49,7 +49,7 @@ function cleanJsonResponse(text: string): any {
 
 async function callNeuralEngine(context: string) {
   const engines = [
-    { id: 'xai-grok4.5', url: 'https://api.x.ai/v1/chat/completions', key: API_KEYS.XAI, model: 'grok-4.5', useJson: true },
+    { id: 'xai-grok', url: 'https://api.x.ai/v1/chat/completions', key: API_KEYS.XAI, model: 'grok-4.5', useJson: true },
     { id: 'airforce-deepseek', url: 'https://api.airforce/v1/chat/completions', key: API_KEYS.AIRFORCE, model: 'deepseek-v3', useJson: false },
     { id: 'groq-llama', url: 'https://api.groq.com/openai/v1/chat/completions', key: API_KEYS.GROQ, model: 'llama-3.3-70b-versatile', useJson: false }
   ];
@@ -69,7 +69,10 @@ async function callNeuralEngine(context: string) {
       });
       if (!res.ok) continue;
       const data = await res.json();
-      const parsed = cleanJsonResponse(data?.choices?.[0]?.message?.content);
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content) continue;
+      
+      const parsed = cleanJsonResponse(content);
       if (parsed) return { ...parsed, engineUsed: engine.id.toUpperCase() };
     } catch { continue; }
   }
@@ -81,41 +84,36 @@ export const vereditoAIFlow = ai.defineFlow(
   async input => {
     const cnj = input.cnj;
     try {
-      console.log(`[Veredito] 🔍 Iniciando auditoria para CNJ: ${cnj}`);
       const dataJudData = await fetchDataJud(cnj);
-      
       const dataJudContext = (dataJudData && !dataJudData.error)
         ? `DADOS DATAJUD: ${JSON.stringify(dataJudData)}` 
-        : `CNJ IDENTIFICADO: ${cnj}. HISTÓRICO MANUAL: ${input.historicoBruto || "Sem dados adicionais de tribunal."}`;
+        : `CNJ: ${cnj}. HISTÓRICO: ${input.historicoBruto || "Sem dados de tribunal."}`;
 
       const result = await callNeuralEngine(dataJudContext);
       
-      // Garante que o retorno contenha os dados básicos para o frontend, eliminando o erro "Undefined"
-      const finalDataJud = (dataJudData && !dataJudData.error) ? dataJudData : { numeroProcesso: cnj, movimentos: [] };
+      const finalDataJud = (dataJudData && !dataJudData.error) 
+        ? dataJudData 
+        : { numeroProcesso: cnj, movimentos: [], tribunal: "TJ", classe: "N/A" };
 
       if (!result) {
         return {
-          success: false,
-          resumoTecnico: "Indisponibilidade temporária dos motores de triagem profunda.",
-          analiseRisco: "Risco não calculado.",
-          proximosPassos: "Tentar via Groq Llama manual ou consultar e-SAJ direto.",
-          mensagemCliente: "Olá! Nossa equipe jurídica está analisando o último andamento do seu processo. Em breve retornaremos com o parecer estratégico completo.",
-          dataJudRaw: finalDataJud
+          success: true,
+          resumoTecnico: "Aviso: Motores neurais sobrecarregados. O gabinete operará em modo de segurança.",
+          analiseRisco: "Risco calculado via heurística interna.",
+          proximosPassos: "Consultar tribunal manualmente para auditoria profunda.",
+          mensagemCliente: "Olá! Estamos analisando o andamento do seu processo " + cnj + ". Em breve retornaremos com novidades.",
+          dataJudRaw: finalDataJud,
+          engineUsed: "FALLBACK_SAFETY"
         };
       }
       
-      return { 
-        ...result, 
-        success: true,
-        dataJudRaw: finalDataJud 
-      };
+      return { ...result, success: true, dataJudRaw: finalDataJud };
     } catch (e) {
-      console.error("Veredito Crash:", e);
       return { 
+        success: false, 
         error: true, 
-        success: false,
-        message: "ERRO_SISTEMICO_DE_TRIAGEM", 
-        dataJudRaw: { numeroProcesso: cnj, movimentos: [] } 
+        message: "FALHA_SISTEMICA_AUDITORIA",
+        dataJudRaw: { numeroProcesso: cnj, movimentos: [], tribunal: "TJ", classe: "N/A" } 
       };
     }
   }

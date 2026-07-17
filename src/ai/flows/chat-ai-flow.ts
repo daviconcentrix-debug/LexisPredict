@@ -1,9 +1,9 @@
 
 'use server';
 /**
- * @fileOverview Motor Neural de Apoio Estratégico v2900.0 ELITE
+ * @fileOverview Motor Neural de Apoio Estratégico v3500.0 ELITE
  * Soberania Grok 4.5 com Protocolo de Resgate em Cascata.
- * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  */
 
 import {ai} from '@/ai/genkit';
@@ -38,13 +38,12 @@ async function callEngine(url: string, key: string | undefined, model: string, m
         max_tokens: 2500,
         response_format: useJson ? { type: 'json_object' } : undefined
       }),
-      signal: AbortSignal.timeout(35000)
+      signal: AbortSignal.timeout(40000)
     });
     if (!res.ok) return null;
     const data = await res.json();
     const text = data?.choices?.[0]?.message?.content;
     
-    // Filtro de Resiliência: ignora avisos de rate limit ou links indesejados
     if (!text || text.includes('discord.gg') || text.includes('rate limit')) return null;
     
     return text;

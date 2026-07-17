@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -89,12 +90,13 @@ export async function extrairDadosProcuracaoAction(inputText: string, lawyer: st
     });
     
     if (!res) {
-       return { success: false, error: "SISTEMA_INDISPONIVEL" };
+       return { success: false, error: "TRIAGEM_INDISPONIVEL_TEMPORARIAMENTE" };
     }
     
     return { success: true, ...res };
   } catch (e: any) {
     console.error("Neural Extraction Action Fail:", e);
-    return { success: false, error: "FALHA_NA_TRIAGEM_TECNICA" };
+    // Retorna erro amigável mas específico para depuração
+    return { success: false, error: e.message || "FALHA_NA_TRIAGEM_TECNICA" };
   }
 }

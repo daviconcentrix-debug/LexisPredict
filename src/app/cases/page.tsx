@@ -22,9 +22,10 @@ import {
   FileText, 
   MessageCircle, 
   Info,
-  AlertTriangle
+  AlertTriangle,
+  Zap
 } from 'lucide-react';
-import { LegalCase, processarCaso } from '@/lib/case-logic';
+import { LegalCase, processarCaso, calcularStatus } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -152,6 +153,7 @@ function CasesContent() {
   const deferredSearch = useDeferredValue(search);
   
   const [loading, setLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [obsDialogOpen, setObsDialogOpen] = useState<string | null>(null);
   const [editingCase, setEditingCase] = useState<LegalCase | null>(null);
@@ -187,6 +189,44 @@ function CasesContent() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // MOTOR DE ATUALIZAÇÃO AUTOMÁTICA (60 SEGUNDOS)
+  const handleBatchUpdateStatus = useCallback(async (silent = false) => {
+    if (!isOperador || cases.length === 0 || isUpdating) return;
+    
+    if (!silent) setIsUpdating(true);
+    
+    try {
+      const updatedCases = cases.map(c => {
+        // Se o status for automático, recalculamos com base no prazo atual
+        if (c.statusManual === 'Automatico' || !c.statusManual) {
+          return processarCaso({ ...c, id: c.id });
+        }
+        return c;
+      });
+
+      const result = await syncRepoCases(updatedCases);
+      if (result.success) {
+        setCases(updatedCases);
+        if (!silent) toast({ title: "Gabinete Recalibrado", description: "Todos os status foram atualizados conforme o relógio do tribunal." });
+      }
+    } catch (e) {
+      if (!silent) toast({ title: "Falha na Recalibração", variant: "destructive" });
+    } finally {
+      if (!silent) setIsUpdating(false);
+    }
+  }, [cases, isOperador, isUpdating, toast]);
+
+  useEffect(() => {
+    if (!isOperador) return;
+    
+    const interval = setInterval(() => {
+      console.log("[Temporizador] Iniciando revisão de prazos de 60 segundos...");
+      handleBatchUpdateStatus(true);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [isOperador, handleBatchUpdateStatus]);
 
   const handleSaveCase = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -325,6 +365,17 @@ function CasesContent() {
             </Badge>
           </div>
           <div className="flex items-center gap-2">
+            {isOperador && (
+              <Button 
+                onClick={() => handleBatchUpdateStatus()} 
+                disabled={isUpdating || cases.length === 0}
+                variant="outline"
+                className="border-2 border-black font-black uppercase h-10 text-[10px] px-4 rounded-none hover:bg-black hover:text-white transition-all hidden md:flex"
+              >
+                {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Zap className="w-3.5 h-3.5 mr-2 text-yellow-500 fill-yellow-500" />}
+                Recalibrar Prazos
+              </Button>
+            )}
             {isOperador && (
               <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCase(null); }}>
                 <DialogTrigger asChild>
