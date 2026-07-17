@@ -22,7 +22,8 @@ import {
   MapPin,
   Fingerprint,
   Calendar,
-  AlertTriangle
+  AlertTriangle,
+  ScanText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -42,6 +43,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { extrairTextoDoPDFAction, generateHabilitacaoPecaPDFAction } from '@/app/actions/document-actions';
 import { extrairDadosSoberanosAction } from '@/app/actions/transcription-actions';
+import Link from 'next/link';
 
 const BANCA_DATA: Record<string, any> = {
   "DIEGO GOMES DIAS": {
@@ -81,6 +83,7 @@ export default function HabilitacaoPecaGenerator() {
   const [selectedState, setSelectedState] = useState('SP');
   const [extractedData, setExtractedData] = useState<any>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isScanDetected, setIsScanDetected] = useState(false);
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -89,13 +92,19 @@ export default function HabilitacaoPecaGenerator() {
     const file = e.target.files?.[0];
     if (!file) return;
     setLoading(true);
+    setIsScanDetected(false);
     const formData = new FormData();
     formData.append('pdf', file);
     try {
       const res = await extrairTextoDoPDFAction(formData);
       if (res.success) {
-        setInputText(res.text || '');
-        toast({ title: "Documento Lido", description: "Texto pronto para triagem neural." });
+        if (!res.text || res.text.trim().length < 10) {
+          setIsScanDetected(true);
+          toast({ title: "Arquivo de Imagem", description: "O PDF não contém texto selecionável.", variant: "destructive" });
+        } else {
+          setInputText(res.text || '');
+          toast({ title: "Documento Lido", description: "Texto pronto para triagem neural." });
+        }
       } else {
         toast({ title: "Falha na Leitura", description: res.error, variant: "destructive" });
       }
@@ -217,11 +226,18 @@ export default function HabilitacaoPecaGenerator() {
         <div className="flex-1 overflow-auto p-4 lg:p-8 max-w-7xl mx-auto w-full">
           {step === 1 && (
             <div className="space-y-8 animate-in fade-in duration-500">
-              {apiError && (
-                <Alert variant="destructive" className="border-2 border-red-600 rounded-none shadow-[8px_8px_0px_#000]">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle className="font-black uppercase text-xs">Erro de Triagem</AlertTitle>
-                  <AlertDescription className="text-[10px] font-bold uppercase">{apiError}</AlertDescription>
+              {isScanDetected && (
+                <Alert className="border-2 border-red-600 bg-red-50 rounded-none shadow-[4px_4px_0px_#000]">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                  <div className="ml-4">
+                    <AlertTitle className="font-black uppercase text-xs text-red-600">Documento de Imagem Detectado</AlertTitle>
+                    <AlertDescription className="text-[10px] font-bold uppercase text-red-800/80 leading-relaxed mt-1">
+                      O arquivo enviado não possui texto selecionável. Utilize o Motor de OCR para converter o documento.
+                      <Button asChild variant="link" className="h-auto p-0 text-red-600 font-black uppercase text-[10px] ml-2 underline">
+                        <Link href="/tools/ocr">Abrir Unidade OCR <ScanText size={12} className="ml-1" /></Link>
+                      </Button>
+                    </AlertDescription>
+                  </div>
                 </Alert>
               )}
 
