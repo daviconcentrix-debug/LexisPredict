@@ -1,7 +1,8 @@
+
 /**
- * @fileOverview Motor de Exportação de Infraestrutura v680.0 ELITE
+ * @fileOverview Motor de Exportação de Infraestrutura v670.0 ELITE
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved. See LICENSE file.
+ * @license Proprietary - All rights reserved.
  */
 'use server';
 
@@ -11,7 +12,7 @@ import JSZip from 'jszip';
 
 /**
  * Realiza a varredura e compressão de todo o diretório do projeto.
- * Inclui agora a geração dinâmica do arquivo .env com as credenciais ativas.
+ * Exclui deliberadamente pastas de sistema para entregar um projeto pronto para GitHub.
  */
 export async function exportFullSourceCodeAction() {
   const rootPath = process.cwd();
@@ -33,7 +34,7 @@ export async function exportFullSourceCodeAction() {
         continue;
       }
 
-      // Filtros de Higiene de Código (Exclui lixo e pastas de sistema)
+      // Filtros de Higiene de Código (Whitelist-like exclusion)
       const blackList = [
         'node_modules',
         '.next',
@@ -41,9 +42,9 @@ export async function exportFullSourceCodeAction() {
         '.agents',
         'dist',
         '.vercel',
-        '.DS_Store',
-        '.env',       // Excluímos os arquivos físicos para não duplicar com o dinâmico
-        '.env.local'
+        '.env.local',
+        '.env',
+        '.DS_Store'
       ];
 
       if (blackList.some(item => file === item || relativePath.startsWith(item))) {
@@ -64,46 +65,9 @@ export async function exportFullSourceCodeAction() {
   }
 
   try {
-    // 1. Adicionar arquivos do projeto
     addFilesRecursively(rootPath);
-
-    // 2. Protocolo de Exportação de Credenciais "Prontas"
-    // Captura as variáveis de ambiente setadas no Vercel/Firebase e gera o .env
-    const envKeys = [
-      'XAI_API_KEY',
-      'XAI_GROK_PRESTIGE_API_KEY',
-      'XAI_DOCUMENTS_API_KEY',
-      'GROQ_API_KEY',
-      'AIRFORCE_API_KEY',
-      'GEMINI_API_KEY',
-      'NEXT_PUBLIC_SUPABASE_URL',
-      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-      'SUPABASE_SERVICE_ROLE_KEY',
-      'DATAJUD_API_KEY',
-      'EVOLUTION_BASE_URL',
-      'EVOLUTION_API_KEY',
-      'EVOLUTION_INSTANCE',
-      'MASTER_PASSWORD',
-      'NEXT_PUBLIC_MASTER_PASSWORD'
-    ];
-
-    let envContent = '###########################################################\n';
-    envContent += '# LEXISPREDICT ELITE - CREDENCIAIS DE PRODUÇÃO EXPORTADAS #\n';
-    envContent += `# Gerado em: ${new Date().toLocaleString('pt-BR')}                     #\n`;
-    envContent += '###########################################################\n\n';
     
-    envKeys.forEach(key => {
-      const val = process.env[key];
-      if (val) {
-        envContent += `${key}=${val}\n`;
-      }
-    });
-
-    // Injeta o arquivo .env no ZIP
-    zip.file('.env', envContent);
-    zip.file('.env.production', envContent); // Cópia para ambiente de build
-    
-    // 3. Gerar o buffer do ZIP com compressão máxima (DEFLATE 9)
+    // Gerar o buffer do ZIP no servidor com compressão máxima
     const content = await zip.generateAsync({ 
       type: "nodebuffer",
       compression: "DEFLATE",

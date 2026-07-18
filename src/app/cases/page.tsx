@@ -4,7 +4,7 @@
  */
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, Suspense, useDeferredValue } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense, useDeferredValue, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   Search, 
@@ -24,7 +24,8 @@ import {
   Zap,
   Loader2,
   AlertTriangle,
-  CalendarDays
+  CalendarDays,
+  Filter
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -65,84 +66,63 @@ const CaseRow = React.memo(({
   onShowObs: (obs: string) => void
 }) => {
   return (
-    <tr className="hover:bg-black group transition-all cursor-default border-b border-black/5 hover:border-black/20">
-      <td className="px-6 py-5">
-        <div className="flex flex-col">
-          <span className="text-black font-black text-xs lg:text-sm group-hover:text-white transition-colors uppercase leading-none">{c.cliente}</span>
-          <span className="text-[9px] lg:text-[10px] font-mono text-black/60 group-hover:text-white/60 mt-2 uppercase">{c.protocolo}</span>
+    <tr className="hover:bg-secondary/30 transition-all border-b border-border/50">
+      <td className="px-8 py-5">
+        <div className="flex flex-col gap-1">
+          <span className="text-foreground font-black text-[13px] uppercase leading-none tracking-tight">{c.cliente}</span>
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">{c.protocolo}</span>
         </div>
       </td>
-      <td className="px-6 py-5">
-        <Badge variant="outline" className="bg-white border-black border-2 font-black text-[8px] lg:text-[9px] text-black group-hover:bg-white group-hover:text-black uppercase rounded-none">
+      <td className="px-8 py-5">
+        <Badge variant="outline" className="bg-white border-border/50 font-black text-[9px] text-muted-foreground uppercase rounded-md h-7 px-3">
           {c.tribunal}
         </Badge>
       </td>
-      <td className="px-6 py-5 text-[10px] lg:text-[11px] text-black font-black uppercase group-hover:text-white transition-colors">
+      <td className="px-8 py-5 text-[11px] text-foreground font-bold uppercase">
         {c.advogado}
       </td>
-      <td className="px-6 py-5">
+      <td className="px-8 py-5">
         <div className="flex flex-col gap-2">
           <StatusBadge status={c.status} />
-          <div className="flex items-center gap-1 text-[9px] lg:text-[10px] text-black/60 group-hover:text-white/60 font-black uppercase">
-            <CalendarDays size={10} />
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-bold uppercase tracking-tight">
+            <CalendarDays size={12} className="opacity-40" />
             <span>{c.proximoPrazo || 'Sem Prazo'}</span>
           </div>
         </div>
       </td>
-      <td className="px-6 py-5">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center bg-gray-50 group-hover:bg-white/10 group-hover:border-white/20 transition-all">
-            <Clock className="w-3.5 h-3.5 text-black/40 group-hover:text-white/40" />
+      <td className="px-8 py-5">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg border border-border/50 flex items-center justify-center bg-gray-50 group-hover:bg-white transition-all">
+            <Clock className="w-4 h-4 text-muted-foreground/40" />
           </div>
-          <span className="text-[10px] lg:text-[11px] text-black group-hover:text-white font-black uppercase whitespace-nowrap">
+          <span className="text-[11px] text-foreground font-bold uppercase whitespace-nowrap">
             {c.ultimoRetorno || 'S/ Registro'}
           </span>
         </div>
       </td>
-      <td className="px-6 py-5 text-right">
-        <div className="flex items-center justify-end gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
+      <td className="px-8 py-5 text-right">
+        <div className="flex items-center justify-end gap-2">
           {c.telefone && (
-             <Button title="WhatsApp" variant="ghost" size="icon" asChild className="text-green-600 group-hover:text-green-400 hover:bg-black transition-all h-9 w-9 border-2 border-transparent hover:border-green-600">
+             <Button title="WhatsApp" variant="ghost" size="icon" asChild className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all h-9 w-9 rounded-lg">
                <a href={formatWhatsAppLink(c.telefone)} target="_blank" rel="noopener noreferrer">
                  <MessageCircle size={18} />
                </a>
              </Button>
           )}
-          {c.observacao && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-black group-hover:text-white h-9 w-9 border-2 border-transparent hover:border-white" 
-              onClick={() => onShowObs(c.observacao || '')}
-            >
-              <FileText size={18} />
-            </Button>
-          )}
-          {isOperador && (
-            <>
-              <Button 
-                title="Retorno"
-                variant="ghost" 
-                size="icon" 
-                onClick={() => onLogReturn(c.protocolo)} 
-                className="text-black group-hover:text-[#00D1FF] hover:bg-black transition-all h-9 w-9 border-2 border-transparent hover:border-[#00D1FF]"
-              >
-                <CheckCircle size={18} />
-              </Button>
-              <Button title="Editar" variant="ghost" size="icon" onClick={() => onEdit(c)} className="text-black group-hover:text-white hover:bg-black transition-all h-9 w-9 border-2 border-transparent hover:border-white">
-                <Edit2 size={18} />
-              </Button>
-            </>
-          )}
-          <Button title="Tribunal" variant="ghost" size="icon" asChild className="text-black group-hover:text-white hover:bg-black transition-all h-9 w-9 border-2 border-transparent hover:border-white">
+          <Button title="Tribunal" variant="ghost" size="icon" asChild className="text-muted-foreground hover:bg-secondary h-9 w-9 rounded-lg">
             <a href={c.linkConsulta} target="_blank" rel="noopener noreferrer">
               <ExternalLink size={18} />
             </a>
           </Button>
           {isOperador && (
-            <Button title="Excluir" variant="ghost" size="icon" onClick={() => onDelete(c.id)} className="text-black group-hover:text-red-500 hover:bg-black transition-all h-9 w-9 border-2 border-transparent hover:border-red-500">
-              <Trash2 size={18} />
-            </Button>
+            <>
+              <Button title="Editar" variant="ghost" size="icon" onClick={() => onEdit(c)} className="text-muted-foreground hover:bg-secondary h-9 w-9 rounded-lg">
+                <Edit2 size={18} />
+              </Button>
+              <Button title="Excluir" variant="ghost" size="icon" onClick={() => onDelete(c.id)} className="text-muted-foreground hover:text-red-600 hover:bg-red-50 h-9 w-9 rounded-lg">
+                <Trash2 size={18} />
+              </Button>
+            </>
           )}
         </div>
       </td>
@@ -162,10 +142,11 @@ function CasesContent() {
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [obsDialogOpen, setObsDialogOpen] = useState<string | null>(null);
   const [editingCase, setEditingCase] = useState<LegalCase | null>(null);
+  const [mounted, setMounted] = useState(false);
   const { isAdmin, isOperador } = useAdmin();
   const { toast } = useToast();
+  const initialLoadDone = useRef(false);
 
   const [formState, setFormState] = useState({
     cliente: '',
@@ -179,91 +160,103 @@ function CasesContent() {
     telefone: ''
   });
 
-  const getThresholds = useCallback(() => {
-    const saved = localStorage.getItem('lexisPredict_urgency_alert');
-    return { alertLimit: saved ? parseInt(saved) : 3 };
-  }, []);
-
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const repoData = await fetchRepoCases();
       if (Array.isArray(repoData)) {
         setCases(repoData);
+        initialLoadDone.current = true;
       }
     } catch (error) {
-      console.error('Failed to load cases:', error);
+      console.error('Load Error');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
   const handleBatchUpdateStatus = useCallback(async (silent = false) => {
     if (!isOperador || cases.length === 0 || isUpdating) return;
-    
     if (!silent) setIsUpdating(true);
-    const thresholds = getThresholds();
     
     try {
+      const savedThreshold = localStorage.getItem('lexisPredict_urgency_alert');
+      const thresholds = { alertLimit: savedThreshold ? parseInt(savedThreshold) : 3 };
+
       const updatedCases = cases.map(c => {
         if (c.statusManual === 'Automatico' || !c.statusManual) {
-          // Passamos o objeto inteiro. O processarCaso atualizado vai reconhecer as chaves camelCase.
           return processarCaso({ ...c }, thresholds);
         }
         return c;
       });
 
-      const result = await syncRepoCases(updatedCases);
-      if (result.success) {
-        setCases(updatedCases);
-        if (!silent) toast({ title: "Gabinete Recalibrado", description: "Todos os status foram atualizados conforme os parâmetros de urgência." });
+      // Só envia para o servidor se houver mudanças reais de status para economizar banda/DB
+      const hasChanges = JSON.stringify(updatedCases.map(u => u.status)) !== JSON.stringify(cases.map(c => c.status));
+
+      if (hasChanges) {
+        const result = await syncRepoCases(updatedCases);
+        if (result.success) {
+          setCases(updatedCases);
+          if (!silent) toast({ title: "Sincronia Concluída", description: "Todos os prazos foram recalculados." });
+        }
       }
-    } catch (e) {
-      if (!silent) toast({ title: "Falha na Recalibração", variant: "destructive" });
     } finally {
       if (!silent) setIsUpdating(false);
     }
-  }, [cases, isOperador, isUpdating, toast, getThresholds]);
+  }, [cases, isOperador, isUpdating, toast]);
 
+  useEffect(() => { 
+    setMounted(true);
+    loadData(); 
+  }, [loadData]);
+
+  // Recalibração Inteligente de Gabinete
   useEffect(() => {
-    if (!isOperador) return;
-    
-    const interval = setInterval(() => {
-      handleBatchUpdateStatus(true);
-    }, 60000);
+    if (!mounted || !isOperador) return;
 
-    return () => clearInterval(interval);
-  }, [isOperador, handleBatchUpdateStatus]);
+    const recalibrate = async () => {
+      if (initialLoadDone.current && cases.length > 0 && !isUpdating) {
+        await handleBatchUpdateStatus(true);
+      }
+    };
+
+    // 1. Recalibra ao montar (após carregar os dados)
+    const timeout = setTimeout(recalibrate, 2000);
+
+    // 2. Recalibra periodicamente (45s) para detectar virada de dia ou mudança de thresholds
+    const interval = setInterval(recalibrate, 45000);
+
+    // 3. Recalibra quando a aba volta a ficar visível (advogado voltou ao sistema)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') recalibrate();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [mounted, isOperador, cases.length, isUpdating, handleBatchUpdateStatus]);
 
   const handleSaveCase = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isOperador) return;
-    
-    if (!formState.cliente || !formState.protocolo) {
-      toast({ title: "Erro de Validação", description: "Nome e Protocolo são obrigatórios.", variant: "destructive" });
-      return;
-    }
-
-    const thresholds = getThresholds();
+    if (!isOperador || !formState.cliente || !formState.protocolo) return;
 
     try {
+      const savedThreshold = localStorage.getItem('lexisPredict_urgency_alert');
       const processed = processarCaso({
         id: editingCase?.id,
         CLIENTE: formState.cliente,
         PROTOCOLO: formState.protocolo,
         ADVOCADO: formState.advogado,
-        'ADVOGADO RESPONSÁVEL': formState.advogado,
         'PRÓXIMO PRAZO': formState.proximoPrazo,
         SITUAÇÃO: formState.situacao,
         ULTIMO_RETORNO: formState.ultimoRetorno,
         STATUS_MANUAL: formState.statusManual,
         OBSERVACAO: formState.observacao,
         TELEFONE: formState.telefone
-      }, thresholds);
+      }, { alertLimit: savedThreshold ? parseInt(savedThreshold) : 3 });
 
       const updated = editingCase 
         ? cases.map(c => c.id === editingCase.id ? processed : c)
@@ -274,41 +267,18 @@ function CasesContent() {
         setCases(updated);
         setIsModalOpen(false);
         setEditingCase(null);
-        setFormState({ 
-          cliente: '', 
-          protocolo: '', 
-          advogado: '', 
-          proximoPrazo: '', 
-          situacao: 'EM ANDAMENTO', 
-          ultimoRetorno: '',
-          statusManual: 'Automatico',
-          observacao: '',
-          telefone: ''
-        });
-        toast({ title: editingCase ? "Caso Atualizado" : "Caso Adicionado" });
-      } else {
-        toast({ title: "Falha na Sincronia", description: result.message, variant: "destructive" });
+        toast({ title: "Registro Atualizado" });
       }
-    } catch (err: any) {
-      toast({ title: "Erro no Processamento", description: err.message, variant: "destructive" });
-    }
+    } catch (err) {}
   };
 
   const handleLogReturn = useCallback(async (protocolo: string) => {
     if (!isOperador) return;
     const today = format(new Date(), 'dd/MM/yyyy');
-    const updated = cases.map(c => {
-      if (c.protocolo === protocolo) {
-        return { ...c, ultimoRetorno: today };
-      }
-      return c;
-    });
-
+    const updated = cases.map(c => c.protocolo === protocolo ? { ...c, ultimoRetorno: today } : c);
     setCases(updated);
-    const result = await syncRepoCases(updated);
-    if (result.success) {
-      toast({ title: "Retorno Registrado", description: `Contato confirmado hoje (${today}).` });
-    }
+    await syncRepoCases(updated);
+    toast({ title: "Retorno Registrado" });
   }, [cases, isOperador, toast]);
 
   const handleEditClick = useCallback((c: LegalCase) => {
@@ -330,11 +300,11 @@ function CasesContent() {
 
   const handleDeleteCase = useCallback(async (id: string) => {
     if (!isOperador) return;
-    if (confirm('Tem certeza que deseja excluir este caso?')) {
+    if (confirm('Deseja excluir definitivamente este registro?')) {
       const updated = cases.filter(c => c.id !== id);
       setCases(updated);
       await syncRepoCases(updated);
-      toast({ title: "Caso Excluído" });
+      toast({ title: "Registro Removido" });
     }
   }, [cases, isOperador, toast]);
 
@@ -342,141 +312,110 @@ function CasesContent() {
     const searchLower = deferredSearch.toLowerCase();
     return cases.filter(c => 
       (c.cliente || '').toLowerCase().includes(searchLower) || 
-      (c.protocolo || '').includes(deferredSearch) ||
-      (c.advogado && c.advogado.toLowerCase().includes(searchLower))
+      (c.protocolo || '').includes(deferredSearch)
     );
   }, [cases, deferredSearch]);
 
-  const onShowObs = useCallback((obs: string) => {
-    setObsDialogOpen(obs);
-  }, []);
-
   return (
-    <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
+    <div className="flex h-screen bg-[#f8f9fb] font-sans text-foreground">
       <Sidebar />
-      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative">
-        <header className="h-16 border-b border-[#dddbda] bg-white/90 backdrop-blur-sm flex items-center justify-between px-6 lg:px-8 shrink-0 z-40">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        <header className="h-20 border-b border-border/50 bg-white/60 backdrop-blur-xl flex items-center justify-between px-10 shrink-0 z-40">
           <div className="flex items-center gap-4">
-            <h1 className="font-black text-lg lg:text-xl text-black uppercase tracking-tighter">Processos de Gabinete</h1>
-            <Badge variant="outline" className="hidden sm:flex text-black font-black border-black border-2 px-3 py-1 items-center gap-1.5 uppercase text-[9px] lg:text-[10px]">
-              <ShieldCheck size={10} /> {isAdmin ? 'Admin' : 'Operador'}
+            <h1 className="font-black text-xl text-foreground uppercase tracking-tight">Processos do Gabinete</h1>
+            <Badge variant="outline" className="bg-secondary/50 border-none font-bold uppercase text-[9px] px-3 py-1 rounded-full">
+              {isAdmin ? 'Privilégio Admin' : 'Operador'}
             </Badge>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {isOperador && (
-              <Button 
-                onClick={() => handleBatchUpdateStatus()} 
-                disabled={isUpdating || cases.length === 0}
-                variant="outline"
-                className="border-2 border-black font-black uppercase h-10 text-[10px] px-4 rounded-none hover:bg-black hover:text-white transition-all hidden md:flex"
-              >
-                {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Zap className="w-3.5 h-3.5 mr-2 text-yellow-500 fill-yellow-500" />}
-                Recalibrar Prazos
+              <Button onClick={() => handleBatchUpdateStatus()} disabled={isUpdating} variant="ghost" className="h-10 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest text-muted-foreground hover:bg-secondary">
+                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap size={16} className="mr-2 text-primary" />}
+                Recalibrar
               </Button>
             )}
             {isOperador && (
               <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCase(null); }}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => setEditingCase(null)} className="bg-black text-white border-2 border-black hover:bg-white hover:text-black font-black h-10 uppercase text-[10px] px-6 transition-all rounded-none">
-                    <Plus className="w-3.5 h-3.5 mr-2" /> Novo Caso
+                  <Button className="h-11 px-6 rounded-xl bg-black text-white hover:bg-black/90 font-black uppercase text-[10px] tracking-widest shadow-xl">
+                    <Plus className="w-4 h-4 mr-2 text-primary" /> Novo Registro
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-white border-2 border-black text-black sm:max-w-[425px] rounded-none max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-[450px] rounded-2xl overflow-hidden border-none shadow-2xl">
                   <form onSubmit={handleSaveCase}>
-                    <DialogHeader>
-                      <DialogTitle className="font-black uppercase text-black">Registro de Caso</DialogTitle>
+                    <DialogHeader className="p-6 bg-secondary/20 border-b">
+                      <DialogTitle className="font-black uppercase tracking-tight">Gestão de Registro</DialogTitle>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-1">
-                        <Label className="uppercase text-[9px] font-black">Cliente</Label>
-                        <Input value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="border-black font-black uppercase rounded-none h-11" />
-                      </div>
-                      <div className="grid gap-1">
-                        <Label className="uppercase text-[9px] font-black">Protocolo CNJ</Label>
-                        <Input value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="border-black font-black rounded-none h-11" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-1">
-                           <Label className="uppercase text-[9px] font-black">Advogado</Label>
-                           <Input value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="border-black font-black uppercase rounded-none h-11" />
+                    <div className="p-6 space-y-6">
+                      <div className="space-y-4">
+                        <div className="grid gap-2">
+                          <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Titular / Cliente</Label>
+                          <Input value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-bold uppercase" />
                         </div>
-                        <div className="grid gap-1">
-                           <Label className="uppercase text-[9px] font-black">WhatsApp</Label>
-                           <Input value={formState.telefone} onChange={(e) => setFormState({...formState, telefone: e.target.value})} className="border-black font-black uppercase rounded-none h-11" />
+                        <div className="grid gap-2">
+                          <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">CNJ / Protocolo</Label>
+                          <Input value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-mono" />
                         </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-1">
-                          <Label className="uppercase text-[9px] font-black">Status Estratégico</Label>
-                          <Select value={formState.statusManual} onValueChange={(val) => setFormState({...formState, statusManual: val as any})}>
-                            <SelectTrigger className="border-black font-black uppercase h-11 text-[10px] rounded-none">
-                              <SelectValue placeholder="Selecione..." />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white border-2 border-black rounded-none">
-                              <SelectItem value="Automatico" className="font-black uppercase text-[10px]">Automático (Prazo)</SelectItem>
-                              <SelectItem value="Caso Crítico" className="font-black uppercase text-[10px]">Caso Crítico</SelectItem>
-                              <SelectItem value="Atenção" className="font-black uppercase text-[10px]">Atenção</SelectItem>
-                              <SelectItem value="Encerrado" className="font-black uppercase text-[10px]">Encerrado</SelectItem>
-                              <SelectItem value="Arquivado" className="font-black uppercase text-[10px]">Arquivado</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="grid gap-2">
+                              <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Advogado</Label>
+                              <Input value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-bold uppercase" />
+                           </div>
+                           <div className="grid gap-2">
+                              <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Prazo Final</Label>
+                              <Input value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none" placeholder="DD/MM/AAAA" />
+                           </div>
                         </div>
-                        <div className="grid gap-1">
-                          <Label className="uppercase text-[9px] font-black">Prazo (DD/MM/AAAA)</Label>
-                          <Input value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="border-black font-black rounded-none h-11" />
-                        </div>
-                      </div>
-                      <div className="grid gap-1">
-                        <Label className="uppercase text-[9px] font-black">Notas Estratégicas</Label>
-                        <Textarea value={formState.observacao} onChange={(e) => setFormState({...formState, observacao: e.target.value})} className="border-black font-black uppercase text-[10px] min-h-[80px] rounded-none" />
                       </div>
                     </div>
-                    <DialogFooter>
-                      <Button type="submit" className="w-full font-black text-white bg-black hover:bg-white hover:text-black border-2 border-black uppercase h-12 transition-all rounded-none shadow-[4px_4px_0px_#00D1FF]">
-                        Sincronizar Gabinete
+                    <DialogFooter className="p-6 pt-0">
+                      <Button type="submit" className="w-full h-12 bg-black text-white hover:bg-black/90 rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl">
+                        Sincronizar Dados
                       </Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
               </Dialog>
             )}
-            <Button variant="ghost" size="icon" onClick={loadData} className="h-10 w-10 text-black border-2 border-black rounded-none bg-white">
-              <RefreshCcw className={cn("w-4 h-4", loading && "animate-spin")} />
+            <Button variant="ghost" size="icon" onClick={loadData} className="h-10 w-10 rounded-xl hover:bg-secondary">
+              <RefreshCcw className={cn("w-5 h-5", loading && "animate-spin")} />
             </Button>
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col p-4 lg:p-8 overflow-hidden min-h-0">
-          <div className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] flex-1 flex flex-col overflow-hidden min-h-0">
-            <div className="p-3 lg:p-4 border-b-2 border-black bg-[#f8f9fb] flex flex-col sm:flex-row items-stretch sm:items-center gap-3 lg:gap-4 shrink-0">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
+        <div className="flex-1 flex flex-col p-8 overflow-hidden">
+          <div className="premium-card flex-1 flex flex-col overflow-hidden border-none">
+            <div className="p-5 border-b border-border/30 bg-white flex items-center justify-between gap-6 shrink-0">
+              <div className="relative flex-1 max-w-lg">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input 
-                  placeholder="BUSCAR CLIENTE OU PROTOCOLO..." 
+                  placeholder="Pesquisar por titular ou protocolo judicial..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10 border-black border-2 h-10 text-[10px] lg:text-[11px] font-black text-black uppercase bg-white rounded-none focus-visible:ring-0"
+                  className="pl-11 h-11 bg-secondary/30 border-none rounded-xl text-xs font-bold uppercase focus-visible:ring-primary/20"
                 />
               </div>
-              <Badge className="bg-black text-white border-none font-black text-[9px] lg:text-[10px] uppercase px-4 h-10 flex items-center justify-center rounded-none shrink-0">
-                {filtered.length} REGISTROS ATIVOS
-              </Badge>
+              <div className="flex items-center gap-3">
+                 <Badge className="bg-black text-white text-[10px] font-black uppercase h-9 px-5 rounded-lg flex items-center gap-2 border-none">
+                   <Filter size={14} className="text-primary" /> {filtered.length} Registros
+                 </Badge>
+              </div>
             </div>
 
-            <div className="flex-1 overflow-auto min-h-0 bg-white">
+            <div className="flex-1 overflow-auto bg-white">
               {filtered.length > 0 ? (
-                <table className="w-full text-left border-collapse min-w-[1200px]">
-                  <thead className="sticky top-0 bg-[#f3f2f2] z-20 border-b-2 border-black shadow-sm">
-                    <tr className="text-[9px] lg:text-[10px] uppercase font-black text-black/40 tracking-widest">
-                      <th className="px-6 py-5">Conta / Protocolo</th>
-                      <th className="px-6 py-5">Tribunal</th>
-                      <th className="px-6 py-5">Advogado</th>
-                      <th className="px-6 py-5">Status / Prazo</th>
-                      <th className="px-6 py-5">Último Contato</th>
-                      <th className="px-6 py-5 text-right">Ações de Gabinete</th>
+                <table className="w-full text-left border-collapse min-w-[1000px]">
+                  <thead className="sticky top-0 bg-white z-20 border-b border-border shadow-sm">
+                    <tr className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
+                      <th className="px-8 py-5">Identificação</th>
+                      <th className="px-8 py-5">Tribunal</th>
+                      <th className="px-8 py-5">Advocacia</th>
+                      <th className="px-8 py-5">Vencimento</th>
+                      <th className="px-8 py-5">Telemetria</th>
+                      <th className="px-8 py-5 text-right">Ações</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y-2 divide-black/5 bg-white">
+                  <tbody className="divide-y divide-border/20">
                     {filtered.map((c) => (
                       <CaseRow 
                         key={c.id} 
@@ -485,7 +424,7 @@ function CasesContent() {
                         onLogReturn={handleLogReturn} 
                         onEdit={handleEditClick} 
                         onDelete={handleDeleteCase}
-                        onShowObs={onShowObs}
+                        onShowObs={setObsDialogOpen}
                       />
                     ))}
                   </tbody>
@@ -494,9 +433,9 @@ function CasesContent() {
                 <div className="h-full flex items-center justify-center">
                   <EmptyState 
                     icon={Briefcase} 
-                    title={loading ? "Sincronizando..." : "Nenhum processo encontrado"} 
-                    description={loading ? "Carregando registros da nuvem W1 Capital." : "A base de dados atual está vazia ou não condiz com sua busca."}
-                    actionLabel={!loading && isOperador ? "Adicionar Primeiro Caso" : undefined}
+                    title={loading ? "Sincronizando..." : "Base Vazia"} 
+                    description={loading ? "Acessando repositório de alta segurança." : "Não localizamos processos com este filtro."}
+                    actionLabel={!loading && isOperador ? "Adicionar Caso" : undefined}
                     onAction={() => setIsModalOpen(true)}
                   />
                 </div>
@@ -505,52 +444,27 @@ function CasesContent() {
           </div>
         </div>
 
-        <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[8px] lg:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] shrink-0">
-          <div className="flex items-center gap-2">
-            <Copyright size={10} /> 2026 W1 Capital
-          </div>
-          <span className="hidden sm:inline text-black">Relatório Consolidado • DAVI ALVES FIGUEREDO</span>
+        <footer className="h-10 border-t border-border/30 bg-white flex items-center justify-center gap-6 text-[10px] text-muted-foreground/60 font-bold uppercase tracking-[0.3em] shrink-0">
+          <Copyright size={10} /> 2026 W1 Capital • Advanced Legal Operations
         </footer>
-
-        <Dialog open={!!obsDialogOpen} onOpenChange={(open) => !open && setObsDialogOpen(null)}>
-          <DialogContent className="bg-white border-2 border-black text-black rounded-none sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="font-black uppercase flex items-center gap-2">
-                <Info size={18} /> Nota de Gabinete
-              </DialogTitle>
-            </DialogHeader>
-            <div className="py-6">
-              <p className="text-xs lg:text-sm font-black uppercase leading-relaxed text-black whitespace-pre-wrap italic bg-gray-50 p-4 border-2 border-dashed border-black/20">
-                {obsDialogOpen}
-              </p>
-            </div>
-            <DialogFooter>
-              <Button onClick={() => setObsDialogOpen(null)} className="w-full font-black text-white bg-black hover:bg-white hover:text-black border-2 border-black uppercase h-11 transition-all rounded-none">Fechar</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </main>
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: any }) {
-  const styles: Record<string, { bg: string, icon: React.ReactNode }> = {
-    'Vencido': { bg: "bg-red-600 text-white", icon: <AlertTriangle size={10} /> },
-    'É Hoje': { bg: "bg-blue-600 text-white font-black animate-pulse", icon: <Clock size={10} /> },
-    'Caso Crítico': { bg: "bg-red-600 text-white", icon: <AlertTriangle size={10} /> },
-    'Atenção': { bg: "bg-orange-500 text-white", icon: <AlertTriangle size={10} /> },
-    'No Prazo': { bg: "bg-green-600 text-white", icon: <CheckCircle size={10} /> },
-    'Arquivado': { bg: "bg-black text-white", icon: <Briefcase size={10} /> },
-    'Encerrado': { bg: "bg-gray-800 text-white", icon: <CheckCircle size={10} /> },
-    'Sem Prazo': { bg: "bg-gray-400 text-white", icon: <Info size={10} /> },
+  const styles: Record<string, string> = {
+    'Vencido': "bg-red-50 text-red-700 border-red-100",
+    'É Hoje': "bg-blue-50 text-blue-700 border-blue-100 animate-pulse",
+    'Caso Crítico': "bg-red-50 text-red-700 border-red-100",
+    'Atenção': "bg-orange-50 text-orange-700 border-orange-100",
+    'No Prazo': "bg-emerald-50 text-emerald-700 border-emerald-100",
+    'Arquivado': "bg-gray-100 text-gray-700 border-gray-200",
+    'Encerrado': "bg-gray-100 text-gray-700 border-gray-200",
   };
 
-  const config = styles[status] || styles['Sem Prazo'];
-
   return (
-    <Badge className={cn("px-2 py-0.5 font-black text-[8px] lg:text-[9px] uppercase border-none shadow-sm rounded-none flex items-center gap-1.5 w-fit", config.bg)}>
-      {config.icon}
+    <Badge variant="outline" className={cn("px-3 py-1 text-[10px] font-black uppercase rounded-lg border-none", styles[status] || "bg-secondary text-muted-foreground")}>
       {status}
     </Badge>
   );
@@ -558,7 +472,7 @@ function StatusBadge({ status }: { status: any }) {
 
 export default function CasesPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-black font-black uppercase">Sincronizando...</div>}>
+    <Suspense fallback={<div className="p-10 font-black uppercase text-xs tracking-widest text-muted-foreground">Sincronizando Gabinete...</div>}>
       <CasesContent />
     </Suspense>
   );

@@ -1,3 +1,4 @@
+
 "use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
@@ -85,7 +86,7 @@ export default function VereditoPage() {
       const data = await executarVereditoAI({ cnj, preferredModel: model });
       if (isMounted.current) {
         if (data.error) {
-           setApiError({ engine: model, message: data.message });
+           setApiError({ engine: model, message: data.message || "CNJ não localizado ou erro de rede." });
            toast({ title: "Falha na Triagem", description: data.message, variant: "destructive" });
         } else {
            setResult(data);
@@ -94,7 +95,7 @@ export default function VereditoPage() {
       }
     } catch (error: any) {
       if (isMounted.current) {
-        setApiError({ engine: model, message: "Instabilidade no motor neural." });
+        setApiError({ engine: model, message: "Instabilidade crítica no motor neural." });
         toast({ title: "Erro Crítico", variant: "destructive" });
       }
     } finally {
@@ -103,7 +104,7 @@ export default function VereditoPage() {
   };
 
   const handleSwitchAndRetry = () => {
-    const engines = ['xai', 'airforce', 'groq-llama', 'groq-deepseek'];
+    const engines = ['xai', 'airforce', 'groq'];
     const currentIndex = engines.indexOf(model);
     const nextIA = engines[(currentIndex + 1) % engines.length];
     
@@ -128,7 +129,7 @@ export default function VereditoPage() {
       const context = `Contexto Auditoria. DataJud: ${JSON.stringify(result.dataJudRaw)}. Resumo Anterior: ${result.resumoTecnico}. Pergunta: ${currentInput}`;
       const response = await perguntarIA({ 
         pergunta: context, 
-        historico: chatMessages.slice(-6),
+        historico: chatMessages.slice(-6).map(m => ({ role: m.role, content: m.content })),
         preferredModel: model
       });
 
@@ -145,10 +146,9 @@ export default function VereditoPage() {
   const handleApiSend = async () => {
     if (!result || !result.mensagemCliente || sendingApi) return;
     
-    // Tenta obter telefone dos dados do DataJud ou solicita manual
     const phone = result.dataJudRaw?.contatoTelefone || "";
     if (!phone) {
-      toast({ title: "Aviso de Envio", description: "Telefone não identificado no DataJud. Use o link manual.", variant: "destructive" });
+      toast({ title: "Aviso de Envio", description: "Telefone não identificado. Use o link manual.", variant: "destructive" });
       return;
     }
 
@@ -199,8 +199,7 @@ export default function VereditoPage() {
                 <SelectContent className="bg-white border-2 border-black rounded-none">
                   <SelectItem value="xai" className="font-black uppercase text-[10px]">xAI Grok 4.5 Elite</SelectItem>
                   <SelectItem value="airforce" className="font-black uppercase text-[10px]">Airforce DeepSeek</SelectItem>
-                  <SelectItem value="groq-llama" className="font-black uppercase text-[10px]">Groq Llama 3.3</SelectItem>
-                  <SelectItem value="groq-deepseek" className="font-black uppercase text-[10px]">Groq DeepSeek R1</SelectItem>
+                  <SelectItem value="groq" className="font-black uppercase text-[10px]">Groq Llama 3.3</SelectItem>
                 </SelectContent>
               </Select>
               {result && (
@@ -221,7 +220,7 @@ export default function VereditoPage() {
                     <AlertCircle className="h-5 w-5" />
                     <AlertTitle className="font-black uppercase text-xs">Erro de Triagem</AlertTitle>
                     <AlertDescription className="mt-2 space-y-3">
-                      <p className="text-[10px] font-bold uppercase">Motor {apiError.engine.toUpperCase()} indisponível ou CNJ não localizado.</p>
+                      <p className="text-[10px] font-bold uppercase">{apiError.message}</p>
                       <Button onClick={handleSwitchAndRetry} className="bg-black text-white border-2 border-black h-10 font-black uppercase text-[9px] rounded-none hover:bg-white hover:text-black transition-all px-6">
                         Alternar Motor Neural & Tentar Novamente
                       </Button>
@@ -230,7 +229,7 @@ export default function VereditoPage() {
                 )}
 
                 <h2 className="text-3xl font-black tracking-tighter uppercase">Audit 3D Elite</h2>
-                <p className="text-sm font-black text-black/40 uppercase tracking-widest">Insira o CNJ para iniciar a triagem neural completa.</p>
+                <p className="text-sm font-black text-black/40 uppercase tracking-widest">Insira o CNJ para iniciar a triagem neural completa via DataJud.</p>
                 
                 <form onSubmit={handleSearch} className="flex gap-3 bg-white p-3 border-2 border-black shadow-[10px_10px_0px_#000]">
                   <Input 

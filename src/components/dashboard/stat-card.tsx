@@ -1,5 +1,10 @@
+/**
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
+ */
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface StatCardProps {
   title: string;
@@ -7,51 +12,44 @@ interface StatCardProps {
   icon: React.ReactNode;
   trend?: string;
   trendUp?: boolean;
-  color?: 'primary' | 'accent' | 'destructive' | 'success';
+  color?: 'primary' | 'accent' | 'destructive' | 'success' | 'warning';
 }
 
 export function StatCard({ title, value, icon, trend, trendUp, color = 'primary' }: StatCardProps) {
-  const accentColors = {
-    primary: "text-primary border-t-primary/30",
-    accent: "text-primary border-t-primary/30",
-    destructive: "text-destructive border-t-destructive/30",
-    success: "text-green-500 border-t-green-500/30",
+  const iconColors = {
+    primary: "text-blue-600 bg-blue-50",
+    accent: "text-cyan-600 bg-cyan-50",
+    destructive: "text-red-600 bg-red-50",
+    success: "text-emerald-600 bg-emerald-50",
+    warning: "text-orange-600 bg-orange-50",
   };
 
   return (
-    <div className={cn(
-      "bg-card border border-border/50 p-6 rounded-md relative overflow-hidden transition-all duration-300 hover:border-border group cursor-default",
-      accentColors[color]
-    )}>
-      <div className="relative z-10 flex flex-col gap-4">
-        <div className="flex justify-between items-center">
-          <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.15em]">{title}</p>
-          <div className="text-muted-foreground group-hover:text-foreground transition-colors duration-300">
-            {icon}
-          </div>
-        </div>
-        
-        <div>
-          <h3 className="text-3xl font-bold tracking-tight tnum">
+    <div className="premium-card p-6 flex flex-col justify-between group">
+      <div className="flex justify-between items-start">
+        <div className="space-y-1">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{title}</p>
+          <h3 className="text-3xl font-black tracking-tighter text-foreground tabular-nums leading-none">
             {value}
           </h3>
-          
-          {trend && (
-            <div className={cn(
-              "flex items-center gap-2 text-[10px] font-medium mt-3 uppercase tracking-wider",
-              trendUp ? "text-green-500" : "text-destructive"
-            )}>
-              <span className="px-1.5 py-0.5 bg-secondary/50 rounded-sm">
-                {trendUp ? "↑" : "↓"} {trend}
-              </span>
-              <span className="text-muted-foreground opacity-50">vs last interval</span>
-            </div>
-          )}
+        </div>
+        <div className={cn("p-2.5 rounded-lg transition-transform group-hover:scale-110", iconColors[color])}>
+          {React.cloneElement(icon as React.ReactElement, { size: 20 })}
         </div>
       </div>
       
-      {/* Precision Detail Line */}
-      <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-current to-transparent opacity-10 group-hover:opacity-30 transition-opacity"></div>
+      {trend && (
+        <div className="flex items-center gap-2 mt-4">
+          <div className={cn(
+            "flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase",
+            trendUp ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+          )}>
+            {trendUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+            {trend}
+          </div>
+          <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-tight">no período</span>
+        </div>
+      )}
     </div>
   );
 }

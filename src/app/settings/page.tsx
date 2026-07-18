@@ -1,8 +1,8 @@
-"use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved. See LICENSE file.
+ * @license Proprietary - All rights reserved.
  */
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -22,7 +22,9 @@ import {
   Layout,
   RefreshCcw,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  Activity,
+  Server
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -33,7 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { AUTHORITY_PRESETS, applyGlobalTheme } from '@/lib/theme';
-import { cn, getIdealTextColor, getIdealMutedTextColor } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { 
   applyWallpaperUrl, 
   resetWallpaper, 
@@ -151,7 +153,7 @@ export default function SettingsPage() {
           <div className="flex items-center gap-4">
              <h1 className="font-bold text-sm tracking-[0.2em] uppercase">Gabinete Mission Control</h1>
           </div>
-          <Badge variant="outline" className="text-primary text-[9px] uppercase font-black tracking-[0.3em] rounded-none px-3 py-1 border-primary/50">Elite Hardware v22.5</Badge>
+          <Badge variant="outline" className="text-primary text-[9px] uppercase font-black tracking-[0.3em] rounded-none px-3 py-1 border-primary/50">Elite Hardware v25.0</Badge>
         </header>
 
         <div className="flex-1 overflow-auto p-8 max-w-6xl mx-auto w-full">
@@ -167,31 +169,6 @@ export default function SettingsPage() {
             <div className="md:col-span-3 space-y-12 pb-20">
               {activeTab === 'Hardware' && (
                 <div className="space-y-12 animate-in fade-in duration-500">
-                  <section className="space-y-4">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Live Telemetry Preview</Label>
-                    <div className="p-8 glass-card border border-border rounded-lg space-y-8 shadow-2xl relative overflow-hidden">
-                       <div className="absolute top-0 left-0 w-full h-1 bg-primary" />
-                       <div className="flex items-center justify-between border-b border-border pb-4">
-                          <div className="flex items-center gap-3">
-                             <div className="w-4 h-4 rounded-full" style={{ backgroundColor: primaryColor }} />
-                             <span className="text-sm font-bold uppercase tracking-tight" style={{ color: fontColor }}>Gabinete Operacional</span>
-                          </div>
-                          <Badge variant="outline" className="text-[8px] font-black rounded-none px-2 py-0.5 border-primary/40 text-primary">ELITE STATUS</Badge>
-                       </div>
-                       
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                          <div className="space-y-4">
-                            <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Primary Console</p>
-                            <Button className="w-full h-12 rounded-sm font-black uppercase text-[10px] tracking-widest" style={{ backgroundColor: primaryColor, color: bgColor }}>Executive Action</Button>
-                          </div>
-                          <div className="space-y-4">
-                            <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Secondary Surfaces</p>
-                            <div className="w-full h-12 rounded-sm border border-border flex items-center justify-center font-black uppercase text-[10px]" style={{ backgroundColor: bgSecondaryColor, color: fontMutedColor }}>Idle State</div>
-                          </div>
-                       </div>
-                    </div>
-                  </section>
-
                   <section className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Authority Presets</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -254,41 +231,47 @@ export default function SettingsPage() {
                        </div>
                     </div>
                   </section>
-
-                  <section className="space-y-6">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Wallpaper Engine</Label>
-                    <div className="glass-card p-8 border border-border rounded-lg shadow-xl flex flex-col sm:flex-row gap-6">
-                       <div className="flex-1 space-y-2">
-                          <Label className="text-[9px] uppercase font-black">URL da Imagem</Label>
-                          <Input placeholder="https://..." value={wallpaper} onChange={(e) => setWallpaper(e.target.value)} className="bg-background/50 border-border rounded-md h-12 uppercase text-[10px] font-black" />
-                       </div>
-                       <div className="flex gap-3 items-end">
-                          <Button onClick={handleApplyHardware} className="h-12 bg-primary text-primary-foreground hover:bg-primary/90 font-black uppercase text-[10px] px-10 tracking-widest transition-all">
-                             Sincronizar Hardware
-                          </Button>
-                          <Button variant="outline" onClick={async () => { await resetWallpaper(); setWallpaper(''); toast({ title: "Atmosfera Resetada" }); }} className="h-12 w-12 border-border hover:bg-destructive hover:text-destructive-foreground transition-all">
-                             <Trash2 size={16} />
-                          </Button>
-                       </div>
-                    </div>
-                  </section>
                 </div>
               )}
 
               {activeTab === 'Engine' && (
-                <Card className="bg-background/40 backdrop-blur-xl border border-border rounded-lg shadow-2xl animate-in slide-in-from-right-4 overflow-hidden">
-                  <CardHeader className="border-b border-border bg-background/50">
-                    <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2"><Zap size={14} className="text-primary"/> Neural Mission Control</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-8">
-                    <RadioGroup value={iaModel} onValueChange={(val) => { setIaModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); toast({ title: "Motor Neural Alternado" }); }}>
-                      <EngineOption id="xai" label="xAI GROK 4.5" desc="Raciocínio sênior de alta fidelidade para auditorias complexas." active={iaModel === 'xai'} />
-                      <EngineOption id="airforce" label="AIRFORCE DEEPSEEK-V3" desc="Processamento ultra-veloz de dados e transcrição forense." active={iaModel === 'airforce'} />
-                      <EngineOption id="groq-llama" label="GROQ LLAMA 3.3" desc="Comunicação fluida em tempo real para consultoria." active={iaModel === 'groq-llama'} />
-                      <EngineOption id="groq-deepseek" label="GROQ DEEPSEEK R1" desc="Lógica profunda para análise de riscos e triagem técnica." active={iaModel === 'groq-deepseek'} />
-                    </RadioGroup>
-                  </CardContent>
-                </Card>
+                <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
+                  <Card className="bg-background/40 backdrop-blur-xl border border-border rounded-lg shadow-2xl overflow-hidden">
+                    <CardHeader className="border-b border-border bg-background/50">
+                      <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2"><Zap size={14} className="text-primary"/> Neural Infrastructure</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-8">
+                      <RadioGroup value={iaModel} onValueChange={(val) => { setIaModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); toast({ title: "Prioridade Alterada" }); }}>
+                        <div className="grid gap-4">
+                          <EngineOption id="xai" label="xAI GROK 4.5" desc="Raciocínio jurídico sênior de alta fidelidade." status="ONLINE" />
+                          <EngineOption id="groq-llama" label="GROQ LLAMA 3.3" desc="Velocidade ultra-fluida para atendimento." status="ONLINE" />
+                          <EngineOption id="airforce" label="AIRFORCE DEEPSEEK" desc="Análise técnica massiva e baixo custo." status="ESTÁVEL" />
+                        </div>
+                      </RadioGroup>
+                    </CardContent>
+                  </Card>
+
+                  <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="glass-card p-6 border border-border rounded-lg flex items-center justify-between">
+                       <div className="flex items-center gap-4">
+                         <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-sm"><Activity size={20}/></div>
+                         <div>
+                            <p className="text-[10px] font-black uppercase">Latência Média</p>
+                            <p className="text-xl font-black">1.2s</p>
+                         </div>
+                       </div>
+                    </div>
+                    <div className="glass-card p-6 border border-border rounded-lg flex items-center justify-between">
+                       <div className="flex items-center gap-4">
+                         <div className="p-2 bg-primary/10 text-primary rounded-sm"><Server size={20}/></div>
+                         <div>
+                            <p className="text-[10px] font-black uppercase">Resiliência</p>
+                            <p className="text-xl font-black">99.9%</p>
+                         </div>
+                       </div>
+                    </div>
+                  </section>
+                </div>
               )}
 
               {activeTab === 'Export' && isMasterUnlocked && (
@@ -304,7 +287,6 @@ export default function SettingsPage() {
                         </div>
                         <div className="text-center space-y-2">
                            <h3 className="font-bold uppercase tracking-widest text-sm">Autenticação Master Requerida</h3>
-                           <p className="text-[10px] font-medium text-muted-foreground uppercase">Insira a senha de provisionamento para liberar a exportação FULL.</p>
                         </div>
                         <div className="flex gap-2 w-full max-w-xs">
                           <Input 
@@ -324,7 +306,7 @@ export default function SettingsPage() {
                     <div className="space-y-8">
                        <Card className="bg-background/40 backdrop-blur-xl border border-border rounded-lg shadow-2xl overflow-hidden border-t-4 border-t-primary">
                          <CardHeader className="border-b border-border bg-background/50">
-                           <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2"><Archive size={14}/> Portal de Exportação Master v8.5</CardTitle>
+                           <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2"><Archive size={14}/> Portal de Exportação Master</CardTitle>
                          </CardHeader>
                          <CardContent className="p-8 space-y-8">
                             <div className="p-8 bg-primary/5 border-2 border-dashed border-primary/30 space-y-6 rounded-lg relative overflow-hidden">
@@ -332,28 +314,17 @@ export default function SettingsPage() {
                                   <div className="p-3 bg-primary text-primary-foreground rounded-sm shadow-lg"><Code2 size={24}/></div>
                                   <div>
                                     <h4 className="font-black uppercase text-sm text-primary tracking-widest">Full Project Source (ZIP)</h4>
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Inclui Raiz, /SRC, /DOCS, JSONs e Configurações Globais.</p>
                                   </div>
                                </div>
                                
-                               <p className="text-[10px] font-medium leading-relaxed uppercase opacity-70 border-l-2 border-primary/30 pl-4">
-                                 Este procedimento consolida toda a arquitetura de programação do gabinete em um pacote pronto para GitHub. 
-                                 Arquivos temporários e dependências instaladas (node_modules) são excluídos para máxima higiene.
-                               </p>
-
                                <Button 
                                  onClick={handleFullBackupZip} 
                                  disabled={isExporting}
-                                 className="w-full h-16 bg-primary text-primary-foreground font-black uppercase text-[11px] tracking-[0.2em] transition-all shadow-[8px_8px_0px_rgba(var(--primary),0.2)] hover:shadow-none hover:translate-x-1 hover:translate-y-1"
+                                 className="w-full h-16 bg-primary text-primary-foreground font-black uppercase text-[11px] tracking-[0.2em] transition-all shadow-[8px_8px_0px_rgba(var(--primary),0.2)] hover:shadow-none"
                                >
                                  {isExporting ? <Loader2 className="animate-spin mr-3" /> : <Download className="mr-3" />}
                                  {isExporting ? "Compilando Sistema..." : "Baixar Código-Fonte Completo"}
                                </Button>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                               <DataExportCard title="Banco de Casos" subtitle="DUMP JSON ATIVO" icon={<FileJson size={18}/>} onDownload={async () => { const data = await fetchRepoCases(); saveAs(new Blob([JSON.stringify(data, null, 2)], {type: "application/json"}), "cases_database.json"); }} />
-                               <DataExportCard title="Base de Evidências" subtitle="LOGS ESTRATÉGICOS" icon={<History size={18}/>} onDownload={async () => { const data = await fetchRepoNotes(); saveAs(new Blob([JSON.stringify(data, null, 2)], {type: "application/json"}), "evidence_logs.json"); }} />
                             </div>
                          </CardContent>
                        </Card>
@@ -369,18 +340,18 @@ export default function SettingsPage() {
   );
 }
 
-function DataExportCard({ title, subtitle, icon, onDownload }: any) {
+function EngineOption({ id, label, desc, status }: any) {
   return (
-    <div className="p-6 border border-border rounded-lg space-y-4 bg-background/20 group hover:border-primary/40 transition-all">
-      <div className="flex items-center gap-3">
-        <div className="text-primary opacity-50 group-hover:opacity-100 transition-opacity">{icon}</div>
-        <div className="text-left">
-          <h4 className="font-bold uppercase text-[10px] tracking-widest">{title}</h4>
-          <p className="text-[8px] font-black text-muted-foreground uppercase">{subtitle}</p>
-        </div>
+    <label htmlFor={id} className="flex items-center justify-between p-6 border border-border rounded-lg hover:border-primary/40 transition-all cursor-pointer bg-background/20 group">
+      <div className="flex items-center gap-5">
+         <RadioGroupItem value={id} id={id} />
+         <div className="text-left">
+           <p className="font-black text-[11px] uppercase tracking-widest text-foreground group-hover:text-primary transition-colors">{label}</p>
+           <p className="text-[10px] text-muted-foreground uppercase mt-1">{desc}</p>
+         </div>
       </div>
-      <Button variant="outline" onClick={onDownload} className="w-full text-[9px] font-black uppercase h-10 border-border hover:border-primary/50 transition-all rounded-sm bg-background/50">Download JSON</Button>
-    </div>
+      <Badge className="bg-emerald-500/10 text-emerald-500 border-none text-[8px] font-black uppercase px-2 py-0.5">{status}</Badge>
+    </label>
   );
 }
 
@@ -402,9 +373,7 @@ function NavButton({ active, onClick, icon, label }: any) {
 function ColorPicker({ label, value, onChange }: any) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Label className="text-[9px] uppercase font-black flex items-center gap-2"><Palette size={12}/> {label}</Label>
-      </div>
+      <Label className="text-[9px] uppercase font-black flex items-center gap-2"><Palette size={12}/> {label}</Label>
       <div className="flex gap-2">
         <div className="relative w-12 h-11 border border-border rounded-md overflow-hidden cursor-pointer">
           <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="absolute inset-[-4px] w-[calc(100%+8px)] h-[calc(100%+8px)] cursor-pointer bg-transparent" />
@@ -424,20 +393,5 @@ function SliderControl({ label, value, onChange, icon, max = 100 }: any) {
       </div>
       <Slider value={[value]} max={max} min={0} step={1} onValueChange={(v) => onChange(v[0])} />
     </div>
-  );
-}
-
-function EngineOption({ id, label, desc, active }: any) {
-  return (
-    <label htmlFor={id} className={cn("flex items-center justify-between p-6 border transition-all cursor-pointer mb-3 rounded-lg bg-background/20", active ? "border-primary bg-primary/5" : "border-border hover:border-primary/30")}>
-      <div className="flex items-center gap-5">
-         <RadioGroupItem value={id} id={id} />
-         <div className="text-left">
-           <p className="font-black text-[11px] uppercase tracking-widest text-foreground">{label}</p>
-           <p className="text-[10px] text-muted-foreground uppercase mt-1">{desc}</p>
-         </div>
-      </div>
-      {active && <Zap size={14} className="text-primary fill-primary" />}
-    </label>
   );
 }

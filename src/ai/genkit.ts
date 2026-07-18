@@ -1,11 +1,12 @@
-import {genkit} from 'genkit';
+import {genkit, z} from 'genkit';
 
 /**
- * ORQUESTRADOR GENKIT (W1 CAPITAL)
- * Motores operando via Fetch Nativo (Groq / OpenRouter) para portabilidade total.
- * Removida dependência do Google AI / Gemini.
- * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
+ * ORQUESTRADOR GENKIT (W1 CAPITAL) - v250.0 ELITE
+ * Motores operando via Fetch Nativo para portabilidade total.
+ * Exportação centralizada de Z para validação de esquemas.
  */
 export const ai = genkit({
   plugins: [],
 });
+
+export { z };

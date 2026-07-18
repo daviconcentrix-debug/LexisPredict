@@ -38,20 +38,27 @@ export async function fetchDataJud(cnj: string) {
       signal: AbortSignal.timeout(15000)
     });
 
-    if (!response.ok) return { numeroProcesso: cnj, movimentos: [], error: true };
+    if (!response.ok) {
+      console.error(`[DataJud] Falha na requisição: ${response.status}`);
+      return { numeroProcesso: cnj, movimentos: [], error: true, message: "Tribunal temporariamente indisponível." };
+    }
     
     const data = await response.json();
     const source = data.hits?.hits?.[0]?._source;
     
-    if (!source) return { numeroProcesso: cnj, movimentos: [], error: false };
+    if (!source) {
+      return { numeroProcesso: cnj, movimentos: [], error: false, message: "Processo não localizado no DataJud." };
+    }
 
     return {
       numeroProcesso: source.numeroProcesso || cnjLimpo,
       classe: source.classe?.nome || 'N/A',
       tribunal: source.tribunal || alias.toUpperCase(),
-      movimentos: source.movimentos || []
+      movimentos: source.movimentos || [],
+      error: false
     };
-  } catch {
-    return { numeroProcesso: cnj, movimentos: [], error: true };
+  } catch (e: any) {
+    console.error("[DataJud] Erro Crítico:", e.message);
+    return { numeroProcesso: cnj, movimentos: [], error: true, message: "Falha na conexão com o CNJ." };
   }
 }

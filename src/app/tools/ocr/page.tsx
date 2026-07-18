@@ -14,7 +14,6 @@ import {
   FileText, 
   Zap, 
   ScanText, 
-  AlertTriangle,
   Copyright,
   BookOpen
 } from 'lucide-react';
@@ -38,6 +37,7 @@ export default function OCRToolPage() {
 
   useEffect(() => {
     // Configuração dinâmica do Worker para evitar erros de compilação/build no Next.js
+    // Versões 4.x do pdfjs-dist utilizam módulos ESM (.mjs)
     const version = pdfjsLib.version;
     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
   }, []);
@@ -57,6 +57,7 @@ export default function OCRToolPage() {
       const totalPages = pdf.numPages;
       let fullText = '';
 
+      // Tesseract.js Worker para português
       const worker = await createWorker('por', 1);
 
       for (let i = 1; i <= totalPages; i++) {

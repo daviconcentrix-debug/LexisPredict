@@ -1,8 +1,9 @@
-"use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -26,8 +27,8 @@ import {
   Repeat,
   Shield,
   Bot,
-  ScanText,
-  BrainCircuit
+  Zap,
+  Layers
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -69,15 +70,13 @@ export function Sidebar() {
     {
       title: t.operations,
       items: [
-        { label: "Consultoria IA", href: '/chat-ia', icon: BrainCircuit },
+        { label: "Consultoria IA", href: '/chat-ia', icon: Bot },
         { label: t.audit, href: '/veredito', icon: FileSearch },
         { label: t.documents, href: '/documents', icon: FileText },
-        { label: t.habilitacaoPeca, href: '/habilitacao-peca', icon: Shield },
-        { label: t.substabelecimentoPeca, href: '/substabelecimento-peca', icon: Repeat },
-        { label: "Motor de OCR", href: '/tools/ocr', icon: ScanText },
         { label: t.whatsapp, href: '/whatsapp', icon: MessageCircle },
         { label: t.import, href: '/import', icon: Upload },
         { label: t.notes, href: '/notes', icon: StickyNote },
+        { label: "Motor de OCR", href: '/tools/ocr', icon: Zap },
       ]
     },
     {
@@ -91,26 +90,26 @@ export function Sidebar() {
   ];
 
   const SidebarContent = () => (
-    <div className="h-full flex flex-col bg-sidebar border-r border-border/50">
-      <div className="h-16 flex items-center px-6 border-b border-border/30">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-sm bg-primary flex items-center justify-center shadow-[0_0_15px_rgba(0,209,255,0.3)]">
-            <span className="text-black font-bold text-xs">LP</span>
+    <div className="h-full flex flex-col bg-white border-r border-border/50">
+      <div className="h-20 flex items-center px-6 border-b border-border/30">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center shadow-xl">
+            <Layers size={22} className="text-primary" />
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-bold text-[11px] tracking-widest uppercase">LexisPredict</span>
-              <span className="text-[8px] text-primary font-bold uppercase tracking-[0.2em]">Elite v15.0</span>
+              <span className="font-black text-xs tracking-tight uppercase text-foreground leading-none">LexisPredict</span>
+              <span className="text-[9px] text-primary font-black uppercase tracking-widest mt-1">Enterprise Elite</span>
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex-1 py-6 px-3 space-y-8 overflow-y-auto">
+      <div className="flex-1 py-8 px-4 space-y-8 overflow-y-auto">
         {navGroups.map((group) => (
-          <div key={group.title} className="space-y-1">
+          <div key={group.title} className="space-y-1.5">
             {!collapsed && (
-              <p className="px-3 mb-2 text-[8px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-40">
+              <p className="px-3 mb-3 text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-50">
                 {group.title}
               </p>
             )}
@@ -119,15 +118,14 @@ export function Sidebar() {
                 key={item.label}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-sm transition-all duration-200 group relative",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
                   pathname === item.href 
-                    ? "bg-primary/10 text-primary" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/30"
+                    ? "bg-black text-white shadow-lg" 
+                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                 )}
               >
-                {pathname === item.href && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary rounded-full shadow-[0_0_10px_#00D1FF]" />}
-                <item.icon className={cn("w-4 h-4 shrink-0 transition-colors", pathname === item.href ? "text-primary" : "opacity-60 group-hover:opacity-100")} />
-                {!collapsed && <span className="text-[10px] font-bold tracking-wider uppercase">{item.label}</span>}
+                <item.icon className={cn("w-4 h-4 shrink-0", pathname === item.href ? "text-primary" : "opacity-60")} />
+                {!collapsed && <span className="text-[11px] font-bold tracking-tight uppercase">{item.label}</span>}
               </Link>
             ))}
           </div>
@@ -136,13 +134,13 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-border/30 space-y-4">
         {!collapsed && (
-          <div className="flex items-center gap-3 p-2 rounded-sm bg-secondary/30 border border-border/10">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-[10px] border border-primary/20">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-[#f8f9fb] border border-border/30 shadow-sm">
+            <div className="w-9 h-9 rounded-full bg-black flex items-center justify-center text-primary font-black text-xs border border-primary/20">
               {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[10px] font-bold uppercase truncate text-foreground">{profile?.nome || 'User'}</span>
-              <span className="text-[8px] text-muted-foreground uppercase tracking-widest">{profile?.cargo || 'Operator'}</span>
+              <span className="text-[11px] font-black uppercase truncate text-foreground leading-tight">{profile?.nome || 'User'}</span>
+              <span className="text-[9px] text-muted-foreground uppercase font-bold mt-0.5">{profile?.cargo || 'Operator'}</span>
             </div>
           </div>
         )}
@@ -152,17 +150,17 @@ export function Sidebar() {
             variant="ghost" 
             size="icon" 
             onClick={handleLogout}
-            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
           >
-            <LogOut size={14} />
+            <LogOut size={16} />
           </Button>
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex h-8 w-8 text-muted-foreground hover:text-primary"
+            className="hidden lg:flex h-9 w-9 text-muted-foreground hover:text-primary rounded-lg"
           >
-            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </Button>
         </div>
       </div>
@@ -171,17 +169,17 @@ export function Sidebar() {
 
   return (
     <>
-      <div className="lg:hidden fixed top-4 left-4 z-[100]">
+      <div className="lg:hidden fixed top-5 left-5 z-[100]">
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="bg-background/80 backdrop-blur-md border-border shadow-lg">
-              <Menu size={20} />
+            <Button variant="outline" size="icon" className="premium-card h-12 w-12 border-none">
+              <Menu size={24} />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 border-r border-border w-72">
+          <SheetContent side="left" className="p-0 border-r-0 w-80">
             <SheetHeader className="sr-only">
-              <SheetTitle>Navigation Menu</SheetTitle>
-              <SheetDescription>Access all system operations</SheetDescription>
+              <SheetTitle>Navigation</SheetTitle>
+              <SheetDescription>Access LexisPredict Operations</SheetDescription>
             </SheetHeader>
             <SidebarContent />
           </SheetContent>
@@ -189,8 +187,8 @@ export function Sidebar() {
       </div>
 
       <aside className={cn(
-        "hidden lg:flex h-screen flex-col transition-all duration-300 z-50 shrink-0",
-        collapsed ? "w-20" : "w-64"
+        "hidden lg:flex h-screen flex-col transition-all duration-500 z-50 shrink-0",
+        collapsed ? "w-20" : "w-72"
       )}>
         <SidebarContent />
       </aside>

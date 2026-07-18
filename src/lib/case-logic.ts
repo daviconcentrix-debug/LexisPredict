@@ -3,6 +3,8 @@
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
 
+import { startOfDay, differenceInCalendarDays, parseISO } from 'date-fns';
+
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
  */
@@ -77,26 +79,6 @@ export function fixEncoding(text: string): string {
   }
 }
 
-export function parseBrazilianDate(dateStr: string): Date | null {
-  if (!dateStr) return null;
-  const clean = dateStr.trim();
-  if (clean === "" || clean === "-" || clean === "00/00/0000" || clean === "0") return null;
-  
-  if (clean.includes('-') && clean.split('-')[0].length === 4) {
-     return new Date(clean);
-  }
-
-  const parts = clean.split(/[\/\-\.]/);
-  if (parts.length !== 3) return null;
-  
-  const d = parseInt(parts[0], 10);
-  const m = parseInt(parts[1], 10) - 1;
-  const y = parseInt(parts[2], 10);
-  
-  const date = new Date(y, m, d);
-  return isNaN(date.getTime()) ? null : date;
-}
-
 export function formatDateToISO(dateStr: string | null | undefined): string | null {
   if (!dateStr) return null;
   const raw = String(dateStr).trim();
@@ -131,17 +113,9 @@ export function formatDateToISO(dateStr: string | null | undefined): string | nu
 export function calcularDiasFaltando(proximoISO: string | null): number | null {
   if (!proximoISO) return null;
   try {
-    const hoje = new Date();
-    const hojeAno = hoje.getFullYear();
-    const hojeMes = hoje.getMonth();
-    const hojeDia = hoje.getDate();
-    
-    const [pAno, pMes, pDia] = proximoISO.split('-').map(Number);
-    const dataPrazo = new Date(pAno, pMes - 1, pDia, 12, 0, 0);
-    const dataHojeMeioDia = new Date(hojeAno, hojeMes, hojeDia, 12, 0, 0);
-    
-    const diffMs = dataPrazo.getTime() - dataHojeMeioDia.getTime();
-    return Math.round(diffMs / (1000 * 60 * 60 * 24));
+    const dataPrazo = startOfDay(parseISO(proximoISO));
+    const hoje = startOfDay(new Date());
+    return differenceInCalendarDays(dataPrazo, hoje);
   } catch {
     return null;
   }
@@ -211,7 +185,6 @@ export function processarCaso(raw: any, thresholds?: { alertLimit: number }): Le
   const advogado = fixEncoding(normalized.ADVOGADO_RESPONSÁVEL || normalized.ADVOGADO || raw.advogado || 'NÃO ATRIBUÍDO').toUpperCase();
   const situacao = (normalized.SITUAÇÃO || normalized.SITUACAO || raw.situacao || 'EM ANDAMENTO').toUpperCase();
   
-  // FALLBACKS para recalibração (onde os dados já são camelCase no objeto raw)
   const proximoPrazo = normalized.PROXIMO_RETORNO || normalized.PRÓXIMO_RETORNO || normalized.PRÓXIMO_PRAZO || normalized.PROXIMO_PRAZO || normalized.PROXIMOPRAZO || raw.proximoPrazo || '';
   const ultimoRetorno = normalized.ULTIMO_RETORNO || normalized.ÚLTIMO_RETORNO || normalized.RETORNO || normalized.ULTIMORETORNO || raw.ultimoRetorno || '';
   const observacao = fixEncoding(normalized.OBSERVAÇÕES || normalized.OBSERVACAO || normalized.OBSERVAÇÃO || raw.observacao || '');

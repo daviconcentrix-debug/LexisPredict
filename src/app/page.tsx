@@ -11,7 +11,6 @@ import {
   ShieldAlert, 
   RefreshCcw, 
   FileDown, 
-  FileCheck,
   Copyright,
   TrendingUp,
   Clock,
@@ -20,8 +19,9 @@ import {
   TrendingDown,
   Sparkles,
   LayoutDashboard,
-  ShieldCheck,
-  Target
+  Target,
+  ArrowRight,
+  History
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -52,8 +52,7 @@ export default function Dashboard() {
     const savedInsights = localStorage.getItem('lexisPredict_notes_analysis');
     if (savedInsights) {
       try {
-        const parsed = JSON.parse(savedInsights);
-        setIaInsights(parsed);
+        setIaInsights(JSON.parse(savedInsights));
       } catch (e) {
         setIaInsights(null);
       }
@@ -67,7 +66,7 @@ export default function Dashboard() {
     
     loadInsights();
 
-    const handleStorageUpdate = (e: any) => loadInsights();
+    const handleStorageUpdate = () => loadInsights();
     window.addEventListener('lexis-insights-updated', handleStorageUpdate);
     window.addEventListener('storage', handleStorageUpdate);
 
@@ -96,7 +95,6 @@ export default function Dashboard() {
   }, [mounted, loadData]);
 
   const metrics = useMemo(() => {
-    const totalRepo = cases.length;
     const ativos = cases.filter(c => !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase()));
     const activeDemands = ativos.length;
     
@@ -104,173 +102,163 @@ export default function Dashboard() {
     const venceHoje = cases.filter(c => c.status === 'É Hoje' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
     const atencao = cases.filter(c => c.status === 'Atenção' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
     const noPrazo = cases.filter(c => c.status === 'No Prazo' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length; 
-    const semPrazo = cases.filter(c => (c.status === 'Sem Prazo' || !c.proximoPrazo) && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
     
-    const finalizados = cases.filter(c => ['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase()) || c.status === 'Arquivado' || c.status === 'Encerrado').length;
-
-    const vencidosArray = cases.filter(c => c.status === 'Vencido' && c.diasFaltando !== null);
-    const tempoMedio = vencidosArray.length > 0 
-      ? Math.round(Math.abs(vencidosArray.reduce((acc, c) => acc + (c.diasFaltando || 0), 0)) / vencidosArray.length) 
-      : 0;
-
     const riskSum = (vencidos * 1.0) + (venceHoje * 0.8) + (atencao * 0.5) + (noPrazo * 0.1);
     const riskScore = activeDemands > 0 ? Math.min(100, Math.round((riskSum / activeDemands) * 100)) : 0;
 
     const statusData = [
-      { name: 'Vencidos', value: vencidos, color: '#ef4444' },
+      { name: 'Críticos', value: vencidos, color: '#ef4444' },
       { name: 'Hoje', value: venceHoje, color: '#3b82f6' },
-      { name: 'Atenção', value: atencao, color: '#f97316' },
-      { name: 'Saudáveis', value: noPrazo, color: '#22c55e' },
-      { name: 'Sem Prazo', value: semPrazo, color: '#94a3b8' },
-      { name: 'Finalizados', value: finalizados, color: '#1f2937' }
+      { name: 'Alerta', value: atencao, color: '#f97316' },
+      { name: 'Saudáveis', value: noPrazo, color: '#10b981' }
     ].filter(d => d.value > 0);
 
-    return { totalRepo, activeDemands, vencidos, venceHoje, atencao, noPrazo, semPrazo, finalizados, tempoMedio, riskScore, statusData };
+    return { activeDemands, vencidos, venceHoje, atencao, noPrazo, riskScore, statusData };
   }, [cases]);
 
   if (!mounted) return null;
 
   return (
-    <div className="flex h-screen bg-background font-sans text-foreground overflow-hidden">
+    <div className="flex h-screen bg-[#f8f9fb] font-sans text-foreground overflow-hidden">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-16 border-b border-border/30 bg-background/80 backdrop-blur-xl flex items-center justify-between px-8 shrink-0 z-40">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <LayoutDashboard size={18} className="text-primary" />
-              <h1 className="font-bold text-sm tracking-[0.2em] uppercase">{t.controlPanel}</h1>
+        <header className="h-20 border-b border-border/50 bg-white/60 backdrop-blur-xl flex items-center justify-between px-10 shrink-0 z-40">
+          <div className="flex flex-col">
+            <div className="flex items-center gap-3">
+              <LayoutDashboard size={20} className="text-black" />
+              <h1 className="font-black text-xl tracking-tight uppercase text-foreground">Mission Control</h1>
             </div>
-            <Badge variant="outline" className="hidden xl:flex text-[9px] font-black border-primary/40 text-primary uppercase">Active Gabinete Node</Badge>
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-1">Gabinete Estratégico • W1 Capital</p>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" asChild className="hidden sm:flex border-border/50 hover:border-primary hover:bg-primary/10 text-xs font-semibold h-9 px-6 rounded-sm uppercase tracking-wider transition-all">
+            <Button variant="outline" size="sm" asChild className="premium-card h-10 px-6 rounded-xl text-[11px] font-black uppercase tracking-wider border-none">
               <Link href="/report">
-                <FileDown size={14} className="mr-2" /> Dossiê Operacional
+                <FileDown size={16} className="mr-2" /> Gerar Dossiê
               </Link>
             </Button>
-            <Button variant="ghost" size="icon" onClick={loadData} className="h-9 w-9 text-muted-foreground hover:text-primary border border-transparent hover:border-border">
-               <RefreshCcw size={16} className={cn(loading && "animate-spin")} />
+            <Button variant="ghost" size="icon" onClick={loadData} className="h-10 w-10 rounded-xl hover:bg-secondary">
+               <RefreshCcw size={18} className={cn(loading && "animate-spin text-primary")} />
             </Button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-8 space-y-10">
-          {/* SEÇÃO 1: MÉTRICAS DE URGÊNCIA */}
-          <section className="space-y-6">
-            <div className="flex items-center gap-3">
-              <Target size={16} className="text-red-500" />
-              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Métricas de Urgência em Tempo Real</h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatCard title="Vencem Hoje" value={loading ? "..." : metrics.venceHoje} icon={<Clock size={16} />} color={metrics.venceHoje > 0 ? "primary" : "primary"} />
-              <StatCard title="Vencidos" value={loading ? "..." : metrics.vencidos} icon={<ShieldAlert size={16} />} color="destructive" />
-              <StatCard title="Em Atenção" value={loading ? "..." : metrics.atencao} icon={<Calendar size={16} />} color="accent" />
-              <StatCard title="Atraso Médio" value={loading ? "..." : `${metrics.tempoMedio} dias`} icon={<TrendingUp size={16} />} color="destructive" />
-            </div>
+        <div className="flex-1 overflow-auto p-10 space-y-10 max-w-[1600px] mx-auto w-full">
+          {/* TOP TELEMETRY */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard title="Vencem Hoje" value={loading ? "..." : metrics.venceHoje} icon={<Clock />} color={metrics.venceHoje > 0 ? "warning" : "primary"} trend="14%" trendUp={false} />
+            <StatCard title="Casos Vencidos" value={loading ? "..." : metrics.vencidos} icon={<ShieldAlert />} color="destructive" trend="2%" trendUp={false} />
+            <StatCard title="Em Atenção" value={loading ? "..." : metrics.atencao} icon={<Calendar />} color="warning" trend="5%" trendUp={true} />
+            <StatCard title="Total Ativos" value={loading ? "..." : metrics.activeDemands} icon={<History />} color="accent" trend="12%" trendUp={true} />
           </section>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            <div className="xl:col-span-2 space-y-10">
-               {/* SEÇÃO 2: SAÚDE DA CARTEIRA */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <section className="bg-card border border-border/50 rounded-md p-6 h-[400px] flex flex-col shadow-sm hover:border-primary/20 transition-all">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest mb-6 opacity-60">Status da Carteira (Ativos: {metrics.activeDemands})</h3>
-                    <div className="flex-1 min-h-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={metrics.statusData} innerRadius={70} outerRadius={95} paddingAngle={4} dataKey="value" stroke="none">
-                            {metrics.statusData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            contentStyle={{ backgroundColor: '#000', border: 'none', color: '#fff', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 mt-6">
-                       <StatusMiniPill color="bg-red-500" label="Vencidos" value={metrics.vencidos} />
-                       <StatusMiniPill color="bg-orange-500" label="Atenção" value={metrics.atencao} />
-                       <StatusMiniPill color="bg-green-500" label="Saudáveis" value={metrics.noPrazo} />
-                    </div>
-                  </section>
-
-                  <section className="bg-card border border-border/50 rounded-md p-6 h-[400px] flex flex-col shadow-sm hover:border-primary/20 transition-all">
-                    <div className="flex items-center justify-between mb-6">
-                       <h3 className="text-[10px] font-bold uppercase tracking-widest opacity-60">Parecer IA de Gabinete</h3>
-                       <Badge variant="outline" className="text-[8px] border-primary/30 text-primary uppercase px-2">Elite Node</Badge>
-                    </div>
-                    {iaInsights ? (
-                      <div className="space-y-5 overflow-auto flex-1 pr-2 custom-scrollbar">
-                         {iaInsights.pontosFortes?.length > 0 ? (
-                           <div className="p-4 bg-green-500/5 border border-green-500/10 rounded-sm">
-                              <p className="text-[8px] font-black text-green-500 uppercase flex items-center gap-1.5 mb-2.5 tracking-widest"><TrendingUp size={12}/> Pontos Fortes</p>
-                              <ul className="space-y-2">
-                                {iaInsights.pontosFortes.map((item: string, idx: number) => (
-                                  <li key={idx} className="text-[10px] font-medium leading-relaxed opacity-80 uppercase">• {item}</li>
-                                ))}
-                              </ul>
-                           </div>
-                         ) : null}
-                         {iaInsights.riscosDetectados?.length > 0 ? (
-                           <div className="p-4 bg-red-500/5 border border-red-500/10 rounded-sm">
-                              <p className="text-[8px] font-black text-red-500 uppercase flex items-center gap-1.5 mb-2.5 tracking-widest"><TrendingDown size={12}/> Riscos Detectados</p>
-                              <ul className="space-y-2">
-                                {iaInsights.riscosDetectados.map((item: string, idx: number) => (
-                                  <li key={idx} className="text-[10px] font-medium leading-relaxed opacity-80 uppercase">• {item}</li>
-                                ))}
-                              </ul>
-                           </div>
-                         ) : null}
-                      </div>
-                    ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center opacity-30 text-center space-y-4">
-                         <div className="p-4 bg-secondary rounded-full">
-                           <Sparkles size={32} />
-                         </div>
-                         <div>
-                           <p className="text-[10px] font-black uppercase tracking-widest">Nenhuma auditoria processada.</p>
-                           <Link href="/notes" className="text-[9px] font-bold underline mt-2 uppercase text-primary">Ir para Evidências</Link>
-                         </div>
-                      </div>
-                    )}
-                  </section>
-               </div>
-
-               {/* SEÇÃO 3: OPERAÇÕES CRÍTICAS */}
-               <section className="space-y-4">
-                <div className="bg-card border border-border/50 rounded-md overflow-hidden shadow-sm">
-                  <div className="p-5 border-b border-border/10 bg-secondary/10 flex items-center justify-between">
-                     <div className="flex items-center gap-2">
-                       <ShieldAlert size={14} className="text-red-500" />
-                       <h3 className="text-[10px] font-black uppercase tracking-[0.2em]">Prioridades Máximas</h3>
-                     </div>
-                     <Badge className="bg-red-500 text-white font-black text-[9px] uppercase px-3">{metrics.vencidos + metrics.venceHoje} ALERTA</Badge>
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 pb-10">
+            <div className="xl:col-span-8 space-y-8">
+               {/* NEURAL BRIEFING */}
+               <section className="premium-card p-8 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:scale-110 transition-transform pointer-events-none">
+                    <Sparkles size={140} />
                   </div>
-                  <div className="overflow-auto max-h-[400px] custom-scrollbar">
-                    <table className="mission-control-table w-full">
-                      <thead className="sticky top-0 bg-background border-b border-border/10">
-                        <tr className="text-[8px] font-black uppercase text-muted-foreground">
-                          <th className="p-4 text-left">Tribunal</th>
-                          <th className="p-4 text-left">Cliente</th>
-                          <th className="p-4 text-left">Protocolo</th>
-                          <th className="p-4 text-right">Status de Atraso</th>
+                  <div className="flex items-center justify-between mb-8 border-b border-border/30 pb-4">
+                    <div className="flex items-center gap-4">
+                       <div className="w-12 h-12 bg-black text-white flex items-center justify-center rounded-xl shadow-lg">
+                         <Zap size={24} className="text-primary" />
+                       </div>
+                       <div>
+                         <h3 className="font-black text-lg uppercase tracking-tight leading-none">Briefing Neural Diário</h3>
+                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">Inteligência Operacional • Grok 4.5</p>
+                       </div>
+                    </div>
+                    <Badge variant="outline" className="bg-secondary/50 border-none text-[10px] font-black uppercase px-3 py-1.5 rounded-full">Status: Em Sincronia</Badge>
+                  </div>
+
+                  {iaInsights ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                       <div className="space-y-6">
+                          <p className="text-[10px] font-black text-emerald-600 uppercase flex items-center gap-2 tracking-widest bg-emerald-50 w-fit px-3 py-1 rounded-full"><TrendingUp size={14}/> Vantagens Técnicas</p>
+                          <ul className="space-y-4">
+                            {iaInsights.pontosFortes?.slice(0, 4).map((item: string, idx: number) => (
+                              <li key={idx} className="text-[12px] font-bold leading-relaxed text-foreground/80 uppercase flex gap-4">
+                                <span className="text-emerald-500 font-black shrink-0">0{idx+1}</span> {item}
+                              </li>
+                            ))}
+                          </ul>
+                       </div>
+                       <div className="space-y-6">
+                          <p className="text-[10px] font-black text-red-600 uppercase flex items-center gap-2 tracking-widest bg-red-50 w-fit px-3 py-1 rounded-full"><TrendingDown size={14}/> Riscos Operacionais</p>
+                          <ul className="space-y-4">
+                            {iaInsights.riscosDetectados?.slice(0, 4).map((item: string, idx: number) => (
+                              <li key={idx} className="text-[12px] font-bold leading-relaxed text-foreground/80 uppercase flex gap-4">
+                                <span className="text-red-500 font-black shrink-0">!</span> {item}
+                              </li>
+                            ))}
+                          </ul>
+                       </div>
+                    </div>
+                  ) : (
+                    <div className="py-16 flex flex-col items-center justify-center text-center space-y-6 border-2 border-dashed border-border/20 rounded-2xl">
+                       <Sparkles size={40} className="text-muted-foreground/20" />
+                       <div className="space-y-1">
+                          <p className="text-xs font-black uppercase text-muted-foreground tracking-widest">Nenhuma auditoria processada para este ciclo.</p>
+                          <p className="text-[10px] font-bold text-muted-foreground/60 uppercase">Realize triagem em Evidências para gerar o briefing.</p>
+                       </div>
+                       <Button variant="link" asChild className="text-[11px] font-black uppercase underline p-0 h-auto text-primary">
+                         <Link href="/notes">Processar Evidências Agora</Link>
+                       </Button>
+                    </div>
+                  )}
+               </section>
+
+               {/* PRIORITY QUEUE */}
+               <section className="premium-card overflow-hidden">
+                  <div className="px-8 py-6 border-b border-border/30 flex items-center justify-between bg-secondary/10">
+                     <div className="flex items-center gap-3">
+                       <Target size={18} className="text-red-500" />
+                       <h3 className="text-[11px] font-black uppercase tracking-[0.25em]">Fila de Prioridade Máxima</h3>
+                     </div>
+                     <Link href="/cases" className="text-[10px] font-black uppercase text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors">
+                       Painel de Casos <ArrowRight size={14} />
+                     </Link>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-white border-b border-border/30">
+                        <tr className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">
+                          <th className="px-8 py-4">Foro / Tribunal</th>
+                          <th className="px-8 py-4">Titular</th>
+                          <th className="px-8 py-4">Deadline</th>
+                          <th className="px-8 py-4 text-right">Status</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody className="divide-y divide-border/20">
                         {cases
                           .filter(c => ['Vencido', 'É Hoje', 'Atenção'].includes(c.status) && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase()))
                           .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
-                          .slice(0, 30)
+                          .slice(0, 10)
                           .map((c) => (
-                            <tr key={c.id} className="hover:bg-secondary/20 transition-colors border-b border-border/5 group">
-                              <td className="p-4"><Badge variant="outline" className="text-[8px] font-black uppercase border-border/40 group-hover:border-primary/40">{c.tribunal}</Badge></td>
-                              <td className="p-4 font-black uppercase text-[11px] truncate max-w-[200px]">{c.cliente}</td>
-                              <td className="p-4 font-mono text-[9px] text-muted-foreground">{c.protocolo}</td>
-                              <td className="p-4 text-right">
-                                <span className={cn("text-[9px] font-black uppercase px-2 py-1 rounded-none border", (c.diasFaltando || 0) < 0 ? "text-red-500 border-red-500/20 bg-red-500/5" : "text-orange-500 border-orange-500/20 bg-orange-500/5")}>
-                                  {c.status === 'É Hoje' ? "É Hoje" : (c.diasFaltando || 0) < 0 ? `${Math.abs(c.diasFaltando || 0)}d atraso` : `Faltam ${c.diasFaltando}d`}
+                            <tr key={c.id} className="hover:bg-secondary/20 transition-colors group">
+                              <td className="px-8 py-5">
+                                <Badge variant="outline" className="text-[9px] font-black uppercase border-border/50 rounded-lg h-7 px-3 bg-white">{c.tribunal}</Badge>
+                              </td>
+                              <td className="px-8 py-5">
+                                <div className="flex flex-col">
+                                  <span className="font-bold uppercase text-[12px] text-foreground group-hover:text-primary transition-colors">{c.cliente}</span>
+                                  <span className="text-[9px] font-mono text-muted-foreground mt-0.5">{c.protocolo}</span>
+                                </div>
+                              </td>
+                              <td className="px-8 py-5">
+                                <div className="flex items-center gap-2">
+                                   <Clock size={12} className="text-muted-foreground" />
+                                   <span className="text-[11px] font-black text-foreground tabular-nums uppercase">{c.proximoPrazo}</span>
+                                </div>
+                              </td>
+                              <td className="px-8 py-5 text-right">
+                                <span className={cn(
+                                  "text-[10px] font-black uppercase px-3 py-1 rounded-full",
+                                  c.status === 'Vencido' ? "bg-red-100 text-red-700" : 
+                                  c.status === 'É Hoje' ? "bg-blue-100 text-blue-700" : 
+                                  "bg-orange-100 text-orange-700"
+                                )}>
+                                  {c.status}
                                 </span>
                               </td>
                             </tr>
@@ -278,65 +266,82 @@ export default function Dashboard() {
                       </tbody>
                     </table>
                   </div>
-                </div>
-              </section>
+               </section>
             </div>
 
-            <aside className="space-y-8">
-              <div className="bg-card border border-border/50 rounded-md p-8 space-y-6 shadow-sm hover:border-primary/20 transition-all">
-                <div className="flex justify-between items-end">
-                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Índice de Risco Global</p>
-                   <span className={cn("text-3xl font-black tracking-tighter leading-none", metrics.riskScore > 80 ? "text-red-500" : metrics.riskScore > 40 ? "text-orange-500" : "text-primary")}>{metrics.riskScore}%</span>
-                </div>
-                <div className="h-2 w-full bg-secondary rounded-none overflow-hidden border border-border/10">
-                   <div className={cn("h-full transition-all duration-1000", metrics.riskScore > 80 ? "bg-red-500" : metrics.riskScore > 40 ? "bg-orange-500" : "bg-primary")} style={{ width: `${metrics.riskScore}%` }} />
-                </div>
-                <div className="bg-secondary/20 p-4 border border-border/10 rounded-sm">
-                  <p className="text-[9px] font-black uppercase text-center opacity-70 tracking-widest">
-                    {metrics.riskScore > 80 ? "Status: Crítico" : metrics.riskScore > 60 ? "Status: Alto Risco" : metrics.riskScore > 40 ? "Status: Elevado" : "Status: Controlado"}
-                  </p>
-                </div>
-              </div>
+            <div className="xl:col-span-4 space-y-8">
+               {/* RISK INDEX */}
+               <section className="premium-card p-8 space-y-8">
+                  <div className="flex justify-between items-end">
+                     <div className="space-y-1">
+                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Risk Index</p>
+                       <h4 className="text-5xl font-black tracking-tighter leading-none">{metrics.riskScore}%</h4>
+                     </div>
+                     <div className={cn(
+                       "px-3 py-1.5 text-[10px] font-black uppercase rounded-lg shadow-sm border",
+                       metrics.riskScore > 60 ? "bg-red-50 text-red-700 border-red-100" : metrics.riskScore > 30 ? "bg-orange-50 text-orange-700 border-orange-100" : "bg-emerald-50 text-emerald-700 border-emerald-100"
+                     )}>
+                       {metrics.riskScore > 60 ? "Crítico" : metrics.riskScore > 30 ? "Alerta" : "Estável"}
+                     </div>
+                  </div>
+                  <div className="h-3 w-full bg-secondary rounded-full overflow-hidden shadow-inner">
+                    <div className={cn("h-full transition-all duration-1000", metrics.riskScore > 60 ? "bg-red-500 shadow-[0_0_15px_#ef4444]" : metrics.riskScore > 30 ? "bg-orange-500 shadow-[0_0_15px_#f97316]" : "bg-emerald-500 shadow-[0_0_15px_#10b981]")} style={{ width: `${metrics.riskScore}%` }} />
+                  </div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight leading-relaxed">Algoritmo de calibragem baseado na densidade de prazos vs. volume de registros ativos.</p>
+               </section>
 
-              <div className="bg-card border-2 border-border/50 rounded-md p-8 space-y-6 relative overflow-hidden group hover:border-primary/40 transition-all shadow-md">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                  <FileCheck size={80} />
-                </div>
-                <div className="space-y-6 relative z-10">
-                  <div className="w-12 h-12 rounded-none bg-primary text-black flex items-center justify-center border-2 border-black shadow-[4px_4px_0px_#000]">
-                    <FileCheck size={24} />
+               {/* HEALTH CHART */}
+               <section className="premium-card p-8 h-[440px] flex flex-col">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-10">Status da Carteira</h3>
+                  <div className="flex-1 min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={metrics.statusData} innerRadius={70} outerRadius={100} paddingAngle={8} dataKey="value" stroke="none">
+                          {metrics.statusData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                          itemStyle={{ padding: '4px' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                  <div>
-                    <h2 className="text-xl font-black uppercase tracking-tighter">Dossiê Operacional</h2>
-                    <p className="text-[10px] text-muted-foreground mt-3 leading-relaxed font-bold uppercase tracking-widest">
-                      Geração de auditoria executiva completa para stakeholders e conselho jurídico.
-                    </p>
+                  <div className="grid grid-cols-2 gap-4 mt-8 pt-8 border-t border-border/30">
+                     {metrics.statusData.map((item) => (
+                       <div key={item.name} className="flex items-center gap-3">
+                         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                         <span className="text-[10px] font-bold uppercase text-muted-foreground truncate">{item.name}</span>
+                         <span className="text-[11px] font-black ml-auto tabular-nums">{item.value}</span>
+                       </div>
+                     ))}
                   </div>
-                  <Button variant="default" asChild className="w-full bg-black text-white font-black h-12 rounded-none uppercase text-[10px] tracking-[0.2em] border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_rgba(0,0,0,0.1)] hover:shadow-none">
-                    <Link href="/report">Gerar Relatório Master</Link>
+               </section>
+
+               {/* QUICK EXPORT */}
+               <section className="bg-black text-white p-8 rounded-2xl shadow-2xl space-y-6 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:rotate-12 transition-transform">
+                    <LayoutDashboard size={80} />
+                  </div>
+                  <div className="space-y-2 relative">
+                    <h3 className="text-2xl font-black uppercase tracking-tight">Full Report</h3>
+                    <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed opacity-60">Consolide toda a telemetria do gabinete em um dossiê executivo pronto para assinatura.</p>
+                  </div>
+                  <Button variant="outline" asChild className="w-full bg-white text-black border-none hover:bg-primary hover:text-black font-black h-14 uppercase text-[11px] tracking-widest transition-all rounded-xl shadow-lg relative">
+                    <Link href="/report">Sincronizar & Gerar v12.0</Link>
                   </Button>
-                </div>
-              </div>
-            </aside>
+               </section>
+            </div>
           </div>
         </div>
 
-        <footer className="h-10 border-t border-border/30 bg-background/80 backdrop-blur-md flex items-center justify-center gap-6 text-[9px] text-muted-foreground/50 font-black uppercase tracking-[0.3em] shrink-0">
+        <footer className="h-10 border-t border-border/30 bg-white flex items-center justify-center gap-6 text-[10px] text-muted-foreground/60 font-bold uppercase tracking-[0.4em] shrink-0">
           <div className="flex items-center gap-2"><Copyright size={10} /> 2026 W1 Capital.</div>
           <span className="w-1 h-1 bg-border rounded-full" />
-          <span>Advanced Monitoring • Davi Alves Figueredo</span>
+          <span>Advanced Monitoring • Handcrafted by W1 Capital</span>
         </footer>
       </main>
-    </div>
-  );
-}
-
-function StatusMiniPill({ color, label, value }: { color: string, label: string, value: number }) {
-  return (
-    <div className="flex flex-col items-center gap-1.5 p-3 bg-secondary/10 rounded-sm border border-border/5 hover:border-border/20 transition-all">
-       <div className={cn("w-2.5 h-2.5 rounded-full", color)} />
-       <span className="text-[8px] font-black uppercase text-muted-foreground tracking-tighter">{label}</span>
-       <span className="text-sm font-black">{value}</span>
     </div>
   );
 }
