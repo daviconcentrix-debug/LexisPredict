@@ -1,4 +1,3 @@
-
 "use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
@@ -27,7 +26,8 @@ import {
   Repeat,
   Shield,
   Bot,
-  ScanText
+  ScanText,
+  BrainCircuit
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -69,12 +69,12 @@ export function Sidebar() {
     {
       title: t.operations,
       items: [
-        { label: "Chatbot IA", href: '/chat-ia', icon: Bot },
+        { label: "Consultoria IA", href: '/chat-ia', icon: BrainCircuit },
         { label: t.audit, href: '/veredito', icon: FileSearch },
-        { label: "Motor de OCR", href: '/tools/ocr', icon: ScanText },
         { label: t.documents, href: '/documents', icon: FileText },
         { label: t.habilitacaoPeca, href: '/habilitacao-peca', icon: Shield },
         { label: t.substabelecimentoPeca, href: '/substabelecimento-peca', icon: Repeat },
+        { label: "Motor de OCR", href: '/tools/ocr', icon: ScanText },
         { label: t.whatsapp, href: '/whatsapp', icon: MessageCircle },
         { label: t.import, href: '/import', icon: Upload },
         { label: t.notes, href: '/notes', icon: StickyNote },
