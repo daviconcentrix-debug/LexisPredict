@@ -1,4 +1,3 @@
-
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved.
@@ -17,13 +16,9 @@ import {
   Shield,
   CheckCircle2,
   Building2,
-  AlertCircle,
   MapPin,
   User,
-  Trash2,
-  Eye,
-  Calendar,
-  ScanText
+  Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,7 +27,6 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -40,10 +34,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { extrairTextoDoPDFAction, generateProcuracaoPDFAction } from '@/app/actions/document-actions';
-import { extrairDadosSoberanosAction } from '@/app/actions/transcription-actions';
-import Link from 'next/link';
+import { extrairDadosDocumentosAction } from '@/app/actions/document-extraction';
 
 const BANCA_DATA: Record<string, any> = {
   "DIEGO GOMES DIAS": {
@@ -60,16 +52,6 @@ const BANCA_DATA: Record<string, any> = {
     oabs: { "SP": "520783/SP", "MG": "249550/MG", "PR": "520783/PR" },
     endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-071",
     email: "pablobastos@adv.oabsp.org.br"
-  },
-  "INGRID MICHAELLY TELES PACHECO OLIVEIRA ALVES": {
-    oabs: { "MA": "490.641/SP", "RO": "13.438/RO", "AP": "5.819-A/AP", "SE": "1.601A/SE", "RR": "844-A/RR", "GO": "70699/GO", "SP": "490.641/SP" },
-    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
-    email: "pachecoingrid.adv@gmail.com"
-  },
-  "LUCAS DOS SANTOS DE JESUS": {
-    oabs: { "DF": "78116/DF", "AL": "21512A/AL", "AM": "A2373/AM", "PE": "66465/PE", "RJ": "261767/RJ", "SP": "520783/SP" },
-    endereco: "Rua Amazonas, nº 439 – Sala 20/28 – Centro – São Caetano do Sul – SP – CEP: 09520-070",
-    email: "lucassj.adv01@gmail.com"
   }
 };
 
@@ -83,8 +65,6 @@ export default function DocumentGenerator() {
   const [selectedLawyer, setSelectedLawyer] = useState('');
   const [selectedState, setSelectedState] = useState('SP');
   const [extractedData, setExtractedData] = useState<any>(null);
-  const [apiError, setApiError] = useState<string | null>(null);
-  const [isScanDetected, setIsScanDetected] = useState(false);
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,79 +72,49 @@ export default function DocumentGenerator() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setFileLoading(true);
-    setIsScanDetected(false);
     const formData = new FormData();
     formData.append('pdf', file);
-
     try {
       const res = await extrairTextoDoPDFAction(formData);
       if (res.success) {
-        if (!res.text || res.text.trim().length < 10) {
-          setIsScanDetected(true);
-          toast({ title: "Digitalização Detectada", description: "Este PDF parece ser uma imagem.", variant: "destructive" });
-        } else {
-          setInputText(res.text || '');
-          toast({ title: "Transcrição Concluída" });
-        }
-      } else {
-        toast({ title: "Falha na Leitura", description: res.error, variant: "destructive" });
+        setInputText(res.text || '');
+        toast({ title: "Documento Transcrevido" });
       }
-    } catch (err) {
-      toast({ title: "Erro de Conexão", variant: "destructive" });
     } finally {
       setFileLoading(false);
     }
   };
 
   const handleExtract = async () => {
-    if (!inputText) {
-      toast({ title: "Dados Insuficientes", description: "Insira o texto para triagem.", variant: "destructive" });
+    if (!inputText || inputText.length < 30) {
+      toast({ title: "Texto insuficiente", variant: "destructive" });
       return;
     }
-    if (!selectedLawyer || !selectedState) {
-      toast({ title: "Configuração Pendente", description: "Selecione o advogado e o estado.", variant: "destructive" });
-      return;
-    }
-
     setLoading(true);
-    setApiError(null);
-
     try {
-      const res = await extrairDadosSoberanosAction(inputText);
-      if (res.success) {
-        if (res.erro) {
-           setApiError(res.erro);
-           toast({ title: "Erro de Triagem", variant: "destructive" });
-        } else {
-           setExtractedData({
-             cliente: {
-               nome: String(res.outorgante.nome).toUpperCase(),
-               nacionalidade: res.outorgante.nacionalidade,
-               estadoCivil: res.outorgante.estado_civil,
-               profissao: res.outorgante.profissao,
-               rg: res.outorgante.rg,
-               cpf: res.outorgante.cpf,
-               endereco: res.outorgante.endereco,
-               email: res.outorgante.email
-             },
-             processos: [{ 
-               banco: "BANCO", 
-               numero: "S/N", 
-               acao: res.poderes_especificos 
-             }],
-             local: res.cidade || "São Paulo",
-             dataExtenso: res.data || `${res.cidade || "São Paulo"}, ${new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}`
-           });
-           setStep(2);
-           toast({ title: "Triagem Neural GET Concluída" });
-        }
-      } else {
-        setApiError(res.error || "Falha crítica na triagem neural.");
-      }
-    } catch (err) {
-      setApiError("Erro de comunicação.");
+      const res = await extrairDadosDocumentosAction(inputText);
+      const normalized = {
+        cliente: {
+          nome: res.outorgante?.nome || "CLIENTE NÃO IDENTIFICADO",
+          cpf: res.outorgante?.cpf || "",
+          rg: res.outorgante?.rg || "",
+          endereco: res.outorgante?.endereco || "",
+          email: res.outorgante?.email || "",
+          estadoCivil: res.outorgante?.estado_civil || "solteiro(a)",
+          profissao: res.outorgante?.profissao || "autônomo(a)",
+          nacionalidade: res.outorgante?.nacionalidade || "brasileiro(a)",
+          telefone: ""
+        },
+        processos: [{
+          banco: res.instituicao_financeira || "BANCO",
+          numero: res.processo_numero || "S/N",
+          acao: res.poderes_especificos || "AÇÃO DE REVISÃO CONTRATUAL"
+        }],
+        dataExtenso: `${res.cidade || 'São Paulo'}, ${new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}`
+      };
+      setExtractedData(normalized);
+      setStep(2);
     } finally {
       setLoading(false);
     }
@@ -173,7 +123,7 @@ export default function DocumentGenerator() {
   const handleSeal = async () => {
     setLoading(true);
     try {
-      const lawyerInfo = BANCA_DATA[selectedLawyer];
+      const lawyerInfo = BANCA_DATA[selectedLawyer] || BANCA_DATA["DIEGO GOMES DIAS"];
       const payload = {
         ...extractedData,
         advogado: {
@@ -181,233 +131,99 @@ export default function DocumentGenerator() {
           oab: lawyerInfo.oabs[selectedState] || lawyerInfo.oabs['SP'],
           endereco: lawyerInfo.endereco,
           email: lawyerInfo.email
-        }
+        },
+        local: extractedData.dataExtenso.split(',')[0].trim() || selectedState
       };
       const res = await generateProcuracaoPDFAction(payload);
       if (res.success && res.base64) {
         const link = document.createElement('a');
         link.href = `data:application/pdf;base64,${res.base64}`;
-        link.download = `Procuracao_${extractedData.cliente.nome.replace(/\s/g, '_')}.pdf`;
+        link.download = `Procuracao_${extractedData.cliente.nome}.pdf`;
         link.click();
-        toast({ title: "Documento Selado" });
-      } else {
-        toast({ title: "Erro na Selagem", description: res.error, variant: "destructive" });
       }
-    } catch (err) {
-      toast({ title: "Erro na Selagem", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  const updateField = (category: string, field: string, value: string) => {
-    setExtractedData((prev: any) => ({
-      ...prev,
-      [category]: { ...prev[category], [field]: value }
-    }));
-  };
-
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-16 border-b border-[#dddbda] bg-white flex items-center justify-between px-8 shrink-0 z-40">
-          <div className="flex items-center gap-4">
-            <div className="icon-3d-wrapper">
-              <div className="icon-3d-block black w-10 h-10 rounded-sm bg-black flex items-center justify-center">
-                <Shield size={20} className="text-white" />
-              </div>
-            </div>
-            <h1 className="font-black text-xl text-black uppercase tracking-tighter">Procurações Soberanas GET</h1>
-          </div>
-          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Transcrição Incondicional</Badge>
+          <h1 className="font-black text-xl uppercase tracking-tighter">Gerador de Procuração Grok Beta</h1>
+          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Triagem Soberana</Badge>
         </header>
-
-        <div className="flex-1 overflow-auto p-4 lg:p-8 max-w-7xl mx-auto w-full">
-          {step === 1 && (
-            <div className="space-y-8 animate-in fade-in duration-500">
-              {isScanDetected && (
-                <Alert className="border-2 border-red-600 bg-red-50 rounded-none shadow-[4px_4px_0px_#000]">
-                  <AlertCircle className="h-5 w-5 text-red-600" />
-                  <div className="ml-4">
-                    <AlertTitle className="font-black uppercase text-xs text-red-600">PDF de Imagem Detectado</AlertTitle>
-                    <AlertDescription className="text-[10px] font-bold uppercase text-red-800/80 leading-relaxed mt-1">
-                      O arquivo enviado não contém texto selecionável. Para transcrever este documento, utilize o nosso Motor de OCR.
-                      <Button asChild variant="link" className="h-auto p-0 text-red-600 font-black uppercase text-[10px] ml-2 underline">
-                        <Link href="/tools/ocr">Acessar Transcrição Visual <ScanText size={12} className="ml-1" /></Link>
-                      </Button>
-                    </AlertDescription>
+        <div className="flex-1 overflow-auto p-8 max-w-7xl mx-auto w-full">
+          {step === 1 ? (
+            <div className="space-y-6">
+              <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
+                <CardHeader className="bg-black text-white py-3"><CardTitle className="text-[10px] font-black uppercase">Configuração de Gabinete</CardTitle></CardHeader>
+                <CardContent className="p-6 grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="uppercase text-[10px] font-black">Advogado Responsável</Label>
+                    <Select value={selectedLawyer} onValueChange={setSelectedLawyer}>
+                      <SelectTrigger className="border-2 border-black rounded-none h-11"><SelectValue placeholder="SELECIONE..." /></SelectTrigger>
+                      <SelectContent className="bg-white border-2 border-black">{ADVOGADOS_LIST.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
+                    </Select>
                   </div>
-                </Alert>
-              )}
-
+                  <div className="space-y-2">
+                    <Label className="uppercase text-[10px] font-black">Estado (UF)</Label>
+                    <Select value={selectedState} onValueChange={setSelectedState}>
+                      <SelectTrigger className="border-2 border-black rounded-none h-11"><SelectValue placeholder="SP" /></SelectTrigger>
+                      <SelectContent className="bg-white border-2 border-black">{["SP", "RJ", "MG", "BA", "PR", "SC", "RS", "GO", "MT", "MS"].map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-6">
-                  <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
-                    <CardHeader className="bg-black text-white py-3">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest">1. Configuração de Gabinete</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-6">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="uppercase text-[10px] font-black">Advogado Responsável</Label>
-                          <Select value={selectedLawyer} onValueChange={setSelectedLawyer}>
-                            <SelectTrigger className="border-2 border-black h-12 font-black uppercase text-[11px] rounded-none bg-white">
-                              <SelectValue placeholder="SELECIONE..." />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white border-2 border-black rounded-none">
-                              {ADVOGADOS_LIST.map((name) => (
-                                <SelectItem key={name} value={name} className="font-black uppercase text-[10px]">{name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="uppercase text-[10px] font-black">Estado (OAB)</Label>
-                          <Select value={selectedState} onValueChange={setSelectedState}>
-                            <SelectTrigger className="border-2 border-black h-12 font-black uppercase text-[11px] rounded-none bg-white">
-                              <SelectValue placeholder="ESTADO..." />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white border-2 border-black rounded-none">
-                              {["SP", "RJ", "MG", "PR", "BA", "CE", "RN", "PE", "PA", "MA", "SC", "ES", "MS", "RS", "MT", "GO", "DF", "TO"].map((uf) => (
-                                <SelectItem key={uf} value={uf} className="font-black uppercase text-[10px]">{uf}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
+                <div className="lg:col-span-2">
+                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                     <CardContent className="p-6 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label className="uppercase text-[10px] font-black">2. Conteúdo do PDF ou Texto</Label>
-                        <Badge variant="outline" className="text-[8px] border-black/20 font-black uppercase">Prioridade HTML Ativa</Badge>
-                      </div>
-                      <Textarea 
-                        placeholder="COLE QUALQUER DOCUMENTO OU CONTRATO AQUI PARA TRANSCRIÇÃO..."
-                        className="min-h-[300px] border-2 border-black font-black uppercase text-[11px] rounded-none resize-none bg-white"
-                        value={inputText}
-                        onChange={(e) => setInputText(e.target.value)}
-                      />
-                      <Button onClick={handleExtract} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
-                        {loading ? <Loader2 className="animate-spin mr-2" /> : <Zap size={16} className="mr-2" />}
-                        Iniciar Extração Soberana
+                      <Textarea value={inputText} onChange={e => setInputText(e.target.value)} className="min-h-[350px] border-2 border-black rounded-none bg-white font-black uppercase text-[11px]" placeholder="COLE O CONTRATO OU PROCURAÇÃO AQUI..." />
+                      <Button onClick={handleExtract} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black shadow-[6px_6px_0px_#22c55e]">
+                        {loading ? <Loader2 className="animate-spin mr-2" /> : <Zap size={16} className="mr-2" />} Iniciar Triagem Grok Beta
                       </Button>
                     </CardContent>
                   </Card>
                 </div>
-
                 <div className="space-y-6">
-                  <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
-                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                      <CardTitle className="text-[10px] font-black uppercase flex items-center gap-2"><Upload size={14} /> Leitura PDF</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <div onClick={() => fileInputRef.current?.click()} className={cn(
-                        "border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all",
-                        fileLoading && "pointer-events-none opacity-50"
-                      )}>
-                        {fileLoading ? <Loader2 className="animate-spin text-black" size={32} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
-                        <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Procurar PDF</p>
-                        <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="bg-primary/5 border-2 border-primary/20 rounded-none shadow-[6px_6px_0px_rgba(0,209,255,0.1)]">
-                    <CardContent className="p-6 space-y-4">
-                      <div className="flex items-center gap-2 text-primary font-black uppercase text-[10px]">
-                        <ScanText size={16} /> Unidade OCR Recomendada
-                      </div>
-                      <p className="text-[9px] font-bold uppercase leading-relaxed text-black/60">
-                        Para melhores resultados em documentos digitalizados, utilize o Motor de OCR para transcrever antes de realizar a triagem.
-                      </p>
-                      <Button asChild variant="outline" className="w-full h-10 border-black border-2 font-black uppercase text-[9px] rounded-none hover:bg-black hover:text-white transition-all">
-                        <Link href="/tools/ocr">Abrir Motor OCR Web</Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
+                  <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all bg-white shadow-[8px_8px_0px_#000]">
+                    {fileLoading ? <Loader2 className="animate-spin" size={32} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
+                    <p className="text-[10px] font-black uppercase group-hover:text-white">Transcrever PDF</p>
+                    <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+                  </div>
                 </div>
               </div>
             </div>
-          )}
-
-          {step === 2 && extractedData && (
-            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto pb-20">
-              <div className="flex items-center justify-between border-b-2 border-black pb-4">
-                <div className="flex items-center gap-3">
-                  <Edit3 size={20} />
-                  <h2 className="text-xl font-black uppercase tracking-tight">Revisão de Dados</h2>
-                </div>
-                <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-black rounded-none">Voltar</Button>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center border-b-2 border-black pb-4">
+                <h2 className="text-xl font-black uppercase">Revisão Forense</h2>
+                <Button variant="ghost" onClick={() => setStep(1)} className="border-2 border-black rounded-none uppercase text-[10px] font-black">Voltar</Button>
               </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
-                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                    <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><User size={14} /> Dados do Outorgante</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-6">
-                    <div className="grid gap-1">
-                      <Label className="text-[9px] font-black uppercase">Nome Completo</Label>
-                      <Input value={extractedData.cliente.nome} onChange={(e) => updateField('cliente', 'nome', e.target.value)} className="border-black font-black uppercase rounded-none" />
-                    </div>
-                    <div className="grid gap-1">
-                      <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><MapPin size={10} /> Endereço Residencial</Label>
-                      <Input value={extractedData.cliente.endereco} onChange={(e) => updateField('cliente', 'endereco', e.target.value)} className="border-black font-black uppercase rounded-none" />
-                    </div>
+                  <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-2"><CardTitle className="text-[10px] font-black uppercase">Outorgante</CardTitle></CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    <Input value={extractedData.cliente.nome} onChange={e => setExtractedData({...extractedData, cliente: {...extractedData.cliente, nome: e.target.value.toUpperCase()}})} className="border-black font-black uppercase" />
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-1">
-                        <Label className="text-[9px] font-black uppercase">CPF</Label>
-                        <Input value={extractedData.cliente.cpf} onChange={(e) => updateField('cliente', 'cpf', e.target.value)} className="border-black font-black rounded-none" />
-                      </div>
-                      <div className="grid gap-1">
-                        <Label className="text-[9px] font-black uppercase">RG</Label>
-                        <Input value={extractedData.cliente.rg} onChange={(e) => updateField('cliente', 'rg', e.target.value)} className="border-black font-black rounded-none" />
-                      </div>
+                      <Input value={extractedData.cliente.cpf} placeholder="CPF" onChange={e => setExtractedData({...extractedData, cliente: {...extractedData.cliente, cpf: e.target.value}})} className="border-black font-black" />
+                      <Input value={extractedData.cliente.rg} placeholder="RG" onChange={e => setExtractedData({...extractedData, cliente: {...extractedData.cliente, rg: e.target.value}})} className="border-black font-black" />
                     </div>
+                    <Input value={extractedData.cliente.endereco} placeholder="ENDEREÇO" onChange={e => setExtractedData({...extractedData, cliente: {...extractedData.cliente, endereco: e.target.value.toUpperCase()}})} className="border-black font-black uppercase" />
                   </CardContent>
                 </Card>
-
                 <div className="space-y-6">
-                  <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
-                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Calendar size={14} /> Local e Data</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                       <div className="grid gap-1">
-                         <Label className="text-[9px] font-black uppercase">Local e Data (Extenso)</Label>
-                         <Input value={extractedData.dataExtenso} onChange={(e) => setExtractedData({...extractedData, dataExtenso: e.target.value})} className="border-black font-black uppercase rounded-none" />
-                       </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] overflow-hidden">
-                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3 flex flex-row items-center justify-between">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Eye size={14} /> Preview Visual</CardTitle>
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-[8px] font-black uppercase">Draft</Badge>
-                    </CardHeader>
-                    <CardContent className="p-10 text-black font-serif text-[11pt] leading-relaxed bg-white space-y-6">
-                      <h3 className="text-center font-bold uppercase underline">PROCURAÇÃO "AD JUDICIA"</h3>
-                      <p className="text-justify indent-10">
-                        <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, {extractedData.cliente.nacionalidade || "brasileiro(a)"}, {extractedData.cliente.estadoCivil || "casado(a)"}, portador do RG Nº {extractedData.cliente.rg} e inscrito no CPF Nº {extractedData.cliente.cpf}, residente à {extractedData.cliente.endereco}, nomeia como seu procurador:
-                      </p>
-                      <p className="text-justify indent-10">
-                        <strong>{selectedLawyer.toUpperCase()}</strong>, brasileiro, advogado, inscrito na OAB/{selectedState} sob o número {BANCA_DATA[selectedLawyer].oabs[selectedState] || BANCA_DATA[selectedLawyer].oabs['SP']}, com endereço na {BANCA_DATA[selectedLawyer].endereco}.
-                      </p>
-                      <div className="text-center mt-10">
-                        <p>{extractedData.dataExtenso}</p>
-                        <p className="mt-8 font-bold uppercase">{extractedData.cliente.nome}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Button onClick={handleSeal} setLoading={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
-                    {loading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
-                    Selar & Exportar PDF
-                  </Button>
+                   <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
+                      <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-2"><CardTitle className="text-[10px] font-black uppercase">Processo & Banco</CardTitle></CardHeader>
+                      <CardContent className="p-6 space-y-4">
+                        <Input value={extractedData.processos[0].banco} onChange={e => { const p = [...extractedData.processos]; p[0].banco = e.target.value.toUpperCase(); setExtractedData({...extractedData, processos: p}); }} className="border-black font-black uppercase" />
+                        <Input value={extractedData.processos[0].numero} onChange={e => { const p = [...extractedData.processos]; p[0].numero = e.target.value; setExtractedData({...extractedData, processos: p}); }} className="border-black font-black" />
+                        <Input value={extractedData.dataExtenso} onChange={e => setExtractedData({...extractedData, dataExtenso: e.target.value})} className="border-black font-black uppercase" />
+                      </CardContent>
+                   </Card>
+                   <Button onClick={handleSeal} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase rounded-none border-2 border-black shadow-[6px_6px_0px_#22c55e]">Selar & Exportar PDF</Button>
                 </div>
               </div>
             </div>

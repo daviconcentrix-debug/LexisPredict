@@ -1,4 +1,3 @@
-
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved.
@@ -14,12 +13,6 @@ import {
   Eye, 
   Loader2,
   Copyright,
-  Cpu,
-  FileCode,
-  Terminal,
-  Info,
-  ScanText,
-  ExternalLink
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { Button } from '@/components/ui/button';
@@ -31,7 +24,6 @@ import { cn } from '@/lib/utils';
 import { useAdmin } from '@/hooks/use-admin';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -40,7 +32,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import Link from 'next/link';
 
 function parseCsvRow(row: string, separator: string): string[] {
   const result: string[] = [];
@@ -241,19 +232,18 @@ export default function ImportPage() {
                <div className="text-center space-y-4 mb-8">
                   <h2 className="text-3xl font-black uppercase tracking-tighter">Unidade de Migração</h2>
                   <p className="text-black/60 max-w-2xl mx-auto text-sm font-black uppercase leading-relaxed">
-                    Carregue seu dump de banco ou cole o texto extraído por OCR. O sistema detectará automaticamente o formato.
+                    Carregue seu dump de banco ou cole o texto do CSV. O sistema detectará automaticamente o formato e corrigirá erros de codificação e datas.
                   </p>
                </div>
 
-               <TabsList className="grid w-full grid-cols-3 bg-gray-200 rounded-none p-1 border-2 border-black shadow-[4px_4px_0px_#000]">
-                  <TabsTrigger value="text" className="rounded-none font-black uppercase text-[10px] data-[state=active]:bg-black data-[state=active]:text-white">Transcrição Direta</TabsTrigger>
-                  <TabsTrigger value="csv" className="rounded-none font-black uppercase text-[10px] data-[state=active]:bg-black data-[state=active]:text-white">Planilha CSV</TabsTrigger>
-                  <TabsTrigger value="tools" className="rounded-none font-black uppercase text-[10px] data-[state=active]:bg-black data-[state=active]:text-white">Apoio OCR & Visão</TabsTrigger>
+               <TabsList className="grid w-full grid-cols-2 bg-gray-200 rounded-none p-1 border-2 border-black shadow-[4px_4px_0px_#000]">
+                  <TabsTrigger value="text" className="rounded-none font-black uppercase text-xs data-[state=active]:bg-black data-[state=active]:text-white">Texto de Gabinete / Dump</TabsTrigger>
+                  <TabsTrigger value="csv" className="rounded-none font-black uppercase text-xs data-[state=active]:bg-black data-[state=active]:text-white">Planilha CSV</TabsTrigger>
                </TabsList>
 
                <TabsContent value="text" className="space-y-4">
                   <Textarea 
-                    placeholder="COLE O CONTEÚDO EXTRAÍDO DO PDF OU DUMP CSV AQUI..."
+                    placeholder="COLE O CONTEÚDO AQUI (DUMP OU CSV)..."
                     value={textInput}
                     onChange={(e) => setTextInput(e.target.value)}
                     className="min-h-[350px] border-2 border-black font-black uppercase text-[11px] rounded-none resize-none leading-relaxed bg-white shadow-inner"
@@ -264,7 +254,7 @@ export default function ImportPage() {
                     disabled={parsing || !textInput.trim()}
                     className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]"
                   >
-                    {parsing ? <><Zap className="animate-spin mr-2" /> Analisando Estruturas...</> : <><Database size={16} className="mr-2" /> Ingestar Conteúdo</>}
+                    {parsing ? <><Zap className="animate-spin mr-2" /> Analisando Estruturas...</> : <><Database size={16} className="mr-2" /> Processar Texto de Gabinete</>}
                   </Button>
                </TabsContent>
 
@@ -290,42 +280,6 @@ export default function ImportPage() {
                     )}
                     <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
                   </label>
-               </TabsContent>
-
-               <TabsContent value="tools" className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
-                      <CardHeader className="bg-primary text-black py-3 border-b-2 border-black">
-                        <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                          <ScanText size={14} /> Motor de OCR Web (Navegador)
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-6 space-y-4 text-black">
-                         <p className="text-[10px] font-black uppercase leading-relaxed opacity-60">
-                           Utilize nossa ferramenta integrada para transcrever PDFs de imagem diretamente no seu navegador. Ideal para documentos de até 10 páginas.
-                         </p>
-                         <Button asChild className="w-full h-12 bg-black text-white font-black uppercase text-[10px] rounded-none border-2 border-black hover:bg-white hover:text-black transition-all">
-                           <Link href="/tools/ocr">Acessar Motor OCR Web <ExternalLink size={12} className="ml-2" /></Link>
-                         </Button>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
-                      <CardHeader className="bg-black text-white py-3">
-                        <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                          <Cpu size={14} /> Protocolo de OCR Local (Python)
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-6 space-y-4">
-                         <p className="text-[10px] font-black uppercase leading-relaxed text-black/60">
-                           Para lotes de centenas de PDFs digitalizados, o processamento local via Python é a opção de alto desempenho.
-                         </p>
-                         <div className="bg-gray-900 p-4 border-2 border-black font-mono text-[9px] text-green-400">
-                            python scripts/ocr_helper.py
-                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
                </TabsContent>
             </Tabs>
           ) : (

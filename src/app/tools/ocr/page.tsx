@@ -1,26 +1,22 @@
-
 "use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
-  FileSearch, 
   Upload, 
   Loader2, 
   Copy, 
   Download, 
-  CheckCircle2, 
   FileText, 
   Zap, 
-  RefreshCcw, 
-  BookOpen, 
   ScanText, 
   AlertTriangle,
-  Copyright
+  Copyright,
+  BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -29,11 +25,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { createWorker } from 'tesseract.js';
-import * as pdfjs from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist';
 import { cn } from '@/lib/utils';
-
-// Configuração do Worker do PDF.js
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
 export default function OCRToolPage() {
   const [loading, setLoading] = useState(false);
@@ -43,6 +36,12 @@ export default function OCRToolPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  useEffect(() => {
+    // Configuração dinâmica do Worker para evitar erros de compilação/build no Next.js
+    const version = pdfjsLib.version;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
+  }, []);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -50,30 +49,24 @@ export default function OCRToolPage() {
     setLoading(true);
     setExtractedText('');
     setProgress(0);
-    setStatus('Inicializando Motores de Visão...');
+    setStatus('Iniciando Motores de Visão...');
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjs.getDocument(arrayBuffer).promise;
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const totalPages = pdf.numPages;
       let fullText = '';
 
-      const worker = await createWorker('por', 1, {
-        logger: m => {
-          if (m.status === 'recognizing text') {
-            // Log silencioso para evitar poluição no console
-          }
-        }
-      });
+      const worker = await createWorker('por', 1);
 
       for (let i = 1; i <= totalPages; i++) {
         setStatus(`Processando Página ${i} de ${totalPages}...`);
         const page = await pdf.getPage(i);
         
-        // Renderização em alta resolução para melhor OCR
+        // Escala 2.0 para equilíbrio entre performance e precisão de OCR
         const viewport = page.getViewport({ scale: 2.0 });
         const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
+        const context = canvas.getContext('2d', { willReadFrequently: true });
         canvas.height = viewport.height;
         canvas.width = viewport.width;
 
@@ -81,18 +74,17 @@ export default function OCRToolPage() {
         const imageData = canvas.toDataURL('image/png');
 
         const { data: { text } } = await worker.recognize(imageData);
-        fullText += `--- PÁGINA ${i} ---\n${text}\n\n`;
+        fullText += `\n--- PÁGINA ${i} ---\n${text}\n`;
         
-        const currentProgress = Math.round((i / totalPages) * 100);
-        setProgress(currentProgress);
+        setProgress(Math.round((i / totalPages) * 100));
       }
 
       await worker.terminate();
-      setExtractedText(fullText);
-      toast({ title: "Transcrição Concluída", description: "O conteúdo visual foi convertido em texto." });
+      setExtractedText(fullText.toUpperCase());
+      toast({ title: "Transcrição Concluída", description: `${totalPages} páginas processadas.` });
     } catch (error: any) {
       console.error(error);
-      toast({ title: "Falha Crítica no OCR", description: "Não foi possível transcrever este arquivo. Verifique se o PDF não está protegido por senha.", variant: "destructive" });
+      toast({ title: "Falha no OCR", description: "Não foi possível transcrever este arquivo.", variant: "destructive" });
     } finally {
       setLoading(false);
       setStatus('');
@@ -102,7 +94,7 @@ export default function OCRToolPage() {
   const copyToClipboard = () => {
     if (!extractedText) return;
     navigator.clipboard.writeText(extractedText);
-    toast({ title: "Conteúdo Copiado", description: "O texto está pronto para ser colado no gabinete." });
+    toast({ title: "Copiado", description: "Texto pronto para o gabinete." });
   };
 
   const downloadTxt = () => {
@@ -111,7 +103,7 @@ export default function OCRToolPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Transcricao_Forense_${new Date().getTime()}.txt`;
+    link.download = `Transcricao_LP_${new Date().getTime()}.txt`;
     link.click();
   };
 
@@ -126,17 +118,17 @@ export default function OCRToolPage() {
                  <ScanText size={20} className="text-white" />
                </div>
              </div>
-             <h1 className="font-black text-xl uppercase tracking-tighter">Unidade de Transcrição Forense</h1>
+             <h1 className="font-black text-xl uppercase tracking-tighter">Motor de OCR Soberano</h1>
           </div>
-          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Reconhecimento Visual Soberano</Badge>
+          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Visão Neural Local</Badge>
         </header>
 
         <div className="flex-1 overflow-auto p-4 lg:p-8 max-w-5xl mx-auto w-full space-y-8 pb-20">
            <section className="bg-white border-2 border-black rounded-none p-8 lg:p-10 shadow-[10px_10px_0px_#000] space-y-6">
               <div className="space-y-2">
-                 <h2 className="text-2xl font-black uppercase tracking-tight">Conversão de Documentos Digitalizados</h2>
-                 <p className="text-black/60 font-black uppercase text-[10px] lg:text-xs tracking-widest leading-relaxed">
-                   Transforme PDFs em formato de imagem (scans, fotos ou capturas) em texto editável para geração de peças.
+                 <h2 className="text-2xl font-black uppercase tracking-tight">Transcrição de Digitalizados</h2>
+                 <p className="text-black/60 font-black uppercase text-[10px] tracking-widest leading-relaxed">
+                   Converta scans de contratos e procurações em texto editável para triagem neural instantânea.
                  </p>
               </div>
 
@@ -158,11 +150,11 @@ export default function OCRToolPage() {
                  ) : (
                    <>
                       <Upload size={48} className="text-black/20 group-hover:text-white mb-6" />
-                      <h3 className="font-black uppercase text-lg group-hover:text-white">Selecionar Scan / PDF Digitalizado</h3>
-                      <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white/40 tracking-[0.2em] mt-2">Suporte a Português com Correção Neural de Caracteres</p>
+                      <h3 className="font-black uppercase text-lg group-hover:text-white">Selecionar PDF / Scan</h3>
+                      <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white/40 tracking-[0.2em] mt-2">Privacidade Total • Processamento Local</p>
                    </>
                  )}
-                 <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+                 <input type="file" accept=".pdf,image/*" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
               </div>
            </section>
 
@@ -170,11 +162,11 @@ export default function OCRToolPage() {
              <Card className="bg-white border-2 border-black rounded-none shadow-[10px_10px_0px_#000] animate-in slide-in-from-bottom-4 duration-500">
                <CardHeader className="bg-black text-white p-4 flex flex-row items-center justify-between">
                   <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                    <FileText size={14} /> Texto Extraído Incondicionalmente
+                    <FileText size={14} /> Texto Extraído
                   </CardTitle>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="sm" onClick={copyToClipboard} className="h-8 text-[9px] font-black uppercase hover:bg-white hover:text-black rounded-none border border-white/20">
-                      <Copy size={12} className="mr-2" /> Copiar para Gabinete
+                      <Copy size={12} className="mr-2" /> Copiar Tudo
                     </Button>
                     <Button variant="ghost" size="sm" onClick={downloadTxt} className="h-8 text-[9px] font-black uppercase hover:bg-white hover:text-black rounded-none border border-white/20">
                       <Download size={12} className="mr-2" /> Salvar .TXT
@@ -195,28 +187,26 @@ export default function OCRToolPage() {
               <div className="bg-white border-2 border-black p-6 rounded-none space-y-4 shadow-[4px_4px_0px_#00D1FF]">
                  <div className="flex items-center gap-3 text-black">
                     <Zap size={20} />
-                    <h4 className="font-black uppercase text-xs">Instrução de Performance</h4>
+                    <h4 className="font-black uppercase text-xs">Instrução Técnica</h4>
                  </div>
                  <p className="text-[10px] font-bold uppercase text-black/60 leading-relaxed tracking-wider">
-                   O processamento ocorre integralmente no seu navegador para garantir o sigilo absoluto dos dados da GET Assessoria. Para arquivos de mais de 20 páginas, considere o Motor Local Python.
+                   Para máxima fidelidade, utilize PDFs com resolução de 300 DPI. O reconhecimento é otimizado para o idioma português.
                  </p>
               </div>
               <div className="bg-white border-2 border-black p-6 rounded-none space-y-4 shadow-[4px_4px_0px_#22c55e]">
                  <div className="flex items-center gap-3 text-black">
                     <BookOpen size={20} />
-                    <h4 className="font-black uppercase text-xs">Protocolo de Uso</h4>
+                    <h4 className="font-black uppercase text-xs">Aviso de Sigilo</h4>
                  </div>
                  <p className="text-[10px] font-bold uppercase text-black/60 leading-relaxed tracking-wider">
-                   Após a transcrição, utilize o botão "Copiar" e cole o conteúdo na aba "Transcrição Livre" dos geradores de documentos para que a IA realize a triagem final soberana.
+                   Nenhum dado sai do seu computador durante a transcrição visual. A tecnologia Tesseract.js opera integralmente na memória local.
                  </p>
               </div>
            </div>
         </div>
 
         <footer className="h-10 border-t border-[#dddbda] bg-white flex items-center justify-center gap-6 text-[10px] text-black/60 font-black uppercase tracking-[0.2em] shrink-0 hover:bg-black hover:text-white transition-all cursor-default">
-          <div className="flex items-center gap-2">
-            <Copyright size={10} /> 2026 W1 Capital.
-          </div>
+          <div className="flex items-center gap-2"><Copyright size={10} /> 2026 W1 Capital.</div>
           <span className="uppercase font-black">Transcrição Soberana • DAVI ALVES FIGUEREDO</span>
         </footer>
       </main>

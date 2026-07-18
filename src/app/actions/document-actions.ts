@@ -5,11 +5,11 @@
 'use server';
 
 import React from 'react';
-import { documentFlow } from '@/ai/flows/document-flow';
+import { extrairDadosProcuracao } from '@/ai/flows/document-flow';
 
 /**
- * Motor de Selagem Digital v16000.0
- * Protocolo Soberano GET Assessoria.
+ * Motor de Selagem Digital v800.0
+ * Processa e converte documentos jurídicos em buffers PDF via @react-pdf/renderer.
  */
 
 async function getRenderToBuffer() {
@@ -73,21 +73,19 @@ export async function extrairTextoDoPDFAction(formData: FormData) {
     const buffer = Buffer.from(arrayBuffer);
     const pdf = (await import('pdf-parse')).default;
     const data = await pdf(buffer);
-    
-    // Protocolo Soberano: Não bloqueamos se o texto for curto.
-    // Enviamos o que houver para o motor neural processar via visão/OCR simulado.
-    return { success: true, text: data.text || "" };
+    return { success: true, text: data.text };
   } catch (e: any) {
     console.error("PDF Extraction Fail:", e);
     return { error: "Falha na transcrição forense do arquivo." };
   }
 }
 
-export async function extrairDadosProcuracaoAction(inputText: string, lawyer: string, state: string, htmlContent?: string) {
+export async function extrairDadosProcuracaoAction(inputText: string, lawyer: string, state: string) {
   try {
-    const res = await documentFlow({ 
+    const res = await extrairDadosProcuracao({ 
       text: inputText, 
-      html: htmlContent
+      preferredLawyer: lawyer, 
+      preferredState: state 
     });
     
     if (!res) {

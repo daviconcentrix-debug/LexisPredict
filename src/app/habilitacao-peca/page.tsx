@@ -1,4 +1,3 @@
-
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved.
@@ -8,6 +7,7 @@
 import React, { useState, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
+  FileText, 
   Zap, 
   Loader2, 
   Edit3, 
@@ -20,10 +20,10 @@ import {
   User, 
   Eye,
   MapPin,
+  Briefcase,
+  Users,
   Fingerprint,
-  Calendar,
-  AlertTriangle,
-  ScanText
+  Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -41,9 +41,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { extrairTextoDoPDFAction, generateHabilitacaoPecaPDFAction } from '@/app/actions/document-actions';
-import { extrairDadosSoberanosAction } from '@/app/actions/transcription-actions';
-import Link from 'next/link';
+import { extrairTextoDoPDFAction, extrairDadosProcuracaoAction, generateHabilitacaoPecaPDFAction } from '@/app/actions/document-actions';
 
 const BANCA_DATA: Record<string, any> = {
   "DIEGO GOMES DIAS": {
@@ -78,12 +76,12 @@ const ADVOGADOS_LIST = Object.keys(BANCA_DATA);
 export default function HabilitacaoPecaGenerator() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [fileLoading, setFileLoading] = useState(false);
   const [inputText, setInputText] = useState('');
   const [selectedLawyer, setSelectedLawyer] = useState('');
   const [selectedState, setSelectedState] = useState('SP');
   const [extractedData, setExtractedData] = useState<any>(null);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [isScanDetected, setIsScanDetected] = useState(false);
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,32 +89,26 @@ export default function HabilitacaoPecaGenerator() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setLoading(true);
-    setIsScanDetected(false);
+    setFileLoading(true);
     const formData = new FormData();
     formData.append('pdf', file);
     try {
       const res = await extrairTextoDoPDFAction(formData);
       if (res.success) {
-        if (!res.text || res.text.trim().length < 10) {
-          setIsScanDetected(true);
-          toast({ title: "Arquivo de Imagem", description: "O PDF não contém texto selecionável.", variant: "destructive" });
-        } else {
-          setInputText(res.text || '');
-          toast({ title: "Documento Lido", description: "Texto pronto para triagem neural." });
-        }
+        setInputText(res.text || '');
+        toast({ title: "Documento Transcrevido", description: "Texto pronto para triagem." });
       } else {
         toast({ title: "Falha na Leitura", description: res.error, variant: "destructive" });
       }
     } catch (err) {
       toast({ title: "Erro de Conexão", variant: "destructive" });
     } finally {
-      setLoading(false);
+      setFileLoading(false);
     }
   };
 
   const handleExtract = async () => {
-    if (!inputText || inputText.length < 5) {
+    if (!inputText || inputText.length < 50) {
       toast({ title: "Dados Insuficientes", description: "Insira o texto para triagem.", variant: "destructive" });
       return;
     }
@@ -128,47 +120,40 @@ export default function HabilitacaoPecaGenerator() {
     setLoading(true);
     setApiError(null);
     try {
-      const res = await extrairDadosSoberanosAction(inputText);
+      const res = await extrairDadosProcuracaoAction(inputText, selectedLawyer, selectedState);
       if (res.success) {
-        if (res.erro) {
-           setApiError(res.erro);
-           toast({ title: "Erro de Triagem", description: res.erro, variant: "destructive" });
-        } else {
-           const lawyerInfo = BANCA_DATA[selectedLawyer];
-           const rawOAB = lawyerInfo.oabs[selectedState] || lawyerInfo.oabs['SP'] || Object.values(lawyerInfo.oabs)[0];
-           const oabNum = String(rawOAB).split('/')[0];
+        const data = res as any;
+        const lawyerInfo = BANCA_DATA[selectedLawyer];
+        const rawOAB = lawyerInfo.oabs[selectedState] || lawyerInfo.oabs['SP'] || Object.values(lawyerInfo.oabs)[0];
+        const oabNum = String(rawOAB).split('/')[0];
 
-           setExtractedData({
-             vara: "02ª VARA CÍVEL",
-             comarca: `${selectedState === 'SP' ? 'SÃO PAULO' : 'COMARCA LOCAL'} - ${selectedState}`,
-             numeroProcesso: "S/N",
-             cliente: {
-               nome: res.outorgante.nome,
-               nacionalidade: res.outorgante.nacionalidade || "brasileiro(a)",
-               estadoCivil: res.outorgante.estado_civil || "casado(a)",
-               profissao: res.outorgante.profissao || "autônomo(a)",
-               rg: res.outorgante.rg,
-               cpf: res.outorgante.cpf,
-               endereco: res.outorgante.endereco,
-               email: res.outorgante.email
-             },
-             advogado: {
-               nome: selectedLawyer.toUpperCase(),
-               oab: oabNum,
-               endereco: lawyerInfo.endereco,
-               email: lawyerInfo.email,
-               cep: "03870-100"
-             },
-             tipoAcao: res.poderes_especificos,
-             reuNome: "INSTITUIÇÃO FINANCEIRA",
-             reuCnpj: "",
-             cidadeEmissao: res.cidade || "São Paulo",
-             dataFormatada: `${res.cidade || "São Paulo"}, ${new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}`,
-             selectedState
-           });
-           setStep(2);
-           toast({ title: "Triagem Neural GET Concluída" });
-        }
+        setExtractedData({
+          vara: "02ª VARA CÍVEL",
+          comarca: `${selectedState === 'SP' ? 'SÃO PAULO' : 'COMARCA LOCAL'} - ${selectedState}`,
+          numeroProcesso: data.processos?.[0]?.numero || "S/N",
+          cliente: {
+            ...data.cliente,
+            nacionalidade: data.cliente.nacionalidade || "brasileiro(a)",
+            estadoCivil: data.cliente.estadoCivil || "casado(a)",
+            profissao: data.cliente.profissao || "autônomo(a)",
+            endereco: data.cliente.endereco || "NÃO LOCALIZADO"
+          },
+          advogado: {
+            nome: selectedLawyer.toUpperCase(),
+            oab: oabNum,
+            endereco: lawyerInfo.endereco,
+            email: lawyerInfo.email,
+            cep: "03870-100"
+          },
+          tipoAcao: data.processos?.[0]?.acao || "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA",
+          reuNome: data.processos?.[0]?.banco || "INSTITUIÇÃO FINANCEIRA",
+          reuCnpj: data.processos?.[0]?.cnpjBanco || "",
+          cidadeEmissao: selectedState === 'SP' ? 'SÃO PAULO' : 'COMARCA LOCAL',
+          dataFormatada: new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }),
+          selectedState
+        });
+        setStep(2);
+        toast({ title: "Triagem Neural Concluída" });
       } else {
         setApiError(res.error || "Falha na triagem neural.");
       }
@@ -185,9 +170,17 @@ export default function HabilitacaoPecaGenerator() {
     try {
       const res = await generateHabilitacaoPecaPDFAction(extractedData);
       if (res.success && res.base64) {
+        const byteCharacters = atob(res.base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = `data:application/pdf;base64,${res.base64}`;
-        link.download = `Habilitacao_${extractedData.cliente.nome.replace(/\s/g, '_')}.pdf`;
+        link.href = url;
+        link.download = `Habilitacao_${extractedData.cliente.nome}.pdf`;
         link.click();
         toast({ title: "Documento Selado" });
       } else {
@@ -218,26 +211,19 @@ export default function HabilitacaoPecaGenerator() {
                 <Shield size={20} className="text-white" />
               </div>
             </div>
-            <h1 className="font-black text-xl text-black uppercase tracking-tighter">Habilitação + Procuração Soberana</h1>
+            <h1 className="font-black text-xl text-black uppercase tracking-tighter">Habilitação + Procuração Elite</h1>
           </div>
-          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Protocolo GET v27.0</Badge>
+          <Badge variant="outline" className="border-black border-2 text-black font-black uppercase text-[10px]">Vantagem Operacional</Badge>
         </header>
 
         <div className="flex-1 overflow-auto p-4 lg:p-8 max-w-7xl mx-auto w-full">
           {step === 1 && (
             <div className="space-y-8 animate-in fade-in duration-500">
-              {isScanDetected && (
-                <Alert className="border-2 border-red-600 bg-red-50 rounded-none shadow-[4px_4px_0px_#000]">
-                  <AlertCircle className="h-5 w-5 text-red-600" />
-                  <div className="ml-4">
-                    <AlertTitle className="font-black uppercase text-xs text-red-600">Documento de Imagem Detectado</AlertTitle>
-                    <AlertDescription className="text-[10px] font-bold uppercase text-red-800/80 leading-relaxed mt-1">
-                      O arquivo enviado não possui texto selecionável. Utilize o Motor de OCR para converter o documento.
-                      <Button asChild variant="link" className="h-auto p-0 text-red-600 font-black uppercase text-[10px] ml-2 underline">
-                        <Link href="/tools/ocr">Abrir Unidade OCR <ScanText size={12} className="ml-1" /></Link>
-                      </Button>
-                    </AlertDescription>
-                  </div>
+              {apiError && (
+                <Alert variant="destructive" className="border-2 border-red-600 rounded-none shadow-[8px_8px_0px_#000]">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle className="font-black uppercase text-xs">Erro de Triagem</AlertTitle>
+                  <AlertDescription className="text-[10px] font-bold uppercase">{apiError}</AlertDescription>
                 </Alert>
               )}
 
@@ -277,16 +263,16 @@ export default function HabilitacaoPecaGenerator() {
 
                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                     <CardContent className="p-6 space-y-4">
-                      <Label className="uppercase text-[10px] font-black">2. Conteúdo do PDF ou Texto</Label>
+                      <Label className="uppercase text-[10px] font-black">2. Texto do Contrato ou Procuração</Label>
                       <Textarea 
-                        placeholder="COLE QUALQUER CONTRATO OU DOCUMENTO PARA EXTRAÇÃO INTEGRAL..."
+                        placeholder="COLE O TEXTO DO DOCUMENTO PARA TRIAGEM AUTOMÁTICA..."
                         className="min-h-[300px] border-2 border-black font-black uppercase text-[11px] rounded-none bg-white"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
                       />
                       <Button onClick={handleExtract} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
                         {loading ? <Loader2 className="animate-spin mr-2" /> : <Zap size={16} className="mr-2" />}
-                        Iniciar Extração Soberana
+                        Extrair & Iniciar Gabinete
                       </Button>
                     </CardContent>
                   </Card>
@@ -295,12 +281,12 @@ export default function HabilitacaoPecaGenerator() {
                 <div className="space-y-6">
                   <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                     <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
-                      <CardTitle className="text-[10px] font-black uppercase flex items-center gap-2"><Upload size={14} /> Leitura PDF Livre</CardTitle>
+                      <CardTitle className="text-[10px] font-black uppercase flex items-center gap-2"><Upload size={14} /> Leitura PDF</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
                       <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all">
-                        {loading ? <Loader2 className="animate-spin text-black" size={32} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
-                        <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Arraste qualquer PDF</p>
+                        {fileLoading ? <Loader2 className="animate-spin text-black" size={32} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
+                        <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Arraste o PDF aqui</p>
                         <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                       </div>
                     </CardContent>
@@ -315,7 +301,7 @@ export default function HabilitacaoPecaGenerator() {
               <div className="flex items-center justify-between border-b-2 border-black pb-4">
                 <div className="flex items-center gap-3">
                   <Edit3 size={20} />
-                  <h2 className="text-xl font-black uppercase tracking-tight">Revisão Soberana</h2>
+                  <h2 className="text-xl font-black uppercase tracking-tight">Revisão Forense Combinada</h2>
                 </div>
                 <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-black rounded-none">Voltar</Button>
               </div>
@@ -330,10 +316,18 @@ export default function HabilitacaoPecaGenerator() {
                       <Label className="text-[9px] font-black uppercase">Nome Completo</Label>
                       <Input value={extractedData.cliente.nome} onChange={(e) => updateClientField('nome', e.target.value)} className="border-black font-black uppercase rounded-none" />
                     </div>
-                    <div className="grid gap-1">
-                      <Label className="text-[9px] font-black uppercase flex items-center gap-1.5 text-primary"><MapPin size={10} /> Endereço Residencial</Label>
-                      <Input value={extractedData.cliente.endereco} onChange={(e) => updateClientField('endereco', e.target.value)} className="border-black font-black uppercase rounded-none" />
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-1">
+                        <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Users size={10} /> Estado Civil</Label>
+                        <Input value={extractedData.cliente.estadoCivil} onChange={(e) => updateClientField('estadoCivil', e.target.value)} className="border-black font-black uppercase rounded-none" />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Briefcase size={10} /> Profissão</Label>
+                        <Input value={extractedData.cliente.profissao} onChange={(e) => updateClientField('profissao', e.target.value)} className="border-black font-black uppercase rounded-none" />
+                      </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-1">
                         <Label className="text-[9px] font-black uppercase">CPF</Label>
@@ -343,6 +337,10 @@ export default function HabilitacaoPecaGenerator() {
                         <Label className="text-[9px] font-black uppercase">RG</Label>
                         <Input value={extractedData.cliente.rg} onChange={(e) => updateClientField('rg', e.target.value)} className="border-black font-black rounded-none" />
                       </div>
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-[9px] font-black uppercase flex items-center gap-1.5 text-primary"><MapPin size={10} /> Endereço Residencial</Label>
+                      <Input value={extractedData.cliente.endereco} onChange={(e) => updateClientField('endereco', e.target.value)} className="border-black font-black uppercase rounded-none" />
                     </div>
                   </CardContent>
                 </Card>
@@ -367,9 +365,13 @@ export default function HabilitacaoPecaGenerator() {
                             <Input value={extractedData.numeroProcesso} onChange={(e) => setExtractedData({...extractedData, numeroProcesso: e.target.value})} className="border-black font-black uppercase rounded-none font-mono" />
                           </div>
                           <div className="grid gap-1">
-                             <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Calendar size={10} /> Data por Extenso</Label>
-                             <Input value={extractedData.dataFormatada} onChange={(e) => setExtractedData({...extractedData, dataFormatada: e.target.value})} className="border-black font-black uppercase rounded-none" />
+                             <Label className="text-[9px] font-black uppercase">Vara Cível</Label>
+                             <Input value={extractedData.vara} onChange={(e) => setExtractedData({...extractedData, vara: e.target.value})} className="border-black font-black uppercase rounded-none" />
                           </div>
+                       </div>
+                       <div className="grid gap-1">
+                         <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Calendar size={10} /> Data por Extenso</Label>
+                         <Input value={extractedData.dataFormatada} onChange={(e) => setExtractedData({...extractedData, dataFormatada: e.target.value})} className="border-black font-black uppercase rounded-none" />
                        </div>
                     </CardContent>
                   </Card>
@@ -379,29 +381,58 @@ export default function HabilitacaoPecaGenerator() {
               {/* PREVISÃO VISUAL DO DOCUMENTO */}
               <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] overflow-hidden">
                 <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3 flex flex-row items-center justify-between">
-                  <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Eye size={14} /> Visualização</CardTitle>
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-[8px] font-black uppercase">Draft</Badge>
+                  <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Eye size={14} /> Visualização do Documento</CardTitle>
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-[8px] font-black uppercase">Preview</Badge>
                 </CardHeader>
-                <CardContent className="p-12 text-black font-serif text-[12pt] leading-relaxed bg-white space-y-10">
-                  <p className="font-bold uppercase">
-                    EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA {extractedData.vara.toUpperCase()} DA COMARCA DE {extractedData.comarca.toUpperCase()}.
-                  </p>
-                  <p className="text-right font-bold">Processo nº {extractedData.numeroProcesso}</p>
-                  <p className="text-justify indent-12">
-                    <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, brasileiro(a), {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador do RG número {extractedData.cliente.rg} e inscrito no CPF sob o nº {extractedData.cliente.cpf}, residente e domiciliado na {extractedData.cliente.endereco}, vem apresentar seu pedido de habilitação.
-                  </p>
-                  <p className="text-center pt-10">{extractedData.dataFormatada}.</p>
-                  <div className="flex flex-col items-center pt-10">
-                    <div className="w-64 border-t border-black mb-2" />
-                    <p className="font-bold uppercase">{extractedData.advogado.nome}</p>
-                    <p className="font-bold">OAB/{extractedData.selectedState} Nº {extractedData.advogado.oab}</p>
+                <CardContent className="p-12 text-black font-serif text-[12pt] leading-relaxed bg-white space-y-20">
+                  <div className="space-y-10">
+                    <p className="font-bold uppercase leading-tight">
+                      EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA {extractedData.vara.toUpperCase()} DA COMARCA DE {extractedData.comarca.toUpperCase()}.
+                    </p>
+                    <p className="text-right font-bold">Processo nº {extractedData.numeroProcesso}</p>
+                    <p className="text-justify indent-12">
+                      <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, brasileiro(a), {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador da cédula de identidade RG número {extractedData.cliente.rg} e inscrito no CPF/MF sob o nº {extractedData.cliente.cpf}, residente e domiciliado na {extractedData.cliente.endereco}, vem, respeitosamente, à presença de Vossa Excelência, por seu procurador, ora constituído, apresentar seu pedido de habilitação e requerer a juntada do anexo instrumento particular de mandato.
+                    </p>
+                    <p className="text-justify indent-12">
+                      Inicialmente, requer-se que as intimações sejam feitas em nome do procurador <strong>Dr. {extractedData.advogado.nome.toUpperCase()}</strong>, inscrito na <strong>OAB/{extractedData.selectedState} {extractedData.advogado.oab}</strong>, com escritório profissional na {extractedData.advogado.endereco}, CEP {extractedData.advogado.cep}, e-mail: {extractedData.advogado.email}, requerendo que seja feita as respectivas anotações que se fizerem necessárias.
+                    </p>
+                    <div className="text-center space-y-2">
+                      <p>Nestes Termos</p>
+                      <p>Pede Deferimento.</p>
+                      <p className="pt-4">{extractedData.cidadeEmissao}, {extractedData.dataFormatada}.</p>
+                    </div>
+                    <div className="flex flex-col items-center pt-10">
+                      <div className="w-64 border-t border-black mb-2" />
+                      <p className="font-bold uppercase">{extractedData.advogado.nome}</p>
+                      <p className="font-bold">OAB/{extractedData.selectedState} Nº {extractedData.advogado.oab}</p>
+                    </div>
+                  </div>
+
+                  <hr className="border-t-2 border-dashed border-black/20" />
+
+                  <div className="space-y-10">
+                    <h1 className="text-center font-bold text-lg uppercase tracking-widest">PROCURAÇÃO "AD JUDICIA"</h1>
+                    <p className="text-justify indent-12">
+                      <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, {extractedData.cliente.nacionalidade || "brasileiro(a)"}, {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador do RG sob Nº {extractedData.cliente.rg} e devidamente inscrito no CPF sob Nº {extractedData.cliente.cpf}, residente e domiciliado à {extractedData.cliente.endereco}, com endereço eletrônico: {extractedData.cliente.email || 'Não informado'}, neste ato nomeia como seu procurador:
+                    </p>
+                    <p className="text-justify indent-12">
+                      <strong>{extractedData.advogado.nome.toUpperCase()}</strong>, brasileiro, advogado, inscrito na OAB/{extractedData.selectedState} sob o número {extractedData.advogado.oab}, com endereço profissional na {extractedData.advogado.endereco}, CEP {extractedData.advogado.cep}, e endereço eletrônico: {extractedData.advogado.email}.
+                    </p>
+                    <p className="text-justify indent-12">
+                      <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <strong>"AD JUDICIA"</strong>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <strong>{extractedData.tipoAcao.toUpperCase()}</strong> promovida contra o <strong>{extractedData.reuNome.toUpperCase()}</strong>, processo nº {extractedData.numeroProcesso}.
+                    </p>
+                    <p className="text-center pt-10">{extractedData.cidadeEmissao}, {extractedData.dataFormatada}.</p>
+                    <div className="flex flex-col items-center pt-10">
+                      <div className="w-64 border-t border-black mb-2" />
+                      <p className="font-bold uppercase">{extractedData.cliente.nome}</p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Button onClick={handleSeal} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
                 {loading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
-                Selar & Exportar Habilitação GET
+                Selar & Exportar Habilitação Completa
               </Button>
             </div>
           )}

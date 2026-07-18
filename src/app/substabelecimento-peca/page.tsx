@@ -1,4 +1,3 @@
-
 "use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
@@ -38,8 +37,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { extrairTextoDoPDFAction, generatePecaSubstabelecimentoPDFAction } from '@/app/actions/document-actions';
-import { extrairDadosSoberanosAction } from '@/app/actions/transcription-actions';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { extrairTextoDoPDFAction, extrairDadosProcuracaoAction, generatePecaSubstabelecimentoPDFAction } from '@/app/actions/document-actions';
 
 const BANCA_DATA: Record<string, any> = {
   "DIEGO GOMES DIAS": {
@@ -134,7 +133,7 @@ export default function SubstabelecimentoGenerator() {
   };
 
   const handleExtract = async () => {
-    if (!inputText || inputText.length < 10) {
+    if (!inputText || inputText.length < 50) {
       toast({ title: "Dados Insuficientes", description: "Insira o texto para triagem.", variant: "destructive" });
       return;
     }
@@ -146,7 +145,7 @@ export default function SubstabelecimentoGenerator() {
     setLoading(true);
     setApiError(null);
     try {
-      const res = await extrairDadosSoberanosAction(inputText);
+      const res = await extrairDadosProcuracaoAction(inputText, advEntering, selectedState);
       if (res.success) {
         const leavingInfo = BANCA_DATA[advLeaving];
         const enteringInfo = BANCA_DATA[advEntering];
@@ -167,9 +166,9 @@ export default function SubstabelecimentoGenerator() {
           advogadoSubstabelecido: advEntering,
           oabSubstabelecido: `OAB/${selectedState} sob o n.º ${oabEnteringNum}`,
           oabSubstabelecidoCurta: `OAB/${selectedState} ${oabEnteringNum}`,
-          clienteNome: res.outorgante.nome || "NOME DO CLIENTE",
-          tipoAcao: res.poderes_especificos || "AÇÃO REVISIONAL DE CONTRATO BANCÁRIO",
-          numeroProcesso: "S/N",
+          clienteNome: (res as any).cliente?.nome || "NOME DO CLIENTE",
+          tipoAcao: (res as any).processos?.[0]?.acao || "AÇÃO REVISIONAL DE CONTRATO BANCÁRIO",
+          numeroProcesso: (res as any).processos?.[0]?.numero || "S/N",
           cidadeComarca: selectedState === 'SP' ? 'São Paulo' : 'Comarca Local',
           dataFormatada: new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }),
           selectedState
@@ -399,7 +398,7 @@ export default function SubstabelecimentoGenerator() {
                   <p className="text-center font-bold text-md mb-16">(sem reserva de poderes)</p>
 
                   <p className="text-justify mb-16 indent-12">
-                    O <strong>{extractedData.advogadoSubstabelecente.toUpperCase()}</strong>, brasileiro, {extractedData.estadoCivilSubstabelecente}, advogado, inscrito na <strong>{extractedData.oabSubstabelecente}</strong>, <strong>SUBSTABELECE SEM RESERVA DE PODERES</strong> na pessoa do <strong>{extractedData.advogadoSubstabelecido.toUpperCase()}</strong>, inscrito na <strong>{extractedData.oabSubstabelecido}</strong>, os poderes conferidos por <strong>{extractedData.clienteNome.toUpperCase()}</strong>, <strong>PARA A PROMOÇÃO DE {extractedData.tipoAcao.toUpperCase()}</strong>, processo de n.º <strong>{extractedData.numeroProcesso}</strong> por meio do instrumento outrora outorgado, requerendo a exclusão do advogado substabelecente <strong>{extractedData.advogadoSubstabelecente.toUpperCase()}</strong> sob <strong>{extractedData.oabSubstabelecenteCurta}</strong> da contracapa dos autos, bem como de qualquer outro meio de intimação do processo, sendo assim que <strong>todas as futuras intimações passem a ser exclusivamente dirigidas ao substabelecido</strong>, <strong>{extractedData.advogadoSubstabelecido.toUpperCase()}</strong> sob <strong>{extractedData.oabSubstabelecidoCurta}</strong>, nos termos do artigo 272, §5º, do CPC, sob pena de nulidade.
+                    O <strong>{extractedData.advogadoSubstabelecente.toUpperCase()}</strong>, brasileiro, {extractedData.estadoCivilSubstabelecente}, advogado, inscrito na <strong>{extractedData.oabSubstabelecente}</strong>, <strong>SUBSTABELECE SEM RESERVA DE PODERES</strong> na pessoa do <strong>{extractedData.advogadoSubstabelecido.toUpperCase()}</strong>, inscrito na <strong>{extractedData.oabSubstabelecido}</strong>, os poderes conferidos por <strong>{extractedData.clienteNome.toUpperCase()}</strong>, <strong>PARA A PROMOÇÃO DE {extractedData.tipoAcao.toUpperCase()}</strong>, processo de n.º <strong>{extractedData.numeroProcesso}</strong> por meio do instrumento outrora outorgado, requerendo a exclusão do advogado substabelecente <strong>{extractedData.advogadoSubstabelecente.toUpperCase()}</strong> sob <strong>{extractedData.oabSubstabelecenteCurta}</strong> da contracapa dos autos, bem como de qualquer outro meio de intimação do processo, sendo assim que <strong>todas as futuras intimações passsem a ser exclusivamente dirigidas ao substabelecido</strong>, <strong>{extractedData.advogadoSubstabelecido.toUpperCase()}</strong> sob <strong>{extractedData.oabSubstabelecidoCurta}</strong>, nos termos do artigo 272, §5º, do CPC, sob pena de nulidade.
                   </p>
 
                   <div className="text-center mb-24 mt-16">
