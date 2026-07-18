@@ -1,11 +1,11 @@
 
 /**
- * @fileOverview MOTOR DE ENGENHARIA CROMÁTICA v190000.0 ELITE
+ * @fileOverview MOTOR DE ENGENHARIA CROMÁTICA v200.0 ELITE
  * Gerenciamento de Variáveis de Hardware e Presets Authority Series.
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  */
 
-import { getIdealTextColor, getIdealMutedTextColor, getContrastRatio, getLuminance } from './utils';
+import { getIdealTextColor, getIdealMutedTextColor, getContrastRatio } from './utils';
 
 export type ThemeColors = {
   background: string;
@@ -40,7 +40,7 @@ export const AUTHORITY_PRESETS: ThemePreset[] = [
     }
   },
   {
-    id: 'executive-gold',
+    id: 'executive-elite',
     name: 'Executive Elite',
     radius: 0,
     colors: {
@@ -54,7 +54,7 @@ export const AUTHORITY_PRESETS: ThemePreset[] = [
     }
   },
   {
-    id: 'obsidian-prestige',
+    id: 'obsidian-deep',
     name: 'Obsidian Deep',
     radius: 2,
     colors: {
@@ -68,7 +68,7 @@ export const AUTHORITY_PRESETS: ThemePreset[] = [
     }
   },
   {
-    id: 'cobalt-commander',
+    id: 'cobalt-night',
     name: 'Cobalt Night',
     radius: 4,
     colors: {
@@ -82,7 +82,7 @@ export const AUTHORITY_PRESETS: ThemePreset[] = [
     }
   },
   {
-    id: 'emerald-empire',
+    id: 'emerald-court',
     name: 'Emerald Court',
     radius: 0,
     colors: {
@@ -93,6 +93,20 @@ export const AUTHORITY_PRESETS: ThemePreset[] = [
       primary: '#10B981',
       accent: '#065F46',
       border: '#059669'
+    }
+  },
+  {
+    id: 'white-prestige',
+    name: 'White Prestige',
+    radius: 8,
+    colors: {
+      background: '#F3F2F2',
+      bgSecondary: '#FFFFFF',
+      foreground: '#000000',
+      fontMuted: '#4B5563',
+      primary: '#000000',
+      accent: '#E5E7EB',
+      border: '#000000'
     }
   }
 ];

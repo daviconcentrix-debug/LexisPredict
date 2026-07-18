@@ -25,6 +25,8 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+        
+        {/* BOOTSTRAP DE HARDWARE VISUAL (Anti-Flicker) */}
         <Script id="theme-loader" strategy="beforeInteractive">
           {`
             (function() {
@@ -81,12 +83,8 @@ export default function RootLayout({
                 const glassBlur = localStorage.getItem('lexisPredict_glass_blur') || '8';
 
                 const lum = getLuminance(bg);
-                
-                // Protocolo de Contraste Dinâmico AAA
                 let font = fontSaved || (lum > 0.45 ? '#000000' : '#FFFFFF');
-                if (getContrast(bg, font) < 3.0) {
-                  font = lum > 0.45 ? '#000000' : '#FFFFFF';
-                }
+                if (getContrast(bg, font) < 3.0) font = lum > 0.45 ? '#000000' : '#FFFFFF';
 
                 const fontMuted = lum > 0.45 ? '#4B5563' : '#9CA3AF';
                 const border = borderSaved || (lum > 0.45 ? '#E5E7EB' : '#1F2937');
@@ -119,7 +117,9 @@ export default function RootLayout({
                 if (wallpaper) {
                   root.style.backgroundImage = 'url(' + wallpaper + ')';
                   root.style.backgroundSize = 'cover';
+                  root.style.backgroundPosition = 'center';
                   root.style.backgroundAttachment = 'fixed';
+                  root.style.backgroundRepeat = 'no-repeat';
                 }
               } catch (e) {}
             })()

@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved.
@@ -21,7 +22,8 @@ import {
   LayoutDashboard,
   Target,
   ArrowRight,
-  History
+  History,
+  Activity
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -83,8 +85,6 @@ export default function Dashboard() {
       if (Array.isArray(caseData)) {
         setCases(caseData);
       }
-    } catch (error) {
-      console.log('SYNC_FAIL');
     } finally {
       setLoading(false);
     }
@@ -154,7 +154,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 pb-10">
             <div className="xl:col-span-8 space-y-8">
                {/* NEURAL BRIEFING */}
-               <section className="premium-card p-8 relative overflow-hidden group">
+               <section className="premium-card p-8 relative overflow-hidden group bg-white">
                   <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:scale-110 transition-transform pointer-events-none">
                     <Sparkles size={140} />
                   </div>
@@ -165,10 +165,10 @@ export default function Dashboard() {
                        </div>
                        <div>
                          <h3 className="font-black text-lg uppercase tracking-tight leading-none">Briefing Neural Diário</h3>
-                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">Inteligência Operacional • Grok 4.5</p>
+                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">Inteligência Operacional • Unidade Neural</p>
                        </div>
                     </div>
-                    <Badge variant="outline" className="bg-secondary/50 border-none text-[10px] font-black uppercase px-3 py-1.5 rounded-full">Status: Em Sincronia</Badge>
+                    <Badge variant="outline" className="bg-secondary/50 border-none text-[10px] font-black uppercase px-3 py-1.5 rounded-full">Status: Sincronizado</Badge>
                   </div>
 
                   {iaInsights ? (
@@ -184,7 +184,7 @@ export default function Dashboard() {
                           </ul>
                        </div>
                        <div className="space-y-6">
-                          <p className="text-[10px] font-black text-red-600 uppercase flex items-center gap-2 tracking-widest bg-red-50 w-fit px-3 py-1 rounded-full"><TrendingDown size={14}/> Riscos Operacionais</p>
+                          <p className="text-[10px] font-black text-red-600 uppercase flex items-center gap-2 tracking-widest bg-red-50 w-fit px-3 py-1 rounded-full"><TrendingDown size={14}/> Riscos Detectados</p>
                           <ul className="space-y-4">
                             {iaInsights.riscosDetectados?.slice(0, 4).map((item: string, idx: number) => (
                               <li key={idx} className="text-[12px] font-bold leading-relaxed text-foreground/80 uppercase flex gap-4">
@@ -195,10 +195,10 @@ export default function Dashboard() {
                        </div>
                     </div>
                   ) : (
-                    <div className="py-16 flex flex-col items-center justify-center text-center space-y-6 border-2 border-dashed border-border/20 rounded-2xl">
+                    <div className="py-16 flex flex-col items-center justify-center text-center space-y-6 border-2 border-dashed border-border/20 rounded-2xl bg-gray-50/50">
                        <Sparkles size={40} className="text-muted-foreground/20" />
                        <div className="space-y-1">
-                          <p className="text-xs font-black uppercase text-muted-foreground tracking-widest">Nenhuma auditoria processada para este ciclo.</p>
+                          <p className="text-xs font-black uppercase text-muted-foreground tracking-widest">Nenhuma auditoria processada.</p>
                           <p className="text-[10px] font-bold text-muted-foreground/60 uppercase">Realize triagem em Evidências para gerar o briefing.</p>
                        </div>
                        <Button variant="link" asChild className="text-[11px] font-black uppercase underline p-0 h-auto text-primary">
@@ -209,7 +209,7 @@ export default function Dashboard() {
                </section>
 
                {/* PRIORITY QUEUE */}
-               <section className="premium-card overflow-hidden">
+               <section className="premium-card overflow-hidden bg-white">
                   <div className="px-8 py-6 border-b border-border/30 flex items-center justify-between bg-secondary/10">
                      <div className="flex items-center gap-3">
                        <Target size={18} className="text-red-500" />
@@ -222,8 +222,8 @@ export default function Dashboard() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead className="bg-white border-b border-border/30">
-                        <tr className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">
-                          <th className="px-8 py-4">Foro / Tribunal</th>
+                        <tr className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
+                          <th className="px-8 py-4">Tribunal</th>
                           <th className="px-8 py-4">Titular</th>
                           <th className="px-8 py-4">Deadline</th>
                           <th className="px-8 py-4 text-right">Status</th>
@@ -233,7 +233,7 @@ export default function Dashboard() {
                         {cases
                           .filter(c => ['Vencido', 'É Hoje', 'Atenção'].includes(c.status) && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase()))
                           .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
-                          .slice(0, 10)
+                          .slice(0, 8)
                           .map((c) => (
                             <tr key={c.id} className="hover:bg-secondary/20 transition-colors group">
                               <td className="px-8 py-5">
@@ -271,10 +271,10 @@ export default function Dashboard() {
 
             <div className="xl:col-span-4 space-y-8">
                {/* RISK INDEX */}
-               <section className="premium-card p-8 space-y-8">
+               <section className="premium-card p-8 space-y-8 bg-white">
                   <div className="flex justify-between items-end">
                      <div className="space-y-1">
-                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Risk Index</p>
+                       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Global Risk Index</p>
                        <h4 className="text-5xl font-black tracking-tighter leading-none">{metrics.riskScore}%</h4>
                      </div>
                      <div className={cn(
@@ -285,13 +285,12 @@ export default function Dashboard() {
                      </div>
                   </div>
                   <div className="h-3 w-full bg-secondary rounded-full overflow-hidden shadow-inner">
-                    <div className={cn("h-full transition-all duration-1000", metrics.riskScore > 60 ? "bg-red-500 shadow-[0_0_15px_#ef4444]" : metrics.riskScore > 30 ? "bg-orange-500 shadow-[0_0_15px_#f97316]" : "bg-emerald-500 shadow-[0_0_15px_#10b981]")} style={{ width: `${metrics.riskScore}%` }} />
+                    <div className={cn("h-full transition-all duration-1000", metrics.riskScore > 60 ? "bg-red-500" : metrics.riskScore > 30 ? "bg-orange-500" : "bg-emerald-500")} style={{ width: `${metrics.riskScore}%` }} />
                   </div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight leading-relaxed">Algoritmo de calibragem baseado na densidade de prazos vs. volume de registros ativos.</p>
                </section>
 
                {/* HEALTH CHART */}
-               <section className="premium-card p-8 h-[440px] flex flex-col">
+               <section className="premium-card p-8 h-[440px] flex flex-col bg-white">
                   <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-10">Status da Carteira</h3>
                   <div className="flex-1 min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
@@ -302,8 +301,7 @@ export default function Dashboard() {
                           ))}
                         </Pie>
                         <Tooltip 
-                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                          itemStyle={{ padding: '4px' }}
+                          contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: '12px', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -312,7 +310,7 @@ export default function Dashboard() {
                      {metrics.statusData.map((item) => (
                        <div key={item.name} className="flex items-center gap-3">
                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                         <span className="text-[10px] font-bold uppercase text-muted-foreground truncate">{item.name}</span>
+                         <span className="text-[10px] font-black uppercase text-muted-foreground truncate">{item.name}</span>
                          <span className="text-[11px] font-black ml-auto tabular-nums">{item.value}</span>
                        </div>
                      ))}
@@ -322,24 +320,24 @@ export default function Dashboard() {
                {/* QUICK EXPORT */}
                <section className="bg-black text-white p-8 rounded-2xl shadow-2xl space-y-6 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:rotate-12 transition-transform">
-                    <LayoutDashboard size={80} />
+                    <Activity size={80} />
                   </div>
                   <div className="space-y-2 relative">
-                    <h3 className="text-2xl font-black uppercase tracking-tight">Full Report</h3>
-                    <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed opacity-60">Consolide toda a telemetria do gabinete em um dossiê executivo pronto para assinatura.</p>
+                    <h3 className="text-2xl font-black uppercase tracking-tight">Relatório Consolidado</h3>
+                    <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed opacity-60">Gere agora o dossiê executivo completo com toda a telemetria do gabinete.</p>
                   </div>
                   <Button variant="outline" asChild className="w-full bg-white text-black border-none hover:bg-primary hover:text-black font-black h-14 uppercase text-[11px] tracking-widest transition-all rounded-xl shadow-lg relative">
-                    <Link href="/report">Sincronizar & Gerar v12.0</Link>
+                    <Link href="/report">Sincronizar & Gerar</Link>
                   </Button>
                </section>
             </div>
           </div>
         </div>
 
-        <footer className="h-10 border-t border-border/30 bg-white flex items-center justify-center gap-6 text-[10px] text-muted-foreground/60 font-bold uppercase tracking-[0.4em] shrink-0">
+        <footer className="h-10 border-t border-border/50 bg-white flex items-center justify-center gap-6 text-[10px] text-muted-foreground/60 font-black uppercase tracking-[0.4em] shrink-0">
           <div className="flex items-center gap-2"><Copyright size={10} /> 2026 W1 Capital.</div>
           <span className="w-1 h-1 bg-border rounded-full" />
-          <span>Advanced Monitoring • Handcrafted by W1 Capital</span>
+          <span>Advanced Monitoring • Handcrafted for Davi Alves Figueredo</span>
         </footer>
       </main>
     </div>

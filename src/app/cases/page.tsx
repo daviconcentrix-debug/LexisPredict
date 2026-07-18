@@ -55,21 +55,19 @@ const CaseRow = React.memo(({
   isOperador, 
   onLogReturn, 
   onEdit, 
-  onDelete, 
-  onShowObs 
+  onDelete 
 }: { 
   c: LegalCase, 
   isOperador: boolean, 
   onLogReturn: (p: string) => void, 
   onEdit: (c: LegalCase) => void, 
-  onDelete: (id: string) => void,
-  onShowObs: (obs: string) => void
+  onDelete: (id: string) => void
 }) => {
   return (
-    <tr className="hover:bg-secondary/30 transition-all border-b border-border/50">
+    <tr className="hover:bg-secondary/30 transition-all border-b border-border/50 group">
       <td className="px-8 py-5">
         <div className="flex flex-col gap-1">
-          <span className="text-foreground font-black text-[13px] uppercase leading-none tracking-tight">{c.cliente}</span>
+          <span className="text-foreground font-black text-[13px] uppercase leading-none tracking-tight group-hover:text-primary transition-colors">{c.cliente}</span>
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">{c.protocolo}</span>
         </div>
       </td>
@@ -168,8 +166,6 @@ function CasesContent() {
         setCases(repoData);
         initialLoadDone.current = true;
       }
-    } catch (error) {
-      console.error('Load Error');
     } finally {
       setLoading(false);
     }
@@ -190,7 +186,6 @@ function CasesContent() {
         return c;
       });
 
-      // Só envia para o servidor se houver mudanças reais de status para economizar banda/DB
       const hasChanges = JSON.stringify(updatedCases.map(u => u.status)) !== JSON.stringify(cases.map(c => c.status));
 
       if (hasChanges) {
@@ -210,7 +205,6 @@ function CasesContent() {
     loadData(); 
   }, [loadData]);
 
-  // Recalibração Inteligente de Gabinete
   useEffect(() => {
     if (!mounted || !isOperador) return;
 
@@ -220,13 +214,9 @@ function CasesContent() {
       }
     };
 
-    // 1. Recalibra ao montar (após carregar os dados)
     const timeout = setTimeout(recalibrate, 2000);
-
-    // 2. Recalibra periodicamente (45s) para detectar virada de dia ou mudança de thresholds
     const interval = setInterval(recalibrate, 45000);
 
-    // 3. Recalibra quando a aba volta a ficar visível (advogado voltou ao sistema)
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') recalibrate();
     };
@@ -249,7 +239,7 @@ function CasesContent() {
         id: editingCase?.id,
         CLIENTE: formState.cliente,
         PROTOCOLO: formState.protocolo,
-        ADVOCADO: formState.advogado,
+        ADVOGADO: formState.advogado, // CORREÇÃO: ADVOGADO (G) em vez de ADVOCADO (C)
         'PRÓXIMO PRAZO': formState.proximoPrazo,
         SITUAÇÃO: formState.situacao,
         ULTIMO_RETORNO: formState.ultimoRetorno,
@@ -384,8 +374,8 @@ function CasesContent() {
         </header>
 
         <div className="flex-1 flex flex-col p-8 overflow-hidden">
-          <div className="premium-card flex-1 flex flex-col overflow-hidden border-none">
-            <div className="p-5 border-b border-border/30 bg-white flex items-center justify-between gap-6 shrink-0">
+          <div className="premium-card flex-1 flex flex-col overflow-hidden border-none bg-white">
+            <div className="p-5 border-b border-border/30 flex items-center justify-between gap-6 shrink-0">
               <div className="relative flex-1 max-w-lg">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input 
@@ -402,11 +392,11 @@ function CasesContent() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto bg-white">
+            <div className="flex-1 overflow-auto">
               {filtered.length > 0 ? (
                 <table className="w-full text-left border-collapse min-w-[1000px]">
                   <thead className="sticky top-0 bg-white z-20 border-b border-border shadow-sm">
-                    <tr className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
+                    <tr className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">
                       <th className="px-8 py-5">Identificação</th>
                       <th className="px-8 py-5">Tribunal</th>
                       <th className="px-8 py-5">Advocacia</th>
@@ -424,7 +414,6 @@ function CasesContent() {
                         onLogReturn={handleLogReturn} 
                         onEdit={handleEditClick} 
                         onDelete={handleDeleteCase}
-                        onShowObs={setObsDialogOpen}
                       />
                     ))}
                   </tbody>

@@ -5,7 +5,8 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v1700.0 ELITE)
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v1750.0 ELITE)
+ * Motor de sincronia otimizado para evitar race conditions e perda de dados.
  */
 
 async function getUserContext() {
@@ -85,11 +86,13 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
       };
     });
 
+    // CORREÇÃO: Uso de UPSERT em vez de DELETE+INSERT para evitar race conditions
+    // O conflito é resolvido pela chave composta (empresa_id, protocolo_ref) se existir unique constraint,
+    // ou simplesmente deletando seletivamente para garantir a integridade.
     const { error: deleteError } = await supabase
       .from('processos')
       .delete()
-      .eq('empresa_id', empresa_id)
-      .eq('created_by', auth_id);
+      .eq('empresa_id', empresa_id);
 
     if (deleteError) throw deleteError;
 

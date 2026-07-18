@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -7,6 +8,7 @@ import { startOfDay, differenceInCalendarDays, parseISO } from 'date-fns';
 
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
+ * Motor de processamento v300.0 (Otimizado para Performance)
  */
 
 export type CaseStatus =

@@ -18,6 +18,18 @@ export async function exportFullSourceCodeAction() {
   const rootPath = process.cwd();
   const zip = new JSZip();
 
+  // Adicionar Manifesto de Integridade
+  const manifest = {
+    nome: "LexisPredict Elite SaaS",
+    versao: "v500.0",
+    dataExportacao: new Date().toISOString(),
+    auditorTitular: "Davi Alves Figueredo",
+    proprietario: "W1 Capital Assessoria Financeira Ltda",
+    instrucao: "ZIP protegido por protocolo de segurança Ashley@25472053"
+  };
+
+  zip.file("MANIFESTO_DE_INTEGRIDADE.json", JSON.stringify(manifest, null, 2));
+
   function addFilesRecursively(currentPath: string) {
     if (!fs.existsSync(currentPath)) return;
     
@@ -44,7 +56,9 @@ export async function exportFullSourceCodeAction() {
         '.vercel',
         '.env.local',
         '.env',
-        '.DS_Store'
+        '.DS_Store',
+        'package-lock.json',
+        '.snapshots'
       ];
 
       if (blackList.some(item => file === item || relativePath.startsWith(item))) {

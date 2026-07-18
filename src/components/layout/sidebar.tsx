@@ -28,7 +28,9 @@ import {
   Shield,
   Bot,
   Zap,
-  Layers
+  Layers,
+  FileSignature,
+  FileStack
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -72,7 +74,10 @@ export function Sidebar() {
       items: [
         { label: "Consultoria IA", href: '/chat-ia', icon: Bot },
         { label: t.audit, href: '/veredito', icon: FileSearch },
-        { label: t.documents, href: '/documents', icon: FileText },
+        { label: "Procuração", href: '/documents', icon: FileText },
+        { label: "Habilitação", href: '/habilitacao-peca', icon: FileSignature },
+        { label: "Substabelecimento", href: '/substabelecimento', icon: Repeat },
+        { label: "Peça de Subst.", href: '/substabelecimento-peca', icon: FileStack },
         { label: t.whatsapp, href: '/whatsapp', icon: MessageCircle },
         { label: t.import, href: '/import', icon: Upload },
         { label: t.notes, href: '/notes', icon: StickyNote },
