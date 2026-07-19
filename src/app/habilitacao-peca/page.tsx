@@ -32,6 +32,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { 
   Select, 
@@ -82,6 +83,7 @@ export default function HabilitacaoPecaGenerator() {
   const [selectedState, setSelectedState] = useState('SP');
   const [extractedData, setExtractedData] = useState<any>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [includeBankInfo, setIncludeBankInfo] = useState(true);
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -168,18 +170,10 @@ export default function HabilitacaoPecaGenerator() {
     if (!extractedData) return;
     setLoading(true);
     try {
-      const res = await generateHabilitacaoPecaPDFAction(extractedData);
+      const res = await generateHabilitacaoPecaPDFAction({ ...extractedData, includeBankInfo });
       if (res.success && res.base64) {
-        const byteCharacters = atob(res.base64);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = url;
+        link.href = `data:application/pdf;base64,${res.base64}`;
         link.download = `Habilitacao_${extractedData.cliente.nome}.pdf`;
         link.click();
         toast({ title: "Documento Selado" });
@@ -347,15 +341,19 @@ export default function HabilitacaoPecaGenerator() {
 
                 <div className="space-y-6">
                   <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
-                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
+                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3 flex flex-row items-center justify-between">
                       <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados do Juízo & Banco</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Switch checked={includeBankInfo} onCheckedChange={setIncludeBankInfo} id="inc-bank-hab" />
+                        <Label htmlFor="inc-bank-hab" className="text-[8px] font-black uppercase">Incluir Banco</Label>
+                      </div>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
-                       <div className="grid gap-1">
+                       <div className={cn("grid gap-1", !includeBankInfo && "opacity-20 pointer-events-none")}>
                          <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Building2 size={10} /> Instituição Financeira (Banco)</Label>
                          <Input value={extractedData.reuNome} onChange={(e) => setExtractedData({...extractedData, reuNome: e.target.value})} className="border-black font-black uppercase rounded-none" />
                        </div>
-                       <div className="grid gap-1">
+                       <div className={cn("grid gap-1", !includeBankInfo && "opacity-20 pointer-events-none")}>
                          <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Fingerprint size={10} /> CNPJ do Banco</Label>
                          <Input value={extractedData.reuCnpj} onChange={(e) => setExtractedData({...extractedData, reuCnpj: e.target.value})} className="border-black font-black uppercase rounded-none font-mono" />
                        </div>
@@ -378,7 +376,6 @@ export default function HabilitacaoPecaGenerator() {
                 </div>
               </div>
 
-              {/* PREVISÃO VISUAL DO DOCUMENTO */}
               <Card className="bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_#000] overflow-hidden">
                 <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3 flex flex-row items-center justify-between">
                   <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Eye size={14} /> Visualização do Documento</CardTitle>
@@ -419,7 +416,7 @@ export default function HabilitacaoPecaGenerator() {
                       <strong>{extractedData.advogado.nome.toUpperCase()}</strong>, brasileiro, advogado, inscrito na OAB/{extractedData.selectedState} sob o número {extractedData.advogado.oab}, com endereço profissional na {extractedData.advogado.endereco}, CEP {extractedData.advogado.cep}, e endereço eletrônico: {extractedData.advogado.email}.
                     </p>
                     <p className="text-justify indent-12">
-                      <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <strong>"AD JUDICIA"</strong>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <strong>{extractedData.tipoAcao.toUpperCase()}</strong> promovida contra o <strong>{extractedData.reuNome.toUpperCase()}</strong>, processo nº {extractedData.numeroProcesso}.
+                      <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <strong>"AD JUDICIA"</strong>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <strong>{extractedData.tipoAcao.toUpperCase()}</strong> {includeBankInfo ? `promovida contra o ${extractedData.reuNome.toUpperCase()}, ` : ""}processo nº {extractedData.numeroProcesso}.
                     </p>
                     <p className="text-center pt-10">{extractedData.cidadeEmissao}, {extractedData.dataFormatada}.</p>
                     <div className="flex flex-col items-center pt-10">

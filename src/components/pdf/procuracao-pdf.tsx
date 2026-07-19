@@ -57,10 +57,11 @@ export function ProcuracaoPDF({ data }: { data: any }) {
     );
   }
 
-  const { cliente, advogado, processos, local, dataExtenso } = data;
+  const { cliente, advogado, processos, local, dataExtenso, includeBankInfo } = data;
   
   const acaoPrincipal = processos?.[0]?.acao || "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA";
   const bancoPrincipal = processos?.[0]?.banco || "INSTITUIÇÃO FINANCEIRA";
+  const cnpjBancoPrincipal = processos?.[0]?.cnpjBanco || "00.000.000/0000-00";
   const numeroPrincipal = processos?.[0]?.numero || "S/N";
 
   return (
@@ -83,7 +84,7 @@ export function ProcuracaoPDF({ data }: { data: any }) {
         <View style={styles.paragraph}>
           <Text>
             <Text style={styles.bold}>PODERES: </Text>
-            Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <Text style={styles.bold}>“AD JUDICIA”</Text>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <Text style={styles.bold}>{acaoPrincipal.toUpperCase()}</Text> promovida contra <Text style={styles.bold}>{bancoPrincipal.toUpperCase()}</Text>, processo nº {numeroPrincipal}.
+            Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <Text style={styles.bold}>“AD JUDICIA”</Text>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <Text style={styles.bold}>{acaoPrincipal.toUpperCase()}</Text> {includeBankInfo ? `promovida contra ${bancoPrincipal.toUpperCase()}, inscrita no CNPJ sob o nº ${cnpjBancoPrincipal}, ` : ""}processo nº {numeroPrincipal}.
           </Text>
         </View>
 

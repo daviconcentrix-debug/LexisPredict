@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved.
@@ -30,12 +31,11 @@ async function callEngineWithRetry(url: string, key: string | undefined, model: 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const startTime = Date.now();
     try {
-      const isXAI = url.includes('x.ai');
       const isResponsesEndpoint = url.endsWith('/responses');
       
       const body: any = { 
         model,
-        temperature: isXAI ? 0.4 : 0.6,
+        temperature: 0.6,
         max_tokens: 2048
       };
 
@@ -73,13 +73,13 @@ async function callEngineWithRetry(url: string, key: string | undefined, model: 
       return {
         text,
         latency: Date.now() - startTime,
+        tokens: data?.usage?.total_tokens || 0,
         attempt
       };
     } catch (e: any) {
       lastError = e;
       if (attempt < maxRetries) {
-        const delay = attempt * 1500; // Exponential backoff sutil
-        await sleep(delay);
+        await sleep(attempt * 1500); 
       }
     }
   }
@@ -98,6 +98,7 @@ export const chatAIFlow = ai.defineFlow(
       resposta: z.string(),
       engineUtilizada: z.string(),
       latencia: z.number(),
+      tokensConsumidos: z.number(),
       sucesso: z.boolean()
     }) 
   },
@@ -111,6 +112,7 @@ export const chatAIFlow = ai.defineFlow(
         resposta: "COMANDO ACEITO. PORTAL DE EXPORTAÇÃO MASTER LIBERADO EM CONFIGURAÇÕES.", 
         engineUtilizada: "SYSTEM", 
         latencia: 0, 
+        tokensConsumidos: 0,
         sucesso: true 
       };
     }
@@ -123,7 +125,6 @@ export const chatAIFlow = ai.defineFlow(
       { id: 'airforce', url: 'https://api.airforce/v1/chat/completions', key: API_KEYS.AIRFORCE, model: 'deepseek-v3' }
     ];
 
-    // Priorizar motor escolhido
     const prioritizedEngines = [...engines];
     const preferredIndex = prioritizedEngines.findIndex(e => e.id === preferred);
     if (preferredIndex > -1) {
@@ -139,15 +140,17 @@ export const chatAIFlow = ai.defineFlow(
           resposta: res.text, 
           engineUtilizada: engine.id.toUpperCase(), 
           latencia: res.latency,
+          tokensConsumidos: res.tokens,
           sucesso: true
         };
       }
     }
 
     return { 
-      resposta: "Nossos motores estratégicos estão em recalibração profunda. Como posso auxiliar em sua dúvida imediata via protocolo manual?", 
-      engineUtilizada: "FALLBACK_ESTRATEGICO",
+      resposta: "Nossos motores estratégicos estão em recalibração profunda.", 
+      engineUtilizada: "FALLBACK",
       latencia: 0,
+      tokensConsumidos: 0,
       sucesso: false
     };
   }
