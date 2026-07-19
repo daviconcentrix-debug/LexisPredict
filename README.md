@@ -47,7 +47,7 @@ AIRFORCE_API_KEY=
 
 ## 📄 Licença
 Este software é proprietário.  
-Todos os direitos reservados a Davi Alves Figueredo e W1 Capital Assessoria Financeira Ltda.  
+Todos os direitos reservados a Davi Alves Figueredo e W1 Capital.  
 Uso, cópia ou modificação não autorizada é proibida.  
 Para parcerias ou licenciamento: w1capitalassessoria@protonmail.com
 
