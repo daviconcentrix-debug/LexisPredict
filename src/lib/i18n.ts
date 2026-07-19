@@ -1,8 +1,8 @@
+
 /**
- * MOTOR DE INTERNACIONALIZAÇÃO v3000.0 ELITE
+ * MOTOR DE INTERNACIONALIZAÇÃO v3500.0 ELITE
  * Dicionários oficiais para o Gabinete W1 Capital.
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved. See LICENSE file.
  */
 export type Locale = 'pt' | 'en';
 
@@ -42,7 +42,16 @@ export const translations = {
     roleOperator: "Operador",
     roleViewer: "Visualizador",
     teamTitle: "Gestão de Autoridade",
-    teamSubtitle: "Níveis de acesso e hierarquia do gabinete."
+    teamSubtitle: "Níveis de acesso e hierarquia do gabinete.",
+    briefingTitle: "Briefing Neural Diário",
+    briefingSubtitle: "Inteligência Operacional • Unidade Neural",
+    riskIndex: "Índice de Risco Global",
+    activeDemands: "Demandas Ativas",
+    auditCompleted: "Auditoria Concluída",
+    strengths: "Vantagens Técnicas",
+    risks: "Riscos Detectados",
+    syncSuccess: "Sincronia Concluída",
+    syncFail: "Falha na Sincronia"
   },
   en: {
     management: "Management",
@@ -79,7 +88,16 @@ export const translations = {
     roleOperator: "Operator",
     roleViewer: "Viewer",
     teamTitle: "Authority Management",
-    teamSubtitle: "Access levels and cabinet hierarchy."
+    teamSubtitle: "Access levels and cabinet hierarchy.",
+    briefingTitle: "Daily Neural Briefing",
+    briefingSubtitle: "Operational Intelligence • Neural Unit",
+    riskIndex: "Global Risk Index",
+    activeDemands: "Active Demands",
+    auditCompleted: "Audit Completed",
+    strengths: "Technical Strengths",
+    risks: "Detected Risks",
+    syncSuccess: "Sync Completed",
+    syncFail: "Sync Failed"
   }
 };
 

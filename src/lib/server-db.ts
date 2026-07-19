@@ -1,3 +1,4 @@
+
 'use server';
 
 import { supabase, isSupabaseConfigured, UserProfile } from './supabase';
@@ -5,19 +6,19 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v1750.0 ELITE)
- * Motor de sincronia otimizado para evitar race conditions e perda de dados.
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v1800.0 ELITE)
+ * Suporte a Logs de Auditoria LGPD e Gerenciamento de Identidade.
  */
 
 async function getUserContext() {
   const cookieStore = await cookies();
   const userEmail = cookieStore.get('lexis_user_email')?.value;
   
-  if (!userEmail) return { auth_id: null, empresa_id: null, cargo: null, role: null };
+  if (!userEmail) return { auth_id: null, empresa_id: null, cargo: null, email: null };
 
   const { data: profile } = await supabase
     .from('usuarios')
-    .select('id, empresa_id, cargo, email, auth_user_id, role')
+    .select('id, empresa_id, cargo, email, auth_user_id')
     .eq('email', userEmail.toLowerCase().trim())
     .maybeSingle();
     
@@ -25,24 +26,49 @@ async function getUserContext() {
     auth_id: profile?.auth_user_id || null,
     empresa_id: profile?.empresa_id || null, 
     cargo: profile?.cargo || 'Operador',
-    role: profile?.role || 'admin'
+    email: profile?.email || null
   };
+}
+
+/**
+ * PROTOCOLO DE AUDITORIA LGPD
+ * Registra cada ação sensível no banco de dados para compliance.
+ */
+export async function logAuditAction(action: string, detail: string) {
+  const { auth_id, email, empresa_id } = await getUserContext();
+  if (!auth_id) return;
+
+  try {
+    await supabase.from('audit_logs').insert({
+      user_id: auth_id,
+      user_email: email,
+      empresa_id: empresa_id,
+      action: action,
+      detail: detail,
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) {
+    console.warn('[Audit] Falha ao registrar log de conformidade.');
+  }
 }
 
 export async function getStoredCases(): Promise<LegalCase[]> {
   if (!isSupabaseConfigured) return [];
-  const { auth_id, empresa_id, role } = await getUserContext();
+  const { auth_id, empresa_id } = await getUserContext();
   if (!empresa_id || !auth_id) return [];
 
   try {
-    let query = supabase
+    const { data, error } = await supabase
       .from('processos')
       .select('*')
-      .eq('empresa_id', empresa_id);
-
-    const { data, error } = await query.order('created_at', { ascending: false });
+      .eq('empresa_id', empresa_id)
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
+    
+    // Log de acesso a dados (apenas para auditores se necessário)
+    // await logAuditAction('DATA_ACCESS', `Recuperou ${data?.length || 0} registros processuais.`);
+
     return data ? data.map(item => ({
       ...(item.dados as LegalCase),
       db_id: item.id.toString(),
@@ -62,14 +88,11 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 
   try {
     const uniqueMap = new Map();
-    cases.forEach(c => { 
-      if (c && c.protocolo) uniqueMap.set(c.protocolo, c); 
-    });
+    cases.forEach(c => { if (c && c.protocolo) uniqueMap.set(c.protocolo, c); });
     
     const payload = Array.from(uniqueMap.values()).map(c => {
       const isoPrazo = formatDateToISO(c.proximoPrazo);
       const isoRetorno = formatDateToISO(c.ultimoRetorno);
-
       return { 
         dados: { ...c }, 
         empresa_id: empresa_id, 
@@ -86,38 +109,31 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
       };
     });
 
-    // CORREÇÃO: Uso de UPSERT em vez de DELETE+INSERT para evitar race conditions
-    // O conflito é resolvido pela chave composta (empresa_id, protocolo_ref) se existir unique constraint,
-    // ou simplesmente deletando seletivamente para garantir a integridade.
-    const { error: deleteError } = await supabase
-      .from('processos')
-      .delete()
-      .eq('empresa_id', empresa_id);
-
+    const { error: deleteError } = await supabase.from('processos').delete().eq('empresa_id', empresa_id);
     if (deleteError) throw deleteError;
 
-    if (payload.length === 0) return { success: true, message: "Base limpa com sucesso." };
+    if (payload.length > 0) {
+      const { error: insertError } = await supabase.from('processos').insert(payload);
+      if (insertError) throw insertError;
+    }
 
-    const { error: insertError } = await supabase.from('processos').insert(payload);
-    if (insertError) throw insertError;
-
-    return { success: true, message: "Sincronia concluída com sucesso." };
+    await logAuditAction('DATA_SYNC', `Sincronizou lote de ${payload.length} processos.`);
+    return { success: true, message: "Sincronia concluída." };
   } catch (error: any) {
     return { success: false, message: error.message };
   }
 }
 
 export async function getStoredNotes(): Promise<CaseNote[]> {
-  const { auth_id, empresa_id, role } = await getUserContext();
+  const { auth_id, empresa_id } = await getUserContext();
   if (!empresa_id || !auth_id) return [];
 
   try {
-    let query = supabase
+    const { data, error } = await supabase
       .from('notes')
       .select('*')
-      .eq('empresa_id', empresa_id);
-
-    const { data, error } = await query.order('created_at', { ascending: false });
+      .eq('empresa_id', empresa_id)
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
     return data ? data.map(item => {
@@ -152,55 +168,49 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
   try {
     await supabase.from('notes').delete().eq('empresa_id', empresa_id).eq('created_by', auth_id);
 
-    if (notes.length === 0) return { success: true };
-
-    const dbNotes = notes.map(n => ({
-      title: n.title || 'Nota',
-      content: n.imageUrl ? JSON.stringify({ text: n.content, imageUrl: n.imageUrl }) : n.content,
-      empresa_id: empresa_id,
-      created_by: auth_id
-    }));
+    if (notes.length > 0) {
+      const dbNotes = notes.map(n => ({
+        title: n.title || 'Nota',
+        content: n.imageUrl ? JSON.stringify({ text: n.content, imageUrl: n.imageUrl }) : n.content,
+        empresa_id: empresa_id,
+        created_by: auth_id
+      }));
+      const { error } = await supabase.from('notes').insert(dbNotes);
+      if (error) throw error;
+    }
     
-    const { error } = await supabase.from('notes').insert(dbNotes);
-    return { success: !error };
+    await logAuditAction('NOTE_SYNC', `Sincronizou ${notes.length} notas de evidência.`);
+    return { success: true };
   } catch (error) {
     return { success: false };
   }
 }
 
-/**
- * MOTOR DE HISTÓRICO WHATSAPP (Sincronização DDI Normalizada)
- */
-export async function getWhatsAppHistory(contactNumber: string) {
-  let cleanNum = contactNumber.replace(/\D/g, '');
-  
-  // Normalização de DDI para busca resiliente
-  if (cleanNum.length === 10 || cleanNum.length === 11) {
-     cleanNum = `55${cleanNum}`;
-  }
-  
-  const { data, error } = await supabase
-    .from('whatsapp_messages')
-    .select('*')
-    .eq('contact_number', cleanNum)
-    .order('timestamp', { ascending: true });
-
-  if (error) {
-    console.error('[DB] Msg Fetch Error:', error.message);
-    return [];
-  }
-
-  return data || [];
-}
-
 export async function getEmpresaUsers(): Promise<UserProfile[]> {
   const { empresa_id } = await getUserContext();
   if (!empresa_id) return [];
-  const { data } = await supabase.from('usuarios').select('*').eq('empresa_id', empresa_id).order('nome', { ascending: true });
-  return data ? (data as UserProfile[]) : [];
+
+  const { data, error } = await supabase
+    .from('usuarios')
+    .select('*')
+    .eq('empresa_id', empresa_id);
+
+  if (error) return [];
+  return data as UserProfile[];
 }
 
 export async function removeEmpresaUser(userId: string): Promise<boolean> {
-  const { error } = await supabase.from('usuarios').delete().eq('id', userId);
+  const { cargo } = await getUserContext();
+  if (cargo !== 'Administrador') return false;
+
+  const { error } = await supabase
+    .from('usuarios')
+    .delete()
+    .eq('id', userId);
+
+  if (!error) {
+    await logAuditAction('USER_REMOVAL', `Removeu acesso do usuário ID: ${userId}`);
+  }
   return !error;
 }
+
