@@ -66,8 +66,7 @@ export async function getStoredCases(): Promise<LegalCase[]> {
 
     if (error) throw error;
     
-    // Log de acesso a dados (apenas para auditores se necessário)
-    // await logAuditAction('DATA_ACCESS', `Recuperou ${data?.length || 0} registros processuais.`);
+    await logAuditAction('DATA_ACCESS', `Recuperou ${data?.length || 0} registros processuais.`);
 
     return data ? data.map(item => ({
       ...(item.dados as LegalCase),
@@ -213,4 +212,3 @@ export async function removeEmpresaUser(userId: string): Promise<boolean> {
   }
   return !error;
 }
-

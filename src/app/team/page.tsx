@@ -15,14 +15,10 @@ import {
   Copyright,
   MoreVertical,
   ChevronRight,
-  Activity,
-  Loader2,
-  Lock,
-  UserCheck,
-  Smartphone
+  Activity
 } from 'lucide-react';
-import { getEmpresaUsers, removeEmpresaUser, logAuditAction } from '@/lib/server-db';
-import { UserProfile, supabase } from '@/lib/supabase';
+import { getEmpresaUsers, removeEmpresaUser } from '@/lib/server-db';
+import { UserProfile } from '@/lib/supabase';
 import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,41 +32,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 export default function TeamManagement() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isNewUserOpen, setIsNewClientOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>('pt');
-  
   const { profile } = useAuth();
   const { toast } = useToast();
+  
   const t = getTranslation(locale);
   const isAdmin = profile?.cargo === 'Administrador';
-
-  const [userForm, setUserForm] = useState({
-    nome: '',
-    email: '',
-    cargo: 'Operador' as any,
-    password: ''
-  });
 
   useEffect(() => {
     const savedLocale = localStorage.getItem('lexisPredict_locale') as Locale;
@@ -83,7 +54,7 @@ export default function TeamManagement() {
       const data = await getEmpresaUsers();
       setUsers(data);
     } catch (e) {
-      toast({ title: "Erro na Sincronia de Equipe", variant: "destructive" });
+      toast({ title: "Sync Fail", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -93,140 +64,86 @@ export default function TeamManagement() {
     loadTeam();
   }, [loadTeam]);
 
-  const handleAddUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isAdmin || isSaving) return;
-
-    setIsSaving(true);
-    try {
-      // Nota: Em produção real, isso usaria uma invite API do Supabase.
-      // Aqui, simulamos o provisionamento via Auth API.
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: userForm.email,
-        password: userForm.password,
-        options: { data: { full_name: userForm.nome } }
-      });
-
-      if (authError) throw authError;
-
-      const profilePayload = {
-        auth_user_id: authData.user?.id,
-        empresa_id: profile?.empresa_id,
-        nome: userForm.nome.toUpperCase(),
-        email: userForm.email.toLowerCase(),
-        cargo: userForm.cargo
-      };
-
-      const { error: insertError } = await supabase.from('usuarios').insert(profilePayload);
-      if (insertError) throw insertError;
-
-      await logAuditAction('TEAM_MEMBER_ADDED', `Adicionou ${userForm.email} como ${userForm.cargo}`);
-      
-      toast({ title: "Operador Ativado", description: "O novo membro já pode acessar o gabinete." });
-      setIsNewClientOpen(false);
-      setUserForm({ nome: '', email: '', cargo: 'Operador', password: '' });
-      loadTeam();
-    } catch (err: any) {
-      toast({ title: "Falha no Provisionamento", description: err.message, variant: "destructive" });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleChangeRole = async (userId: string, newRole: string) => {
-    if (!isAdmin) return;
-    try {
-      const { error } = await supabase.from('usuarios').update({ cargo: newRole }).eq('id', userId);
-      if (error) throw error;
-      
-      await logAuditAction('TEAM_ROLE_CHANGE', `Alterou cargo do usuário ID: ${userId} para ${newRole}`);
-      toast({ title: "Cargo Atualizado" });
-      loadTeam();
-    } catch (e) {
-      toast({ title: "Falha técnica", variant: "destructive" });
-    }
-  };
-
   const handleDelete = async (id: string, name: string) => {
     if (id === profile?.id) {
       toast({ title: "Ação Negada", description: "Você não pode se auto-excluir.", variant: "destructive" });
       return;
     }
-    if (!confirm(`CONFIRMAR REVOGAÇÃO: Deseja remover o acesso de ${name} permanentemente?`)) return;
+    if (!confirm(`Confirmar exclusão de ${name}?`)) return;
 
     const success = await removeEmpresaUser(id);
     if (success) {
-      toast({ title: "Acesso Revogado" });
+      toast({ title: "Usuário Removido" });
       loadTeam();
     } else {
-      toast({ title: "Falha na Revogação", variant: "destructive" });
+      toast({ title: "Falha técnica", variant: "destructive" });
     }
   };
 
   return (
-    <div className="flex h-screen bg-[#f8f9fb] font-sans text-foreground overflow-hidden">
+    <div className="flex h-screen bg-background font-sans text-foreground overflow-hidden">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-20 border-b border-border/30 bg-white/60 backdrop-blur-xl flex items-center justify-between px-8 shrink-0 z-40">
+        <header className="h-16 border-b border-border/30 bg-background/80 backdrop-blur-xl flex items-center justify-between px-8 shrink-0 z-40">
           <div className="flex items-center gap-4">
-            <div className="p-2 bg-black text-white rounded-lg shadow-lg">
-              <UserCheck size={20} className="text-primary" />
-            </div>
-            <div>
-              <h1 className="font-black text-xl uppercase tracking-tighter">{t.teamTitle}</h1>
-              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-0.5">{profile?.empresa_id || "GABINETE"} • AUTORIDADE MESTRE</p>
-            </div>
+            <h1 className="font-bold text-sm tracking-[0.2em] uppercase">{t.teamTitle}</h1>
+            <Badge variant="outline" className="border-primary/30 text-primary text-[8px] uppercase font-bold tracking-[0.2em] px-2 py-0.5">
+              {profile?.empresa_id || "GABINETE"}
+            </Badge>
           </div>
           <div className="flex items-center gap-3">
              {isAdmin && (
-               <Button onClick={() => setIsNewClientOpen(true)} className="bg-black text-white font-black h-10 px-6 rounded-xl uppercase text-[10px] tracking-widest hover:bg-black/90 transition-all shadow-xl">
-                 <UserPlus size={16} className="mr-2 text-primary" /> Novo Operador
+               <Button size="sm" className="bg-primary text-black font-bold h-9 px-4 rounded-sm uppercase text-[9px] tracking-wider hover:bg-primary/90 transition-all shadow-[0_0_15px_rgba(0,209,255,0.2)]">
+                 <UserPlus size={14} className="mr-2" /> Novo Operador
                </Button>
              )}
-             <Button variant="ghost" size="icon" onClick={loadTeam} className="h-10 w-10 rounded-xl hover:bg-secondary">
-                <RefreshCcw size={18} className={cn(loading && "animate-spin text-primary")} />
+             <Button variant="ghost" size="icon" onClick={loadTeam} className="text-muted-foreground hover:text-primary">
+                <RefreshCcw size={16} className={cn(loading && "animate-spin")} />
              </Button>
           </div>
         </header>
 
         <div className="flex-1 overflow-auto p-8 max-w-6xl mx-auto w-full space-y-10">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black uppercase tracking-tighter text-foreground">{t.teamTitle}</h2>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em]">{t.teamSubtitle}</p>
+          </div>
+
           <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
             {users.map((user) => (
-              <Card key={user.id} className="premium-card bg-white border-border/40 rounded-2xl group hover:border-black transition-all overflow-hidden relative">
+              <Card key={user.id} className="bg-card border-border/50 rounded-none shadow-sm group hover:border-primary/30 transition-all overflow-hidden relative">
+                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center border transition-all",
-                      user.cargo === 'Administrador' ? "bg-black text-primary border-black shadow-lg" : "bg-[#f8f9fb] border-border/50 text-muted-foreground"
+                      "w-10 h-10 rounded-full flex items-center justify-center border transition-all",
+                      user.cargo === 'Administrador' ? "bg-primary/10 border-primary/30 text-primary" : "bg-secondary border-border/50 text-muted-foreground"
                     )}>
-                      {user.cargo === 'Administrador' ? <ShieldCheck size={24} /> : user.cargo === 'Operador' ? <Shield size={24} /> : <Activity size={24} />}
+                      {user.cargo === 'Administrador' ? <ShieldCheck size={20} /> : user.cargo === 'Operador' ? <Shield size={20} /> : <Activity size={20} />}
                     </div>
                     <div className="flex flex-col">
-                      <p className="text-[12px] font-black uppercase tracking-tight truncate max-w-[150px]">{user.nome}</p>
+                      <p className="text-[11px] font-black uppercase tracking-tight truncate max-w-[150px]">{user.nome}</p>
                       <RoleBadge role={user.cargo} t={t} />
                     </div>
                   </div>
                   {isAdmin && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-secondary">
-                          <MoreVertical size={16} className="text-muted-foreground" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                          <MoreVertical size={14} />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-white border-border/50 rounded-xl shadow-2xl min-w-[160px] p-2">
-                        <DropdownMenuItem onClick={() => handleChangeRole(user.id, 'Administrador')} className="text-[9px] font-black uppercase cursor-pointer hover:bg-secondary rounded-lg px-3 py-2">
-                           Tornar Administrador
+                      <DropdownMenuContent align="end" className="bg-card border-border rounded-none shadow-xl min-w-[140px]">
+                        <DropdownMenuItem className="text-[9px] font-bold uppercase cursor-pointer hover:bg-secondary">
+                          Ver Logs de Acesso
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleChangeRole(user.id, 'Operador')} className="text-[9px] font-black uppercase cursor-pointer hover:bg-secondary rounded-lg px-3 py-2">
-                           Tornar Operador
+                        <DropdownMenuItem className="text-[9px] font-bold uppercase cursor-pointer hover:bg-secondary">
+                          Alterar Cargo
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleChangeRole(user.id, 'Visualizador')} className="text-[9px] font-black uppercase cursor-pointer hover:bg-secondary rounded-lg px-3 py-2">
-                           Tornar Visualizador
-                        </DropdownMenuItem>
-                        <div className="h-px bg-border/50 my-2" />
                         <DropdownMenuItem 
                           onClick={() => handleDelete(user.id, user.nome)}
-                          className="text-[9px] font-black uppercase cursor-pointer text-red-600 focus:bg-red-50 rounded-lg px-3 py-2"
+                          className="text-[9px] font-bold uppercase cursor-pointer text-destructive focus:bg-destructive/10"
                         >
                           Revogar Acesso
                         </DropdownMenuItem>
@@ -235,74 +152,28 @@ export default function TeamManagement() {
                   )}
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center gap-3 text-muted-foreground p-3 bg-[#f8f9fb] rounded-xl border border-border/20">
-                    <Mail size={14} className="shrink-0 text-primary" />
-                    <span className="text-[10px] font-mono lowercase truncate">{user.email}</span>
+                  <div className="flex items-center gap-3 text-muted-foreground p-3 bg-secondary/20 border border-border/10">
+                    <Mail size={12} className="shrink-0" />
+                    <span className="text-[9px] font-mono lowercase truncate">{user.email}</span>
                   </div>
                   <div className="flex justify-between items-center pt-2">
-                    <div className="flex items-center gap-2">
-                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                       <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Sessão Ativa</span>
-                    </div>
-                    <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Protocolo: Nominal</span>
+                    <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Atividade: Nominal</span>
+                    <ChevronRight size={14} className="text-muted-foreground/30 group-hover:text-primary transition-colors" />
                   </div>
                 </CardContent>
               </Card>
             ))}
 
             {loading && Array.from({length: 3}).map((_, i) => (
-              <div key={i} className="h-44 bg-white animate-pulse border border-border/20 rounded-2xl" />
+              <div key={i} className="h-40 bg-secondary/30 animate-pulse border border-border/20" />
             ))}
           </section>
         </div>
 
-        <Dialog open={isNewUserOpen} onOpenChange={setIsNewClientOpen}>
-          <DialogContent className="sm:max-w-[450px] rounded-2xl border-none shadow-2xl">
-            <form onSubmit={handleAddUser}>
-              <DialogHeader className="p-6 bg-secondary/20 border-b">
-                <DialogTitle className="font-black uppercase tracking-tight">Ativar Novo Operador</DialogTitle>
-              </DialogHeader>
-              <div className="p-6 space-y-4">
-                <div className="grid gap-2">
-                  <Label className="uppercase text-[9px] font-black">Nome Completo</Label>
-                  <Input value={userForm.nome} onChange={e => setUserForm({...userForm, nome: e.target.value.toUpperCase()})} className="rounded-xl h-11 bg-secondary/30 border-none font-bold" required />
-                </div>
-                <div className="grid gap-2">
-                  <Label className="uppercase text-[9px] font-black">E-mail Corporativo</Label>
-                  <Input type="email" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value.toLowerCase()})} className="rounded-xl h-11 bg-secondary/30 border-none font-mono" required />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label className="uppercase text-[9px] font-black">Cargo / Permissão</Label>
-                    <Select value={userForm.cargo} onValueChange={val => setUserForm({...userForm, cargo: val})}>
-                      <SelectTrigger className="rounded-xl h-11 bg-secondary/30 border-none font-bold text-[10px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Administrador" className="text-[10px] font-bold">ADMINISTRADOR</SelectItem>
-                        <SelectItem value="Operador" className="text-[10px] font-bold">OPERADOR</SelectItem>
-                        <SelectItem value="Visualizador" className="text-[10px] font-bold">VISUALIZADOR</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label className="uppercase text-[9px] font-black">Senha Provisória</Label>
-                    <Input type="password" value={userForm.password} onChange={e => setUserForm({...userForm, password: e.target.value})} className="rounded-xl h-11 bg-secondary/30 border-none" required />
-                  </div>
-                </div>
-              </div>
-              <DialogFooter className="p-6 pt-0">
-                <Button type="submit" disabled={isSaving} className="w-full h-12 bg-black text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl">
-                  {isSaving ? <Loader2 className="animate-spin" /> : "Provisionar Acesso"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        <footer className="h-10 border-t border-border/30 bg-white flex items-center justify-center gap-6 text-[9px] text-muted-foreground/60 font-black uppercase tracking-[0.4em] shrink-0">
+        <footer className="h-10 border-t border-border/30 bg-background/80 backdrop-blur-md flex items-center justify-center gap-6 text-[9px] text-muted-foreground/50 font-bold uppercase tracking-[0.3em] shrink-0">
           <div className="flex items-center gap-2"><Copyright size={10} /> 2026 W1 Capital.</div>
-          <span>Advanced Management • Davi Alves Figueredo</span>
+          <span className="w-1 h-1 bg-muted-foreground/20 rounded-full" />
+          <span>Advanced Permissions • Davi Alves Figueredo</span>
         </footer>
       </main>
     </div>
@@ -311,17 +182,16 @@ export default function TeamManagement() {
 
 function RoleBadge({ role, t }: { role: string, t: any }) {
   const styles: Record<string, string> = {
-    'Administrador': "text-primary border-primary/20 bg-black shadow-sm",
-    'Operador': "text-blue-500 border-blue-500/20 bg-blue-50",
+    'Administrador': "text-primary border-primary/20 bg-primary/5",
+    'Operador': "text-blue-400 border-blue-400/20 bg-blue-400/5",
     'Visualizador': "text-muted-foreground border-border bg-secondary/50",
   };
 
   const label = role === 'Administrador' ? t.roleAdmin : role === 'Operador' ? t.roleOperator : t.roleViewer;
 
   return (
-    <Badge variant="outline" className={cn("px-2 py-0.5 text-[7px] font-black uppercase tracking-[0.1em] rounded-md", styles[role] || styles.Visualizador)}>
+    <Badge variant="outline" className={cn("px-1.5 py-0 text-[7px] font-black uppercase tracking-[0.1em] rounded-sm", styles[role] || styles.Visualizador)}>
       {label}
     </Badge>
   );
 }
-
