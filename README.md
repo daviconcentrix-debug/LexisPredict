@@ -1,7 +1,7 @@
 # LexisPredict Elite
 
 **Plataforma de Gestão Jurídica e Operacional**  
-Desenvolvida internamente pela **W1 Capital / Get Assessoria Financeira Ltda.**
+Desenvolvida internamente pela **W1 Capital.**
 
 LexisPredict é um sistema completo de operações jurídicas com forte automação por IA, suporte offline-first e interface executiva altamente customizável.
 
