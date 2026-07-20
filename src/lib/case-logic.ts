@@ -8,7 +8,7 @@ import { startOfDay, differenceInCalendarDays, parseISO } from 'date-fns';
 
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * Motor de processamento v350.0 (Blindado contra erros de nomenclatura)
+ * Motor de processamento v400.0 Elite
  */
 
 export type CaseStatus =
@@ -65,51 +65,33 @@ export function fixEncoding(text: string): string {
   if (!text) return "";
   try {
     return text
-      .replace(/Ã‡/g, 'Ç')
-      .replace(/Ã§/g, 'ç')
-      .replace(/Ã£/g, 'ã')
-      .replace(/Ã¡/g, 'á')
-      .replace(/Ã©/g, 'é')
-      .replace(/Ã­/g, 'í')
-      .replace(/Ã³/g, 'ó')
-      .replace(/Ãº/g, 'ú')
-      .replace(/Âº/g, 'º')
-      .replace(/Âª/g, 'ª')
-      .replace(/Â/g, ''); 
-  } catch (e) {
-    return text;
-  }
+      .replace(/Ã‡/g, 'Ç').replace(/Ã§/g, 'ç')
+      .replace(/Ã£/g, 'ã').replace(/Ã¡/g, 'á')
+      .replace(/Ã©/g, 'é').replace(/Ã­/g, 'í')
+      .replace(/Ã³/g, 'ó').replace(/Ãº/g, 'ú')
+      .replace(/Âº/g, 'º').replace(/Âª/g, 'ª').replace(/Â/g, ''); 
+  } catch (e) { return text; }
 }
 
 export function formatDateToISO(dateStr: string | null | undefined): string | null {
   if (!dateStr) return null;
   const raw = String(dateStr).trim();
   if (raw === "" || raw === "-" || raw === "0" || raw === "00/00/0000") return null;
-
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
 
   const parts = raw.split(/[\/\-\.\s,]+/).filter(p => p.length > 0);
   if (parts.length !== 3) return null;
 
   let day, month, year;
-  if (parts[0].length === 4) {
-    [year, month, day] = parts;
-  } else {
+  if (parts[0].length === 4) { [year, month, day] = parts; } 
+  else {
     [day, month, year] = parts;
     if (year.length === 2) {
       const yNum = parseInt(year, 10);
       year = yNum > 50 ? `19${year}` : `20${year}`;
     }
   }
-
-  const d = parseInt(day, 10);
-  const m = parseInt(month, 10);
-  const y = parseInt(year, 10);
-
-  if (isNaN(d) || isNaN(m) || isNaN(y)) return null;
-  if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > 2100) return null;
-  
-  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 export function calcularDiasFaltando(proximoISO: string | null): number | null {
@@ -118,9 +100,7 @@ export function calcularDiasFaltando(proximoISO: string | null): number | null {
     const dataPrazo = startOfDay(parseISO(proximoISO));
     const hoje = startOfDay(new Date());
     return differenceInCalendarDays(dataPrazo, hoje);
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 export function calcularStatus(
@@ -142,72 +122,52 @@ export function calcularStatus(
   return "No Prazo";
 }
 
-export function calcularRisco(observacoes: string | null | undefined, statusInterno: string | null | undefined, situacao: string | null | undefined): RiskLevel {
-  const texto = `${observacoes || ""} ${statusInterno || ""} ${situacao || ""}`.toUpperCase();
-  const criticas = ["INDEFERIDA", "EXTINTO", "IMPROCEDENTE", "NÃO RESPONDE", "SUCUMBÊNCIA", "BAIXA DEFINITIVAMENTE"];
-  const atencao = ["CONCLUSO", "AGUARDANDO", "CUSTAS", "SUBSTABELECIMENTO", "JG INDEFERIDA"];
-
-  if (criticas.some((p) => texto.includes(p))) return "Crítico";
-  if (atencao.some((p) => texto.includes(p))) return "Atenção";
-  return "Normal";
-}
-
 export function extrairTribunal(protocolo: string): { tribunal: string; link: string; } {
-  const original = (protocolo || "").trim();
-  const clean = original.replace(/\D/g, "");
+  if (!protocolo) return { tribunal: "Outros", link: "" };
+  const original = protocolo.trim();
+  const match = original.match(/\.(\d)\.(\d{2})\./);
+  
+  if (!match) return { tribunal: "Outros", link: `https://www.google.com/search?q=consulta+processo+judicial+${encodeURIComponent(original)}` };
 
-  if (clean.length !== 20) return { tribunal: "Outros", link: `https://www.google.com/search?q=consulta+processo+judicial+${encodeURIComponent(original)}` };
+  const ramo = match[1];
+  const cod = match[2];
 
-  const j = clean[13];
-  const tr = clean.substring(14, 16);
-  const code = `${j}.${tr}`;
+  if (ramo === '8') {
+    const mapa: Record<string, string> = {
+      '01': 'TJAC', '02': 'TJAL', '03': 'TJAP', '04': 'TJAM', '05': 'TJBA',
+      '06': 'TJCE', '07': 'TJDF', '08': 'TJES', '09': 'TJGO', '10': 'TJMA',
+      '11': 'TJMT', '12': 'TJMS', '13': 'TJMG', '14': 'TJPB', '15': 'TJPB',
+      '16': 'TJPR', '17': 'TJPE', '18': 'TJPI', '19': 'TJRJ', '20': 'TJRN',
+      '21': 'TJRS', '22': 'TJRO', '23': 'TJRR', '24': 'TJSC', '25': 'TJSE',
+      '26': 'TJSP', '27': 'TJTO',
+    };
+    const trib = mapa[cod] || "Outros";
+    return { tribunal: trib, link: `https://www.google.com/search?q=consulta+processo+${trib}+${encodeURIComponent(original)}` };
+  }
+  
+  if (ramo === '4') return { tribunal: `TRF${cod}`, link: `https://www.google.com/search?q=consulta+processo+TRF${cod}+${encodeURIComponent(original)}` };
 
-  const maps: Record<string, { tribunal: string; link: string }> = {
-    "8.26": { tribunal: "TJSP", link: "https://esaj.tjsp.jus.br/cpopg/open.do" },
-    "8.13": { tribunal: "TJMG", link: "https://pje.tjmg.jus.br/pje/ConsultaPublica/listView.seam" },
-    "8.19": { tribunal: "TJRJ", link: "http://www4.tjrj.jus.br/consultaProcessoPortal/consulta-principal.do" },
-    "8.02": { tribunal: "TJAL", link: "https://www2.tjal.jus.br/cpopg/open.do" },
-    "8.09": { tribunal: "TJGO", link: "https://projudi.tjgo.jus.br/BuscaProcessoPublica" },
-    "8.16": { tribunal: "TJPR", link: "https://projudi.tjpr.jus.br/projudi/" }
-  };
-
-  const found = maps[code];
-  if (found) return { tribunal: found.tribunal, link: found.link };
   return { tribunal: "Outros", link: `https://www.google.com/search?q=consulta+processo+judicial+${encodeURIComponent(original)}` };
 }
 
 export function processarCaso(raw: any, thresholds?: { alertLimit: number }): LegalCase {
   const normalized: any = {};
   Object.keys(raw).forEach(k => {
-    // Normalização agressiva para capturar variações de nomes de colunas (ex: ADVOGADO vs ADVOCADO)
     const cleanKey = k.toUpperCase().replace(/\s+/g, '_').trim();
     normalized[cleanKey] = raw[k];
   });
 
-  const cliente = fixEncoding(normalized.CLIENTE || raw.cliente || 'CLIENTE NÃO IDENTIFICADO').toUpperCase();
+  const cliente = fixEncoding(normalized.CLIENTE || raw.cliente || 'NÃO IDENTIFICADO').toUpperCase();
   const protocolo = (normalized.PROTOCOLO || raw.protocolo || '').trim();
+  const advogado = fixEncoding(normalized.ADVOGADO || raw.advogado || 'NÃO ATRIBUÍDO').toUpperCase();
+  const situacao = (normalized.SITUACAO || normalized.SITUAÇÃO || raw.situacao || 'EM ANDAMENTO').toUpperCase();
   
-  // Resiliência de Profissional: Aceita 'ADVOCADO' como fallback para 'ADVOGADO'
-  const advogado = fixEncoding(
-    normalized.ADVOGADO_RESPONSÁVEL || 
-    normalized.ADVOGADO || 
-    normalized.ADVOCADO || 
-    raw.advogado || 
-    'NÃO ATRIBUÍDO'
-  ).toUpperCase();
-  
-  const situacao = (normalized.SITUAÇÃO || normalized.SITUACAO || raw.situacao || 'EM ANDAMENTO').toUpperCase();
-  
-  const proximoPrazo = normalized.PROXIMO_RETORNO || normalized.PRÓXIMO_RETORNO || normalized.PRÓXIMO_PRAZO || normalized.PROXIMO_PRAZO || normalized.PROXIMOPRAZO || raw.proximoPrazo || '';
-  const ultimoRetorno = normalized.ULTIMO_RETORNO || normalized.ÚLTIMO_RETORNO || normalized.RETORNO || normalized.ULTIMORETORNO || raw.ultimoRetorno || '';
-  const observacao = fixEncoding(normalized.OBSERVAÇÕES || normalized.OBSERVACAO || normalized.OBSERVAÇÃO || raw.observacao || '');
-  const telefone = (normalized.TELEFONE || raw.telefone || '').replace(/\D/g, '');
-  
-  const statusPlanilha = normalized.STATUS || normalized.STATUS_MANUAL || raw.statusManual || 'Automatico';
+  const proximoPrazo = normalized.PROXIMO_RETORNO || normalized.PRÓXIMO_PRAZO || raw.proximoPrazo || '';
+  const ultimoRetorno = normalized.ULTIMO_RETORNO || raw.ultimoRetorno || '';
+  const statusManual = normalized.STATUS_MANUAL || raw.statusManual || 'Automatico';
 
   const tribunalData = extrairTribunal(protocolo);
   const statusCalculado = calcularStatus(proximoPrazo, situacao, thresholds?.alertLimit);
-  const riscoCalculado = calcularRisco(observacao, '', situacao);
 
   return {
     id: raw.id || crypto.randomUUID(),
@@ -217,13 +177,13 @@ export function processarCaso(raw: any, thresholds?: { alertLimit: number }): Le
     situacao,
     proximoPrazo,
     ultimoRetorno,
-    status: (statusPlanilha && statusPlanilha !== 'Automatico' && statusPlanilha !== '') ? statusPlanilha : statusCalculado,
-    risco: riscoCalculado,
+    status: (statusManual === 'Automatico') ? statusCalculado : statusManual,
+    risco: (statusCalculado === 'Vencido' || statusManual === 'Caso Crítico') ? "Crítico" : "Normal",
     diasFaltando: calcularDiasFaltando(formatDateToISO(proximoPrazo)),
-    statusManual: statusPlanilha,
+    statusManual,
     tribunal: tribunalData.tribunal,
     linkConsulta: tribunalData.link,
-    observacao,
-    telefone
+    observacao: fixEncoding(normalized.OBSERVACAO || normalized.OBSERVACOES || raw.observacao || ''),
+    telefone: (normalized.TELEFONE || raw.telefone || '').replace(/\D/g, '')
   };
 }

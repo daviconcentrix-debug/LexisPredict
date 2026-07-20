@@ -54,6 +54,7 @@ import { useAdmin } from '@/hooks/use-admin';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from '@/components/ui/textarea';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const CaseRow = React.memo(({ 
   c, 
@@ -189,25 +190,17 @@ function CasesContent() {
       const thresholds = { alertLimit: savedThreshold ? parseInt(savedThreshold) : 3 };
 
       const updatedCases = cases.map(c => {
-        // Ignora encerrados e arquivados da recalibração automática
         const sit = String(c.situacao).toUpperCase();
         if (['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(sit)) {
           return c;
         }
-        // Força recalibração automática para todos os ativos
         return processarCaso({ ...c, STATUS_MANUAL: 'Automatico' }, thresholds);
       });
 
-      const hasChanges = JSON.stringify(updatedCases.map(u => u.status)) !== JSON.stringify(cases.map(c => c.status));
-
-      if (hasChanges) {
-        const result = await syncRepoCases(updatedCases);
-        if (result.success) {
-          setCases(updatedCases);
-          if (!silent) toast({ title: "Sincronia Concluída", description: "Todos os prazos ativos foram recalculados pelo motor." });
-        }
-      } else {
-        if (!silent) toast({ title: "Base em Compliance", description: "Todos os prazos já estão sincronizados." });
+      const result = await syncRepoCases(updatedCases);
+      if (result.success) {
+        setCases(updatedCases);
+        if (!silent) toast({ title: "Sincronia Concluída", description: "Todos os prazos ativos foram recalculados pelo motor." });
       }
     } finally {
       if (!silent) setIsUpdating(false);
@@ -258,30 +251,6 @@ function CasesContent() {
     setMounted(true);
     loadData(); 
   }, [loadData]);
-
-  useEffect(() => {
-    if (!mounted || !isOperador) return;
-
-    const recalibrate = async () => {
-      if (initialLoadDone.current && cases.length > 0 && !isUpdating) {
-        await handleBatchUpdateStatus(true);
-      }
-    };
-
-    const timeout = setTimeout(recalibrate, 2000);
-    const interval = setInterval(recalibrate, 60000);
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') recalibrate();
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      clearTimeout(timeout);
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, [mounted, isOperador, cases.length, isUpdating, handleBatchUpdateStatus]);
 
   const handleSaveCase = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -492,6 +461,7 @@ function CasesContent() {
                                   <SelectItem value="Atenção">🟠 ATENÇÃO</SelectItem>
                                   <SelectItem value="No Prazo">🟢 NO PRAZO</SelectItem>
                                   <SelectItem value="Sem Prazo">⚪ SEM PRAZO</SelectItem>
+                                  <SelectItem value="Caso Crítico">🔥 CASO CRÍTICO</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>

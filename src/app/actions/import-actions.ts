@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -15,7 +16,7 @@ interface CsvRow {
 }
 
 /**
- * Normaliza datas brasileiras (DD/MM/YYYY) para o formato ISO (YYYY-MM-DD) aceito pelo Postgres.
+ * Normaliza datas brasileiras (DD/MM/YYYY) para o formato ISO (YYYY-MM-DD).
  */
 function parseBrazilianDate(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -37,10 +38,6 @@ function parseBrazilianDate(value: string | null | undefined): string | null {
     return `${year}-${m}-${d}`;
   }
 
-  if (/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/.test(v)) {
-    return v.replace(/\//g, '-');
-  }
-
   return null;
 }
 
@@ -53,14 +50,14 @@ function normalizeHeader(header: string): string {
 }
 
 /**
- * Realiza o processamento e sincronização incremental do CSV com inteligência de gabinete.
+ * Realiza a ingestão inteligente tratando a coluna "STATUS" da planilha como a situação interna.
  */
 export async function importCsvAction(csvText: string) {
   try {
     const { empresa_id, auth_id } = await getUserContext();
 
     if (!empresa_id || !auth_id) {
-      return { success: false, error: 'Sessão administrativa expirada ou inválida.' };
+      return { success: false, error: 'Sessão administrativa expirada.' };
     }
 
     const records: CsvRow[] = parse(csvText, {
@@ -72,19 +69,27 @@ export async function importCsvAction(csvText: string) {
     });
 
     if (!records || records.length === 0) {
-      return { success: false, error: 'A planilha fornecida está vazia ou em formato incompatível.' };
+      return { success: false, error: 'Planilha vazia ou em formato incompatível.' };
     }
 
-    const savedThreshold = 3; // Padrão de gabinete
+    const savedThreshold = 3; 
 
     const rows = records.map((row) => {
-      // 1. Normaliza cabeçalhos para o motor processarCaso
       const rawData: any = {};
       Object.keys(row).forEach(k => {
-        rawData[normalizeHeader(k)] = row[k];
+        const key = normalizeHeader(k);
+        // Se a coluna for "STATUS", no app ela vira a "SITUAÇÃO" interna
+        if (key === 'STATUS') {
+           rawData['SITUACAO'] = row[k];
+        } else {
+           rawData[key] = row[k];
+        }
       });
 
-      // 2. Pré-converte datas para o motor
+      // Forçamos o motor a calcular o prazo automaticamente na importação
+      rawData['STATUS_MANUAL'] = 'Automatico';
+
+      // Pré-converte datas
       if (rawData.PROXIMO_RETORNO || rawData.PROXIMO_PRAZO) {
          const p = rawData.PROXIMO_RETORNO || rawData.PROXIMO_PRAZO;
          rawData.PROXIMO_RETORNO = parseBrazilianDate(p);
@@ -94,7 +99,6 @@ export async function importCsvAction(csvText: string) {
          rawData.ULTIMO_RETORNO = parseBrazilianDate(u);
       }
 
-      // 3. Processa através da Inteligência do App (Gera Tribunal, Status, Risco)
       const casoProcessado = processarCaso(rawData, { alertLimit: savedThreshold });
 
       return {
@@ -109,19 +113,11 @@ export async function importCsvAction(csvText: string) {
         observacoes: casoProcessado.observacao || null,
         ultimo_retorno: formatDateToISO(casoProcessado.ultimoRetorno),
         proximo_retorno: formatDateToISO(casoProcessado.proximoPrazo),
-        dados: casoProcessado // Objeto rico para o JSONB
+        dados: casoProcessado
       };
     }).filter(r => r.protocolo_ref);
 
-    if (rows.length === 0) {
-      return {
-        success: false,
-        error: 'Nenhum registro válido identificado (PROTOCOLO obrigatório).',
-      };
-    }
-
     const supabase = await createClient();
-
     const { data, error } = await supabase
       .from('processos')
       .upsert(rows, {
@@ -130,16 +126,14 @@ export async function importCsvAction(csvText: string) {
       })
       .select('id');
 
-    if (error) {
-      return { success: false, error: error.message };
-    }
+    if (error) throw error;
 
     return {
       success: true,
       imported: data?.length || rows.length,
-      message: `${data?.length || rows.length} processos processados e sincronizados com sucesso.`,
+      message: `${data?.length || rows.length} processos processados e sincronizados via Motor Elite.`,
     };
   } catch (err: any) {
-    return { success: false, error: 'Falha interna na unidade de migração neural.' };
+    return { success: false, error: 'Falha na unidade de migração neural.' };
   }
 }
