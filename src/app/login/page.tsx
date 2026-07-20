@@ -27,31 +27,17 @@ export default function LoginPage() {
   const router = useRouter();
   const logoAsset = PlaceHolderImages.find(img => img.id === 'app-logo');
 
-  // Redirecionamento Automático: Quebra o loop e entra direto se detectado
+  // Redirecionamento Automático Estável
   useEffect(() => {
     if (!authLoading && user && profile) {
+      console.log("[Login] Sessão confirmada. Redirecionando para Dashboard...");
       router.replace('/');
     }
   }, [user, profile, authLoading, router]);
 
-  if (!authLoading && user && profile) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f3f2f2] space-y-8 font-sans p-6 text-center animate-in fade-in duration-500">
-        <div className="w-20 h-20 bg-black text-white border-2 border-black flex items-center justify-center shadow-[12px_12px_0px_#00D1FF]">
-          <ShieldCheck size={40} className="text-[#00D1FF]" />
-        </div>
-        <div className="space-y-4">
-          <h1 className="text-2xl font-black uppercase tracking-tighter">Sessão Ativa Detectada</h1>
-          <p className="text-[10px] font-black uppercase tracking-widest text-black/40">Ingressando no Gabinete...</p>
-        </div>
-        <Loader2 className="animate-spin text-black" size={32} />
-      </div>
-    );
-  }
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || authLoading) return;
     
     setIsSubmitting(true);
     try {
@@ -61,14 +47,29 @@ export default function LoginPage() {
       });
 
       if (authError) {
-        toast({ title: "Erro de Acesso", description: "Credenciais inválidas.", variant: "destructive" });
+        toast({ title: "Erro de Acesso", description: "Credenciais inválidas ou conta não provisionada.", variant: "destructive" });
         setIsSubmitting(false);
       }
     } catch (error) {
-      toast({ title: "Falha de Rede", variant: "destructive" });
+      toast({ title: "Falha de Infraestrutura", description: "Verifique sua conexão.", variant: "destructive" });
       setIsSubmitting(false);
     }
   };
+
+  if (!authLoading && user && profile) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f3f2f2] space-y-8 font-sans p-6 text-center animate-in fade-in duration-500">
+        <div className="w-20 h-20 bg-black text-white border-2 border-black flex items-center justify-center shadow-[12px_12px_0px_#00D1FF]">
+          <ShieldCheck size={40} className="text-[#00D1FF]" />
+        </div>
+        <div className="space-y-4">
+          <h1 className="text-2xl font-black uppercase tracking-tighter">Sessão Ativa Detectada</h1>
+          <p className="text-[10px] font-black uppercase tracking-widest text-black/40">Iniciando Redes Neurais de Gabinete...</p>
+        </div>
+        <Loader2 className="animate-spin text-black" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f3f2f2] p-6 font-sans text-black relative overflow-hidden">
@@ -108,6 +109,7 @@ export default function LoginPage() {
                     required 
                     placeholder="USUARIO@W1CAPITAL.COM"
                     autoComplete="email"
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -123,6 +125,7 @@ export default function LoginPage() {
                     required 
                     placeholder="••••••••"
                     autoComplete="current-password"
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>

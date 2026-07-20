@@ -6,7 +6,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase, UserProfile, isSupabaseConfigured } from '@/lib/supabase';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: any | null;
@@ -27,14 +27,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  
+  // Travas de resiliência para evitar loops de re-render
   const initialized = useRef(false);
-  const profileLoadingId = useRef<string | null>(null);
-  const profileRef = useRef<UserProfile | null>(null);
+  const fetchingProfile = useRef(false);
+  const lastUserId = useRef<string | null>(null);
 
   const loadProfile = async (userId: string) => {
-    if (!isSupabaseConfigured || profileLoadingId.current === userId) return null;
+    if (!isSupabaseConfigured) return;
+    if (fetchingProfile.current && lastUserId.current === userId) return;
     
-    profileLoadingId.current = userId;
+    fetchingProfile.current = true;
+    lastUserId.current = userId;
+
     try {
       console.log(`[AuthProvider] 🚀 Buscando perfil para: ${userId}`);
       
@@ -47,34 +52,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (profileData) {
         const p = profileData as UserProfile;
         setProfile(p);
-        profileRef.current = p;
         document.cookie = `lexis_user_email=${p.email.toLowerCase().trim()}; path=/; max-age=31536000; samesite=lax`;
-        return p;
-      }
-      
-      // Fallback por email se UUID falhar
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser?.email) {
-        const { data: altProfile } = await supabase
-          .from('usuarios')
-          .select('*')
-          .eq('email', authUser.email.toLowerCase().trim())
-          .maybeSingle();
-        
-        if (altProfile) {
-          const p = altProfile as UserProfile;
-          setProfile(p);
-          profileRef.current = p;
-          return p;
+      } else {
+        // Fallback por e-mail se UUID falhar
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser?.email) {
+          const { data: altProfile } = await supabase
+            .from('usuarios')
+            .select('*')
+            .eq('email', authUser.email.toLowerCase().trim())
+            .maybeSingle();
+          
+          if (altProfile) {
+            setProfile(altProfile as UserProfile);
+          }
         }
       }
-
-      return null;
     } catch (e) {
-      console.error("[AuthProvider] Erro ao carregar perfil:", e);
-      return null;
+      console.error("[AuthProvider] Erro Crítico de Perfil:", e);
     } finally {
-      profileLoadingId.current = null;
+      fetchingProfile.current = false;
       setLoading(false);
     }
   };
@@ -83,38 +80,58 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (initialized.current) return;
     initialized.current = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthProvider] 📡 Evento: ${event}`);
-      
+    // 1. Sessão Inicial
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
-        // Só carrega o perfil se ainda não o tivermos ou se for um evento explícito de SIGNED_IN
-        if (!profileRef.current || event === 'SIGNED_IN') {
-          await loadProfile(session.user.id);
+        loadProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // 2. Ouvinte de Mudanças (Listener)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`[AuthProvider] 📡 Evento Auth: ${event}`);
+      
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
+
+      if (event === 'SIGNED_OUT') {
+        setProfile(null);
+        lastUserId.current = null;
+        document.cookie = "lexis_user_email=; path=/; max-age=0";
+        setLoading(false);
+        router.replace('/login');
+        return;
+      }
+
+      if (sessionUser) {
+        if (lastUserId.current !== sessionUser.id) {
+          setLoading(true);
+          loadProfile(sessionUser.id);
         } else {
           setLoading(false);
         }
       } else {
-        setUser(null);
         setProfile(null);
-        profileRef.current = null;
         setLoading(false);
-        document.cookie = "lexis_user_email=; path=/; max-age=0";
-        if (!['/login', '/signup'].includes(window.location.pathname)) {
-          router.replace('/login');
-        }
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [router]);
 
   const signOut = async () => {
+    setLoading(true);
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
-    profileRef.current = null;
+    lastUserId.current = null;
     document.cookie = "lexis_user_email=; path=/; max-age=0";
+    setLoading(false);
     router.replace('/login');
   };
 
