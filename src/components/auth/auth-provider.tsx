@@ -1,12 +1,12 @@
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved. See LICENSE file.
+ * @license Proprietary - All rights reserved.
  */
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase, UserProfile, isSupabaseConfigured } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: any | null;
@@ -26,47 +26,73 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
   const router = useRouter();
+  const initialized = useRef(false);
+  const profileLoadingId = useRef<string | null>(null);
 
   const loadProfile = async (userId: string) => {
-    if (!isSupabaseConfigured) return null;
+    if (!isSupabaseConfigured || profileLoadingId.current === userId) return null;
     
+    profileLoadingId.current = userId;
     try {
-      const { data, error } = await supabase
+      console.log(`[AuthProvider] 🚀 Buscando perfil para: ${userId}`);
+      
+      const { data: profileData, error: profileError } = await supabase
         .from('usuarios')
         .select('*')
         .eq('auth_user_id', userId)
         .maybeSingle();
 
-      if (data) {
-        setProfile(data as UserProfile);
-        // Persistência de contexto para Server Actions
-        document.cookie = `lexis_user_email=${data.email.toLowerCase().trim()}; path=/; max-age=31536000; samesite=lax`;
-        return data as UserProfile;
+      if (profileData) {
+        setProfile(profileData as UserProfile);
+        document.cookie = `lexis_user_email=${profileData.email.toLowerCase().trim()}; path=/; max-age=31536000; samesite=lax`;
+        return profileData as UserProfile;
       }
+      
+      // Fallback por email se UUID falhar (migração)
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser?.email) {
+        const { data: altProfile } = await supabase
+          .from('usuarios')
+          .select('*')
+          .eq('email', authUser.email.toLowerCase().trim())
+          .maybeSingle();
+        
+        if (altProfile) {
+          setProfile(altProfile as UserProfile);
+          return altProfile as UserProfile;
+        }
+      }
+
       return null;
     } catch (e) {
-      console.error("[Auth] Erro perfil:", e);
+      console.error("[AuthProvider] Erro ao carregar perfil:", e);
       return null;
+    } finally {
+      profileLoadingId.current = null;
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    // 1. Carga inicial
-    const initializeAuth = async () => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    const setup = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setUser(session.user);
         await loadProfile(session.user.id);
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    initializeAuth();
+    setup();
 
-    // 2. Ouvinte de mudanças
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[Auth] Evento: ${event}`);
+      console.log(`[AuthProvider] 📡 Evento: ${event}`);
       
       if (session?.user) {
         setUser(session.user);
@@ -76,16 +102,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         setUser(null);
         setProfile(null);
+        setLoading(false);
         document.cookie = "lexis_user_email=; path=/; max-age=0";
+        if (!['/login', '/signup'].includes(window.location.pathname)) {
+          router.replace('/login');
+        }
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [profile]);
+  }, [router]);
 
   const signOut = async () => {
-    setLoading(true);
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);

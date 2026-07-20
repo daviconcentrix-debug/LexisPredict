@@ -27,11 +27,27 @@ export default function LoginPage() {
   const router = useRouter();
   const logoAsset = PlaceHolderImages.find(img => img.id === 'app-logo');
 
+  // Redirecionamento Automático: Ativado apenas se Perfil + User estiverem prontos
   useEffect(() => {
     if (!authLoading && user && profile) {
       router.replace('/');
     }
   }, [user, profile, authLoading, router]);
+
+  if (!authLoading && user && profile) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f3f2f2] space-y-8 font-sans p-6 text-center animate-in fade-in duration-500">
+        <div className="w-20 h-20 bg-black text-white border-2 border-black flex items-center justify-center shadow-[12px_12px_0px_#00D1FF]">
+          <ShieldCheck size={40} className="text-[#00D1FF]" />
+        </div>
+        <div className="space-y-4">
+          <h1 className="text-2xl font-black uppercase tracking-tighter">Gabinete Aberto</h1>
+          <p className="text-[10px] font-black uppercase tracking-widest text-black/40">Redirecionando para Mission Control...</p>
+        </div>
+        <Loader2 className="animate-spin text-black" size={32} />
+      </div>
+    );
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,20 +70,13 @@ export default function LoginPage() {
     }
   };
 
-  if (!authLoading && user && profile) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f3f2f2] space-y-8 font-sans p-6 text-center">
-        <div className="w-20 h-20 bg-black text-white border-2 border-black flex items-center justify-center shadow-[12px_12px_0px_#00D1FF]">
-          <ShieldCheck size={40} className="text-[#00D1FF]" />
-        </div>
-        <h1 className="text-2xl font-black uppercase tracking-tighter">Gabinete Aberto</h1>
-        <Loader2 className="animate-spin text-black" size={32} />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f3f2f2] p-6 font-sans text-black relative overflow-hidden">
+      <div className="absolute inset-0 opacity-[0.02] pointer-events-none select-none overflow-hidden">
+        <div className="text-[25rem] font-black absolute -top-40 -left-20">LEXIS</div>
+        <div className="text-[25rem] font-black absolute -bottom-40 -right-20">PREDICT</div>
+      </div>
+
       <div className="w-full max-w-md space-y-8 relative z-10">
         <div className="text-center space-y-6">
           <div className="icon-3d-block black w-20 h-20 mx-auto border-2 border-black shadow-[12px_12px_0px_#00D1FF] flex items-center justify-center p-3">
@@ -75,7 +84,10 @@ export default function LoginPage() {
               <Image src={logoAsset.imageUrl} alt="Logo" width={64} height={64} className="invert" />
             )}
           </div>
-          <h1 className="text-3xl font-black uppercase tracking-tighter">LexisPredict Elite</h1>
+          <div className="space-y-1">
+            <h1 className="text-3xl font-black uppercase tracking-tighter">LexisPredict Elite</h1>
+            <p className="text-[11px] font-black uppercase tracking-[0.4em] opacity-60">W1 Capital • Advanced Legal Ops</p>
+          </div>
         </div>
 
         <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
@@ -95,6 +107,7 @@ export default function LoginPage() {
                     className="pl-10 border-2 border-black h-12 text-black font-black uppercase text-xs rounded-none focus-visible:ring-black" 
                     required 
                     placeholder="USUARIO@W1CAPITAL.COM"
+                    autoComplete="email"
                   />
                 </div>
               </div>
@@ -109,6 +122,7 @@ export default function LoginPage() {
                     className="pl-10 border-2 border-black h-12 text-black font-black uppercase text-xs rounded-none focus-visible:ring-black" 
                     required 
                     placeholder="••••••••"
+                    autoComplete="current-password"
                   />
                 </div>
               </div>
@@ -128,6 +142,7 @@ export default function LoginPage() {
            <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
               <Copyright size={10} /> 2026 W1 Capital.
            </div>
+           <p className="text-[8px] font-black uppercase tracking-[0.3em]">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</p>
         </footer>
       </div>
     </div>
