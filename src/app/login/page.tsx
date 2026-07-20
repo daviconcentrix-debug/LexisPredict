@@ -6,14 +6,16 @@
  */
 import Image from 'next/image';
 
-<Image
-  src="/logo.png"
-  alt="LexisPredict"
-  width={56}
-  height={56}
-  className="mx-auto mb-4 rounded-lg"
-  priority
-/>
+<div className="flex flex-col items-center mb-6">
+  <Image
+    src="/logo.png"
+    alt="LexisPredict"
+    width={56}
+    height={56}
+    className="rounded-lg"
+    priority
+  />
+</div>
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
