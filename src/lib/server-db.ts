@@ -197,3 +197,30 @@ export async function removeEmpresaUser(userId: string): Promise<boolean> {
 
   return !error;
 }
+
+/**
+ * Recupera o histórico de mensagens enviadas e recebidas via WhatsApp.
+ */
+export async function getWhatsAppHistory(phone: string) {
+  const cleanPhone = phone.replace(/\D/g, '');
+  let searchPhone = cleanPhone;
+  
+  // Normalização Global para busca (Webhook salva com 55)
+  if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+    searchPhone = `55${cleanPhone}`;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('whatsapp_messages')
+      .select('*')
+      .eq('contact_number', searchPhone)
+      .order('timestamp', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('[DB] WhatsApp History Fetch Fail:', error);
+    return [];
+  }
+}
