@@ -1,4 +1,3 @@
-
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -6,7 +5,7 @@ import { AuthProvider } from '@/components/auth/auth-provider';
 import Script from 'next/script';
 
 export const viewport: Viewport = {
-  themeColor: '#000000',
+  themeColor: '#0f172a',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -23,8 +22,14 @@ export const metadata: Metadata = {
     title: 'LexisPredict',
   },
   icons: {
-    icon: '/icons/icon-192x192.png',
-    apple: '/icons/icon-192x192.png',
+    icon: [
+      { url: '/logo.png', sizes: '32x32', type: 'image/png' },
+      { url: '/logo.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/logo.png', sizes: '180x180', type: 'image/png' },
+    ],
+    shortcut: '/logo.png',
   },
 };
 
@@ -38,8 +43,11 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
-        
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap"
+          rel="stylesheet"
+        />
+
         <Script id="theme-loader" strategy="beforeInteractive">
           {`
             (function() {
@@ -48,7 +56,7 @@ export default function RootLayout({
                 const bg = localStorage.getItem('lexisPredict_bg_color') || '#FFFFFF';
                 const btn = localStorage.getItem('lexisPredict_btn_bg_color') || '#00D1FF';
                 const font = localStorage.getItem('lexisPredict_font_color') || '#000000';
-                
+               
                 const hexToHsl = (hex) => {
                   if (!hex || hex[0] !== '#') return null;
                   const cleanHex = hex.replace(/^#/, '');
@@ -69,15 +77,13 @@ export default function RootLayout({
                   }
                   return Math.round(h * 360) + ' ' + Math.round(s * 100) + '% ' + Math.round(l * 100) + '%';
                 };
-
                 const hslBg = hexToHsl(bg);
                 const hslBtn = hexToHsl(btn);
                 const hslFont = hexToHsl(font);
-
                 if(hslBg) root.style.setProperty('--background', hslBg);
                 if(hslBtn) root.style.setProperty('--primary', hslBtn);
                 if(hslFont) root.style.setProperty('--foreground', hslFont);
-                
+               
                 const wallpaper = localStorage.getItem('lexisPredict_wallpaper');
                 if (wallpaper) {
                   root.style.backgroundImage = 'url(' + wallpaper + ')';
