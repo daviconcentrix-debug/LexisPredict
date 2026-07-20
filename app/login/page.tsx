@@ -1,9 +1,10 @@
+
+"use client";
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved.
  */
-"use client";
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
@@ -16,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useAuth } from '@/components/auth/auth-provider';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -24,9 +26,17 @@ export default function LoginPage() {
   const [redirecting, setRedirecting] = useState(false);
   const { user, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const logoAsset = PlaceHolderImages.find(img => img.id === 'app-logo');
 
-  // Quebra de loop: Se detectar sessão ativa, mostra tela de transição com botão manual
+  // Protocolo de Ingresso Automático: Evita loop de tela de transição
+  useEffect(() => {
+    if (!authLoading && user && profile && !redirecting) {
+      setRedirecting(true);
+      router.push('/');
+    }
+  }, [user, profile, authLoading, router, redirecting]);
+
   if (!authLoading && user && profile) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#f3f2f2] space-y-8 font-sans p-6 text-center animate-in fade-in duration-700">
@@ -39,13 +49,10 @@ export default function LoginPage() {
              <p className="text-[10px] font-black text-black uppercase tracking-[0.3em]">{profile.nome}</p>
           </div>
         </div>
-        <Button 
-          onClick={() => { setRedirecting(true); window.location.href = '/'; }}
-          disabled={redirecting}
-          className="bg-black text-white border-2 border-black hover:bg-white hover:text-black font-black h-14 uppercase text-[11px] px-12 transition-all rounded-none shadow-[8px_8px_0px_#000] hover:shadow-none"
-        >
-          {redirecting ? <><Loader2 className="animate-spin mr-2" size={16} /> Entrando...</> : "Entrar no Gabinete"}
-        </Button>
+        <div className="flex flex-col items-center gap-4">
+           <Loader2 className="animate-spin text-black" size={32} />
+           <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Sincronizando Cabinet Mission Control...</p>
+        </div>
       </div>
     );
   }
@@ -125,6 +132,7 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)} 
                     className="pl-10 border-2 border-black h-12 text-black font-black uppercase text-xs bg-white focus-visible:ring-black placeholder:text-black/20 rounded-none" 
                     required 
+                    autoComplete="email"
                     placeholder="USUARIO@W1CAPITAL.COM"
                     disabled={loading || redirecting || authLoading}
                   />
@@ -140,6 +148,7 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)} 
                     className="pl-10 border-2 border-black h-12 text-black font-black uppercase text-xs bg-white focus-visible:ring-black rounded-none" 
                     required 
+                    autoComplete="current-password"
                     placeholder="••••••••"
                     disabled={loading || redirecting || authLoading}
                   />
