@@ -1,63 +1,57 @@
-
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+
   typescript: {
     ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
   },
+
+  // Next 15: saiu de experimental.serverComponentsExternalPackages
+  serverExternalPackages: ['tesseract.js', 'pdfjs-dist', 'pdf-parse'],
+
   experimental: {
-    serverComponentsExternalPackages: ['tesseract.js', 'pdfjs-dist', 'pdf-parse'],
     serverActions: {
       bodySizeLimit: '10mb',
     },
   },
-  headers: async () => {
+
+  async headers() {
     return [
       {
         source: '/:path*',
         headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
-          },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()',
-          }
+          },
         ],
       },
     ];
   },
+
   images: {
+    // Arquivos em /public (logo.png, favicon, etc.) funcionam sem config extra.
+    // remotePatterns só para URLs https externas:
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'placehold.co',
-        port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
-        port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
         hostname: 'picsum.photos',
-        port: '',
         pathname: '/**',
       },
     ],
