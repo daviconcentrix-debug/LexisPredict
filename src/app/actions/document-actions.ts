@@ -1,10 +1,10 @@
 
+'use server';
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
-'use server';
-
 import React from 'react';
 import { extrairDadosProcuracao } from '@/ai/flows/document-flow';
 
@@ -73,7 +73,11 @@ export async function extrairTextoDoPDFAction(formData: FormData) {
     const file = formData.get('pdf') as File;
     if (!file) return { error: "Nenhum arquivo enviado" };
     
-    // Tratamento de buffer otimizado para Vercel
+    // Verificação de tamanho preventivo no servidor
+    if (file.size > 10 * 1024 * 1024) {
+      return { error: "Arquivo excede o limite de 10MB suportado para transcrição forense." };
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
@@ -90,7 +94,7 @@ export async function extrairTextoDoPDFAction(formData: FormData) {
     return { success: true, text: data.text };
   } catch (e: any) {
     console.error("[OCR Engine] PDF Extraction Fail:", e.message);
-    return { error: "Falha na transcrição forense. O arquivo pode estar protegido ou corrompido." };
+    return { error: "Falha na transcrição forense. O arquivo pode estar em um formato incompatível ou protegido." };
   }
 }
 
