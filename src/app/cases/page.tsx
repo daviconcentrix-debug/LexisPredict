@@ -1,9 +1,10 @@
 
-"use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
+"use client";
+
 import React, { useState, useEffect, useMemo, useCallback, Suspense, useDeferredValue, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
@@ -161,7 +162,7 @@ function CasesContent() {
     proximoPrazo: '',
     situacao: 'EM ANDAMENTO',
     ultimoRetorno: '',
-    statusManual: 'Automatico' as any,
+    statusManual: 'Automatico',
     observacao: '',
     telefone: ''
   });
@@ -188,10 +189,13 @@ function CasesContent() {
       const thresholds = { alertLimit: savedThreshold ? parseInt(savedThreshold) : 3 };
 
       const updatedCases = cases.map(c => {
-        if (c.statusManual === 'Automatico' || !c.statusManual) {
-          return processarCaso({ ...c }, thresholds);
+        // Ignora encerrados e arquivados da recalibração automática
+        const sit = String(c.situacao).toUpperCase();
+        if (['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(sit)) {
+          return c;
         }
-        return c;
+        // Força recalibração automática para todos os ativos
+        return processarCaso({ ...c, STATUS_MANUAL: 'Automatico' }, thresholds);
       });
 
       const hasChanges = JSON.stringify(updatedCases.map(u => u.status)) !== JSON.stringify(cases.map(c => c.status));
@@ -200,8 +204,10 @@ function CasesContent() {
         const result = await syncRepoCases(updatedCases);
         if (result.success) {
           setCases(updatedCases);
-          if (!silent) toast({ title: "Sincronia Concluída", description: "Todos os prazos foram recalculados." });
+          if (!silent) toast({ title: "Sincronia Concluída", description: "Todos os prazos ativos foram recalculados pelo motor." });
         }
+      } else {
+        if (!silent) toast({ title: "Base em Compliance", description: "Todos os prazos já estão sincronizados." });
       }
     } finally {
       if (!silent) setIsUpdating(false);
@@ -263,7 +269,7 @@ function CasesContent() {
     };
 
     const timeout = setTimeout(recalibrate, 2000);
-    const interval = setInterval(recalibrate, 45000);
+    const interval = setInterval(recalibrate, 60000);
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') recalibrate();
@@ -327,7 +333,7 @@ function CasesContent() {
       protocolo: c.protocolo,
       advogado: c.advogado,
       proximoPrazo: c.proximoPrazo,
-      situacao: c.situacao,
+      situacao: c.situacao || 'EM ANDAMENTO',
       ultimoRetorno: c.ultimoRetorno || '',
       statusManual: c.statusManual || 'Automatico',
       observacao: c.observacao || '',
@@ -422,36 +428,90 @@ function CasesContent() {
                     <Plus className="w-4 h-4 mr-2 text-primary" /> Novo Registro
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[450px] rounded-2xl overflow-hidden border-none shadow-2xl">
+                <DialogContent className="sm:max-w-[550px] rounded-2xl overflow-hidden border-none shadow-2xl">
                   <form onSubmit={handleSaveCase}>
                     <DialogHeader className="p-6 bg-secondary/20 border-b">
                       <DialogTitle className="font-black uppercase tracking-tight">Gestão de Registro</DialogTitle>
                     </DialogHeader>
-                    <div className="p-6 space-y-6">
-                      <div className="space-y-4">
-                        <div className="grid gap-2">
-                          <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Titular / Cliente</Label>
-                          <Input value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-bold uppercase" />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">CNJ / Protocolo</Label>
-                          <Input value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-mono" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                           <div className="grid gap-2">
-                              <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Advogado</Label>
-                              <Input value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-bold uppercase" />
-                           </div>
-                           <div className="grid gap-2">
-                              <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Prazo Final</Label>
-                              <Input value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none" placeholder="DD/MM/AAAA" />
-                           </div>
+                    <ScrollArea className="max-h-[70vh]">
+                      <div className="p-6 space-y-6">
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                              <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Titular / Cliente</Label>
+                              <Input value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-bold uppercase" />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">WhatsApp / Telefone</Label>
+                              <Input value={formState.telefone} onChange={(e) => setFormState({...formState, telefone: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-mono" placeholder="(00) 00000-0000" />
+                            </div>
+                          </div>
+                          
+                          <div className="grid gap-2">
+                            <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">CNJ / Protocolo</Label>
+                            <Input value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-mono" />
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Advogado</Label>
+                                <Input value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-bold uppercase" />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Próximo Prazo</Label>
+                                <Input value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none" placeholder="DD/MM/AAAA" />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                              <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Situação do Processo</Label>
+                              <Select value={formState.situacao} onValueChange={(val) => setFormState({...formState, situacao: val})}>
+                                <SelectTrigger className="rounded-xl h-11 bg-secondary/20 border-none font-bold text-[10px] uppercase">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="EM ANDAMENTO">EM ANDAMENTO</SelectItem>
+                                  <SelectItem value="ENCERRADO">ENCERRADO</SelectItem>
+                                  <SelectItem value="ARQUIVADO">ARQUIVADO</SelectItem>
+                                  <SelectItem value="SUSPENSO">SUSPENSO</SelectItem>
+                                  <SelectItem value="EXTINTO">EXTINTO</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid gap-2">
+                              <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Status de Prazo</Label>
+                              <Select value={formState.statusManual} onValueChange={(val) => setFormState({...formState, statusManual: val})}>
+                                <SelectTrigger className="rounded-xl h-11 bg-secondary/20 border-none font-bold text-[10px] uppercase">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Automatico">🤖 AUTOMÁTICO (MOTOR IA)</SelectItem>
+                                  <SelectItem value="Vencido">🔴 VENCIDO</SelectItem>
+                                  <SelectItem value="É Hoje">🔵 É HOJE</SelectItem>
+                                  <SelectItem value="Atenção">🟠 ATENÇÃO</SelectItem>
+                                  <SelectItem value="No Prazo">🟢 NO PRAZO</SelectItem>
+                                  <SelectItem value="Sem Prazo">⚪ SEM PRAZO</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-2">
+                            <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Observações de Gabinete</Label>
+                            <Textarea 
+                              value={formState.observacao} 
+                              onChange={(e) => setFormState({...formState, observacao: e.target.value})} 
+                              className="rounded-xl bg-secondary/20 border-none min-h-[100px] text-xs font-bold uppercase resize-none" 
+                              placeholder="DETALHES ESTRATÉGICOS DO CASO..."
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </ScrollArea>
                     <DialogFooter className="p-6 pt-0">
                       <Button type="submit" className="w-full h-12 bg-black text-white hover:bg-black/90 rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl">
-                        Sincronizar Dados
+                        Sincronizar Dados de Gabinete
                       </Button>
                     </DialogFooter>
                   </form>
