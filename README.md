@@ -1,7 +1,7 @@
 # LexisPredict Elite
 
 **Plataforma de Gestão Jurídica e Operacional**  
-Desenvolvida internamente pela **W1 Capital.**
+Desenvolvida internamente pela **W1 Capital / Get Assessoria Financeira Ltda.**
 
 LexisPredict é um sistema completo de operações jurídicas com forte automação por IA, suporte offline-first e interface executiva altamente customizável.
 
@@ -47,7 +47,7 @@ AIRFORCE_API_KEY=
 
 ## 📄 Licença
 Este software é proprietário.  
-Todos os direitos reservados a Davi Alves Figueredo e W1 Capital.  
+Todos os direitos reservados a Davi Alves Figueredo e W1 Capital Assessoria Financeira Ltda.  
 Uso, cópia ou modificação não autorizada é proibida.  
 Para parcerias ou licenciamento: w1capitalassessoria@protonmail.com
 

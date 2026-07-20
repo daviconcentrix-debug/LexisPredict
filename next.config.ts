@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    serverComponentsExternalPackages: ['tesseract.js', 'pdfjs-dist', 'pdf-parse'],
+  },
   headers: async () => {
     return [
       {
