@@ -1,9 +1,9 @@
+
+"use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
-"use client";
-
 import React, { useState, useEffect, useMemo, useCallback, Suspense, useDeferredValue, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
@@ -26,7 +26,8 @@ import {
   AlertTriangle,
   CalendarDays,
   Filter,
-  Download
+  Download,
+  ShieldAlert
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -42,9 +43,10 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogDescription
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
-import { fetchRepoCases, syncRepoCases } from '@/app/actions/case-actions';
+import { fetchRepoCases, syncRepoCases, deleteAllCasesAction } from '@/app/actions/case-actions';
 import { exportCasesToCSVAction } from '@/app/actions/export-actions';
 import { format } from 'date-fns';
 import { useAdmin } from '@/hooks/use-admin';
@@ -142,7 +144,10 @@ function CasesContent() {
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isPurging, setIsPurging] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPurgeModalOpen, setIsPurgeModalOpen] = useState(false);
+  const [purgeConfirmText, setPurgeConfirmText] = useState('');
   const [editingCase, setEditingCase] = useState<LegalCase | null>(null);
   const [mounted, setMounted] = useState(false);
   const { isAdmin, isOperador } = useAdmin();
@@ -222,6 +227,24 @@ function CasesContent() {
       toast({ title: "Erro Crítico", description: "Não foi possível gerar o arquivo.", variant: "destructive" });
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handlePurgeDatabase = async () => {
+    if (purgeConfirmText !== 'CONFIRME' || isPurging) return;
+    setIsPurging(true);
+    try {
+      const res = await deleteAllCasesAction();
+      if (res.success) {
+        setCases([]);
+        setIsPurgeModalOpen(false);
+        setPurgeConfirmText('');
+        toast({ title: "Base Purificada", description: "Todos os seus processos foram removidos." });
+      } else {
+        toast({ title: "Falha na Purga", description: res.error, variant: "destructive" });
+      }
+    } finally {
+      setIsPurging(false);
     }
   };
 
@@ -343,6 +366,43 @@ function CasesContent() {
             </Badge>
           </div>
           <div className="flex items-center gap-3">
+            {isOperador && (
+               <Dialog open={isPurgeModalOpen} onOpenChange={setIsPurgeModalOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" className="h-10 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest text-red-600 hover:bg-red-50">
+                    <Trash2 size={16} className="mr-2" /> Limpar Base
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="rounded-2xl border-none shadow-2xl">
+                   <DialogHeader>
+                      <DialogTitle className="font-black uppercase text-red-600 flex items-center gap-2">
+                        <ShieldAlert /> Ação Irreversível
+                      </DialogTitle>
+                      <DialogDescription className="font-bold uppercase text-[10px]">
+                        Você está prestes a apagar todos os {cases.length} processos desta conta. Esta ação não pode ser desfeita.
+                      </DialogDescription>
+                   </DialogHeader>
+                   <div className="py-6 space-y-4">
+                      <Label className="font-black uppercase text-[10px] text-muted-foreground">Digite a palavra CONFIRME para prosseguir:</Label>
+                      <Input 
+                        value={purgeConfirmText}
+                        onChange={(e) => setPurgeConfirmText(e.target.value.toUpperCase())}
+                        placeholder="CONFIRME"
+                        className="rounded-xl border-2 border-red-100 h-12 font-black uppercase text-center focus-visible:ring-red-600"
+                      />
+                   </div>
+                   <DialogFooter>
+                      <Button 
+                        disabled={purgeConfirmText !== 'CONFIRME' || isPurging}
+                        onClick={handlePurgeDatabase}
+                        className="w-full h-12 bg-red-600 text-white rounded-xl font-black uppercase text-[11px] tracking-widest"
+                      >
+                        {isPurging ? <Loader2 className="animate-spin" /> : "Apagar Toda a Base Agora"}
+                      </Button>
+                   </DialogFooter>
+                </DialogContent>
+               </Dialog>
+            )}
             {isOperador && (
               <Button onClick={handleExportPlanilha} disabled={isExporting || cases.length === 0} variant="ghost" className="h-10 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest text-muted-foreground hover:bg-secondary">
                 {isExporting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download size={16} className="mr-2 text-primary" />}
