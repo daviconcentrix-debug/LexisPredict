@@ -1,19 +1,17 @@
-
 'use server';
 
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
+
 import React from 'react';
 import { extrairDadosProcuracao } from '@/ai/flows/document-flow';
 
 /**
  * Motor de Selagem Digital v850.0
- * Configurado para Node.js Runtime para suporte a bibliotecas de processamento pesado no Vercel.
+ * Configurado para processamento assíncrono em conformidade com Next.js 15.
  */
-
-export const runtime = 'nodejs';
 
 async function getRenderToBuffer() {
   const { renderToBuffer } = await import('@react-pdf/renderer');
@@ -73,7 +71,7 @@ export async function extrairTextoDoPDFAction(formData: FormData) {
     const file = formData.get('pdf') as File;
     if (!file) return { error: "Nenhum arquivo enviado" };
     
-    // Verificação de tamanho preventivo no servidor
+    // Verificação de tamanho preventivo no servidor (10MB)
     if (file.size > 10 * 1024 * 1024) {
       return { error: "Arquivo excede o limite de 10MB suportado para transcrição forense." };
     }
