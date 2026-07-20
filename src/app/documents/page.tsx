@@ -24,7 +24,8 @@ import {
   Trash2,
   Eye,
   Calendar,
-  Fingerprint
+  Fingerprint,
+  Hash
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -85,6 +86,7 @@ export default function DocumentGenerator() {
   const [extractedData, setExtractedData] = useState<any>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [includeBankInfo, setIncludeBankInfo] = useState(true);
+  const [includeProcessNumber, setIncludeProcessNumber] = useState(true);
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -159,6 +161,7 @@ export default function DocumentGenerator() {
       const payload = {
         ...extractedData,
         includeBankInfo,
+        includeProcessNumber,
         advogado: {
           nome: selectedLawyer,
           oab: lawyerInfo.oabs[selectedState] || lawyerInfo.oabs['SP'],
@@ -357,11 +360,19 @@ export default function DocumentGenerator() {
 
                 <div className="space-y-6">
                   <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
-                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3 flex flex-row items-center justify-between">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados do Processo & Data</CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Switch checked={includeBankInfo} onCheckedChange={setIncludeBankInfo} id="inc-bank" />
-                        <Label htmlFor="inc-bank" className="text-[8px] font-black uppercase">Incluir Banco</Label>
+                    <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
+                       <div className="flex items-center justify-between">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados do Processo & Data</CardTitle>
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Switch checked={includeBankInfo} onCheckedChange={setIncludeBankInfo} id="inc-bank" />
+                            <Label htmlFor="inc-bank" className="text-[8px] font-black uppercase">Banco</Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch checked={includeProcessNumber} onCheckedChange={setIncludeProcessNumber} id="inc-proc" />
+                            <Label htmlFor="inc-proc" className="text-[8px] font-black uppercase">Processo</Label>
+                          </div>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
@@ -392,8 +403,8 @@ export default function DocumentGenerator() {
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="grid gap-1">
-                            <Label className="text-[9px] font-black uppercase">Processo (CNJ)</Label>
+                          <div className={cn("grid gap-1", !includeProcessNumber && "opacity-20 pointer-events-none")}>
+                            <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Hash size={10}/> Processo (CNJ)</Label>
                             <Input 
                               value={extractedData.processos?.[0]?.numero || "S/N"} 
                               onChange={(e) => {
@@ -430,7 +441,7 @@ export default function DocumentGenerator() {
                         <strong>{selectedLawyer.toUpperCase()}</strong>, brasileiro, advogado, inscrito na OAB/{selectedState} sob o número {BANCA_DATA[selectedLawyer].oabs[selectedState] || BANCA_DATA[selectedLawyer].oabs['SP']}, com endereço profissional na {BANCA_DATA[selectedLawyer].endereco}, e endereço eletrônico: {BANCA_DATA[selectedLawyer].email}.
                       </p>
                       <p className="text-justify indent-10">
-                        <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <strong>"AD JUDICIA"</strong>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <strong>AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA</strong> {includeBankInfo ? `promovida contra ${(extractedData.processos?.[0]?.banco || "BANCO").toUpperCase()}, inscrita no CNPJ sob o nº ${extractedData.processos?.[0]?.cnpjBanco || "00.000.000/0000-00"}, ` : ""}processo nº {extractedData.processos?.[0]?.numero || "S/N"}.
+                        <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <strong>"AD JUDICIA"</strong>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <strong>{extractedData.processos?.[0]?.acao?.toUpperCase() || "AÇÃO REVISIONAL"}</strong> {includeBankInfo ? `promovida contra ${(extractedData.processos?.[0]?.banco || "BANCO").toUpperCase()}, inscrita no CNPJ sob o nº ${extractedData.processos?.[0]?.cnpjBanco || "00.000.000/0000-00"}` : ""}{includeProcessNumber ? `, processo nº ${extractedData.processos?.[0]?.numero || "S/N"}` : ""}.
                       </p>
                       <div className="text-center mt-10">
                         <p>{extractedData.dataExtenso}</p>

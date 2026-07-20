@@ -1,8 +1,8 @@
-"use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
+"use client";
 
 import React, { useState, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -21,7 +21,8 @@ import {
   Repeat, 
   Info, 
   Eye,
-  Fingerprint
+  Fingerprint,
+  Hash
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -62,44 +63,12 @@ const BANCA_DATA: Record<string, any> = {
   "LUCAS DOS SANTOS DE JESUS": {
     oabs: { "DF": "78116", "AL": "21512A", "AM": "A2373", "PE": "66465", "RJ": "261767", "SP": "520783" },
     estadoCivil: "solteiro"
-  },
-  "ERALDO FRANCISCO DA SILVA JUNIOR": {
-    oabs: { "SP": "327.677" },
-    estadoCivil: "casado"
-  },
-  "ISAI SAMPAIO MOREIRA": {
-    oabs: { "SP": "437.886" },
-    estadoCivil: "casado"
-  },
-  "GILBERTO BONFIM CAVALCANTI FILHO": {
-    oabs: { "SP": "337.930" },
-    estadoCivil: "casado"
-  },
-  "FABIO RODRIGUES SAMPAIO MOREIRA": {
-    oabs: { "SP": "437.886" },
-    estadoCivil: "casado"
-  },
-  "MATHEUS SANTOS DIAS": {
-    oabs: { "SP": "472.089" },
-    estadoCivil: "casado"
-  },
-  "MAIKON ALVES LOPES DOS SANTOS": {
-    oabs: { "SP": "470.735" },
-    estadoCivil: "casado"
-  },
-  "ANDRESSA EDUARDA TAVARES MATOS": {
-    oabs: { "MG": "238.75", "SP": "238.75" },
-    estadoCivil: "casada"
-  },
-  "RENATO PRINCIPE STEVANIN": {
-    oabs: { "PR": "115.910", "SP": "346.790" },
-    estadoCivil: "casado"
   }
 };
 
 const ADVOGADOS_LIST = Object.keys(BANCA_DATA);
 
-export default function SubstabelecimentoGenerator() {
+export default function SubstabelecimentoPecaGenerator() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [fileLoading, setFileLoading] = useState(false);
@@ -110,6 +79,7 @@ export default function SubstabelecimentoGenerator() {
   const [extractedData, setExtractedData] = useState<any>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [includeBankInfo, setIncludeBankInfo] = useState(true);
+  const [includeProcessNumber, setIncludeProcessNumber] = useState(true);
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -194,7 +164,7 @@ export default function SubstabelecimentoGenerator() {
     if (!extractedData) return;
     setLoading(true);
     try {
-      const res = await generatePecaSubstabelecimentoPDFAction({ ...extractedData, includeBankInfo });
+      const res = await generatePecaSubstabelecimentoPDFAction({ ...extractedData, includeBankInfo, includeProcessNumber });
       if (res.success && res.base64) {
         const link = document.createElement('a');
         link.href = `data:application/pdf;base64,${res.base64}`;
@@ -306,7 +276,7 @@ export default function SubstabelecimentoGenerator() {
                       <CardTitle className="text-[10px] font-black uppercase flex items-center gap-2"><Upload size={14} /> Leitura PDF</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
-                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all">
+                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all rounded-none">
                         {fileLoading ? <Loader2 className="animate-spin text-black" size={32} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
                         <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Arraste a procuração antiga</p>
                         <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
@@ -319,11 +289,11 @@ export default function SubstabelecimentoGenerator() {
           )}
 
           {step === 2 && extractedData && (
-            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto pb-20">
               <div className="flex items-center justify-between border-b-2 border-black pb-4">
                 <div className="flex items-center gap-3">
                   <Edit3 size={20} />
-                  <h2 className="text-xl font-black uppercase tracking-tight">Revisão Forense</h2>
+                  <h2 className="text-xl font-black uppercase tracking-tight text-black">Revisão Forense</h2>
                 </div>
                 <Button variant="ghost" onClick={() => setStep(1)} className="font-black uppercase text-[10px] border-2 border-black rounded-none">Voltar</Button>
               </div>
@@ -359,9 +329,15 @@ export default function SubstabelecimentoGenerator() {
                   <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                     <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3 flex flex-row items-center justify-between">
                       <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados do Processo</CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Switch checked={includeBankInfo} onCheckedChange={setIncludeBankInfo} id="inc-bank-peca" />
-                        <Label htmlFor="inc-bank-peca" className="text-[8px] font-black uppercase">Incluir Banco</Label>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Switch checked={includeBankInfo} onCheckedChange={setIncludeBankInfo} id="inc-bank-peca" />
+                          <Label htmlFor="inc-bank-peca" className="text-[8px] font-black uppercase">Banco</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={includeProcessNumber} onCheckedChange={setIncludeProcessNumber} id="inc-proc-peca" />
+                          <Label htmlFor="inc-proc-peca" className="text-[8px] font-black uppercase">Processo</Label>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
@@ -385,8 +361,8 @@ export default function SubstabelecimentoGenerator() {
                         <Input value={extractedData.tipoAcao} onChange={(e) => setExtractedData({...extractedData, tipoAcao: e.target.value})} className="border-black font-black uppercase rounded-none" />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-1">
-                          <Label className="text-[9px] font-black uppercase">Processo (CNJ)</Label>
+                        <div className={cn("grid gap-1", !includeProcessNumber && "opacity-20 pointer-events-none")}>
+                          <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Hash size={10}/> Processo (CNJ)</Label>
                           <Input value={extractedData.numeroProcesso} onChange={(e) => setExtractedData({...extractedData, numeroProcesso: e.target.value})} className="border-black font-black uppercase rounded-none font-mono" />
                         </div>
                         <div className="grid gap-1">
@@ -409,7 +385,7 @@ export default function SubstabelecimentoGenerator() {
                   <p className="text-center font-bold text-md mb-16">(sem reserva de poderes)</p>
 
                   <p className="text-justify mb-16 indent-12">
-                    O <strong>{extractedData.advogadoSubstabelecente.toUpperCase()}</strong>, brasileiro, {extractedData.estadoCivilSubstabelecente}, advogado, inscrito na <strong>{extractedData.oabSubstabelecente}</strong>, <strong>SUBSTABELECE SEM RESERVA DE PODERES</strong> na pessoa do <strong>{extractedData.advogadoSubstabelecido.toUpperCase()}</strong>, inscrito na <strong>{extractedData.oabSubstabelecido}</strong>, os poderes conferidos por <strong>{extractedData.clienteNome.toUpperCase()}</strong>, <strong>PARA A PROMOÇÃO DE {extractedData.tipoAcao.toUpperCase()}</strong> {includeBankInfo ? `promovida contra o ${extractedData.reuNome.toUpperCase()}, ` : ""}processo de n.º <strong>{extractedData.numeroProcesso}</strong> por meio do instrumento outrora outorgado, requerendo a exclusão do advogado substabelecente <strong>{extractedData.advogadoSubstabelecente.toUpperCase()}</strong> sob <strong>{extractedData.oabSubstabelecenteCurta}</strong> da contracapa dos autos, bem como de qualquer outro meio de intimação do processo, sendo assim que <strong>todas as futuras intimações passsem a ser exclusivamente dirigidas ao substabelecido</strong>, <strong>{extractedData.advogadoSubstabelecido.toUpperCase()}</strong> sob <strong>{extractedData.oabSubstabelecidoCurta}</strong>, nos termos do artigo 272, §5º, do CPC, sob pena de nulidade.
+                    O <strong>{extractedData.advogadoSubstabelecente.toUpperCase()}</strong>, brasileiro, {extractedData.estadoCivilSubstabelecente}, advogado, inscrito na <strong>{extractedData.oabSubstabelecente}</strong>, <strong>SUBSTABELECE SEM RESERVA DE PODERES</strong> na pessoa do <strong>{extractedData.advogadoSubstabelecido.toUpperCase()}</strong>, inscrito na <strong>{extractedData.oabSubstabelecido}</strong>, os poderes conferidos por <strong>{extractedData.clienteNome.toUpperCase()}</strong>, <strong>PARA A PROMOÇÃO DE {extractedData.tipoAcao.toUpperCase()}</strong> {includeBankInfo ? `promovida contra o ${extractedData.reuNome.toUpperCase()}, ` : ""}{includeProcessNumber ? `processo de n.º ${extractedData.numeroProcesso}` : ""} por meio do instrumento outrora outorgado, requerendo a exclusão do advogado substabelecente <strong>{extractedData.advogadoSubstabelecente.toUpperCase()}</strong> sob <strong>{extractedData.oabSubstabelecenteCurta}</strong> da contracapa dos autos, bem como de qualquer outro meio de intimação do processo, sendo assim que <strong>todas as futuras intimações passsem a ser exclusivamente dirigidas ao substabelecido</strong>, <strong>{extractedData.advogadoSubstabelecido.toUpperCase()}</strong> sob <strong>{extractedData.oabSubstabelecidoCurta}</strong>, nos termos do artigo 272, §5º, do CPC, sob pena de nulidade.
                   </p>
 
                   <div className="text-center mb-24 mt-16">
@@ -431,10 +407,12 @@ export default function SubstabelecimentoGenerator() {
                 </CardContent>
               </Card>
 
-              <Button onClick={handleSeal} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
-                {loading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
-                Selar & Exportar Substabelecimento
-              </Button>
+              <div className="pb-10">
+                <Button onClick={handleSeal} disabled={loading} className="w-full h-14 bg-black text-white font-black uppercase text-xs rounded-none border-2 border-black hover:bg-white hover:text-black transition-all shadow-[6px_6px_0px_#22c55e]">
+                  {loading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 size={16} className="mr-2" />}
+                  Selar & Exportar Substabelecimento
+                </Button>
+              </div>
             </div>
           )}
         </div>

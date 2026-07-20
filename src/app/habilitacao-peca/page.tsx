@@ -23,7 +23,8 @@ import {
   Briefcase,
   Users,
   Fingerprint,
-  Calendar
+  Calendar,
+  Hash
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -84,6 +85,7 @@ export default function HabilitacaoPecaGenerator() {
   const [extractedData, setExtractedData] = useState<any>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [includeBankInfo, setIncludeBankInfo] = useState(true);
+  const [includeProcessNumber, setIncludeProcessNumber] = useState(true);
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -170,7 +172,7 @@ export default function HabilitacaoPecaGenerator() {
     if (!extractedData) return;
     setLoading(true);
     try {
-      const res = await generateHabilitacaoPecaPDFAction({ ...extractedData, includeBankInfo });
+      const res = await generateHabilitacaoPecaPDFAction({ ...extractedData, includeBankInfo, includeProcessNumber });
       if (res.success && res.base64) {
         const link = document.createElement('a');
         link.href = `data:application/pdf;base64,${res.base64}`;
@@ -278,7 +280,7 @@ export default function HabilitacaoPecaGenerator() {
                       <CardTitle className="text-[10px] font-black uppercase flex items-center gap-2"><Upload size={14} /> Leitura PDF</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
-                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all">
+                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all rounded-none">
                         {fileLoading ? <Loader2 className="animate-spin text-black" size={32} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
                         <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Arraste o PDF aqui</p>
                         <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
@@ -343,9 +345,15 @@ export default function HabilitacaoPecaGenerator() {
                   <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                     <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3 flex flex-row items-center justify-between">
                       <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Building2 size={14} /> Dados do Juízo & Banco</CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Switch checked={includeBankInfo} onCheckedChange={setIncludeBankInfo} id="inc-bank-hab" />
-                        <Label htmlFor="inc-bank-hab" className="text-[8px] font-black uppercase">Incluir Banco</Label>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Switch checked={includeBankInfo} onCheckedChange={setIncludeBankInfo} id="inc-bank-hab" />
+                          <Label htmlFor="inc-bank-hab" className="text-[8px] font-black uppercase">Banco</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={includeProcessNumber} onCheckedChange={setIncludeProcessNumber} id="inc-proc-hab" />
+                          <Label htmlFor="inc-proc-hab" className="text-[8px] font-black uppercase">Processo</Label>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
@@ -358,8 +366,8 @@ export default function HabilitacaoPecaGenerator() {
                          <Input value={extractedData.reuCnpj} onChange={(e) => setExtractedData({...extractedData, reuCnpj: e.target.value})} className="border-black font-black uppercase rounded-none font-mono" />
                        </div>
                        <div className="grid grid-cols-2 gap-4">
-                          <div className="grid gap-1">
-                            <Label className="text-[9px] font-black uppercase">Processo (CNJ)</Label>
+                          <div className={cn("grid gap-1", !includeProcessNumber && "opacity-20 pointer-events-none")}>
+                            <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Hash size={10}/> Processo (CNJ)</Label>
                             <Input value={extractedData.numeroProcesso} onChange={(e) => setExtractedData({...extractedData, numeroProcesso: e.target.value})} className="border-black font-black uppercase rounded-none font-mono" />
                           </div>
                           <div className="grid gap-1">
@@ -386,7 +394,9 @@ export default function HabilitacaoPecaGenerator() {
                     <p className="font-bold uppercase leading-tight">
                       EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA {extractedData.vara.toUpperCase()} DA COMARCA DE {extractedData.comarca.toUpperCase()}.
                     </p>
-                    <p className="text-right font-bold">Processo nº {extractedData.numeroProcesso}</p>
+                    {includeProcessNumber && (
+                      <p className="text-right font-bold">Processo nº {extractedData.numeroProcesso}</p>
+                    )}
                     <p className="text-justify indent-12">
                       <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, brasileiro(a), {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador da cédula de identidade RG número {extractedData.cliente.rg} e inscrito no CPF/MF sob o nº {extractedData.cliente.cpf}, residente e domiciliado na {extractedData.cliente.endereco}, vem, respeitosamente, à presença de Vossa Excelência, por seu procurador, ora constituído, apresentar seu pedido de habilitação e requerer a juntada do anexo instrumento particular de mandato.
                     </p>
@@ -416,7 +426,7 @@ export default function HabilitacaoPecaGenerator() {
                       <strong>{extractedData.advogado.nome.toUpperCase()}</strong>, brasileiro, advogado, inscrito na OAB/{extractedData.selectedState} sob o número {extractedData.advogado.oab}, com endereço profissional na {extractedData.advogado.endereco}, CEP {extractedData.advogado.cep}, e endereço eletrônico: {extractedData.advogado.email}.
                     </p>
                     <p className="text-justify indent-12">
-                      <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <strong>"AD JUDICIA"</strong>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <strong>{extractedData.tipoAcao.toUpperCase()}</strong> {includeBankInfo ? `promovida contra o ${extractedData.reuNome.toUpperCase()}, ` : ""}processo nº {extractedData.numeroProcesso}.
+                      <strong>PODERES:</strong> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <strong>"AD JUDICIA"</strong>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <strong>{extractedData.tipoAcao.toUpperCase()}</strong> {includeBankInfo ? `promovida contra o ${extractedData.reuNome.toUpperCase()}, ` : ""}{includeProcessNumber ? `processo nº ${extractedData.numeroProcesso}` : ""}.
                     </p>
                     <p className="text-center pt-10">{extractedData.cidadeEmissao}, {extractedData.dataFormatada}.</p>
                     <div className="flex flex-col items-center pt-10">

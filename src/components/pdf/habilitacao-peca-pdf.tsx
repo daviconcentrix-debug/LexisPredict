@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
 export function HabilitacaoPecaPDF({ data }: { data: any }) {
   const { 
     vara, comarca, numeroProcesso, cliente, advogado, 
-    tipoAcao, reuNome, reuCnpj, cidadeEmissao, dataFormatada, selectedState, includeBankInfo 
+    tipoAcao, reuNome, reuCnpj, cidadeEmissao, dataFormatada, selectedState, includeBankInfo, includeProcessNumber 
   } = data;
 
   return (
@@ -69,7 +69,9 @@ export function HabilitacaoPecaPDF({ data }: { data: any }) {
           EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA {vara} DA COMARCA DE {comarca}.
         </Text>
 
-        <Text style={styles.processInfo}>Processo nº {numeroProcesso}</Text>
+        {includeProcessNumber && (
+          <Text style={styles.processInfo}>Processo nº {numeroProcesso}</Text>
+        )}
 
         <View style={styles.paragraph}>
           <Text>
@@ -113,7 +115,7 @@ export function HabilitacaoPecaPDF({ data }: { data: any }) {
 
         <View style={styles.paragraph}>
           <Text>
-            <Text style={styles.bold}>PODERES:</Text> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <Text style={styles.bold}>"AD JUDICIA"</Text>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou aquisições de acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <Text style={styles.bold}>{tipoAcao.toUpperCase()}</Text> {includeBankInfo ? `promovida contra o ${reuNome.toUpperCase()}, inscrito no CNPJ sob o nº ${reuCnpj || '---'}, ` : ""}processo nº {numeroProcesso}.
+            <Text style={styles.bold}>PODERES:</Text> Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <Text style={styles.bold}>"AD JUDICIA"</Text>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou aquisições de acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <Text style={styles.bold}>{tipoAcao.toUpperCase()}</Text> {includeBankInfo ? `promovida contra o ${reuNome.toUpperCase()}, inscrito no CNPJ sob o nº ${reuCnpj || '---'}` : ""}{includeProcessNumber ? `, processo nº ${numeroProcesso}` : ""}.
           </Text>
         </View>
 

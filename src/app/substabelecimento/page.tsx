@@ -21,7 +21,8 @@ import {
   User, 
   Repeat, 
   Eye,
-  Fingerprint
+  Fingerprint,
+  Hash
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -77,6 +78,7 @@ export default function SubstabelecimentoGenerator() {
   const [extractedData, setExtractedData] = useState<any>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [includeBankInfo, setIncludeBankInfo] = useState(true);
+  const [includeProcessNumber, setIncludeProcessNumber] = useState(true);
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -154,7 +156,7 @@ export default function SubstabelecimentoGenerator() {
   const handleSeal = async () => {
     setLoading(true);
     try {
-      const res = await generateSubstabelecimentoPDFAction({ ...extractedData, includeBankInfo });
+      const res = await generateSubstabelecimentoPDFAction({ ...extractedData, includeBankInfo, includeProcessNumber });
       if (res.success && res.base64) {
         const link = document.createElement('a');
         link.href = `data:application/pdf;base64,${res.base64}`;
@@ -264,7 +266,7 @@ export default function SubstabelecimentoGenerator() {
                       <CardTitle className="text-[10px] font-black uppercase flex items-center gap-2 text-black"><Upload size={14} /> Importar Qualquer PDF</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
-                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all">
+                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all rounded-none">
                         {fileLoading ? <Loader2 className="animate-spin text-black" size={32} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
                         <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white">Selecione o PDF para transcrever</p>
                         <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
@@ -319,9 +321,15 @@ export default function SubstabelecimentoGenerator() {
                   <Card className="bg-white border-2 border-black rounded-none shadow-[6px_6px_0px_#000]">
                     <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3 flex flex-row items-center justify-between">
                       <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 text-black"><Building2 size={14} /> Dados do Processo</CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Switch checked={includeBankInfo} onCheckedChange={setIncludeBankInfo} id="inc-bank-sub" />
-                        <Label htmlFor="inc-bank-sub" className="text-[8px] font-black uppercase">Incluir Banco</Label>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Switch checked={includeBankInfo} onCheckedChange={setIncludeBankInfo} id="inc-bank-sub" />
+                          <Label htmlFor="inc-bank-sub" className="text-[8px] font-black uppercase">Banco</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={includeProcessNumber} onCheckedChange={setIncludeProcessNumber} id="inc-proc-sub" />
+                          <Label htmlFor="inc-proc-sub" className="text-[8px] font-black uppercase">Processo</Label>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4 text-black">
@@ -344,8 +352,8 @@ export default function SubstabelecimentoGenerator() {
                         <Label className="text-[9px] font-black uppercase">Tipo de Ação</Label>
                         <Input value={extractedData.processo.acao} onChange={(e) => setExtractedData({...extractedData, processo: {...extractedData.processo, acao: e.target.value}})} className="border-black font-black uppercase rounded-none" />
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-[9px] font-black uppercase">Número do Processo (CNJ)</Label>
+                      <div className={cn("space-y-2", !includeProcessNumber && "opacity-20 pointer-events-none")}>
+                        <Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><Hash size={10}/> Número do Processo (CNJ)</Label>
                         <Input value={extractedData.processo.numero} onChange={(e) => setExtractedData({...extractedData, processo: {...extractedData.processo, numero: e.target.value}})} className="border-black font-black uppercase rounded-none font-mono" />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
@@ -373,7 +381,7 @@ export default function SubstabelecimentoGenerator() {
                   <p className="text-center font-bold text-md mb-16">(sem reserva de poderes)</p>
 
                   <p className="text-justify mb-16 indent-12">
-                    O <strong>{extractedData.substabelecente.nome.toUpperCase()}</strong>, brasileiro, {extractedData.substabelecente.estadoCivil}, advogado, inscrito na <strong>{extractedData.substabelecente.oabCompleta}</strong>, <strong>SUBSTABELECE SEM RESERVA DE PODERES</strong> na pessoa do <strong>{extractedData.substabelecido.nome.toUpperCase()}</strong>, inscrito na <strong>{extractedData.substabelecido.oabCompleta}</strong>, os poderes conferidos por <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, <strong>PARA A PROMOÇÃO DE {extractedData.processo.acao.toUpperCase()}</strong> {includeBankInfo ? `promovida contra o ${extractedData.processo.banco.toUpperCase()}, ` : ""}processo de n.º <strong>{extractedData.processo.numero}</strong> por meio do instrumento outrora outorgado, requerendo a exclusão do advogado substabelecente <strong>{extractedData.substabelecente.nome.toUpperCase()}</strong> sob <strong>{extractedData.substabelecente.oabCurta}</strong> da contracapa dos autos, bem como de qualquer outro meio de intimação do processo, sendo assim que <strong>todas as futuras intimações passsem a ser exclusivamente dirigidas ao substabelecido</strong>, <strong>{extractedData.substabelecido.nome.toUpperCase()}</strong> sob <strong>{extractedData.substabelecido.oabCurta}</strong>, nos termos do artigo 272, §5º, do CPC, sob pena de nulidade.
+                    O <strong>{extractedData.substabelecente.nome.toUpperCase()}</strong>, brasileiro, {extractedData.substabelecente.estadoCivil}, advogado, inscrito na <strong>{extractedData.substabelecente.oabCompleta}</strong>, <strong>SUBSTABELECE SEM RESERVA DE PODERES</strong> na pessoa do <strong>{extractedData.substabelecido.nome.toUpperCase()}</strong>, inscrito na <strong>{extractedData.substabelecido.oabCompleta}</strong>, os poderes conferidos por <strong>{extractedData.cliente.nome.toUpperCase()}</strong>, <strong>PARA A PROMOÇÃO DE {extractedData.processo.acao.toUpperCase()}</strong> {includeBankInfo ? `promovida contra o ${extractedData.processo.banco.toUpperCase()}, inscrito no CNPJ sob o nº ${extractedData.processo.cnpjBanco || '---'}` : ""}{includeProcessNumber ? `, processo de n.º ${extractedData.processo.numero}` : ""} por meio do instrumento outrora outorgado, requerendo a exclusão do advogado substabelecente <strong>{extractedData.substabelecente.nome.toUpperCase()}</strong> sob <strong>{extractedData.substabelecente.oabCurta}</strong> da contracapa dos autos, bem como de qualquer outro meio de intimação do processo, sendo assim que <strong>todas as futuras intimações passsem a ser exclusivamente dirigidas ao substabelecido</strong>, <strong>{extractedData.substabelecido.nome.toUpperCase()}</strong> sob <strong>{extractedData.substabelecido.oabCurta}</strong>, nos termos do artigo 272, §5º, do CPC, sob pena de nulidade.
                   </p>
 
                   <div className="text-center mb-24 mt-16">
