@@ -22,8 +22,8 @@ function normalizeHeader(header: string): string {
 }
 
 /**
- * Motor de Ingestão Resiliente v2000.0 ELITE
- * Utiliza o Mapeador Universal para garantir integridade e cálculo de prazos automático.
+ * Motor de Ingestão Resiliente v1500.0
+ * Utiliza o Mapeador Universal para garantir integridade.
  */
 export async function importCsvAction(csvText: string) {
   try {
@@ -48,14 +48,13 @@ export async function importCsvAction(csvText: string) {
       return '';
     };
 
-    // Processamento e Deduplicação Atômica por Protocolo
+    // Processamento e Deduplicação Atômica
     const mappedBatch = new Map();
 
     records.forEach(row => {
       const protocolo = getVal(row, 'PROTOCOLO', 'PROCESSO', 'NUMERO', 'CNJ');
       if (!protocolo || protocolo.length < 8) return;
 
-      // O motor IA calcula o status real baseado na data de retorno da planilha
       const record = buildProcessoRecord({
         empresaId: empresa_id,
         userId: auth_id,
@@ -64,13 +63,13 @@ export async function importCsvAction(csvText: string) {
         telefone: getVal(row, 'TELEFONE', 'CELULAR', 'WHATSAPP'),
         advogado: getVal(row, 'ADVOGADO', 'RESPONSAVEL'),
         escritorio: getVal(row, 'ESCRITORIO', 'BANCA'),
-        situacao: getVal(row, 'STATUS', 'SITUACAO', 'STATUS INTERNO'), 
+        situacao: getVal(row, 'STATUS', 'SITUACAO', 'STATUS INTERNO'), // STATUS da planilha vira SITUACAO (Em Andamento, etc)
         observacao: getVal(row, 'OBSERVACOES', 'OBS', 'RESUMO'),
         proximoRetorno: getVal(row, 'PROXIMO_RETORNO', 'PRÓXIMO PRAZO', 'VENCIMENTO'),
         ultimoRetorno: getVal(row, 'RETORNO', 'ULTIMO_RETORNO'),
         produtos: getVal(row, 'PRODUTOS'),
         atendente: getVal(row, 'ASSISTENTE', 'ATENDENTE'),
-        statusManual: 'Automatico' // Ativa inteligência nativa de prazos
+        statusManual: 'Automatico' // Força o app a calcular o prazo na importação
       });
 
       mappedBatch.set(record.protocolo_ref, record);
@@ -93,10 +92,10 @@ export async function importCsvAction(csvText: string) {
     return {
       success: true,
       imported: data?.length || rowsToUpsert.length,
-      message: `${data?.length || rowsToUpsert.length} processos processados e sincronizados com a Unidade Neural.`,
+      message: `${data?.length || rowsToUpsert.length} processos sincronizados via Mapeador Universal.`,
     };
   } catch (err: any) {
     console.error("[Import Fail]", err.message);
-    return { success: false, error: 'Falha na unidade de migração neural. Verifique o formato do arquivo.' };
+    return { success: false, error: 'Falha na unidade de migração neural.' };
   }
 }

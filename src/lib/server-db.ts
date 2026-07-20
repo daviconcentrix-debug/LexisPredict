@@ -5,8 +5,8 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v2000.0 ELITE)
- * Implementação de Lógica UPSERT e Histórico WhatsApp.
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v1900.0 ELITE)
+ * Implementação de Lógica UPSERT para evitar perda de melhorias manuais.
  */
 
 export async function getUserContext() {
@@ -107,6 +107,7 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 
     if (upsertError) throw upsertError;
 
+    await logAuditAction('DATA_SYNC_UPSERT', `Sincronizou ${payload.length} processos de forma incremental.`);
     return { success: true, message: "Sincronia concluída." };
   } catch (error: any) {
     console.error("[DB Sync Fail]", error.message);
@@ -197,10 +198,14 @@ export async function removeEmpresaUser(userId: string): Promise<boolean> {
   return !error;
 }
 
+/**
+ * Recupera o histórico de mensagens enviadas e recebidas via WhatsApp.
+ */
 export async function getWhatsAppHistory(phone: string) {
   const cleanPhone = phone.replace(/\D/g, '');
   let searchPhone = cleanPhone;
   
+  // Normalização Global para busca (Webhook salva com 55)
   if (cleanPhone.length === 10 || cleanPhone.length === 11) {
     searchPhone = `55${cleanPhone}`;
   }

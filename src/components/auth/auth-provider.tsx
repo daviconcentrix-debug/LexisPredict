@@ -2,9 +2,9 @@
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
-'use client';
+"use client";
 
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, UserProfile, isSupabaseConfigured } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -27,119 +27,69 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  
-  const initialized = useRef(false);
-  const fetchingProfile = useRef(false);
-  const lastUserId = useRef<string | null>(null);
 
   const loadProfile = async (userId: string) => {
-    if (!isSupabaseConfigured) return;
-    if (fetchingProfile.current && lastUserId.current === userId) return;
+    if (!isSupabaseConfigured) return null;
     
-    fetchingProfile.current = true;
-    lastUserId.current = userId;
-
     try {
-      console.log(`[AuthProvider] 🚀 Buscando perfil para: ${userId}`);
-      
-      const { data: profileData, error: profileError } = await supabase
+      const { data, error } = await supabase
         .from('usuarios')
         .select('*')
         .eq('auth_user_id', userId)
         .maybeSingle();
 
-      if (profileData) {
-        const p = profileData as UserProfile;
-        setProfile(p);
-        document.cookie = `lexis_user_email=${p.email.toLowerCase().trim()}; path=/; max-age=31536000; samesite=lax`;
-      } else {
-        console.warn("[AuthProvider] Perfil não localizado. Verificando fallback por e-mail...");
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser?.email) {
-          const { data: altProfile } = await supabase
-            .from('usuarios')
-            .select('*')
-            .eq('email', authUser.email.toLowerCase().trim())
-            .maybeSingle();
-          
-          if (altProfile) {
-            setProfile(altProfile as UserProfile);
-          }
-        }
+      if (data) {
+        setProfile(data as UserProfile);
+        // Persistência de contexto para Server Actions
+        document.cookie = `lexis_user_email=${data.email.toLowerCase().trim()}; path=/; max-age=31536000; samesite=lax`;
+        return data as UserProfile;
       }
+      return null;
     } catch (e) {
-      console.error("[AuthProvider] Erro Crítico de Perfil:", e);
-    } finally {
-      fetchingProfile.current = false;
-      setLoading(false);
+      console.error("[Auth] Erro perfil:", e);
+      return null;
     }
   };
 
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-
-    // 1. Sessão Inicial com tratamento de erro 400 (Token Refresh)
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (error) {
-        console.error("[AuthProvider] Erro ao recuperar sessão:", error.message);
-        // Se o erro for 400 (token inválido), limpa o cache local para permitir novo login
-        if (error.status === 400) {
-          supabase.auth.signOut({ scope: 'local' });
-        }
-        setLoading(false);
-        return;
+    // 1. Carga inicial
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+        await loadProfile(session.user.id);
       }
-
-      if (data.session?.user) {
-        setUser(data.session.user);
-        loadProfile(data.session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    // 2. Ouvinte de Mudanças (Listener)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthProvider] 📡 Evento Auth: ${event}`);
-      
-      const sessionUser = session?.user ?? null;
-      setUser(sessionUser);
-
-      if (event === 'SIGNED_OUT') {
-        setProfile(null);
-        lastUserId.current = null;
-        document.cookie = "lexis_user_email=; path=/; max-age=0";
-        setLoading(false);
-        return;
-      }
-
-      if (sessionUser) {
-        if (lastUserId.current !== sessionUser.id) {
-          setLoading(true);
-          loadProfile(sessionUser.id);
-        } else {
-          setLoading(false);
-        }
-      } else {
-        setProfile(null);
-        setLoading(false);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
+      setLoading(false);
     };
-  }, []);
+
+    initializeAuth();
+
+    // 2. Ouvinte de mudanças
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`[Auth] Evento: ${event}`);
+      
+      if (session?.user) {
+        setUser(session.user);
+        if (event === 'SIGNED_IN' || !profile) {
+          await loadProfile(session.user.id);
+        }
+      } else {
+        setUser(null);
+        setProfile(null);
+        document.cookie = "lexis_user_email=; path=/; max-age=0";
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [profile]);
 
   const signOut = async () => {
     setLoading(true);
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
-    lastUserId.current = null;
     document.cookie = "lexis_user_email=; path=/; max-age=0";
-    setLoading(false);
     router.replace('/login');
   };
 

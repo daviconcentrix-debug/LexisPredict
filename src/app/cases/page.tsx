@@ -4,7 +4,7 @@
  */
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, Suspense, useDeferredValue } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense, useDeferredValue, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
   Search, 
@@ -25,7 +25,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
-import { cn } from '@/lib/utils';
+import { cn, formatWhatsAppLink } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -64,7 +64,7 @@ const CaseRow = React.memo(({
   onDelete: (id: string) => void
 }) => {
   return (
-    <tr className="hover:bg-secondary/30 transition-all border-b border-border/50 group text-black">
+    <tr className="hover:bg-secondary/30 transition-all border-b border-border/50 group">
       <td className="px-8 py-5">
         <div className="flex flex-col gap-1">
           <span className="text-foreground font-black text-[13px] uppercase leading-none tracking-tight group-hover:text-primary transition-colors">{c.cliente}</span>
@@ -90,7 +90,7 @@ const CaseRow = React.memo(({
       </td>
       <td className="px-8 py-5">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg border border-border/50 flex items-center justify-center bg-gray-50 group-hover:bg-white transition-all text-black">
+          <div className="w-8 h-8 rounded-lg border border-border/50 flex items-center justify-center bg-gray-50 group-hover:bg-white transition-all">
             <Clock className="w-4 h-4 text-muted-foreground/40" />
           </div>
           <span className="text-[11px] text-foreground font-bold uppercase whitespace-nowrap">
@@ -144,7 +144,7 @@ function CasesContent() {
   const [purgeConfirmText, setPurgeConfirmText] = useState('');
   const [editingCase, setEditingCase] = useState<LegalCase | null>(null);
   const [mounted, setMounted] = useState(false);
-  const { isOperador } = useAdmin();
+  const { isAdmin, isOperador } = useAdmin();
   const { toast } = useToast();
 
   const [formState, setFormState] = useState({
@@ -169,6 +169,10 @@ function CasesContent() {
     }
   }, []);
 
+  /**
+   * Motor de Recalibração Inteligente
+   * Força todos os casos ativos para o modo 'Automatico'.
+   */
   const handleBatchUpdateStatus = useCallback(async () => {
     if (!isOperador || cases.length === 0 || isUpdating) return;
     setIsUpdating(true);
@@ -176,6 +180,7 @@ function CasesContent() {
     try {
       const updatedCases = cases.map(c => {
         const sit = String(c.situacao).toUpperCase();
+        // Ignorar finalizados para não "reabrir" casos por engano
         if (['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(sit)) return c;
         return { ...c, statusManual: 'Automatico' };
       });
@@ -183,7 +188,7 @@ function CasesContent() {
       const result = await syncRepoCases(updatedCases);
       if (result.success) {
         await loadData();
-        toast({ title: "Sincronia Concluída", description: "Todos os prazos ativos foram recalibrados." });
+        toast({ title: "Sincronia Concluída", description: "Todos os prazos ativos foram recalculados pelo motor." });
       }
     } finally {
       setIsUpdating(false);
@@ -305,8 +310,6 @@ function CasesContent() {
     );
   }, [cases, deferredSearch]);
 
-  if (!mounted) return null;
-
   return (
     <div className="flex h-screen bg-[#f8f9fb] font-sans text-foreground">
       <Sidebar />
@@ -323,13 +326,13 @@ function CasesContent() {
                     <Trash2 size={16} className="mr-2" /> Limpar Base
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="rounded-2xl border-none shadow-2xl bg-white text-black">
+                <DialogContent className="rounded-2xl border-none shadow-2xl">
                    <DialogHeader>
                       <DialogTitle className="font-black uppercase text-red-600 flex items-center gap-2">
                         <ShieldAlert /> Ação Irreversível
                       </DialogTitle>
-                      <DialogDescription className="font-bold uppercase text-[10px] text-black/60">
-                        Você está prestes a apagar todos os processos desta conta.
+                      <DialogDescription className="font-bold uppercase text-[10px]">
+                        Você está prestes a apagar todos os {cases.length} processos desta conta. Esta ação não pode ser desfeita.
                       </DialogDescription>
                    </DialogHeader>
                    <div className="py-6 space-y-4">
@@ -338,14 +341,14 @@ function CasesContent() {
                         value={purgeConfirmText}
                         onChange={(e) => setPurgeConfirmText(e.target.value.toUpperCase())}
                         placeholder="CONFIRME"
-                        className="rounded-xl border-2 border-red-100 h-12 font-black uppercase text-center focus-visible:ring-red-600 bg-white text-black"
+                        className="rounded-xl border-2 border-red-100 h-12 font-black uppercase text-center focus-visible:ring-red-600"
                       />
                    </div>
                    <DialogFooter>
                       <Button 
                         disabled={purgeConfirmText !== 'CONFIRME' || isPurging}
                         onClick={handlePurgeDatabase}
-                        className="w-full h-12 bg-red-600 text-white rounded-xl font-black uppercase text-[11px] tracking-widest hover:bg-red-700 transition-all"
+                        className="w-full h-12 bg-red-600 text-white rounded-xl font-black uppercase text-[11px] tracking-widest"
                       >
                         {isPurging ? <Loader2 className="animate-spin" /> : "Apagar Toda a Base Agora"}
                       </Button>
@@ -372,10 +375,10 @@ function CasesContent() {
                     <Plus className="w-4 h-4 mr-2 text-primary" /> Novo Registro
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[550px] rounded-2xl overflow-hidden border-none shadow-2xl bg-white text-black">
+                <DialogContent className="sm:max-w-[550px] rounded-2xl overflow-hidden border-none shadow-2xl">
                   <form onSubmit={handleSaveCase}>
                     <DialogHeader className="p-6 bg-secondary/20 border-b">
-                      <DialogTitle className="font-black uppercase tracking-tight text-black">Gestão de Registro</DialogTitle>
+                      <DialogTitle className="font-black uppercase tracking-tight">Gestão de Registro</DialogTitle>
                     </DialogHeader>
                     <ScrollArea className="max-h-[70vh]">
                       <div className="p-6 space-y-6">
@@ -383,27 +386,27 @@ function CasesContent() {
                           <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
                               <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Titular / Cliente</Label>
-                              <Input value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-bold uppercase text-black" />
+                              <Input value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-bold uppercase" />
                             </div>
                             <div className="grid gap-2">
                               <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">WhatsApp / Telefone</Label>
-                              <Input value={formState.telefone} onChange={(e) => setFormState({...formState, telefone: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-mono text-black" placeholder="(00) 00000-0000" />
+                              <Input value={formState.telefone} onChange={(e) => setFormState({...formState, telefone: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-mono" placeholder="(00) 00000-0000" />
                             </div>
                           </div>
                           
                           <div className="grid gap-2">
                             <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">CNJ / Protocolo</Label>
-                            <Input value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-mono text-black" />
+                            <Input value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-mono" />
                           </div>
                           
                           <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
                                 <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Advogado</Label>
-                                <Input value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-bold uppercase text-black" />
+                                <Input value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-bold uppercase" />
                             </div>
                             <div className="grid gap-2">
                                 <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Próximo Prazo</Label>
-                                <Input value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none text-black" placeholder="DD/MM/AAAA" />
+                                <Input value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none" placeholder="DD/MM/AAAA" />
                             </div>
                           </div>
 
@@ -411,10 +414,10 @@ function CasesContent() {
                             <div className="grid gap-2">
                               <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Situação do Processo</Label>
                               <Select value={formState.situacao} onValueChange={(val) => setFormState({...formState, situacao: val})}>
-                                <SelectTrigger className="rounded-xl h-11 bg-secondary/20 border-none font-bold text-[10px] uppercase text-black">
+                                <SelectTrigger className="rounded-xl h-11 bg-secondary/20 border-none font-bold text-[10px] uppercase">
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-white">
+                                <SelectContent>
                                   <SelectItem value="EM ANDAMENTO">EM ANDAMENTO</SelectItem>
                                   <SelectItem value="ENCERRADO">ENCERRADO</SelectItem>
                                   <SelectItem value="ARQUIVADO">ARQUIVADO</SelectItem>
@@ -426,10 +429,10 @@ function CasesContent() {
                             <div className="grid gap-2">
                               <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Status de Prazo</Label>
                               <Select value={formState.statusManual} onValueChange={(val) => setFormState({...formState, statusManual: val})}>
-                                <SelectTrigger className="rounded-xl h-11 bg-secondary/20 border-none font-bold text-[10px] uppercase text-black">
+                                <SelectTrigger className="rounded-xl h-11 bg-secondary/20 border-none font-bold text-[10px] uppercase">
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-white">
+                                <SelectContent>
                                   <SelectItem value="Automatico">🤖 AUTOMÁTICO (MOTOR IA)</SelectItem>
                                   <SelectItem value="Vencido">🔴 VENCIDO</SelectItem>
                                   <SelectItem value="É Hoje">🔵 É HOJE</SelectItem>
@@ -447,7 +450,7 @@ function CasesContent() {
                             <Textarea 
                               value={formState.observacao} 
                               onChange={(e) => setFormState({...formState, observacao: e.target.value})} 
-                              className="rounded-xl bg-secondary/20 border-none min-h-[100px] text-xs font-bold uppercase resize-none text-black" 
+                              className="rounded-xl bg-secondary/20 border-none min-h-[100px] text-xs font-bold uppercase resize-none" 
                               placeholder="DETALHES ESTRATÉGICOS DO CASO..."
                             />
                           </div>
@@ -478,7 +481,7 @@ function CasesContent() {
                   placeholder="Pesquisar por titular ou protocolo judicial..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-11 h-11 bg-secondary/30 border-none rounded-xl text-xs font-bold uppercase focus-visible:ring-primary/20 text-black"
+                  className="pl-11 h-11 bg-secondary/30 border-none rounded-xl text-xs font-bold uppercase focus-visible:ring-primary/20"
                 />
               </div>
               <div className="flex items-center gap-3">
@@ -549,7 +552,7 @@ function StatusBadge({ status }: { status: any }) {
   };
 
   return (
-    <Badge variant="outline" className={cn("px-3 py-1 text-[10px] font-black uppercase rounded-lg border-none text-black", styles[status] || "bg-secondary text-muted-foreground")}>
+    <Badge variant="outline" className={cn("px-3 py-1 text-[10px] font-black uppercase rounded-lg border-none", styles[status] || "bg-secondary text-muted-foreground")}>
       {status}
     </Badge>
   );
