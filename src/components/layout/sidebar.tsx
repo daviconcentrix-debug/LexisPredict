@@ -5,7 +5,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -106,13 +105,12 @@ export function Sidebar() {
       <div className="h-20 flex items-center px-4 border-b border-border/30">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-[#0f172a] flex items-center justify-center shadow-xl shrink-0 overflow-hidden border border-black/10">
-            <Image
+            <img
               src="/logo.png"
               alt="LexisPredict"
               width={40}
               height={40}
-              className="object-contain"
-              priority
+              className="object-contain w-10 h-10"
             />
           </div>
           {!collapsed && (
