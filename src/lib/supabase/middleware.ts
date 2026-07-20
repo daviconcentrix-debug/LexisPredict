@@ -5,12 +5,22 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-/**
- * Motor de Gestão de Sessão v910.0
- * Garante a sincronia entre a autenticação do navegador e a segurança do servidor.
- * Otimizado para ignorar arquivos de sistema (manifest, icons, images).
- */
 export async function updateSession(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // 1) Liberar estáticos ANTES de qualquer auth
+  const isStaticAsset =
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/icons') ||
+    pathname === '/favicon.ico' ||
+    pathname === '/manifest.json' ||
+    pathname === '/logo.png' ||
+    /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|map)$/i.test(pathname)
+
+  if (isStaticAsset) {
+    return NextResponse.next()
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -47,18 +57,12 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Validação de Identidade
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  const isAuthPage = request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup'
-  
-  // Lista de extensões e caminhos ignorados para evitar syntax errors em manifest/json
-  const isPublicFile = /\.(.*)$/.test(request.nextUrl.pathname) || 
-                       request.nextUrl.pathname.startsWith('/api') ||
-                       request.nextUrl.pathname.includes('manifest.json') ||
-                       request.nextUrl.pathname.includes('favicon.ico');
-
-  if (isPublicFile) return response;
+  const isAuthPage =
+    pathname === '/login' || pathname === '/signup'
 
   if (!user && !isAuthPage) {
     const url = request.nextUrl.clone()
@@ -73,19 +77,4 @@ export async function updateSession(request: NextRequest) {
   }
 
   return response
-}
-
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - manifest.json (PWA manifest)
-     * - icons/ (PWA icons)
-     * - api/ (API routes handled separately)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|manifest.json|icons|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
 }
