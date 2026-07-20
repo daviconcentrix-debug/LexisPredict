@@ -13,6 +13,39 @@ interface CsvRow {
   [key: string]: string;
 }
 
+/**
+ * Normaliza datas brasileiras (DD/MM/YYYY) para o formato ISO (YYYY-MM-DD) aceito pelo Postgres.
+ */
+function parseBrazilianDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  
+  const v = value.trim();
+  if (!v || v === '-' || v === '—' || v === '00/00/0000' || v === '0') return null;
+
+  // Se já estiver em formato ISO (YYYY-MM-DD), retorna diretamente
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    return v;
+  }
+
+  // Tenta capturar o formato brasileiro DD/MM/YYYY ou DD-MM-YYYY
+  const datePattern = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/;
+  const match = v.match(datePattern);
+  
+  if (match) {
+    const [, day, month, year] = match;
+    const d = day.padStart(2, '0');
+    const m = month.padStart(2, '0');
+    return `${year}-${m}-${d}`;
+  }
+
+  // Fallback para datas que já começam com o ano mas usam barras
+  if (/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/.test(v)) {
+    return v.replace(/\//g, '-');
+  }
+
+  return null;
+}
+
 function normalizeHeader(header: string): string {
   return header
     .normalize('NFD')
@@ -80,9 +113,10 @@ function mapCsvRowToProcesso(row: CsvRow, empresaId: string, userId: string) {
     observacoes: observacoes || null,
     tribunal: tribunal || null,
     produtos: produtos || null,
-    ultimo_retorno: ultimoRetorno || null,
-    proximo_retorno: proximoRetorno || null,
-    data_distribuicao: dataDistribuicao || null,
+    // Normalização Temporal Crítica
+    ultimo_retorno: parseBrazilianDate(ultimoRetorno),
+    proximo_retorno: parseBrazilianDate(proximoRetorno),
+    data_distribuicao: parseBrazilianDate(dataDistribuicao),
   };
 }
 
@@ -124,7 +158,7 @@ export async function importCsvAction(csvText: string) {
 
     const supabase = await createClient();
 
-    // Protocolo de UPSERT Soberano: Não duplica registros e atualiza os existentes
+    // Protocolo de UPSERT Soberano
     const { data, error } = await supabase
       .from('processos')
       .upsert(rows, {
