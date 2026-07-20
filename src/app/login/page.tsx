@@ -1,6 +1,6 @@
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
+ * @license Proprietary - All rights reserved. See LICENSE file.
  */
 "use client";
 
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Lock, Mail, Copyright, Loader2, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, Copyright, Loader2, ShieldCheck, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -30,7 +30,7 @@ export default function LoginPage() {
   // Redirecionamento Automático Estável
   useEffect(() => {
     if (!authLoading && user && profile) {
-      console.log("[Login] Sessão confirmada. Redirecionando para Dashboard...");
+      console.log("[Login] Identidade confirmada. Acessando gabinete...");
       router.replace('/');
     }
   }, [user, profile, authLoading, router]);
@@ -47,12 +47,20 @@ export default function LoginPage() {
       });
 
       if (authError) {
-        toast({ title: "Erro de Acesso", description: "Credenciais inválidas ou conta não provisionada.", variant: "destructive" });
+        toast({ title: "Erro de Acesso", description: "Credenciais inválidas ou token expirado. Tente novamente.", variant: "destructive" });
         setIsSubmitting(false);
       }
     } catch (error) {
-      toast({ title: "Falha de Infraestrutura", description: "Verifique sua conexão.", variant: "destructive" });
+      toast({ title: "Falha de Infraestrutura", description: "Erro de rede. Limpe os cookies do site e tente novamente.", variant: "destructive" });
       setIsSubmitting(false);
+    }
+  };
+
+  const clearBrowserCache = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.reload();
     }
   };
 
@@ -63,8 +71,8 @@ export default function LoginPage() {
           <ShieldCheck size={40} className="text-[#00D1FF]" />
         </div>
         <div className="space-y-4">
-          <h1 className="text-2xl font-black uppercase tracking-tighter">Sessão Ativa Detectada</h1>
-          <p className="text-[10px] font-black uppercase tracking-widest text-black/40">Iniciando Redes Neurais de Gabinete...</p>
+          <h1 className="text-2xl font-black uppercase tracking-tighter">Sessão Ativa</h1>
+          <p className="text-[10px] font-black uppercase tracking-widest text-black/40">Sincronizando Redes Neurais...</p>
         </div>
         <Loader2 className="animate-spin text-black" size={32} />
       </div>
@@ -108,7 +116,7 @@ export default function LoginPage() {
                     className="pl-10 border-2 border-black h-12 text-black font-black uppercase text-xs rounded-none focus-visible:ring-black" 
                     required 
                     placeholder="USUARIO@W1CAPITAL.COM"
-                    autoComplete="email"
+                    autoComplete="username"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -130,14 +138,17 @@ export default function LoginPage() {
                 </div>
               </div>
               <Button type="submit" disabled={isSubmitting || authLoading} className="w-full h-14 bg-black text-white border-2 border-black font-black uppercase text-[11px] tracking-widest hover:bg-white hover:text-black transition-all shadow-[8px_8px_0px_#00D1FF] hover:shadow-none rounded-none">
-                {isSubmitting ? "Sincronizando..." : "Acessar Sistema"}
+                {isSubmitting ? "Autenticando..." : "Acessar Sistema"}
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="bg-[#f8f9fb] border-t-2 border-black p-6">
+          <CardFooter className="bg-[#f8f9fb] border-t-2 border-black p-4 flex flex-col gap-4">
              <Link href="/signup" className="text-[9px] font-black text-black/60 hover:text-black uppercase text-center w-full tracking-widest">
                 Solicitar Nova Instância SaaS
              </Link>
+             <button onClick={clearBrowserCache} className="flex items-center justify-center gap-2 text-[8px] font-black text-red-600/60 hover:text-red-600 uppercase w-full tracking-tighter">
+                <RefreshCw size={10} /> Se o loop persistir, clique para limpar cache local
+             </button>
           </CardFooter>
         </Card>
 

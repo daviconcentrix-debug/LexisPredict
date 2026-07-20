@@ -183,7 +183,7 @@ function CasesContent() {
       const result = await syncRepoCases(updatedCases);
       if (result.success) {
         await loadData();
-        toast({ title: "Sincronia Concluída", description: "Todos os prazos ativos foram recalculados pelo motor." });
+        toast({ title: "Sincronia Concluída", description: "Todos os prazos ativos foram recalibrados." });
       }
     } finally {
       setIsUpdating(false);
@@ -329,7 +329,7 @@ function CasesContent() {
                         <ShieldAlert /> Ação Irreversível
                       </DialogTitle>
                       <DialogDescription className="font-bold uppercase text-[10px] text-black/60">
-                        Você está prestes a apagar todos os {cases.length} processos desta conta. Esta ação não pode ser desfeita.
+                        Você está prestes a apagar todos os processos desta conta.
                       </DialogDescription>
                    </DialogHeader>
                    <div className="py-6 space-y-4">

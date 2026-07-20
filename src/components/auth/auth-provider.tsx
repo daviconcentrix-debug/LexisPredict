@@ -2,7 +2,7 @@
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
-"use client";
+'use client';
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase, UserProfile, isSupabaseConfigured } from '@/lib/supabase';
@@ -28,7 +28,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   
-  // Travas de resiliência para evitar loops de re-render
   const initialized = useRef(false);
   const fetchingProfile = useRef(false);
   const lastUserId = useRef<string | null>(null);
@@ -54,7 +53,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setProfile(p);
         document.cookie = `lexis_user_email=${p.email.toLowerCase().trim()}; path=/; max-age=31536000; samesite=lax`;
       } else {
-        // Fallback por e-mail se UUID falhar
+        console.warn("[AuthProvider] Perfil não localizado. Verificando fallback por e-mail...");
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (authUser?.email) {
           const { data: altProfile } = await supabase
@@ -80,11 +79,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (initialized.current) return;
     initialized.current = true;
 
-    // 1. Sessão Inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        loadProfile(session.user.id);
+    // 1. Sessão Inicial com tratamento de erro 400 (Token Refresh)
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        console.error("[AuthProvider] Erro ao recuperar sessão:", error.message);
+        // Se o erro for 400 (token inválido), limpa o cache local para permitir novo login
+        if (error.status === 400) {
+          supabase.auth.signOut({ scope: 'local' });
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (data.session?.user) {
+        setUser(data.session.user);
+        loadProfile(data.session.user.id);
       } else {
         setLoading(false);
       }
@@ -102,7 +111,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         lastUserId.current = null;
         document.cookie = "lexis_user_email=; path=/; max-age=0";
         setLoading(false);
-        router.replace('/login');
         return;
       }
 
@@ -122,7 +130,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [router]);
+  }, []);
 
   const signOut = async () => {
     setLoading(true);
