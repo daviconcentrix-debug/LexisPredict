@@ -1,3 +1,4 @@
+
 'use server';
 
 import { supabase, isSupabaseConfigured, UserProfile } from './supabase';
@@ -5,8 +6,8 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v1950.0 ELITE)
- * Refatorado para Sincronia Resiliente (Upsert) - Fim da perda de dados manuais.
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v1900.0 ELITE)
+ * Implementação de Lógica UPSERT para evitar perda de melhorias manuais.
  */
 
 async function getUserContext() {
@@ -43,14 +44,14 @@ export async function logAuditAction(action: string, detail: string) {
       timestamp: new Date().toISOString()
     });
   } catch (e) {
-    console.warn('[Audit] Falha ao registrar log de conformidade.');
+    console.warn('[Audit] Falha ao registrar log.');
   }
 }
 
 export async function getStoredCases(): Promise<LegalCase[]> {
   if (!isSupabaseConfigured) return [];
-  const { auth_id, empresa_id } = await getUserContext();
-  if (!empresa_id || !auth_id) return [];
+  const { empresa_id } = await getUserContext();
+  if (!empresa_id) return [];
 
   try {
     const { data, error } = await supabase
@@ -73,24 +74,14 @@ export async function getStoredCases(): Promise<LegalCase[]> {
   }
 }
 
-/**
- * Sincronia Inteligente v2.0
- * Utiliza UPSERT para preservar edições manuais e evitar perda de dados.
- */
 export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: boolean; message: string }> {
-  if (!isSupabaseConfigured) return { success: false, message: "Erro de Configuração Supabase." };
+  if (!isSupabaseConfigured) return { success: false, message: "Erro de Configuração." };
   const { auth_id, empresa_id } = await getUserContext();
-  if (!empresa_id || !auth_id) return { success: false, message: "Sessão de Gabinete expirada." };
+  if (!empresa_id || !auth_id) return { success: false, message: "Sessão expirada." };
 
   try {
     const uniqueMap = new Map();
-    cases.forEach(c => { 
-      if (c && c.protocolo) {
-        // Normalização de protocolo para chave única
-        const key = c.protocolo.replace(/\D/g, '');
-        uniqueMap.set(key, c); 
-      }
-    });
+    cases.forEach(c => { if (c && c.protocolo) uniqueMap.set(c.protocolo, c); });
     
     const payload = Array.from(uniqueMap.values()).map(c => {
       const isoPrazo = formatDateToISO(c.proximoPrazo);
@@ -107,21 +98,21 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
         tribunal: c.tribunal || 'Outros',
         telefone: c.telefone || '',
         observacoes: c.observacao || '',
-        dados: { ...c } 
+        dados: { ...c }
       };
     });
 
-    // Realiza o UPSERT baseado no protocolo_ref e empresa_id para não duplicar nem apagar melhorias
+    // Utiliza UPSERT para não apagar melhorias manuais feitas em casos já existentes
     const { error: upsertError } = await supabase
       .from('processos')
       .upsert(payload, { onConflict: 'protocolo_ref, empresa_id' });
 
     if (upsertError) throw upsertError;
 
-    await logAuditAction('DATA_SYNC', `Sincronizou/Atualizou lote de ${payload.length} processos.`);
-    return { success: true, message: "Base sincronizada com sucesso." };
+    await logAuditAction('DATA_SYNC_UPSERT', `Sincronizou ${payload.length} processos de forma incremental.`);
+    return { success: true, message: "Sincronia concluída." };
   } catch (error: any) {
-    console.error("[Sincronia] Falha Crítica:", error.message);
+    console.error("[DB Sync Fail]", error.message);
     return { success: false, message: error.message };
   }
 }
@@ -168,19 +159,16 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
   if (!empresa_id || !auth_id) return { success: false };
 
   try {
-    // Para notas, mantemos a limpeza e reinserção por enquanto, ou podemos migrar para upsert por ID
-    await supabase.from('notes').delete().eq('empresa_id', empresa_id).eq('created_by', auth_id);
+    // Sincronização incremental de notas
+    const dbNotes = notes.map(n => ({
+      title: n.title || 'Nota',
+      content: n.imageUrl ? JSON.stringify({ text: n.content, imageUrl: n.imageUrl }) : n.content,
+      empresa_id: empresa_id,
+      created_by: auth_id
+    }));
 
-    if (notes.length > 0) {
-      const dbNotes = notes.map(n => ({
-        title: n.title || 'Nota',
-        content: n.imageUrl ? JSON.stringify({ text: n.content, imageUrl: n.imageUrl }) : n.content,
-        empresa_id: empresa_id,
-        created_by: auth_id
-      }));
-      const { error } = await supabase.from('notes').insert(dbNotes);
-      if (error) throw error;
-    }
+    const { error } = await supabase.from('notes').upsert(dbNotes);
+    if (error) throw error;
     
     return { success: true };
   } catch (error) {

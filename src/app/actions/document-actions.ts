@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -8,9 +9,11 @@ import React from 'react';
 import { extrairDadosProcuracao } from '@/ai/flows/document-flow';
 
 /**
- * Motor de Selagem Digital v950.0 Elite
- * Processa e converte documentos jurídicos em buffers PDF via @react-pdf/renderer.
+ * Motor de Selagem Digital v850.0
+ * Configurado para Node.js Runtime para suporte a bibliotecas de processamento pesado no Vercel.
  */
+
+export const runtime = 'nodejs';
 
 async function getRenderToBuffer() {
   const { renderToBuffer } = await import('@react-pdf/renderer');
@@ -65,40 +68,29 @@ export async function generateSubstabelecimentoPDFAction(data: any) {
   }
 }
 
-/**
- * Extração de Texto Forense v2.0
- * Otimizado para ambientes Serverless (Vercel) e Supabase.
- */
 export async function extrairTextoDoPDFAction(formData: FormData) {
   try {
     const file = formData.get('pdf') as File;
-    if (!file || file.size === 0) return { error: "Nenhum arquivo enviado ou arquivo corrompido." };
-
+    if (!file) return { error: "Nenhum arquivo enviado" };
+    
+    // Tratamento de buffer otimizado para Vercel
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-
-    // Import dinâmico do pdf-parse para economizar memória no startup da action
+    
     const pdf = (await import('pdf-parse')).default;
+    const data = await pdf(buffer);
     
-    // Opções para melhorar a extração de textos densos
-    const options = {
-      max: 0, // Sem limite de páginas para triagem completa
-    };
-
-    const data = await pdf(buffer, options);
-    
-    if (!data || !data.text || data.text.trim().length < 10) {
+    if (!data.text || data.text.trim().length < 5) {
       return { 
-        error: "O PDF parece não conter texto extraível (provavelmente é uma imagem/foto). Utilize o 'Motor de OCR' para este arquivo." 
+        error: "Este PDF parece conter apenas imagens (Scans). Utilize a ferramenta 'Motor de OCR' para transcrição visual.",
+        isScan: true 
       };
     }
-
+    
     return { success: true, text: data.text };
   } catch (e: any) {
-    console.error("[Transcrição Forense Error]:", e.message || e);
-    return { 
-      error: "Falha técnica na transcrição. Tente converter o documento para PDF de texto ou use a aba Motor de OCR." 
-    };
+    console.error("[OCR Engine] PDF Extraction Fail:", e.message);
+    return { error: "Falha na transcrição forense. O arquivo pode estar protegido ou corrompido." };
   }
 }
 

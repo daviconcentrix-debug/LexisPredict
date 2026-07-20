@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -7,7 +8,7 @@ import { startOfDay, differenceInCalendarDays, parseISO } from 'date-fns';
 
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * Motor de processamento v350.0 (Elite Compliance)
+ * Motor de processamento v350.0 (Blindado contra erros de nomenclatura)
  */
 
 export type CaseStatus =
@@ -164,7 +165,7 @@ export function extrairTribunal(protocolo: string): { tribunal: string; link: st
   const maps: Record<string, { tribunal: string; link: string }> = {
     "8.26": { tribunal: "TJSP", link: "https://esaj.tjsp.jus.br/cpopg/open.do" },
     "8.13": { tribunal: "TJMG", link: "https://pje.tjmg.jus.br/pje/ConsultaPublica/listView.seam" },
-    "8.19": { tribunal: "TJRJ", link: "https://www3.tjrj.jus.br/consultaprocessual/" },
+    "8.19": { tribunal: "TJRJ", link: "http://www4.tjrj.jus.br/consultaProcessoPortal/consulta-principal.do" },
     "8.02": { tribunal: "TJAL", link: "https://www2.tjal.jus.br/cpopg/open.do" },
     "8.09": { tribunal: "TJGO", link: "https://projudi.tjgo.jus.br/BuscaProcessoPublica" },
     "8.16": { tribunal: "TJPR", link: "https://projudi.tjpr.jus.br/projudi/" }
@@ -178,7 +179,7 @@ export function extrairTribunal(protocolo: string): { tribunal: string; link: st
 export function processarCaso(raw: any, thresholds?: { alertLimit: number }): LegalCase {
   const normalized: any = {};
   Object.keys(raw).forEach(k => {
-    // Normalização agressiva para capturar variações de nomes de colunas
+    // Normalização agressiva para capturar variações de nomes de colunas (ex: ADVOGADO vs ADVOCADO)
     const cleanKey = k.toUpperCase().replace(/\s+/g, '_').trim();
     normalized[cleanKey] = raw[k];
   });
@@ -186,9 +187,14 @@ export function processarCaso(raw: any, thresholds?: { alertLimit: number }): Le
   const cliente = fixEncoding(normalized.CLIENTE || raw.cliente || 'CLIENTE NÃO IDENTIFICADO').toUpperCase();
   const protocolo = (normalized.PROTOCOLO || raw.protocolo || '').trim();
   
-  // Proteção contra perda de nome de advogado por erro de digitação (ADVOCADO vs ADVOGADO)
-  const advogadoRaw = normalized.ADVOGADO_RESPONSÁVEL || normalized.ADVOGADO || normalized.ADVOCADO || raw.advogado || raw.advocado;
-  const advogado = fixEncoding(advogadoRaw || 'NÃO ATRIBUÍDO').toUpperCase();
+  // Resiliência de Profissional: Aceita 'ADVOCADO' como fallback para 'ADVOGADO'
+  const advogado = fixEncoding(
+    normalized.ADVOGADO_RESPONSÁVEL || 
+    normalized.ADVOGADO || 
+    normalized.ADVOCADO || 
+    raw.advogado || 
+    'NÃO ATRIBUÍDO'
+  ).toUpperCase();
   
   const situacao = (normalized.SITUAÇÃO || normalized.SITUACAO || raw.situacao || 'EM ANDAMENTO').toUpperCase();
   
