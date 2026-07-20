@@ -1,8 +1,7 @@
-
 {
   "name": "LexisPredict Elite",
   "short_name": "LexisPredict",
-  "description": "Plataforma de operações jurídicas da W1 Capital",
+  "description": "Gabinete Inteligente de Gestão Jurídica e Operações Forenses",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
