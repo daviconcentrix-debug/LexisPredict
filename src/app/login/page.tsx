@@ -3,6 +3,16 @@
  * @license Proprietary - All rights reserved.
  */
 "use client";
+import Image from 'next/image';
+
+<Image
+  src="/logo.png"
+  alt="LexisPredict"
+  width={56}
+  height={56}
+  className="mx-auto mb-4 rounded-lg"
+  priority
+/>
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
