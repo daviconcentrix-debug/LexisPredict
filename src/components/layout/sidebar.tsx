@@ -101,7 +101,6 @@ export function Sidebar() {
 
   const SidebarContent = () => (
     <div className="h-full flex flex-col bg-white border-r border-border/50">
-      {/* === CABEÇALHO COM LOGO === */}
       <div className="h-20 flex items-center px-4 border-b border-border/30">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-[#0f172a] flex items-center justify-center shadow-xl shrink-0 overflow-hidden border border-black/10">
@@ -166,67 +165,3 @@ export function Sidebar() {
         {!collapsed && (
           <div className="flex items-center gap-3 p-3 rounded-xl bg-[#f8f9fb] border border-border/30 shadow-sm">
             <div className="w-9 h-9 rounded-full bg-black flex items-center justify-center text-primary font-black text-xs border border-primary/20">
-              {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-[11px] font-black uppercase truncate text-foreground leading-tight">
-                {profile?.nome || 'User'}
-              </span>
-              <span className="text-[9px] text-muted-foreground uppercase font-bold mt-0.5">
-                {profile?.cargo || 'Operator'}
-              </span>
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
-          >
-            <LogOut size={16} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex h-9 w-9 text-muted-foreground hover:text-primary rounded-lg"
-          >
-            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-
-  return (
-    <>
-      <div className="lg:hidden fixed top-5 left-5 z-[100]">
-        <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="premium-card h-12 w-12 border-none">
-              <Menu size={24} />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 border-r-0 w-80">
-            <SheetHeader className="sr-only">
-              <SheetTitle>Navigation</SheetTitle>
-              <SheetDescription>Access LexisPredict Operations</SheetDescription>
-            </SheetHeader>
-            <SidebarContent />
-          </SheetContent>
-        </Sheet>
-      </div>
-      <aside
-        className={cn(
-          'hidden lg:flex h-screen flex-col transition-all duration-500 z-50 shrink-0',
-          collapsed ? 'w-20' : 'w-72'
-        )}
-      >
-        <SidebarContent />
-      </aside>
-    </>
-  );
-}
