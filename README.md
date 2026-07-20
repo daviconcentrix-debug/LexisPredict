@@ -87,23 +87,6 @@ text┌─────────────────┐     ┌───�
          │                        ├──── Import CSV
          └────────────────────────┴──── WhatsApp / APIs externas
 
-Começando (desenvolvimento)
-Repositório proprietário. Clone e uso apenas com autorização do autor.
-Bashgit clone https://github.com/daviconcentrix-debug/LexisPredict.git
-cd LexisPredict
-npm install
-cp .env.example .env.local   # se existir; senão crie as variáveis abaixo
-npm run dev
-Variáveis de ambiente (exemplo)
-Nunca commite chaves reais.
-envNEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-
-# Provedores de IA (conforme configuração do projeto)
-XAI_API_KEY=
-GROQ_API_KEY=
-AIRFORCE_API_KEY=
 
 Para quem é
 
