@@ -1,10 +1,9 @@
-"use client";
-
-
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
+"use client";
+
 import React, { useState, useEffect, useMemo, useCallback, Suspense, useDeferredValue, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
@@ -15,23 +14,17 @@ import {
   Plus, 
   Briefcase, 
   Edit2, 
-  CheckCircle, 
   CheckCircle2,
   Clock, 
   Copyright, 
-  ShieldCheck, 
-  FileText, 
-  MessageCircle, 
-  Info,
   Zap,
   Loader2,
-  AlertTriangle,
   CalendarDays,
   Filter,
   Download,
   ShieldAlert
 } from 'lucide-react';
-import { LegalCase, processarCaso } from '@/lib/case-logic';
+import { LegalCase } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -112,13 +105,6 @@ const CaseRow = React.memo(({
               <CheckCircle2 size={18} />
             </Button>
           )}
-          {c.telefone && (
-             <Button title="WhatsApp" variant="ghost" size="icon" asChild className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all h-9 w-9 rounded-lg">
-               <a href={formatWhatsAppLink(c.telefone)} target="_blank" rel="noopener noreferrer">
-                 <MessageCircle size={18} />
-               </a>
-             </Button>
-          )}
           <Button title="Tribunal" variant="ghost" size="icon" asChild className="text-muted-foreground hover:bg-secondary h-9 w-9 rounded-lg">
             <a href={c.linkConsulta} target="_blank" rel="noopener noreferrer">
               <ExternalLink size={18} />
@@ -160,7 +146,6 @@ function CasesContent() {
   const [mounted, setMounted] = useState(false);
   const { isAdmin, isOperador } = useAdmin();
   const { toast } = useToast();
-  const initialLoadDone = useRef(false);
 
   const [formState, setFormState] = useState({
     cliente: '',
@@ -178,58 +163,50 @@ function CasesContent() {
     setLoading(true);
     try {
       const repoData = await fetchRepoCases();
-      if (Array.isArray(repoData)) {
-        setCases(repoData);
-        initialLoadDone.current = true;
-      }
+      if (Array.isArray(repoData)) setCases(repoData);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const handleBatchUpdateStatus = useCallback(async (silent = false) => {
+  /**
+   * Motor de Recalibração Inteligente
+   * Força todos os casos ativos para o modo 'Automatico'.
+   */
+  const handleBatchUpdateStatus = useCallback(async () => {
     if (!isOperador || cases.length === 0 || isUpdating) return;
-    if (!silent) setIsUpdating(true);
+    setIsUpdating(true);
     
     try {
-      const savedThreshold = localStorage.getItem('lexisPredict_urgency_alert');
-      const thresholds = { alertLimit: savedThreshold ? parseInt(savedThreshold) : 3 };
-
       const updatedCases = cases.map(c => {
         const sit = String(c.situacao).toUpperCase();
-        if (['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(sit)) {
-          return c;
-        }
-        return processarCaso({ ...c, STATUS_MANUAL: 'Automatico' }, thresholds);
+        // Ignorar finalizados para não "reabrir" casos por engano
+        if (['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(sit)) return c;
+        return { ...c, statusManual: 'Automatico' };
       });
 
       const result = await syncRepoCases(updatedCases);
       if (result.success) {
-        setCases(updatedCases);
-        if (!silent) toast({ title: "Sincronia Concluída", description: "Todos os prazos ativos foram recalculados pelo motor." });
+        await loadData();
+        toast({ title: "Sincronia Concluída", description: "Todos os prazos ativos foram recalculados pelo motor." });
       }
     } finally {
-      if (!silent) setIsUpdating(false);
+      setIsUpdating(false);
     }
-  }, [cases, isOperador, isUpdating, toast]);
+  }, [cases, isOperador, isUpdating, toast, loadData]);
 
   const handleExportPlanilha = async () => {
     if (cases.length === 0 || isExporting) return;
     setIsExporting(true);
-    
     try {
       const result = await exportCasesToCSVAction();
       if (result.success && result.base64) {
         const link = document.createElement('a');
         link.href = `data:text/csv;base64,${result.base64}`;
-        link.download = result.filename || `export_processos.csv`;
+        link.download = result.filename;
         link.click();
-        toast({ title: "Exportação Concluída", description: "Planilha gerada com sucesso." });
-      } else {
-        toast({ title: "Falha na Exportação", description: result.error, variant: "destructive" });
+        toast({ title: "Exportação Concluída" });
       }
-    } catch (err) {
-      toast({ title: "Erro Crítico", description: "Não foi possível gerar o arquivo.", variant: "destructive" });
     } finally {
       setIsExporting(false);
     }
@@ -244,9 +221,7 @@ function CasesContent() {
         setCases([]);
         setIsPurgeModalOpen(false);
         setPurgeConfirmText('');
-        toast({ title: "Base Purificada", description: "Todos os seus processos foram removidos." });
-      } else {
-        toast({ title: "Falha na Purga", description: res.error, variant: "destructive" });
+        toast({ title: "Base Purificada" });
       }
     } finally {
       setIsPurging(false);
@@ -263,27 +238,21 @@ function CasesContent() {
     if (!isOperador || !formState.cliente || !formState.protocolo) return;
 
     try {
-      const savedThreshold = localStorage.getItem('lexisPredict_urgency_alert');
-      const processed = processarCaso({
-        id: editingCase?.id,
-        CLIENTE: formState.cliente,
-        PROTOCOLO: formState.protocolo,
-        ADVOGADO: formState.advogado,
-        'PRÓXIMO PRAZO': formState.proximoPrazo,
-        SITUAÇÃO: formState.situacao,
-        ULTIMO_RETORNO: formState.ultimoRetorno,
-        STATUS_MANUAL: formState.statusManual,
-        OBSERVACAO: formState.observacao,
-        TELEFONE: formState.telefone
-      }, { alertLimit: savedThreshold ? parseInt(savedThreshold) : 3 });
+      const result = await syncRepoCases([{
+        ...editingCase,
+        cliente: formState.cliente,
+        protocolo: formState.protocolo,
+        advogado: formState.advogado,
+        proximoPrazo: formState.proximoPrazo,
+        situacao: formState.situacao,
+        ultimoRetorno: formState.ultimoRetorno,
+        statusManual: formState.statusManual,
+        observacao: formState.observacao,
+        telefone: formState.telefone
+      } as LegalCase]);
 
-      const updated = editingCase 
-        ? cases.map(c => c.id === editingCase.id ? processed : c)
-        : [processed, ...cases];
-      
-      const result = await syncRepoCases(updated);
       if (result.success) {
-        setCases(updated);
+        await loadData();
         setIsModalOpen(false);
         setEditingCase(null);
         toast({ title: "Registro Atualizado" });
@@ -294,11 +263,15 @@ function CasesContent() {
   const handleLogReturn = useCallback(async (protocolo: string) => {
     if (!isOperador) return;
     const today = format(new Date(), 'dd/MM/yyyy');
-    const updated = cases.map(c => c.protocolo === protocolo ? { ...c, ultimoRetorno: today } : c);
-    setCases(updated);
-    await syncRepoCases(updated);
-    toast({ title: "Atendimento Registrado", description: `Último retorno atualizado para ${today}.` });
-  }, [cases, isOperador, toast]);
+    const caseToUpdate = cases.find(c => c.protocolo === protocolo);
+    if (!caseToUpdate) return;
+
+    const result = await syncRepoCases([{ ...caseToUpdate, ultimoRetorno: today }]);
+    if (result.success) {
+      await loadData();
+      toast({ title: "Atendimento Registrado", description: `Último retorno atualizado para ${today}.` });
+    }
+  }, [cases, isOperador, toast, loadData]);
 
   const handleEditClick = useCallback((c: LegalCase) => {
     if (!isOperador) return;
@@ -321,9 +294,11 @@ function CasesContent() {
     if (!isOperador) return;
     if (confirm('Deseja excluir definitivamente este registro?')) {
       const updated = cases.filter(c => c.id !== id);
-      setCases(updated);
-      await syncRepoCases(updated);
-      toast({ title: "Registro Removido" });
+      const res = await syncRepoCases(updated);
+      if (res.success) {
+        setCases(updated);
+        toast({ title: "Registro Removido" });
+      }
     }
   }, [cases, isOperador, toast]);
 
@@ -342,9 +317,6 @@ function CasesContent() {
         <header className="h-20 border-b border-border/50 bg-white/60 backdrop-blur-xl flex items-center justify-between px-10 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-foreground uppercase tracking-tight">Processos do Gabinete</h1>
-            <Badge variant="outline" className="bg-secondary/50 border-none font-bold uppercase text-[9px] px-3 py-1 rounded-full">
-              {isAdmin ? 'Privilégio Admin' : 'Operador'}
-            </Badge>
           </div>
           <div className="flex items-center gap-3">
             {isOperador && (

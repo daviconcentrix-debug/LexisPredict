@@ -27,7 +27,7 @@ export default function LoginPage() {
   const router = useRouter();
   const logoAsset = PlaceHolderImages.find(img => img.id === 'app-logo');
 
-  // Redirecionamento Automático: Ativado apenas se Perfil + User estiverem prontos
+  // Redirecionamento Automático: Quebra o loop e entra direto se detectado
   useEffect(() => {
     if (!authLoading && user && profile) {
       router.replace('/');
@@ -41,8 +41,8 @@ export default function LoginPage() {
           <ShieldCheck size={40} className="text-[#00D1FF]" />
         </div>
         <div className="space-y-4">
-          <h1 className="text-2xl font-black uppercase tracking-tighter">Gabinete Aberto</h1>
-          <p className="text-[10px] font-black uppercase tracking-widest text-black/40">Redirecionando para Mission Control...</p>
+          <h1 className="text-2xl font-black uppercase tracking-tighter">Sessão Ativa Detectada</h1>
+          <p className="text-[10px] font-black uppercase tracking-widest text-black/40">Ingressando no Gabinete...</p>
         </div>
         <Loader2 className="animate-spin text-black" size={32} />
       </div>

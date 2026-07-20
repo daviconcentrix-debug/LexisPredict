@@ -1,6 +1,6 @@
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
+ * @license Proprietary - All rights reserved. See LICENSE file.
  */
 "use client";
 
@@ -26,10 +26,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const pathname = usePathname();
   const router = useRouter();
   const initialized = useRef(false);
   const profileLoadingId = useRef<string | null>(null);
+  const profileRef = useRef<UserProfile | null>(null);
 
   const loadProfile = async (userId: string) => {
     if (!isSupabaseConfigured || profileLoadingId.current === userId) return null;
@@ -45,12 +45,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .maybeSingle();
 
       if (profileData) {
-        setProfile(profileData as UserProfile);
-        document.cookie = `lexis_user_email=${profileData.email.toLowerCase().trim()}; path=/; max-age=31536000; samesite=lax`;
-        return profileData as UserProfile;
+        const p = profileData as UserProfile;
+        setProfile(p);
+        profileRef.current = p;
+        document.cookie = `lexis_user_email=${p.email.toLowerCase().trim()}; path=/; max-age=31536000; samesite=lax`;
+        return p;
       }
       
-      // Fallback por email se UUID falhar (migração)
+      // Fallback por email se UUID falhar
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser?.email) {
         const { data: altProfile } = await supabase
@@ -60,8 +62,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .maybeSingle();
         
         if (altProfile) {
-          setProfile(altProfile as UserProfile);
-          return altProfile as UserProfile;
+          const p = altProfile as UserProfile;
+          setProfile(p);
+          profileRef.current = p;
+          return p;
         }
       }
 
@@ -79,29 +83,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (initialized.current) return;
     initialized.current = true;
 
-    const setup = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser(session.user);
-        await loadProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    };
-
-    setup();
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log(`[AuthProvider] 📡 Evento: ${event}`);
       
       if (session?.user) {
         setUser(session.user);
-        if (event === 'SIGNED_IN' || !profile) {
+        // Só carrega o perfil se ainda não o tivermos ou se for um evento explícito de SIGNED_IN
+        if (!profileRef.current || event === 'SIGNED_IN') {
           await loadProfile(session.user.id);
+        } else {
+          setLoading(false);
         }
       } else {
         setUser(null);
         setProfile(null);
+        profileRef.current = null;
         setLoading(false);
         document.cookie = "lexis_user_email=; path=/; max-age=0";
         if (!['/login', '/signup'].includes(window.location.pathname)) {
@@ -117,6 +113,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
+    profileRef.current = null;
     document.cookie = "lexis_user_email=; path=/; max-age=0";
     router.replace('/login');
   };

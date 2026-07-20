@@ -1,44 +1,16 @@
-
 'use server';
 
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
  */
 
 import { createClient } from '@/lib/supabase/server';
 import { getUserContext } from '@/lib/server-db';
 import { parse } from 'csv-parse/sync';
-import { processarCaso, formatDateToISO } from '@/lib/case-logic';
+import { buildProcessoRecord } from '@/lib/case-mapper';
 
 interface CsvRow {
   [key: string]: string;
-}
-
-/**
- * Normaliza datas brasileiras (DD/MM/YYYY) para o formato ISO (YYYY-MM-DD).
- */
-function parseBrazilianDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-  
-  const v = value.trim();
-  if (!v || v === '-' || v === '—' || v === '00/00/0000' || v === '0') return null;
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
-    return v;
-  }
-
-  const datePattern = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/;
-  const match = v.match(datePattern);
-  
-  if (match) {
-    const [, day, month, year] = match;
-    const d = day.padStart(2, '0');
-    const m = month.padStart(2, '0');
-    return `${year}-${m}-${d}`;
-  }
-
-  return null;
 }
 
 function normalizeHeader(header: string): string {
@@ -50,15 +22,13 @@ function normalizeHeader(header: string): string {
 }
 
 /**
- * Realiza a ingestão inteligente tratando a coluna "STATUS" da planilha como a situação interna.
+ * Motor de Ingestão Resiliente v1500.0
+ * Utiliza o Mapeador Universal para garantir integridade.
  */
 export async function importCsvAction(csvText: string) {
   try {
     const { empresa_id, auth_id } = await getUserContext();
-
-    if (!empresa_id || !auth_id) {
-      return { success: false, error: 'Sessão administrativa expirada.' };
-    }
+    if (!empresa_id || !auth_id) return { success: false, error: 'Sessão administrativa expirada.' };
 
     const records: CsvRow[] = parse(csvText, {
       columns: true,
@@ -68,59 +38,50 @@ export async function importCsvAction(csvText: string) {
       bom: true,
     });
 
-    if (!records || records.length === 0) {
-      return { success: false, error: 'Planilha vazia ou em formato incompatível.' };
-    }
+    if (!records || records.length === 0) return { success: false, error: 'Planilha vazia ou em formato incompatível.' };
 
-    const savedThreshold = 3; 
+    const getVal = (row: CsvRow, ...keys: string[]) => {
+      for (const k of keys) {
+        const foundKey = Object.keys(row).find(rk => normalizeHeader(rk) === normalizeHeader(k));
+        if (foundKey && row[foundKey]) return row[foundKey].trim();
+      }
+      return '';
+    };
 
-    const rows = records.map((row) => {
-      const rawData: any = {};
-      Object.keys(row).forEach(k => {
-        const key = normalizeHeader(k);
-        // Se a coluna for "STATUS", no app ela vira a "SITUAÇÃO" interna
-        if (key === 'STATUS') {
-           rawData['SITUACAO'] = row[k];
-        } else {
-           rawData[key] = row[k];
-        }
+    // Processamento e Deduplicação Atômica
+    const mappedBatch = new Map();
+
+    records.forEach(row => {
+      const protocolo = getVal(row, 'PROTOCOLO', 'PROCESSO', 'NUMERO', 'CNJ');
+      if (!protocolo || protocolo.length < 8) return;
+
+      const record = buildProcessoRecord({
+        empresaId: empresa_id,
+        userId: auth_id,
+        cliente: getVal(row, 'CLIENTE', 'NOME', 'OUTORGANTE'),
+        protocolo,
+        telefone: getVal(row, 'TELEFONE', 'CELULAR', 'WHATSAPP'),
+        advogado: getVal(row, 'ADVOGADO', 'RESPONSAVEL'),
+        escritorio: getVal(row, 'ESCRITORIO', 'BANCA'),
+        situacao: getVal(row, 'STATUS', 'SITUACAO', 'STATUS INTERNO'), // STATUS da planilha vira SITUACAO (Em Andamento, etc)
+        observacao: getVal(row, 'OBSERVACOES', 'OBS', 'RESUMO'),
+        proximoRetorno: getVal(row, 'PROXIMO_RETORNO', 'PRÓXIMO PRAZO', 'VENCIMENTO'),
+        ultimoRetorno: getVal(row, 'RETORNO', 'ULTIMO_RETORNO'),
+        produtos: getVal(row, 'PRODUTOS'),
+        atendente: getVal(row, 'ASSISTENTE', 'ATENDENTE'),
+        statusManual: 'Automatico' // Força o app a calcular o prazo na importação
       });
 
-      // Forçamos o motor a calcular o prazo automaticamente na importação
-      rawData['STATUS_MANUAL'] = 'Automatico';
+      mappedBatch.set(record.protocolo_ref, record);
+    });
 
-      // Pré-converte datas
-      if (rawData.PROXIMO_RETORNO || rawData.PROXIMO_PRAZO) {
-         const p = rawData.PROXIMO_RETORNO || rawData.PROXIMO_PRAZO;
-         rawData.PROXIMO_RETORNO = parseBrazilianDate(p);
-      }
-      if (rawData.ULTIMO_RETORNO || rawData.RETORNO) {
-         const u = rawData.ULTIMO_RETORNO || rawData.RETORNO;
-         rawData.ULTIMO_RETORNO = parseBrazilianDate(u);
-      }
-
-      const casoProcessado = processarCaso(rawData, { alertLimit: savedThreshold });
-
-      return {
-        empresa_id: empresa_id,
-        created_by: auth_id,
-        protocolo_ref: casoProcessado.protocolo || null,
-        advogado: casoProcessado.advogado || null,
-        status: casoProcessado.status || null,
-        risco: casoProcessado.risco || null,
-        tribunal: casoProcessado.tribunal || null,
-        telefone: casoProcessado.telefone || null,
-        observacoes: casoProcessado.observacao || null,
-        ultimo_retorno: formatDateToISO(casoProcessado.ultimoRetorno),
-        proximo_retorno: formatDateToISO(casoProcessado.proximoPrazo),
-        dados: casoProcessado
-      };
-    }).filter(r => r.protocolo_ref);
+    const rowsToUpsert = Array.from(mappedBatch.values());
+    if (rowsToUpsert.length === 0) return { success: false, error: 'Nenhum protocolo válido detectado.' };
 
     const supabase = await createClient();
     const { data, error } = await supabase
       .from('processos')
-      .upsert(rows, {
+      .upsert(rowsToUpsert, {
         onConflict: 'protocolo_ref,empresa_id',
         ignoreDuplicates: false,
       })
@@ -130,10 +91,11 @@ export async function importCsvAction(csvText: string) {
 
     return {
       success: true,
-      imported: data?.length || rows.length,
-      message: `${data?.length || rows.length} processos processados e sincronizados via Motor Elite.`,
+      imported: data?.length || rowsToUpsert.length,
+      message: `${data?.length || rowsToUpsert.length} processos sincronizados via Mapeador Universal.`,
     };
   } catch (err: any) {
+    console.error("[Import Fail]", err.message);
     return { success: false, error: 'Falha na unidade de migração neural.' };
   }
 }
