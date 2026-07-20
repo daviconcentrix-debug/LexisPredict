@@ -3,7 +3,27 @@
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
 "use client";
+import Image from 'next/image';
 
+// no cabeçalho do SidebarContent:
+<div className="flex items-center gap-2 px-3 py-4">
+  <Image
+    src="/logo.png"
+    alt="LexisPredict"
+    width={36}
+    height={36}
+    className="rounded-md shrink-0"
+    priority
+  />
+  {!collapsed && (
+    <div className="flex flex-col min-w-0">
+      <span className="font-black text-sm tracking-tight truncate">LexisPredict</span>
+      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+        Elite
+      </span>
+    </div>
+  )}
+</div>
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
