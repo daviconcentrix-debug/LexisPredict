@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { syncRepoCases } from '@/app/actions/case-actions';
+import { importCsvAction } from '@/app/actions/import-actions';
 import { cn } from '@/lib/utils';
 import { useAdmin } from '@/hooks/use-admin';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -65,6 +65,7 @@ export default function ImportPage() {
   const [preview, setPreview] = useState<LegalCase[]>([]);
   const [step, setStep] = useState<'upload' | 'preview'>('upload');
   const [textInput, setTextInput] = useState('');
+  const [rawCsvText, setRawCsvText] = useState('');
   const [stats, setStats] = useState({ total: 0, critical: 0, tribunals: 0 });
 
   const { isOperador } = useAdmin();
@@ -93,6 +94,7 @@ export default function ImportPage() {
     reader.onload = async (event) => {
       try {
         const text = event.target?.result as string;
+        setRawCsvText(text);
         await processRawText(text);
       } catch (err) {
         toast({ title: "Falha no Parsing", variant: "destructive" });
@@ -105,6 +107,7 @@ export default function ImportPage() {
   const handleTextImport = async () => {
     if (!textInput.trim()) return;
     setParsing(true);
+    setRawCsvText(textInput);
     await processRawText(textInput);
   };
 
@@ -176,17 +179,19 @@ export default function ImportPage() {
        toast({ title: "Acesso Negado", description: "Permissão insuficiente.", variant: "destructive" });
        return;
     }
-    if (preview.length === 0) return;
+    if (!rawCsvText) return;
 
     setSyncing(true);
     try {
-      const result = await syncRepoCases(preview);
+      const result = await importCsvAction(rawCsvText);
       if (result.success) {
-        toast({ title: "Sincronia Concluída", description: `${preview.length} registros atualizados.` });
+        toast({ title: "Sincronia Concluída", description: result.message });
         setPreview([]);
+        setRawCsvText('');
+        setTextInput('');
         setStep('upload');
       } else {
-        toast({ title: "Falha na Gravação", description: result.message, variant: "destructive" });
+        toast({ title: "Falha na Gravação", description: result.error, variant: "destructive" });
       }
     } catch (err: any) {
       toast({ title: "Erro de Infraestrutura", description: err.message, variant: "destructive" });
@@ -197,6 +202,7 @@ export default function ImportPage() {
 
   const resetImport = () => {
     setTextInput('');
+    setRawCsvText('');
     setPreview([]);
     setStep('upload');
     setProgress(0);

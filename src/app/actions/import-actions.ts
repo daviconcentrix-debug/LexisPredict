@@ -1,56 +1,104 @@
 'use server';
 
 /**
- * MOTOR DE INGESTÃO MASSIVA v41000.0 ELITE
- * Processamento Ultra-Robusto com Lotes Dinâmicos, Tripla Tentativa (Retry) 
- * e Mapeamento de Esquema Corrigido para o campo "dados".
- * Proprietário: W1 Capital | Fundador: Davi Alves Figueredo
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
  */
 
+import { createClient } from '@/lib/supabase/server';
+import { getUserContext } from '@/lib/server-db';
 import { parse } from 'csv-parse/sync';
-import { calcularStatus, calcularRisco, formatDateToISO, parseBrazilianDate, LegalCase } from '@/lib/case-logic';
-import { supabase } from '@/lib/supabase';
-import { cookies } from 'next/headers';
 
-async function getContext() {
-  try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('lexis_user_email')?.value;
-    
-    let authUser = null;
-    const { data: { user } } = await supabase.auth.getUser();
-    authUser = user;
-
-    if (!userEmail && !authUser) return null;
-
-    let query = supabase.from('usuarios').select('empresa_id, auth_user_id');
-    if (userEmail) query = query.eq('email', userEmail.toLowerCase().trim());
-    else if (authUser) query = query.eq('auth_user_id', authUser.id);
-
-    const { data: profile } = await query.maybeSingle();
-    return profile;
-  } catch (e) {
-    return null;
-  }
+interface CsvRow {
+  [key: string]: string;
 }
 
-function toBR(dateISO: string | null): string {
-  if (!dateISO) return '';
-  const parts = dateISO.split('-');
-  if (parts.length !== 3) return '';
-  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+function normalizeHeader(header: string): string {
+  return header
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
 }
 
-export async function importarCSVAction(formData: FormData) {
+function mapCsvRowToProcesso(row: CsvRow, empresaId: string, userId: string) {
+  // Mapeamento flexível de cabeçalhos para máxima compatibilidade
+  const get = (...possibleNames: string[]) => {
+    for (const name of possibleNames) {
+      const key = Object.keys(row).find(
+        (k) => normalizeHeader(k) === normalizeHeader(name)
+      );
+      if (key && row[key]?.trim()) return row[key].trim();
+    }
+    return '';
+  };
+
+  const protocolo = get('PROTOCOLO', 'PROCESSO', 'NÚMERO', 'NUMERO', 'CNJ');
+  const cliente = get('CLIENTE', 'NOME', 'OUTORGANTE');
+  const telefone = get('TELEFONE', 'CELULAR', 'WHATSAPP');
+  const advogado = get('ADVOGADO', 'ADVOGADO RESPONSÁVEL', 'ADVOGADO RESPONSAVEL', 'ADVOCADO');
+  const escritorio = get('ESCRITÓRIO', 'ESCRITORIO', 'BANCA');
+  const situacao = get('SITUAÇÃO', 'SITUACAO', 'STATUS INTERNO');
+  const status = get('STATUS', 'STATUS PRAZO');
+  const risco = get('RISCO', 'RISCO IA');
+  const observacoes = get('OBSERVAÇÕES', 'OBSERVACOES', 'OBS', 'OBSERVAÇÃO');
+  const ultimoRetorno = get('ÚLTIMO RETORNO', 'ULTIMO RETORNO', 'RETORNO');
+  const proximoRetorno = get('PRÓXIMO RETORNO', 'PROXIMO RETORNO', 'PRÓXIMO PRAZO', 'PROXIMO PRAZO', 'PRAZO');
+  const tribunal = get('TRIBUNAL', 'FORO', 'COMARCA');
+  const produtos = get('PRODUTOS', 'PRODUTO');
+  const dataDistribuicao = get('DATA DISTRIBUIÇÃO', 'DISTRIB.', 'DISTRIBUICAO');
+
+  // Objeto rico de dados para o JSONB
+  const dados = {
+    id: protocolo || crypto.randomUUID(),
+    cliente: cliente || 'NÃO INFORMADO',
+    protocolo: protocolo,
+    telefone: telefone,
+    advogado: advogado || 'Não Atribuído',
+    escritorio: escritorio,
+    situacao: situacao || 'EM ANDAMENTO',
+    status: status || 'Sem Prazo',
+    risco: risco || '',
+    observacao: observacoes,
+    ultimoRetorno: ultimoRetorno,
+    proximoPrazo: proximoRetorno,
+    tribunal: tribunal || 'Outros',
+    produtos: produtos,
+    statusManual: status || 'Automatico',
+  };
+
+  return {
+    empresa_id: empresaId,
+    created_by: userId,
+    protocolo_ref: protocolo || null,
+    dados: dados,
+    telefone: telefone || null,
+    advogado: advogado || null,
+    escritorio: escritorio || null,
+    status: status || null,
+    risco: risco || null,
+    observacoes: observacoes || null,
+    tribunal: tribunal || null,
+    produtos: produtos || null,
+    ultimo_retorno: ultimoRetorno || null,
+    proximo_retorno: proximoRetorno || null,
+    data_distribuicao: dataDistribuicao || null,
+  };
+}
+
+/**
+ * Realiza o processamento e sincronização incremental do CSV.
+ */
+export async function importCsvAction(csvText: string) {
   try {
-    const file = formData.get('file') as File;
-    if (!file) return { error: 'Nenhum arquivo enviado para triagem.' };
+    const { empresa_id, auth_id } = await getUserContext();
 
-    const profile = await getContext();
-    if (!profile) return { error: 'Sessão expirada. Faça login novamente.' };
+    if (!empresa_id || !auth_id) {
+      return { success: false, error: 'Sessão administrativa expirada ou inválida.' };
+    }
 
-    const text = await file.text();
-    const records = parse(text, {
+    // Parsing robusto com tratamento de BOM e contagem relaxada
+    const records: CsvRow[] = parse(csvText, {
       columns: true,
       skip_empty_lines: true,
       trim: true,
@@ -58,121 +106,51 @@ export async function importarCSVAction(formData: FormData) {
       bom: true,
     });
 
-    const payload: any[] = [];
-    let skipped = 0;
-
-    for (const row of records) {
-      const cliente = (row['CLIENTE'] || row['cliente'] || '').trim();
-      const protocolo = (row['PROTOCOLO'] || row['protocolo'] || '').trim();
-
-      if (!cliente || !protocolo) {
-        skipped++;
-        continue;
-      }
-
-      const situacao = (row['SITUAÇÃO'] || row['situacao'] || '').trim();
-      const statusInterno = (row['STATUS'] || row['status_interno'] || '').trim();
-      const observacao = (row['OBSERVAÇÕES'] || row['observacoes'] || '').trim();
-      const proximoRetornoRaw = row['PRÓXIMO RETORNO'] || row['proximo_retorno'] || '';
-      const ultimoRetornoRaw = row['RETORNO'] || row['ultimo_retorno'] || '';
-
-      const ultimo_retorno_iso = formatDateToISO(ultimoRetornoRaw);
-      const proximo_retorno_iso = formatDateToISO(proximoRetornoRaw);
-
-      const status = calcularStatus(proximoRetornoRaw, situacao);
-      const risco = calcularRisco(observacao, statusInterno, situacao);
-
-      const dataProximo = parseBrazilianDate(proximoRetornoRaw);
-      let diasFaltando: number | null = null;
-      if (dataProximo) {
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-        dataProximo.setHours(0, 0, 0, 0);
-        const diffTime = dataProximo.getTime() - hoje.getTime();
-        diasFaltando = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      }
-
-      // MAPEAMENTO DE ESQUEMA OFICIAL DO APP
-      const casoDados: any = {
-        id: protocolo,
-        tipo: 'NOVO',
-        status: status,
-        cliente: cliente.toUpperCase(),
-        protocolo: protocolo,
-        telefone: (row['TELEFONE'] || row['telefone'] || '').trim(),
-        advogado: (row['ADVOGADO RESPONSÁVEL'] || row['advogado'] || 'Não Atribuído').trim(),
-        situacao: situacao,
-        observacao: observacao,
-        proximoPrazo: toBR(proximo_retorno_iso),
-        ultimoRetorno: toBR(ultimo_retorno_iso),
-        statusManual: 'Automatico',
-        diasFaltando: diasFaltando,
-        tribunal: 'Outros',
-        linkConsulta: 'https://www.google.com/search?q=consulta+processo+judicial+' + protocolo,
-        riscoIA: '',
-        parecerIA: '',
-        atendente: (row['ASSISTENTE'] || row['assistente'] || '').trim(),
-        escritorio: (row['ESCRITÓRIO'] || row['escritorio'] || '').trim(),
-        produtos: (row['PRODUTOS'] || row['produtos'] || '').trim(),
-        risco: risco
-      };
-
-      payload.push({
-        dados: casoDados,
-        empresa_id: profile.empresa_id,
-        created_by: profile.auth_user_id,
-        ultimo_retorno: ultimo_retorno_iso,
-        proximo_retorno: proximo_retorno_iso,
-        observacoes: observacao,
-        status,
-        risco,
-        status_interno: statusInterno,
-        ultima_movimentacao: formatDateToISO(row['DATA MOVIMENTAÇÃO'] || row['ultima_movimentacao']),
-        escritorio: casoDados.escritorio,
-        advogado: casoDados.advogado,
-        data_distribuicao: formatDateToISO(row['DISTRIB.'] || row['data_distribuicao']),
-        produtos: casoDados.produtos,
-        telefone: casoDados.telefone
-      });
+    if (!records || records.length === 0) {
+      return { success: false, error: 'A planilha fornecida está vazia ou em formato incompatível.' };
     }
 
-    if (payload.length === 0) return { error: 'Nenhum registro válido no CSV.' };
+    // Filtragem e mapeamento atômico
+    const rows = records
+      .map((row) => mapCsvRowToProcesso(row, empresa_id, auth_id))
+      .filter((r) => r.protocolo_ref);
 
-    const BATCH_SIZE = 25; 
-    let totalImported = 0;
-    const batchErrors: string[] = [];
-    
-    for (let i = 0; i < payload.length; i += BATCH_SIZE) {
-      const batch = payload.slice(i, i + BATCH_SIZE);
-      let success = false;
-      let lastError = '';
+    if (rows.length === 0) {
+      return {
+        success: false,
+        error: 'Nenhum registro válido identificado. Certifique-se de que a coluna PROTOCOLO está presente.',
+      };
+    }
 
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        const { error } = await supabase.from('processos').insert(batch);
-        if (!error) {
-          totalImported += batch.length;
-          success = true;
-          break; 
-        } else {
-          lastError = error.message;
-          await new Promise(resolve => setTimeout(resolve, 800 * attempt));
-        }
-      }
+    const supabase = await createClient();
 
-      if (!success) {
-        batchErrors.push(`Lote ${Math.floor(i / BATCH_SIZE) + 1} falhou após 3 tentativas: ${lastError}`);
-      }
+    // Protocolo de UPSERT Soberano: Não duplica registros e atualiza os existentes
+    const { data, error } = await supabase
+      .from('processos')
+      .upsert(rows, {
+        onConflict: 'protocolo_ref,empresa_id',
+        ignoreDuplicates: false,
+      })
+      .select('id');
+
+    if (error) {
+      console.error('[Import Critical] Erro no upsert:', error.message);
+      return {
+        success: false,
+        error: error.message || 'Falha na gravação dos dados no repositório.',
+      };
     }
 
     return {
-      success: totalImported > 0,
-      count: totalImported,
-      message: `Importados com sucesso: ${totalImported} de ${payload.length} | Pulados: ${skipped}`,
-      errors: batchErrors.length > 0 ? batchErrors : undefined
+      success: true,
+      imported: data?.length || rows.length,
+      message: `${data?.length || rows.length} processos sincronizados com sucesso no gabinete.`,
     };
-
   } catch (err: any) {
-    console.error('[ImportAction] Falha Crítica:', err);
-    return { error: err.message || 'Erro fatal na infraestrutura de triagem.' };
+    console.error('[Import Logic Fail] Erro inesperado:', err.message);
+    return {
+      success: false,
+      error: 'Falha interna na unidade de migração.',
+    };
   }
 }

@@ -1,4 +1,3 @@
-
 'use server';
 
 import { supabase, isSupabaseConfigured, UserProfile } from './supabase';
@@ -10,7 +9,7 @@ import { cookies } from 'next/headers';
  * Implementação de Lógica UPSERT para evitar perda de melhorias manuais.
  */
 
-async function getUserContext() {
+export async function getUserContext() {
   const cookieStore = await cookies();
   const userEmail = cookieStore.get('lexis_user_email')?.value;
   
@@ -102,7 +101,6 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
       };
     });
 
-    // Utiliza UPSERT para não apagar melhorias manuais feitas em casos já existentes
     const { error: upsertError } = await supabase
       .from('processos')
       .upsert(payload, { onConflict: 'protocolo_ref, empresa_id' });
@@ -159,7 +157,6 @@ export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boo
   if (!empresa_id || !auth_id) return { success: false };
 
   try {
-    // Sincronização incremental de notas
     const dbNotes = notes.map(n => ({
       title: n.title || 'Nota',
       content: n.imageUrl ? JSON.stringify({ text: n.content, imageUrl: n.imageUrl }) : n.content,
