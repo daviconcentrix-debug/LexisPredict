@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverComponentsExternalPackages: ['tesseract.js', 'pdfjs-dist', 'pdf-parse'],
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
   },
   headers: async () => {
     return [
