@@ -15,20 +15,14 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'LexisPredict Elite SaaS',
   description: 'Gabinete Inteligente de Gestão Jurídica e Operações Forenses',
-  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'LexisPredict',
   },
   icons: {
-    icon: [
-      { url: '/logo.png', sizes: '32x32', type: 'image/png' },
-      { url: '/logo.png', sizes: '192x192', type: 'image/png' },
-    ],
-    apple: [
-      { url: '/logo.png', sizes: '180x180', type: 'image/png' },
-    ],
+    icon: [{ url: '/logo.png', type: 'image/png' }],
+    apple: [{ url: '/logo.png', type: 'image/png' }],
     shortcut: '/logo.png',
   },
 };
