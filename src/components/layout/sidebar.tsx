@@ -1,6 +1,6 @@
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved. See LICENSE file.
+ * @license Proprietary - All rights reserved.
  */
 "use client";
 
@@ -102,6 +102,7 @@ export function Sidebar() {
 
   const SidebarContent = () => (
     <div className="h-full flex flex-col bg-white border-r border-border/50">
+      {/* === CABEÇALHO COM LOGO === */}
       <div className="h-20 flex items-center px-4 border-b border-border/30">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-[#0f172a] flex items-center justify-center shadow-xl shrink-0 overflow-hidden border border-black/10">
@@ -110,7 +111,7 @@ export function Sidebar() {
               alt="LexisPredict"
               width={40}
               height={40}
-              className="object-cover"
+              className="object-contain"
               priority
             />
           </div>
