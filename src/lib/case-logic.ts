@@ -8,7 +8,7 @@ import { startOfDay, differenceInCalendarDays, parseISO } from 'date-fns';
 
 /**
  * LÓGICA JURÍDICA PURA — STATUS, RISCO, TRIBUNAL CNJ
- * Motor de processamento v400.0 Elite
+ * Motor de processamento v450.0 Elite
  */
 
 export type CaseStatus =
@@ -73,25 +73,40 @@ export function fixEncoding(text: string): string {
   } catch (e) { return text; }
 }
 
+/**
+ * Converte data DD/MM/YYYY para ISO YYYY-MM-DD
+ */
 export function formatDateToISO(dateStr: string | null | undefined): string | null {
   if (!dateStr) return null;
   const raw = String(dateStr).trim();
-  if (raw === "" || raw === "-" || raw === "0" || raw === "00/00/0000") return null;
+  if (raw === "" || raw === "-" || raw === "—" || raw === "0" || raw === "00/00/0000") return null;
+  
+  // Se já for ISO, retorna
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
 
   const parts = raw.split(/[\/\-\.\s,]+/).filter(p => p.length > 0);
   if (parts.length !== 3) return null;
 
   let day, month, year;
-  if (parts[0].length === 4) { [year, month, day] = parts; } 
-  else {
+  if (parts[0].length === 4) { 
+    [year, month, day] = parts; 
+  } else {
     [day, month, year] = parts;
     if (year.length === 2) {
       const yNum = parseInt(year, 10);
       year = yNum > 50 ? `19${year}` : `20${year}`;
     }
   }
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  
+  const d = String(day).padStart(2, "0");
+  const m = String(month).padStart(2, "0");
+  const y = String(year);
+
+  // Validação mínima de range
+  const yNum = parseInt(y);
+  if (yNum < 1900 || yNum > 2100) return null;
+
+  return `${y}-${m}-${d}`;
 }
 
 export function calcularDiasFaltando(proximoISO: string | null): number | null {
@@ -122,21 +137,26 @@ export function calcularStatus(
   return "No Prazo";
 }
 
+/**
+ * Extrai Tribunal do CNJ (ex: 8.26 -> TJSP)
+ */
 export function extrairTribunal(protocolo: string): { tribunal: string; link: string; } {
   if (!protocolo) return { tribunal: "Outros", link: "" };
   const original = protocolo.trim();
+  
+  // Padrão CNJ: NNNNNNN-DD.AAAA.J.TR.OOOO
   const match = original.match(/\.(\d)\.(\d{2})\./);
   
   if (!match) return { tribunal: "Outros", link: `https://www.google.com/search?q=consulta+processo+judicial+${encodeURIComponent(original)}` };
 
-  const ramo = match[1];
+  const ramo = match[1]; // 8 = Justiça Estadual
   const cod = match[2];
 
   if (ramo === '8') {
     const mapa: Record<string, string> = {
       '01': 'TJAC', '02': 'TJAL', '03': 'TJAP', '04': 'TJAM', '05': 'TJBA',
       '06': 'TJCE', '07': 'TJDF', '08': 'TJES', '09': 'TJGO', '10': 'TJMA',
-      '11': 'TJMT', '12': 'TJMS', '13': 'TJMG', '14': 'TJPB', '15': 'TJPB',
+      '11': 'TJMT', '12': 'TJMS', '13': 'TJMG', '14': 'TJPA', '15': 'TJPB',
       '16': 'TJPR', '17': 'TJPE', '18': 'TJPI', '19': 'TJRJ', '20': 'TJRN',
       '21': 'TJRS', '22': 'TJRO', '23': 'TJRR', '24': 'TJSC', '25': 'TJSE',
       '26': 'TJSP', '27': 'TJTO',
@@ -160,14 +180,18 @@ export function processarCaso(raw: any, thresholds?: { alertLimit: number }): Le
   const cliente = fixEncoding(normalized.CLIENTE || raw.cliente || 'NÃO IDENTIFICADO').toUpperCase();
   const protocolo = (normalized.PROTOCOLO || raw.protocolo || '').trim();
   const advogado = fixEncoding(normalized.ADVOGADO || raw.advogado || 'NÃO ATRIBUÍDO').toUpperCase();
-  const situacao = (normalized.SITUACAO || normalized.SITUAÇÃO || raw.situacao || 'EM ANDAMENTO').toUpperCase();
   
-  const proximoPrazo = normalized.PROXIMO_RETORNO || normalized.PRÓXIMO_PRAZO || raw.proximoPrazo || '';
-  const ultimoRetorno = normalized.ULTIMO_RETORNO || raw.ultimoRetorno || '';
+  // A "Situação" da planilha agora é isolada
+  const situacao = (normalized.SITUACAO || normalized.SITUAÇÃO || normalized.STATUS || raw.situacao || 'EM ANDAMENTO').toUpperCase();
+  
+  const proximoPrazoRaw = normalized.PROXIMO_RETORNO || normalized.PRÓXIMO_PRAZO || normalized.PROXIMO_PRAZO || raw.proximoPrazo || '';
+  const ultimoRetornoRaw = normalized.ULTIMO_RETORNO || normalized.RETORNO || raw.ultimoRetorno || '';
+  
+  // Na importação, sempre usamos Automático para recalcular
   const statusManual = normalized.STATUS_MANUAL || raw.statusManual || 'Automatico';
 
   const tribunalData = extrairTribunal(protocolo);
-  const statusCalculado = calcularStatus(proximoPrazo, situacao, thresholds?.alertLimit);
+  const statusCalculado = calcularStatus(proximoPrazoRaw, situacao, thresholds?.alertLimit);
 
   return {
     id: raw.id || crypto.randomUUID(),
@@ -175,11 +199,11 @@ export function processarCaso(raw: any, thresholds?: { alertLimit: number }): Le
     protocolo,
     advogado,
     situacao,
-    proximoPrazo,
-    ultimoRetorno,
+    proximoPrazo: formatDateToISO(proximoPrazoRaw) ? proximoPrazoRaw : '', // Mantém o formato exibição original se possível
+    ultimoRetorno: formatDateToISO(ultimoRetornoRaw) ? ultimoRetornoRaw : '',
     status: (statusManual === 'Automatico') ? statusCalculado : statusManual,
     risco: (statusCalculado === 'Vencido' || statusManual === 'Caso Crítico') ? "Crítico" : "Normal",
-    diasFaltando: calcularDiasFaltando(formatDateToISO(proximoPrazo)),
+    diasFaltando: calcularDiasFaltando(formatDateToISO(proximoPrazoRaw)),
     statusManual,
     tribunal: tribunalData.tribunal,
     linkConsulta: tribunalData.link,
