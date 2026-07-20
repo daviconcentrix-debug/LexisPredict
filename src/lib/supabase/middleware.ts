@@ -6,9 +6,10 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const DEFAULT_URL = 'https://segjskjlbeydlljnefai.supabase.co';
-const DEFAULT_KEY = 'sb_publishable_yEX6mVid3dpC7o7eOzuB1g_VhQodoTg';
-
+/**
+ * Motor de Gestão de Sessão v900.0
+ * Garante a sincronia entre a autenticação do navegador e a segurança do servidor.
+ */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -17,8 +18,8 @@ export async function updateSession(request: NextRequest) {
   })
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || DEFAULT_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
@@ -62,22 +63,39 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Recupera o usuário de forma resiliente usando getUser() (seguro para SSR)
+  // Validação oficial de identidade via Supabase
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Redirecionamento de segurança: se não houver usuário e não estiver na tela de login/signup, vai para login
-  if (!user && !['/login', '/signup'].includes(request.nextUrl.pathname)) {
+  const isAuthPage = request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup'
+
+  // Redirecionamento de segurança: Usuário não autenticado em rota protegida
+  if (!user && !isAuthPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Redirecionamento de conveniência: se já estiver logado e tentar ir para login, vai para a home
-  if (user && ['/login', '/signup'].includes(request.nextUrl.pathname)) {
+  // Redirecionamento de conveniência: Usuário autenticado tentando acessar login
+  if (user && isAuthPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)
   }
 
   return response
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - manifest.json (PWA manifest)
+     * - icons/ (PWA icons)
+     * - api/ (API routes handled separately)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|icons|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }
