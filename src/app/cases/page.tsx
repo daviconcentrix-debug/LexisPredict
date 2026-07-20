@@ -25,7 +25,8 @@ import {
   Loader2,
   AlertTriangle,
   CalendarDays,
-  Filter
+  Filter,
+  Download
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -44,6 +45,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { fetchRepoCases, syncRepoCases } from '@/app/actions/case-actions';
+import { exportCasesToCSVAction } from '@/app/actions/export-actions';
 import { format } from 'date-fns';
 import { useAdmin } from '@/hooks/use-admin';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -139,6 +141,7 @@ function CasesContent() {
   
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCase, setEditingCase] = useState<LegalCase | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -200,6 +203,28 @@ function CasesContent() {
     }
   }, [cases, isOperador, isUpdating, toast]);
 
+  const handleExportPlanilha = async () => {
+    if (cases.length === 0 || isExporting) return;
+    setIsExporting(true);
+    
+    try {
+      const result = await exportCasesToCSVAction();
+      if (result.success && result.base64) {
+        const link = document.createElement('a');
+        link.href = `data:text/csv;base64,${result.base64}`;
+        link.download = result.filename || `export_processos.csv`;
+        link.click();
+        toast({ title: "Exportação Concluída", description: "Planilha gerada com sucesso." });
+      } else {
+        toast({ title: "Falha na Exportação", description: result.error, variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: "Erro Crítico", description: "Não foi possível gerar o arquivo.", variant: "destructive" });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   useEffect(() => { 
     setMounted(true);
     loadData(); 
@@ -239,7 +264,7 @@ function CasesContent() {
         id: editingCase?.id,
         CLIENTE: formState.cliente,
         PROTOCOLO: formState.protocolo,
-        ADVOGADO: formState.advogado, // CORREÇÃO: ADVOGADO (G) em vez de ADVOCADO (C)
+        ADVOGADO: formState.advogado,
         'PRÓXIMO PRAZO': formState.proximoPrazo,
         SITUAÇÃO: formState.situacao,
         ULTIMO_RETORNO: formState.ultimoRetorno,
@@ -318,6 +343,12 @@ function CasesContent() {
             </Badge>
           </div>
           <div className="flex items-center gap-3">
+            {isOperador && (
+              <Button onClick={handleExportPlanilha} disabled={isExporting || cases.length === 0} variant="ghost" className="h-10 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest text-muted-foreground hover:bg-secondary">
+                {isExporting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download size={16} className="mr-2 text-primary" />}
+                Extrair Planilha
+              </Button>
+            )}
             {isOperador && (
               <Button onClick={() => handleBatchUpdateStatus()} disabled={isUpdating} variant="ghost" className="h-10 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest text-muted-foreground hover:bg-secondary">
                 {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap size={16} className="mr-2 text-primary" />}
