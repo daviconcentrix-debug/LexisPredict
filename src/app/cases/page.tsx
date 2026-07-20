@@ -1,10 +1,9 @@
+"use client";
 
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
-"use client";
-
 import React, { useState, useEffect, useMemo, useCallback, Suspense, useDeferredValue, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { 
@@ -16,6 +15,7 @@ import {
   Briefcase, 
   Edit2, 
   CheckCircle, 
+  CheckCircle2,
   Clock, 
   Copyright, 
   ShieldCheck, 
@@ -106,6 +106,11 @@ const CaseRow = React.memo(({
       </td>
       <td className="px-8 py-5 text-right">
         <div className="flex items-center justify-end gap-2">
+          {isOperador && (
+            <Button title="Registrar Atendimento Hoje" variant="ghost" size="icon" onClick={() => onLogReturn(c.protocolo)} className="text-emerald-600 hover:bg-emerald-50 h-9 w-9 rounded-lg">
+              <CheckCircle2 size={18} />
+            </Button>
+          )}
           {c.telefone && (
              <Button title="WhatsApp" variant="ghost" size="icon" asChild className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all h-9 w-9 rounded-lg">
                <a href={formatWhatsAppLink(c.telefone)} target="_blank" rel="noopener noreferrer">
@@ -291,7 +296,7 @@ function CasesContent() {
     const updated = cases.map(c => c.protocolo === protocolo ? { ...c, ultimoRetorno: today } : c);
     setCases(updated);
     await syncRepoCases(updated);
-    toast({ title: "Retorno Registrado" });
+    toast({ title: "Atendimento Registrado", description: `Último retorno atualizado para ${today}.` });
   }, [cases, isOperador, toast]);
 
   const handleEditClick = useCallback((c: LegalCase) => {
