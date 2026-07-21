@@ -25,6 +25,7 @@ function normalizeHeader(header: string): string {
 
 /**
  * Motor de Ingestão P0: Separa Situação da Planilha do Status de Prazo do App.
+ * Agora com resolução automática de ASSISTENTE para isolamento de perfil.
  */
 export async function importCsvAction(csvText: string) {
   try {
@@ -46,9 +47,22 @@ export async function importCsvAction(csvText: string) {
       return { success: false, error: 'Arquivo vazio ou formato incompatível.' };
     }
 
-    const alertLimit = 3; 
+    const supabase = await createClient();
 
-    // Mapeamento e Deduplicação Atômica por Protocolo
+    // 1. Pre-fetch de usuários da empresa para mapeamento de assistentes
+    const { data: companyUsers } = await supabase
+      .from('usuarios')
+      .select('auth_user_id, nome')
+      .eq('empresa_id', empresa_id);
+
+    const userLookup = new Map<string, string>();
+    companyUsers?.forEach(u => {
+      if (u.nome) {
+        userLookup.set(u.nome.trim().toUpperCase(), u.auth_user_id);
+      }
+    });
+
+    const alertLimit = 3; 
     const byProto = new Map();
 
     records.forEach((row) => {
@@ -58,7 +72,6 @@ export async function importCsvAction(csvText: string) {
         rawData[key] = row[k];
       });
 
-      // Forçamos o motor a calcular o prazo automaticamente
       rawData['STATUS_MANUAL'] = 'Automatico';
 
       const caso = processarCaso(rawData, { alertLimit });
@@ -67,23 +80,29 @@ export async function importCsvAction(csvText: string) {
         const isoPrazo = formatDateToISO(caso.proximoPrazo);
         const isoRetorno = formatDateToISO(caso.ultimoRetorno);
 
+        // Resolução de assistente (Isolamento de Carteira)
+        const assistantKey = normalizeHeader(rawData['ASSISTENTE'] || rawData['ATENDENTE'] || '');
+        const assistantName = String(rawData[assistantKey] || rawData['ASSISTENTE'] || rawData['ATENDENTE'] || '').trim().toUpperCase();
+        
+        // Se encontrar o nome na empresa, atribui a ele. Senão, atribui a quem está importando.
+        const resolvedCreatedBy = userLookup.get(assistantName) || auth_id;
+
         const dbRow = {
           empresa_id: empresa_id,
-          created_by: auth_id,
+          created_by: resolvedCreatedBy,
           protocolo_ref: caso.protocolo,
           advogado: caso.advogado,
           status: caso.status,
           risco: caso.risco,
           tribunal: caso.tribunal,
           telefone: caso.telefone,
-          status_interno: caso.situacao, // EM ANDAMENTO, IMÓVEL, etc.
+          status_interno: caso.situacao,
           observacoes: caso.observacao,
           ultimo_retorno: isoRetorno,
           proximo_retorno: isoPrazo,
           dados: { ...caso }
         };
 
-        // Mantém apenas a última ocorrência do mesmo protocolo no lote
         byProto.set(caso.protocolo, dbRow);
       }
     });
@@ -94,7 +113,6 @@ export async function importCsvAction(csvText: string) {
       return { success: false, error: 'Nenhum protocolo válido identificado no arquivo.' };
     }
 
-    const supabase = await createClient();
     const { data, error } = await supabase
       .from('processos')
       .upsert(uniqueRows, {
@@ -105,14 +123,13 @@ export async function importCsvAction(csvText: string) {
 
     if (error) {
       console.error('[Import DB Error]', error);
-      if (error.code === '23505') return { success: false, error: 'Conflito de duplicidade no banco.' };
       return { success: false, error: 'Falha na gravação dos dados processados.' };
     }
 
     return {
       success: true,
       imported: data?.length || uniqueRows.length,
-      message: `${data?.length || uniqueRows.length} processos sincronizados com inteligência de prazos ativa.`,
+      message: `${data?.length || uniqueRows.length} processos sincronizados e distribuídos entre os assistentes.`,
     };
   } catch (err: any) {
     console.error('[Import Critical]', err);
