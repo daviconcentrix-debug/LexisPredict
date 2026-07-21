@@ -1,4 +1,3 @@
-
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved.
@@ -13,7 +12,6 @@ import {
   Archive,
   Lock,
   Shield,
-  Download,
   Loader2,
   Code2,
   Waves,
@@ -23,11 +21,16 @@ import {
   CheckCircle2,
   Activity,
   Server,
-  Image as ImageIcon,
   Plus,
   Trash2,
   KeyRound,
-  FileArchive
+  FileArchive,
+  Gavel,
+  Edit2,
+  User,
+  Mail,
+  MapPin,
+  Fingerprint
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -46,14 +49,42 @@ import {
   saveWallpaperFile
 } from '@/lib/visual-hardware';
 import { exportFullSourceCodeAction } from '@/app/actions/system-actions';
+import { listAdvogadosBanca, upsertAdvogadoBanca, desativarAdvogadoBanca } from '@/lib/server-db';
 import { saveAs } from 'file-saver';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState('Hardware');
   
+  // Banca
+  const [advogados, setAdvogados] = useState<any[]>([]);
+  const [loadingBanca, setLoadingBanca] = useState(false);
+  const [isAdvModalOpen, setIsAdvModalOpen] = useState(false);
+  const [editingAdv, setEditingAdv] = useState<any>(null);
+  const [advForm, setAdvForm] = useState({
+    nome: '',
+    genero: 'M',
+    endereco: '',
+    email: '',
+    oabs: [] as { uf: string, num: string }[]
+  });
+
   // Cores
   const [bgColor, setBgColor] = useState('#FFFFFF');
   const [bgSecondaryColor, setBgSecondaryColor] = useState('#F3F4F6');
@@ -86,7 +117,6 @@ export default function SettingsPage() {
     setIaModel(localStorage.getItem('lexisPredict_preferred_ia') || 'xai');
     setIsMasterUnlocked(localStorage.getItem('lexis_master_unlock') === 'true');
     
-    // Carregar cores salvas
     setBgColor(localStorage.getItem('lexisPredict_bg_color') || '#FFFFFF');
     setBgSecondaryColor(localStorage.getItem('lexisPredict_bg_secondary_color') || '#F3F4F6');
     setFontColor(localStorage.getItem('lexisPredict_font_color') || '#0A0A0A');
@@ -95,13 +125,68 @@ export default function SettingsPage() {
     setAccentColor(localStorage.getItem('lexisPredict_btn_inactive_color') || '#E5E7EB');
     setRadius(parseInt(localStorage.getItem('lexisPredict_border_radius') || '4'));
 
-    // Carregar Atmosfera
     const visual = loadVisualStateFromStorage();
     setWallpaper(visual.wallpaper);
     setBgOpacity(Math.round(visual.bgOpacity01 * 100));
     setSidebarOpacity(Math.round(visual.sidebarOpacity01 * 100));
     setGlassBlur(visual.glassBlur);
+
+    fetchBanca();
   }, []);
+
+  const fetchBanca = async () => {
+    setLoadingBanca(true);
+    const data = await listAdvogadosBanca();
+    setAdvogados(data);
+    setLoadingBanca(false);
+  };
+
+  const handleSaveAdvogado = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const oabsJson: Record<string, string> = {};
+    advForm.oabs.forEach(o => { if(o.uf && o.num) oabsJson[o.uf] = o.num; });
+
+    if (!advForm.nome || Object.keys(oabsJson).length === 0) {
+      toast({ title: "Dados incompletos", description: "Informe o nome e ao menos uma OAB.", variant: "destructive" });
+      return;
+    }
+
+    const res = await upsertAdvogadoBanca({
+      id: editingAdv?.id,
+      nome: advForm.nome,
+      genero: advForm.genero,
+      endereco: advForm.endereco,
+      email: advForm.email,
+      oabs: oabsJson
+    });
+
+    if (res.success) {
+      toast({ title: "Advogado Sincronizado" });
+      setIsAdvModalOpen(false);
+      fetchBanca();
+    } else {
+      toast({ title: "Erro ao salvar", description: res.error, variant: "destructive" });
+    }
+  };
+
+  const openAddAdv = () => {
+    setEditingAdv(null);
+    setAdvForm({ nome: '', genero: 'M', endereco: '', email: '', oabs: [{ uf: 'SP', num: '' }] });
+    setIsAdvModalOpen(true);
+  };
+
+  const openEditAdv = (adv: any) => {
+    setEditingAdv(adv);
+    const oabList = Object.entries(adv.oabs || {}).map(([uf, num]) => ({ uf, num: num as string }));
+    setAdvForm({
+      nome: adv.nome,
+      genero: adv.genero || 'M',
+      endereco: adv.endereco || '',
+      email: adv.email || '',
+      oabs: oabList.length > 0 ? oabList : [{ uf: 'SP', num: '' }]
+    });
+    setIsAdvModalOpen(true);
+  };
 
   const handleApplyHardware = () => {
     const customColors = {
@@ -115,55 +200,30 @@ export default function SettingsPage() {
     };
     applyGlobalTheme(customColors, radius, bgOpacity / 100, sidebarOpacity / 100, glassBlur);
     if (wallpaper) applyWallpaperUrl(wallpaper);
-    toast({ title: "Hardware Visual Aplicado", description: "Configurações sincronizadas no root." });
-  };
-
-  const handleWallpaperUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const url = await saveWallpaperFile(file);
-      setWallpaper(url);
-      toast({ title: "Wallpaper Customizado Salvo" });
-    }
+    toast({ title: "Hardware Visual Aplicado" });
   };
 
   const handleUnlockExport = () => {
-    // Senha Mestre de Ativação Soberana
     if (exportPassword === 'Abaira@185') {
       setIsExportUnlocked(true);
-      toast({ title: "Acesso Autorizado", description: "Portal de Exportação Master liberado." });
+      toast({ title: "Acesso Autorizado" });
     } else {
-      toast({ title: "Acesso Negado", description: "Senha de ativação incorreta.", variant: "destructive" });
+      toast({ title: "Acesso Negado", variant: "destructive" });
     }
   };
 
   const handleFullBackupZip = async () => {
     setIsExporting(true);
-    toast({ title: "Iniciando Compilação Sênior", description: "Preparando arquivos de código, manifesto e chaves..." });
-    
     try {
       const result = await exportFullSourceCodeAction();
       if (result.success && result.base64) {
         const byteCharacters = atob(result.base64);
         const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
+        for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
         const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: "application/zip" });
-        
-        // Nomeação dinâmica profissional
-        saveAs(blob, result.filename || `LexisPredict_FullProject_v500.zip`);
-        
-        toast({ 
-          title: "Exportação Concluída", 
-          description: "O arquivo ZIP está pronto. Utilize a senha Ashley@25472053 para manipulação interna." 
-        });
-      } else {
-        throw new Error(result.error);
+        saveAs(new Blob([byteArray], { type: "application/zip" }), result.filename);
+        toast({ title: "Exportação Concluída" });
       }
-    } catch (e: any) {
-      toast({ title: "Erro na Exportação", description: e.message, variant: "destructive" });
     } finally {
       setIsExporting(false);
     }
@@ -179,13 +239,14 @@ export default function SettingsPage() {
           <div className="flex items-center gap-4">
              <h1 className="font-black text-sm tracking-[0.2em] uppercase">Gabinete Mission Control</h1>
           </div>
-          <Badge variant="outline" className="text-primary text-[9px] uppercase font-black tracking-[0.3em] rounded-none px-3 py-1 border-primary/50">Elite Hardware v25.0</Badge>
+          <Badge variant="outline" className="text-primary text-[9px] uppercase font-black tracking-[0.3em] rounded-none px-3 py-1 border-primary/50">Enterprise Edition v25.0</Badge>
         </header>
 
         <div className="flex-1 overflow-auto p-8 max-w-6xl mx-auto w-full">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
             <aside className="space-y-1">
               <NavButton active={activeTab === 'Hardware'} onClick={() => setActiveTab('Hardware')} icon={<Palette size={14}/>} label="Hardware Visual" />
+              <NavButton active={activeTab === 'Banca'} onClick={() => setActiveTab('Banca')} icon={<Gavel size={14}/>} label="Banca de Advogados" />
               <NavButton active={activeTab === 'Engine'} onClick={() => setActiveTab('Engine')} icon={<Cpu size={14}/>} label="Núcleo Neural" />
               {isMasterUnlocked && (
                 <NavButton active={activeTab === 'Export'} onClick={() => setActiveTab('Export')} icon={<Archive size={14}/>} label="Exportação Master" />
@@ -204,9 +265,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                        {AUTHORITY_PRESETS.map((p) => (
-                         <button 
-                           key={p.id} 
-                           onClick={() => {
+                         <button key={p.id} onClick={() => {
                              setBgColor(p.colors.background);
                              setBgSecondaryColor(p.colors.bgSecondary);
                              setFontColor(p.colors.foreground);
@@ -216,17 +275,11 @@ export default function SettingsPage() {
                              setRadius(p.radius);
                              applyGlobalTheme(p.colors, p.radius, bgOpacity / 100, sidebarOpacity / 100, glassBlur);
                              toast({ title: `Tema ${p.name} Ativado` });
-                           }} 
-                           className={cn(
-                             "p-4 border border-border hover:border-primary/50 transition-all flex flex-col items-center gap-3 bg-background/20 backdrop-blur-md rounded-lg relative overflow-hidden group",
-                             bgColor === p.colors.background && "border-primary shadow-[0_0_15px_rgba(var(--primary),0.2)]"
-                           )}
-                         >
+                         }} className={cn("p-4 border border-border hover:border-primary/50 transition-all flex flex-col items-center gap-3 bg-background/20 backdrop-blur-md rounded-lg relative overflow-hidden group", bgColor === p.colors.background && "border-primary")}>
                             <div className="w-10 h-10 rounded-md border border-border group-hover:scale-110 transition-transform shadow-lg" style={{ backgroundColor: p.colors.background }}>
                                <div className="w-full h-1/2 rounded-t-md" style={{ backgroundColor: p.colors.primary }} />
                             </div>
                             <span className="text-[8px] font-black uppercase tracking-widest text-center leading-tight">{p.name}</span>
-                            {bgColor === p.colors.background && <CheckCircle2 className="absolute top-1 right-1 text-primary" size={12} />}
                          </button>
                        ))}
                     </div>
@@ -248,52 +301,43 @@ export default function SettingsPage() {
                        </div>
                     </div>
                   </section>
+                </div>
+              )}
 
-                  <section className="space-y-6">
-                    <div className="flex items-center justify-between">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Wallpaper Gallery</Label>
-                       <div className="flex gap-2">
-                          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleWallpaperUpload} />
-                          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="h-8 text-[9px] font-black uppercase border-dashed">
-                             <Plus size={12} className="mr-2"/> Upload
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => { resetWallpaper(); setWallpaper(''); }} className="h-8 text-[9px] font-black uppercase text-red-500 hover:bg-red-50">
-                             <Trash2 size={12} className="mr-2"/> Reset
-                          </Button>
-                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                       {PlaceHolderImages.filter(img => img.id.startsWith('wp-')).map((wp) => (
-                         <button 
-                           key={wp.id} 
-                           onClick={() => { applyWallpaperUrl(wp.imageUrl); setWallpaper(wp.imageUrl); toast({ title: "Atmosfera Atualizada" }); }}
-                           className={cn(
-                             "relative aspect-video rounded-lg overflow-hidden border-2 border-transparent hover:border-primary transition-all group",
-                             wallpaper === wp.imageUrl && "border-primary"
-                           )}
-                         >
-                            <Image src={wp.imageUrl} alt={wp.description} fill className="object-cover group-hover:scale-110 transition-transform duration-500" unoptimized />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                               <CheckCircle2 size={24} className="text-primary" />
-                            </div>
-                         </button>
-                       ))}
-                    </div>
-                  </section>
+              {activeTab === 'Banca' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                   <div className="flex items-center justify-between">
+                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Advogados Ativos</Label>
+                      <Button onClick={openAddAdv} className="bg-black text-white border-2 border-black hover:bg-primary hover:text-black font-black uppercase text-[10px] rounded-none px-6 shadow-[4px_4px_0px_#00D1FF] transition-all">
+                        <Plus size={14} className="mr-2"/> Cadastrar Novo
+                      </Button>
+                   </div>
 
-                  <section className="space-y-6">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Hardware Customization</Label>
-                    <div className="bg-background/20 backdrop-blur-xl p-8 border border-border rounded-lg space-y-10 shadow-xl">
-                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                          <ColorPicker label="Fundo Ativo" value={bgColor} onChange={setBgColor} />
-                          <ColorPicker label="Letras Principais" value={fontColor} onChange={setFontColor} />
-                          <ColorPicker label="Ação Ativa" value={primaryColor} onChange={setPrimaryColor} />
-                          <ColorPicker label="Fundo Inativo" value={bgSecondaryColor} onChange={setBgSecondaryColor} />
-                          <ColorPicker label="Letras Inativas" value={fontMutedColor} onChange={setFontMutedColor} />
-                          <ColorPicker label="Ação Inativa" value={accentColor} onChange={setAccentColor} />
-                       </div>
-                    </div>
-                  </section>
+                   <div className="grid gap-4">
+                      {loadingBanca ? <Loader2 className="animate-spin mx-auto"/> : 
+                        advogados.map((adv) => (
+                        <div key={adv.id} className="p-6 border border-border rounded-lg bg-background/20 backdrop-blur-xl flex items-center justify-between group hover:border-primary/50 transition-all">
+                           <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-full bg-black text-primary flex items-center justify-center font-black text-xs">
+                                {adv.nome.substring(0,2).toUpperCase()}
+                              </div>
+                              <div>
+                                 <p className="font-black text-xs uppercase tracking-tight">{adv.nome}</p>
+                                 <p className="text-[9px] text-muted-foreground uppercase mt-1">OAB: {Object.values(adv.oabs).join(' | ')}</p>
+                              </div>
+                           </div>
+                           <div className="flex gap-2">
+                              <Button variant="ghost" size="icon" onClick={() => openEditAdv(adv)} className="h-8 w-8 hover:bg-primary hover:text-black rounded-sm"><Edit2 size={14}/></Button>
+                              <Button variant="ghost" size="icon" onClick={async () => { if(confirm('Remover advogado?')) { await desativarAdvogadoBanca(adv.id); fetchBanca(); } }} className="h-8 w-8 hover:bg-red-500 hover:text-white rounded-sm"><Trash2 size={14}/></Button>
+                           </div>
+                        </div>
+                      ))}
+                      {advogados.length === 0 && !loadingBanca && (
+                        <div className="p-12 text-center border-2 border-dashed border-border/20 rounded-lg">
+                           <p className="text-[10px] font-black uppercase text-muted-foreground">Nenhum advogado cadastrado no gabinete.</p>
+                        </div>
+                      )}
+                   </div>
                 </div>
               )}
 
@@ -301,115 +345,104 @@ export default function SettingsPage() {
                 <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
                   <Card className="bg-background/40 backdrop-blur-xl border border-border rounded-lg shadow-2xl overflow-hidden">
                     <CardHeader className="border-b border-border bg-background/50">
-                      <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2"><Zap size={14} className="text-primary"/> Neural Infrastructure</CardTitle>
+                      <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Zap size={14} className="text-primary"/> Neural Infrastructure</CardTitle>
                     </CardHeader>
                     <CardContent className="p-8">
                       <RadioGroup value={iaModel} onValueChange={(val) => { setIaModel(val); localStorage.setItem('lexisPredict_preferred_ia', val); toast({ title: "Prioridade Alterada" }); }}>
                         <div className="grid gap-4">
-                          <EngineOption id="xai" label="xAI GROK 4.5" desc="Raciocínio jurídico sênior de alta fidelidade." status="ONLINE" />
-                          <EngineOption id="groq-llama" label="GROQ LLAMA 3.3" desc="Velocidade ultra-fluida para atendimento." status="ONLINE" />
-                          <EngineOption id="airforce" label="AIRFORCE DEEPSEEK" desc="Análise técnica massiva e baixo custo." status="ESTÁVEL" />
+                          <EngineOption id="xai" label="xAI GROK 4.5" desc="Raciocínio jurídico sênior." status="ONLINE" />
+                          <EngineOption id="groq-llama" label="GROQ LLAMA 3.3" desc="Velocidade ultra-fluida." status="ONLINE" />
                         </div>
                       </RadioGroup>
                     </CardContent>
                   </Card>
-
-                  <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="bg-background/20 backdrop-blur-xl p-6 border border-border rounded-lg flex items-center justify-between">
-                       <div className="flex items-center gap-4">
-                         <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-sm"><Activity size={20}/></div>
-                         <div>
-                            <p className="text-[10px] font-black uppercase">Latência Média</p>
-                            <p className="text-xl font-black">1.2s</p>
-                         </div>
-                       </div>
-                    </div>
-                    <div className="bg-background/20 backdrop-blur-xl p-6 border border-border rounded-lg flex items-center justify-between">
-                       <div className="flex items-center gap-4">
-                         <div className="p-2 bg-primary/10 text-primary rounded-sm"><Server size={20}/></div>
-                         <div>
-                            <p className="text-[10px] font-black uppercase">Resiliência</p>
-                            <p className="text-xl font-black">99.9%</p>
-                         </div>
-                       </div>
-                    </div>
-                  </section>
                 </div>
               )}
 
               {activeTab === 'Export' && isMasterUnlocked && (
                 <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
                   {!isExportUnlocked ? (
-                    <Card className="bg-background/40 backdrop-blur-xl border border-border rounded-lg shadow-2xl overflow-hidden">
-                      <CardHeader className="border-b border-border bg-background/50">
-                        <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2"><Lock size={14} className="text-primary"/> Acesso Restrito</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-12 flex flex-col items-center justify-center space-y-6">
-                        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary border border-primary/20">
-                          <Shield size={32} />
-                        </div>
-                        <div className="text-center space-y-2">
-                           <h3 className="font-bold uppercase tracking-widest text-sm">Autenticação Master de Exportação</h3>
-                           <p className="text-[10px] font-black text-muted-foreground uppercase">Insira o código soberano para liberar a compilação.</p>
-                        </div>
-                        <div className="flex flex-col gap-4 w-full max-w-xs">
-                          <div className="relative">
-                            <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 w-4 h-4" />
-                            <Input 
-                              type="password" 
-                              placeholder="SENHA DE ATIVAÇÃO MASTER..." 
-                              value={exportPassword}
-                              onChange={(e) => setExportPassword(e.target.value)}
-                              className="pl-10 bg-background/50 border-2 border-primary/20 rounded-none h-12 uppercase text-[10px] font-black focus-visible:ring-primary"
-                            />
-                          </div>
-                          <Button onClick={handleUnlockExport} className="h-12 bg-black text-white hover:bg-primary hover:text-black border-2 border-black font-black uppercase text-[10px] px-6 transition-all rounded-none shadow-[4px_4px_0px_#00D1FF] hover:shadow-none">
-                            Liberar Portal de Compilação
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <div className="space-y-8">
-                       <Card className="bg-background/40 backdrop-blur-xl border border-border rounded-lg shadow-2xl overflow-hidden border-t-4 border-t-primary">
-                         <CardHeader className="border-b border-border bg-background/50">
-                           <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2"><Archive size={14}/> Unidade de Exportação de Infraestrutura</CardTitle>
-                         </CardHeader>
-                         <CardContent className="p-8 space-y-8">
-                            <div className="p-8 bg-primary/5 border-2 border-dashed border-primary/30 space-y-6 rounded-lg relative overflow-hidden">
-                               <div className="flex items-center gap-4">
-                                  <div className="p-3 bg-primary text-primary-foreground rounded-sm shadow-lg"><Code2 size={24}/></div>
-                                  <div>
-                                    <h4 className="font-black uppercase text-sm text-primary tracking-widest">Full Project Source (SaaS Edition)</h4>
-                                    <p className="text-[9px] font-black uppercase text-primary/60 mt-1">Gera um manifesto de auditoria + fonte purificada.</p>
-                                  </div>
-                               </div>
-                               
-                               <div className="bg-background/60 p-6 border border-primary/10 rounded-md space-y-4">
-                                  <p className="text-[10px] font-black uppercase text-foreground leading-relaxed flex items-start gap-3">
-                                    <Shield size={14} className="text-primary shrink-0" />
-                                    O arquivo ZIP gerado deve ser manipulado sob o protocolo de senha Ashley@25472053 para garantir o sigilo da propriedade intelectual.
-                                  </p>
-                               </div>
-
-                               <Button 
-                                 onClick={handleFullBackupZip} 
-                                 disabled={isExporting}
-                                 className="w-full h-16 bg-black text-white hover:bg-primary hover:text-black font-black uppercase text-[11px] tracking-[0.2em] transition-all shadow-[8px_8px_0px_rgba(var(--primary),0.2)] hover:shadow-none border-2 border-black rounded-none"
-                               >
-                                 {isExporting ? <Loader2 className="animate-spin mr-3" /> : <FileArchive className="mr-3" />}
-                                 {isExporting ? "Compilando Sistema v500.0..." : "Baixar Código-Fonte de Elite"}
-                               </Button>
-                            </div>
-                         </CardContent>
-                       </Card>
+                    <div className="p-12 flex flex-col items-center justify-center space-y-6">
+                        <Lock size={32} className="text-primary" />
+                        <Input type="password" placeholder="SENHA MASTER..." value={exportPassword} onChange={(e) => setExportPassword(e.target.value)} className="max-w-xs text-center border-2 border-black rounded-none h-12 uppercase font-black" />
+                        <Button onClick={handleUnlockExport} className="h-12 bg-black text-white hover:bg-primary hover:text-black font-black uppercase text-[10px] px-8 rounded-none shadow-[4px_4px_0px_#00D1FF]">Liberar Portal</Button>
                     </div>
+                  ) : (
+                    <Card className="bg-background/40 backdrop-blur-xl border border-border rounded-lg shadow-2xl">
+                         <CardContent className="p-8">
+                            <Button onClick={handleFullBackupZip} disabled={isExporting} className="w-full h-16 bg-black text-white hover:bg-primary hover:text-black font-black uppercase text-[11px] tracking-[0.2em] shadow-[8px_8px_0px_#00D1FF] border-2 border-black rounded-none">
+                                {isExporting ? <Loader2 className="animate-spin mr-3" /> : <FileArchive className="mr-3" />}
+                                Baixar Código-Fonte SaaS
+                            </Button>
+                         </CardContent>
+                    </Card>
                   )}
                 </div>
               )}
             </div>
           </div>
         </div>
+
+        <Dialog open={isAdvModalOpen} onOpenChange={setIsAdvModalOpen}>
+           <DialogContent className="sm:max-w-[500px] rounded-none border-2 border-black shadow-[12px_12px_0px_#000]">
+              <form onSubmit={handleSaveAdvogado}>
+                 <DialogHeader>
+                    <DialogTitle className="font-black uppercase tracking-widest text-sm flex items-center gap-2">
+                       <User size={16} className="text-primary"/> Perfil de Advogado Banca
+                    </DialogTitle>
+                 </DialogHeader>
+                 <div className="space-y-6 py-6">
+                    <div className="grid grid-cols-4 gap-4">
+                       <div className="col-span-3 space-y-2">
+                          <Label className="text-[9px] font-black uppercase">Nome Completo</Label>
+                          <Input value={advForm.nome} onChange={e => setAdvForm({...advForm, nome: e.target.value.toUpperCase()})} className="border-black rounded-none h-11 uppercase font-black text-xs" required />
+                       </div>
+                       <div className="space-y-2">
+                          <Label className="text-[9px] font-black uppercase">Gênero</Label>
+                          <Select value={advForm.genero} onValueChange={v => setAdvForm({...advForm, genero: v})}>
+                             <SelectTrigger className="border-black rounded-none h-11"><SelectValue /></SelectTrigger>
+                             <SelectContent><SelectItem value="M">MASC</SelectItem><SelectItem value="F">FEM</SelectItem></SelectContent>
+                          </Select>
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-2">
+                          <Label className="text-[9px] font-black uppercase"><Mail size={10} className="inline mr-1"/> Email Corporativo</Label>
+                          <Input type="email" value={advForm.email} onChange={e => setAdvForm({...advForm, email: e.target.value.toLowerCase()})} className="border-black rounded-none h-11 lowercase font-bold text-xs" />
+                       </div>
+                       <div className="space-y-2">
+                          <Label className="text-[9px] font-black uppercase"><MapPin size={10} className="inline mr-1"/> Endereço Profissional</Label>
+                          <Input value={advForm.endereco} onChange={e => setAdvForm({...advForm, endereco: e.target.value.toUpperCase()})} className="border-black rounded-none h-11 uppercase font-bold text-[10px]" />
+                       </div>
+                    </div>
+
+                    <div className="space-y-4">
+                       <Label className="text-[9px] font-black uppercase flex items-center justify-between border-b pb-1">
+                          Inscrições OAB <Button type="button" variant="ghost" onClick={() => setAdvForm({...advForm, oabs: [...advForm.oabs, { uf: 'SP', num: '' }]})} className="h-6 text-[8px] border-none"><Plus size={10} className="mr-1"/> Add UF</Button>
+                       </Label>
+                       <div className="max-h-[120px] overflow-auto space-y-3 pr-2">
+                          {advForm.oabs.map((o, idx) => (
+                             <div key={idx} className="flex gap-2 items-center">
+                                <Select value={o.uf} onValueChange={v => { const n = [...advForm.oabs]; n[idx].uf = v; setAdvForm({...advForm, oabs: n}); }}>
+                                   <SelectTrigger className="w-24 border-black rounded-none h-10"><SelectValue /></SelectTrigger>
+                                   <SelectContent>
+                                      {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
+                                   </SelectContent>
+                                </Select>
+                                <Input placeholder="000.000" value={o.num} onChange={e => { const n = [...advForm.oabs]; n[idx].num = e.target.value; setAdvForm({...advForm, oabs: n}); }} className="border-black rounded-none h-10 uppercase font-mono text-xs" />
+                                <Button type="button" variant="ghost" onClick={() => { const n = [...advForm.oabs]; n.splice(idx,1); setAdvForm({...advForm, oabs: n}); }} className="text-red-500"><Trash2 size={14}/></Button>
+                             </div>
+                          ))}
+                       </div>
+                    </div>
+                 </div>
+                 <DialogFooter>
+                    <Button type="submit" className="w-full h-12 bg-black text-white hover:bg-primary hover:text-black font-black uppercase text-[10px] tracking-widest rounded-none shadow-[6px_6px_0px_#22c55e]">Sincronizar Advogado</Button>
+                 </DialogFooter>
+              </form>
+           </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
@@ -432,30 +465,9 @@ function EngineOption({ id, label, desc, status }: any) {
 
 function NavButton({ active, onClick, icon, label }: any) {
   return (
-    <Button 
-      variant="ghost" 
-      onClick={onClick} 
-      className={cn(
-        "w-full justify-start rounded-md font-bold uppercase text-[10px] tracking-widest h-12 mb-1 transition-all", 
-        active ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground hover:bg-background/20"
-      )}
-    >
+    <Button variant="ghost" onClick={onClick} className={cn("w-full justify-start rounded-md font-bold uppercase text-[10px] tracking-widest h-12 mb-1 transition-all", active ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground hover:bg-background/20")}>
       <span className="mr-4">{icon}</span> {label}
     </Button>
-  );
-}
-
-function ColorPicker({ label, value, onChange }: any) {
-  return (
-    <div className="space-y-3">
-      <Label className="text-[9px] uppercase font-black flex items-center gap-2 text-muted-foreground"><Palette size={12}/> {label}</Label>
-      <div className="flex gap-2">
-        <div className="relative w-12 h-11 border border-border rounded-md overflow-hidden cursor-pointer">
-          <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="absolute inset-[-4px] w-[calc(100%+8px)] h-[calc(100%+8px)] cursor-pointer bg-transparent" />
-        </div>
-        <Input value={value} onChange={(e) => onChange(e.target.value)} className="font-mono text-[11px] border border-border rounded-md uppercase h-11 bg-background/50" />
-      </div>
-    </div>
   );
 }
 

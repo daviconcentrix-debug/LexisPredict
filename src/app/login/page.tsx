@@ -1,12 +1,12 @@
-"use client";
-
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved.
  */
+"use client";
+
 import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Lock, Mail, Copyright, Loader2, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useAuth } from '@/components/auth/auth-provider';
 import { useRouter } from 'next/navigation';
 
@@ -24,7 +25,9 @@ export default function LoginPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const logoAsset = PlaceHolderImages.find(img => img.id === 'app-logo');
 
+  // Redirecionamento Automático: Ativado apenas se Perfil + User estiverem prontos
   useEffect(() => {
     if (!authLoading && user && profile) {
       router.replace('/');
@@ -39,9 +42,7 @@ export default function LoginPage() {
         </div>
         <div className="space-y-4">
           <h1 className="text-2xl font-black uppercase tracking-tighter">Gabinete Aberto</h1>
-          <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
-            Redirecionando para Mission Control...
-          </p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-black/40">Redirecionando para Mission Control...</p>
         </div>
         <Loader2 className="animate-spin text-black" size={32} />
       </div>
@@ -51,23 +52,20 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
-
+    
     setIsSubmitting(true);
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password: password,
+      const { error: authError } = await supabase.auth.signInWithPassword({ 
+        email: email.trim().toLowerCase(), 
+        password: password 
       });
+
       if (authError) {
-        toast({
-          title: 'Erro de Acesso',
-          description: 'Credenciais inválidas.',
-          variant: 'destructive',
-        });
+        toast({ title: "Erro de Acesso", description: "Credenciais inválidas.", variant: "destructive" });
         setIsSubmitting(false);
       }
-    } catch {
-      toast({ title: 'Falha de Rede', variant: 'destructive' });
+    } catch (error) {
+      toast({ title: "Falha de Rede", variant: "destructive" });
       setIsSubmitting(false);
     }
   };
@@ -81,92 +79,70 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md space-y-8 relative z-10">
         <div className="text-center space-y-6">
-          <div className="w-20 h-20 mx-auto border-2 border-black shadow-[12px_12px_0px_#00D1FF] flex items-center justify-center p-2 bg-[#0f172a]">
-            <Image
-              src="/logo.png"
-              alt="LexisPredict"
-              width={64}
-              height={64}
-              className="rounded-sm"
-              priority
-            />
+          <div className="icon-3d-block black w-20 h-20 mx-auto border-2 border-black shadow-[12px_12px_0px_#00D1FF] flex items-center justify-center p-3">
+            {logoAsset && (
+              <Image src={logoAsset.imageUrl} alt="Logo" width={64} height={64} className="invert" />
+            )}
           </div>
           <div className="space-y-1">
             <h1 className="text-3xl font-black uppercase tracking-tighter">LexisPredict Elite</h1>
-            <p className="text-[11px] font-black uppercase tracking-[0.4em] opacity-60">
-              W1 Capital • Advanced Legal Ops
-            </p>
+            <p className="text-[11px] font-black uppercase tracking-[0.4em] opacity-60">W1 Capital • Advanced Legal Ops</p>
           </div>
         </div>
 
         <Card className="bg-white border-2 border-black shadow-none rounded-none overflow-hidden">
           <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-6 text-center">
-            <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em]">
-              Autenticação de Gabinete
-            </CardTitle>
+            <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em]">Autenticação de Gabinete</CardTitle>
           </CardHeader>
           <CardContent className="p-8">
             <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest">
-                  E-mail Corporativo
-                </Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest">E-mail Corporativo</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 border-2 border-black h-12 text-black font-black uppercase text-xs rounded-none focus-visible:ring-black"
-                    required
+                  <Input 
+                    type="email" 
+                    value={email} 
+                    onChange={(e) => setEmail(e.target.value)} 
+                    className="pl-10 border-2 border-black h-12 text-black font-black uppercase text-xs rounded-none focus-visible:ring-black" 
+                    required 
                     placeholder="USUARIO@W1CAPITAL.COM"
                     autoComplete="email"
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest">
-                  Senha de Segurança
-                </Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest">Senha de Segurança</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 w-4 h-4" />
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 border-2 border-black h-12 text-black font-black uppercase text-xs rounded-none focus-visible:ring-black"
-                    required
+                  <Input 
+                    type="password" 
+                    value={password} 
+                    onChange={(e) => setPassword(e.target.value)} 
+                    className="pl-10 border-2 border-black h-12 text-black font-black uppercase text-xs rounded-none focus-visible:ring-black" 
+                    required 
                     placeholder="••••••••"
                     autoComplete="current-password"
                   />
                 </div>
               </div>
-              <Button
-                type="submit"
-                disabled={isSubmitting || authLoading}
-                className="w-full h-14 bg-black text-white border-2 border-black font-black uppercase text-[11px] tracking-widest hover:bg-white hover:text-black transition-all shadow-[8px_8px_0px_#00D1FF] hover:shadow-none rounded-none"
-              >
-                {isSubmitting ? 'Sincronizando...' : 'Acessar Sistema'}
+              <Button type="submit" disabled={isSubmitting || authLoading} className="w-full h-14 bg-black text-white border-2 border-black font-black uppercase text-[11px] tracking-widest hover:bg-white hover:text-black transition-all shadow-[8px_8px_0px_#00D1FF] hover:shadow-none rounded-none">
+                {isSubmitting ? "Sincronizando..." : "Acessar Sistema"}
               </Button>
             </form>
           </CardContent>
           <CardFooter className="bg-[#f8f9fb] border-t-2 border-black p-6">
-            <Link
-              href="/signup"
-              className="text-[9px] font-black text-black/60 hover:text-black uppercase text-center w-full tracking-widest"
-            >
-              Solicitar Nova Instância SaaS
-            </Link>
+             <Link href="/signup" className="text-[9px] font-black text-black/60 hover:text-black uppercase text-center w-full tracking-widest">
+                Solicitar Nova Instância SaaS
+             </Link>
           </CardFooter>
         </Card>
 
         <footer className="text-center space-y-4 opacity-60">
-          <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
-            <Copyright size={10} /> 2026 W1 Capital.
-          </div>
-          <p className="text-[8px] font-black uppercase tracking-[0.3em]">
-            Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO
-          </p>
+           <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+              <Copyright size={10} /> 2026 W1 Capital.
+           </div>
+           <p className="text-[8px] font-black uppercase tracking-[0.3em]">Relatório Consolidado • FUNDADOR DAVI ALVES FIGUEREDO</p>
         </footer>
       </div>
     </div>

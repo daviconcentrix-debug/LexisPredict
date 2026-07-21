@@ -5,8 +5,8 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v1900.0 ELITE)
- * Implementação de Lógica UPSERT para evitar perda de melhorias manuais.
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v3000.0 ELITE)
+ * Implementação de Lógica UPSERT e Isolamento por Usuário (created_by).
  */
 
 export async function getUserContext() {
@@ -47,16 +47,72 @@ export async function logAuditAction(action: string, detail: string) {
   }
 }
 
-export async function getStoredCases(): Promise<LegalCase[]> {
-  if (!isSupabaseConfigured) return [];
+// --- GESTÃO DE ADVOGADOS DA BANCA ---
+
+export async function listAdvogadosBanca() {
   const { empresa_id } = await getUserContext();
   if (!empresa_id) return [];
+
+  const { data, error } = await supabase
+    .from('advogados_banca')
+    .select('*')
+    .eq('empresa_id', empresa_id)
+    .eq('ativo', true)
+    .order('nome', { ascending: true });
+
+  if (error) {
+    console.error('[DB] Erro ao listar banca:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+export async function upsertAdvogadoBanca(adv: any) {
+  const { empresa_id } = await getUserContext();
+  if (!empresa_id) return { success: false, error: 'Sessão expirada' };
+
+  const payload = {
+    ...adv,
+    empresa_id: empresa_id,
+    ativo: adv.ativo ?? true
+  };
+
+  const { data, error } = await supabase
+    .from('advogados_banca')
+    .upsert(payload, { onConflict: 'id' })
+    .select()
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  return { success: true, data };
+}
+
+export async function desativarAdvogadoBanca(id: string) {
+  const { empresa_id } = await getUserContext();
+  if (!empresa_id) return { success: false };
+
+  const { error } = await supabase
+    .from('advogados_banca')
+    .update({ ativo: false })
+    .eq('id', id)
+    .eq('empresa_id', empresa_id);
+
+  return { success: !error };
+}
+
+// --- GESTÃO DE PROCESSOS (ISOLAMENTO POR CRIADOR) ---
+
+export async function getStoredCases(): Promise<LegalCase[]> {
+  if (!isSupabaseConfigured) return [];
+  const { empresa_id, auth_id } = await getUserContext();
+  if (!empresa_id || !auth_id) return [];
 
   try {
     const { data, error } = await supabase
       .from('processos')
       .select('*')
       .eq('empresa_id', empresa_id)
+      .eq('created_by', auth_id) // RESTRIÇÃO DE VISIBILIDADE OPERACIONAL
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -107,7 +163,6 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 
     if (upsertError) throw upsertError;
 
-    await logAuditAction('DATA_SYNC_UPSERT', `Sincronizou ${payload.length} processos de forma incremental.`);
     return { success: true, message: "Sincronia concluída." };
   } catch (error: any) {
     console.error("[DB Sync Fail]", error.message);
@@ -124,6 +179,7 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
       .from('notes')
       .select('*')
       .eq('empresa_id', empresa_id)
+      .eq('created_by', auth_id) // RESTRIÇÃO DE NOTAS
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -198,14 +254,10 @@ export async function removeEmpresaUser(userId: string): Promise<boolean> {
   return !error;
 }
 
-/**
- * Recupera o histórico de mensagens enviadas e recebidas via WhatsApp.
- */
 export async function getWhatsAppHistory(phone: string) {
   const cleanPhone = phone.replace(/\D/g, '');
   let searchPhone = cleanPhone;
   
-  // Normalização Global para busca (Webhook salva com 55)
   if (cleanPhone.length === 10 || cleanPhone.length === 11) {
     searchPhone = `55${cleanPhone}`;
   }
