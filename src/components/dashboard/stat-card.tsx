@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved.
@@ -47,7 +48,7 @@ export function StatCard({ title, value, icon, trend, trendUp, color = 'primary'
             {trendUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
             {trend}
           </div>
-          <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-tight">no período</span>
+          <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-tight">dos ativos</span>
         </div>
       )}
     </div>
