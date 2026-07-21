@@ -1,20 +1,20 @@
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
+ * @license Proprietary - All rights reserved. See LICENSE file.
  */
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
-import {
-  LayoutDashboard,
-  Briefcase,
-  Users,
-  Upload,
-  BarChart3,
-  ShieldAlert,
-  Settings,
+import React, { useState, useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { 
+  LayoutDashboard, 
+  Briefcase, 
+  Users, 
+  Upload, 
+  BarChart3, 
+  ShieldAlert, 
+  Settings, 
   StickyNote,
   FileSearch,
   LogOut,
@@ -25,101 +25,90 @@ import {
   ChevronRight,
   UserPlus,
   Repeat,
+  Shield,
   Bot,
   Zap,
+  Layers,
   FileSignature,
-  FileStack,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/components/auth/auth-provider";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import { getTranslation, Locale } from "@/lib/i18n";
+  FileStack
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/components/auth/auth-provider';
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { getTranslation, Locale } from '@/lib/i18n';
+import { checkIfSuperAdmin } from '@/lib/supabase';
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [locale, setLocale] = useState<Locale>("pt");
+  const [locale, setLocale] = useState<Locale>('pt');
   const { profile, signOut } = useAuth();
-
+  
   const t = getTranslation(locale);
-  const isAdmin = profile?.cargo === "Administrador";
+  
+  // Superadmin herda privilégios de Admin para visualização da barra lateral
+  const isSuperAdmin = checkIfSuperAdmin(profile);
+  const isAdmin = profile?.cargo === 'Administrador' || isSuperAdmin;
 
   useEffect(() => {
-    const savedLocale = localStorage.getItem("lexisPredict_locale") as Locale;
+    const savedLocale = localStorage.getItem('lexisPredict_locale') as Locale;
     if (savedLocale) setLocale(savedLocale);
   }, []);
 
   const handleLogout = async () => {
     await signOut();
-    router.push("/login");
+    router.push('/login');
   };
 
   const navGroups = [
     {
       title: t.management,
       items: [
-        { label: t.dashboard, href: "/", icon: LayoutDashboard },
-        { label: t.cases, href: "/cases", icon: Briefcase },
-        { label: t.clients, href: "/clients", icon: Users },
-        ...(isAdmin ? [{ label: t.team, href: "/team", icon: UserPlus }] : []),
-      ],
+        { label: t.dashboard, href: '/', icon: LayoutDashboard },
+        { label: t.cases, href: '/cases', icon: Briefcase },
+        { label: t.clients, href: '/clients', icon: Users },
+        ...(isAdmin ? [{ label: t.team, href: '/team', icon: UserPlus }] : []),
+      ]
     },
     {
       title: t.operations,
       items: [
-        { label: "Consultoria IA", href: "/chat-ia", icon: Bot },
-        { label: t.audit, href: "/veredito", icon: FileSearch },
-        { label: "Procuração", href: "/documents", icon: FileText },
-        { label: "Habilitação", href: "/habilitacao-peca", icon: FileSignature },
-        { label: "Substabelecimento", href: "/substabelecimento", icon: Repeat },
-        { label: "Peça de Subst.", href: "/substabelecimento-peca", icon: FileStack },
-        { label: t.whatsapp, href: "/whatsapp", icon: MessageCircle },
-        { label: t.import, href: "/import", icon: Upload },
-        { label: t.notes, href: "/notes", icon: StickyNote },
-        { label: "Motor de OCR", href: "/tools/ocr", icon: Zap },
-      ],
+        { label: "Consultoria IA", href: '/chat-ia', icon: Bot },
+        { label: t.audit, href: '/veredito', icon: FileSearch },
+        { label: "Procuração", href: '/documents', icon: FileText },
+        { label: "Habilitação", href: '/habilitacao-peca', icon: FileSignature },
+        { label: "Substabelecimento", href: '/substabelecimento', icon: Repeat },
+        { label: "Peça de Subst.", href: '/substabelecimento-peca', icon: FileStack },
+        { label: t.whatsapp, href: '/whatsapp', icon: MessageCircle },
+        { label: t.import, href: '/import', icon: Upload },
+        { label: t.notes, href: '/notes', icon: StickyNote },
+        { label: "Motor de OCR", href: '/tools/ocr', icon: Zap },
+      ]
     },
     {
       title: t.system,
       items: [
-        { label: t.analytics, href: "/analytics", icon: BarChart3 },
-        { label: t.urgency, href: "/urgency", icon: ShieldAlert },
-        { label: t.settings, href: "/settings", icon: Settings },
-      ],
-    },
+        { label: t.analytics, href: '/analytics', icon: BarChart3 },
+        { label: t.urgency, href: '/urgency', icon: ShieldAlert },
+        { label: t.settings, href: '/settings', icon: Settings },
+      ]
+    }
   ];
 
   const SidebarContent = () => (
     <div className="h-full flex flex-col bg-white border-r border-border/50">
-      <div className="h-20 flex items-center px-4 border-b border-border/30">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-[#0f172a] flex items-center justify-center shadow-xl shrink-0 overflow-hidden border border-black/10">
-            <img
-              src="/logo.png"
-              alt="LexisPredict"
-              width={40}
-              height={40}
-              className="object-contain w-10 h-10"
-            />
+      <div className="h-20 flex items-center px-6 border-b border-border/30">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center shadow-xl">
+            <Layers size={22} className="text-primary" />
           </div>
           {!collapsed && (
-            <div className="flex flex-col min-w-0">
-              <span className="font-black text-xs tracking-tight uppercase text-foreground leading-none truncate">
-                LexisPredict
-              </span>
-              <span className="text-[9px] text-primary font-black uppercase tracking-widest mt-1">
-                Enterprise Elite
-              </span>
+            <div className="flex flex-col">
+              <span className="font-black text-xs tracking-tight uppercase text-foreground leading-none">LexisPredict</span>
+              <span className="text-[9px] text-primary font-black uppercase tracking-widest mt-1">Enterprise Elite</span>
             </div>
           )}
         </div>
@@ -134,27 +123,18 @@ export function Sidebar() {
               </p>
             )}
             {group.items.map((item) => (
-              <Link
+              <Link 
                 key={item.label}
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
-                  pathname === item.href
-                    ? "bg-black text-white shadow-lg"
+                  pathname === item.href 
+                    ? "bg-black text-white shadow-lg" 
                     : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                 )}
               >
-                <item.icon
-                  className={cn(
-                    "w-4 h-4 shrink-0",
-                    pathname === item.href ? "text-primary" : "opacity-60"
-                  )}
-                />
-                {!collapsed && (
-                  <span className="text-[11px] font-bold tracking-tight uppercase">
-                    {item.label}
-                  </span>
-                )}
+                <item.icon className={cn("w-4 h-4 shrink-0", pathname === item.href ? "text-primary" : "opacity-60")} />
+                {!collapsed && <span className="text-[11px] font-bold tracking-tight uppercase">{item.label}</span>}
               </Link>
             ))}
           </div>
@@ -165,31 +145,27 @@ export function Sidebar() {
         {!collapsed && (
           <div className="flex items-center gap-3 p-3 rounded-xl bg-[#f8f9fb] border border-border/30 shadow-sm">
             <div className="w-9 h-9 rounded-full bg-black flex items-center justify-center text-primary font-black text-xs border border-primary/20">
-              {profile?.nome?.substring(0, 2).toUpperCase() || "??"}
+              {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[11px] font-black uppercase truncate text-foreground leading-tight">
-                {profile?.nome || "User"}
-              </span>
-              <span className="text-[9px] text-muted-foreground uppercase font-bold mt-0.5">
-                {profile?.cargo || "Operator"}
-              </span>
+              <span className="text-[11px] font-black uppercase truncate text-foreground leading-tight">{profile?.nome || 'User'}</span>
+              <span className="text-[9px] text-muted-foreground uppercase font-bold mt-0.5">{profile?.cargo || 'Operator'}</span>
             </div>
           </div>
         )}
-
+        
         <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="icon"
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={handleLogout}
             className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
           >
             <LogOut size={16} />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={() => setCollapsed(!collapsed)}
             className="hidden lg:flex h-9 w-9 text-muted-foreground hover:text-primary rounded-lg"
           >
@@ -218,12 +194,11 @@ export function Sidebar() {
           </SheetContent>
         </Sheet>
       </div>
-      <aside
-        className={cn(
-          "hidden lg:flex h-screen flex-col transition-all duration-500 z-50 shrink-0",
-          collapsed ? "w-20" : "w-72"
-        )}
-      >
+
+      <aside className={cn(
+        "hidden lg:flex h-screen flex-col transition-all duration-500 z-50 shrink-0",
+        collapsed ? "w-20" : "w-72"
+      )}>
         <SidebarContent />
       </aside>
     </>
