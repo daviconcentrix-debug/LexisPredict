@@ -96,7 +96,16 @@ export default function ClientDirectory() {
     
     return Object.entries(groups)
       .filter(([name]) => name.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => b[1].cases.length - a[1].cases.length);
+      .sort((a, b) => {
+        // Ordenação por criticidade: Clientes com mais processos vencidos no topo
+        const vencidosA = a[1].cases.filter(c => c.status === 'Vencido').length;
+        const vencidosB = b[1].cases.filter(c => c.status === 'Vencido').length;
+        
+        if (vencidosB !== vencidosA) return vencidosB - vencidosA;
+        
+        // Desempate por volume total de processos
+        return b[1].cases.length - a[1].cases.length;
+      });
   }, [cases, search]);
 
   const handleDeleteClient = async (name: string) => {
@@ -143,7 +152,6 @@ export default function ClientDirectory() {
 
   const getClientRisk = (clientCases: LegalCase[]) => {
     const vencidos = clientCases.filter(c => c.status === 'Vencido').length;
-    const total = clientCases.length;
     if (vencidos > 0) return { label: 'CRÍTICO', color: 'text-red-600', icon: <ShieldAlert size={14}/> };
     return { label: 'ESTÁVEL', color: 'text-emerald-600', icon: <CheckCircle2 size={14}/> };
   };
@@ -293,4 +301,3 @@ export default function ClientDirectory() {
     </div>
   );
 }
-
