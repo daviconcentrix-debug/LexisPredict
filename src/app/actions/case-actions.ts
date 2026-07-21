@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getStoredCases, saveStoredCases, getStoredNotes, saveStoredNotes, getUserContext } from '@/lib/server-db';
@@ -22,35 +21,31 @@ export async function syncRepoNotes(notes: CaseNote[]) {
 }
 
 /**
- * Protocolo de Purga Segura:
- * - Operadores: Apagam apenas os próprios processos.
- * - Administradores: Apagam todos da empresa se confirmarem explicitamente.
+ * Protocolo de Purga Restrita:
+ * Garante que apenas os processos criados pelo usuário logado sejam removidos.
+ * Impede a deleção acidental de dados de outros membros da mesma empresa,
+ * independentemente do nível de acesso (Administrador ou Operador).
  */
-export async function deleteAllCasesAction(confirmWholeCompany: boolean = false) {
+export async function deleteAllCasesAction() {
   try {
-    const { auth_id, empresa_id, cargo } = await getUserContext();
+    const { auth_id, empresa_id } = await getUserContext();
     if (!empresa_id || !auth_id) return { success: false, error: "Sessão expirada." };
 
     const supabase = await createClient();
-    let query = supabase.from('processos').delete().eq('empresa_id', empresa_id);
+    
+    // Executa a purga filtrando obrigatoriamente pelo criador (Isolamento Real)
+    // Deleta apenas registros onde empresa_id coincide E o criador é o usuário da sessão.
+    const { error } = await supabase
+      .from('processos')
+      .delete()
+      .eq('empresa_id', empresa_id)
+      .eq('created_by', auth_id);
 
-    // Proteção de Visibilidade e Autoridade
-    if (cargo === 'Administrador' && confirmWholeCompany) {
-      // Admin pode limpar a empresa inteira se confirmado
-      console.log(`[Purga Master] Empresa ${empresa_id} por Admin ${auth_id}`);
-    } else {
-      // Operadores ou Admin sem confirmação limpam apenas a própria carteira
-      query = query.eq('created_by', auth_id);
-    }
-
-    const { error } = await query;
     if (error) throw error;
 
     return { 
       success: true, 
-      message: cargo === 'Administrador' && confirmWholeCompany 
-        ? "Base de dados da empresa purgada com sucesso." 
-        : "Sua carteira de processos foi limpa com sucesso."
+      message: "Sua carteira de processos foi purgada com sucesso."
     };
   } catch (e: any) {
     console.error("[Purga Fail]", e);
