@@ -51,7 +51,10 @@ export const translations = {
     strengths: "Vantagens Técnicas",
     risks: "Riscos Detectados",
     syncSuccess: "Sincronia Concluída",
-    syncFail: "Falha na Sincronia"
+    syncFail: "Falha na Sincronia",
+    viewMode: "Visualização",
+    viewManagement: "Gestão",
+    viewHierarchy: "Hierarquia / Ranking"
   },
   en: {
     management: "Management",
@@ -98,7 +101,10 @@ export const translations = {
     strengths: "Technical Strengths",
     risks: "Detected Risks",
     syncSuccess: "Sync Completed",
-    syncFail: "Sync Failed"
+    syncFail: "Sync Failed",
+    viewMode: "View Mode",
+    viewManagement: "Manage",
+    viewHierarchy: "Hierarchy / Ranking"
   }
 };
 
