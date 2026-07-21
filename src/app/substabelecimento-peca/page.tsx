@@ -144,7 +144,12 @@ export default function SubstabelecimentoPecaGenerator() {
              <Alert className="border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                 <Settings className="h-4 w-4" />
                 <AlertTitle className="font-black uppercase text-xs">Configuração Requerida</AlertTitle>
-                <AlertDescription className="text-[10px] font-bold uppercase"><Button asChild className="bg-black text-white rounded-none mt-2"><Link href="/settings">Cadastrar Banca</Link></Button></AlertDescription>
+                <AlertDescription className="text-[10px] font-bold uppercase">
+                  <p>Cadastre advogados em Configurações para habilitar este módulo.</p>
+                  <Button asChild className="bg-black text-white rounded-none mt-2 h-10 font-black uppercase text-[9px]">
+                    <Link href="/settings">Configurar Banca</Link>
+                  </Button>
+                </AlertDescription>
              </Alert>
            ) : step === 1 && (
              <div className="space-y-8 animate-in fade-in duration-500">

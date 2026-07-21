@@ -41,6 +41,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { extrairTextoDoPDFAction, extrairDadosProcuracaoAction, generateSubstabelecimentoPDFAction } from '@/app/actions/document-actions';
 import { listAdvogadosBanca } from '@/lib/server-db';
 import Link from 'next/link';
@@ -155,7 +156,12 @@ export default function SubstabelecimentoGenerator() {
              <Alert className="border-2 border-black rounded-none shadow-[8px_8px_0px_#000]">
                 <Settings className="h-4 w-4" />
                 <AlertTitle className="font-black uppercase text-xs">Banca Vazia</AlertTitle>
-                <AlertDescription className="text-[10px] font-bold uppercase"><Button asChild className="bg-black text-white rounded-none mt-2"><Link href="/settings">Configurar Advogados</Link></Button></AlertDescription>
+                <AlertDescription className="text-[10px] font-bold uppercase">
+                  <p>Cadastre advogados em Configurações para habilitar este módulo.</p>
+                  <Button asChild className="bg-black text-white rounded-none mt-2 h-10 font-black uppercase text-[9px]">
+                    <Link href="/settings">Configurar Advogados</Link>
+                  </Button>
+                </AlertDescription>
              </Alert>
            ) : step === 1 && (
             <div className="space-y-8 animate-in fade-in duration-500">
@@ -166,7 +172,7 @@ export default function SubstabelecimentoGenerator() {
                         <div className="space-y-2">
                            <Label className="uppercase text-[10px] font-black">Cedente (Sai)</Label>
                            <Select value={advLeavingId} onValueChange={setAdvLeavingId}>
-                              <SelectTrigger className="border-2 border-black rounded-none"><SelectValue /></SelectTrigger>
+                              <SelectTrigger className="border-2 border-black h-12 rounded-none"><SelectValue /></SelectTrigger>
                               <SelectContent className="bg-white border-2 border-black rounded-none">
                                  {banca.map(a => <SelectItem key={a.id} value={a.id} className="font-black uppercase text-[10px]">{a.nome}</SelectItem>)}
                               </SelectContent>
@@ -175,7 +181,7 @@ export default function SubstabelecimentoGenerator() {
                         <div className="space-y-2">
                            <Label className="uppercase text-[10px] font-black">Cessionário (Entra)</Label>
                            <Select value={advEnteringId} onValueChange={setAdvEnteringId}>
-                              <SelectTrigger className="border-2 border-black rounded-none"><SelectValue /></SelectTrigger>
+                              <SelectTrigger className="border-2 border-black h-12 rounded-none"><SelectValue /></SelectTrigger>
                               <SelectContent className="bg-white border-2 border-black rounded-none">
                                  {banca.map(a => <SelectItem key={a.id} value={a.id} className="font-black uppercase text-[10px]">{a.nome}</SelectItem>)}
                               </SelectContent>
@@ -185,7 +191,7 @@ export default function SubstabelecimentoGenerator() {
                      <div className="space-y-2">
                         <Label className="uppercase text-[10px] font-black">Estado OAB</Label>
                         <Select value={selectedState} onValueChange={setSelectedState}>
-                           <SelectTrigger className="border-2 border-black rounded-none"><SelectValue /></SelectTrigger>
+                           <SelectTrigger className="border-2 border-black h-12 rounded-none"><SelectValue /></SelectTrigger>
                            <SelectContent className="bg-white border-2 border-black rounded-none">
                               {advEntering && Object.keys(advEntering.oabs || {}).map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
                            </SelectContent>
