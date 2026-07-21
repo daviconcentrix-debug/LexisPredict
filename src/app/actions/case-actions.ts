@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getStoredCases, saveStoredCases, getStoredNotes, saveStoredNotes, getUserContext } from '@/lib/server-db';
@@ -21,22 +22,36 @@ export async function syncRepoNotes(notes: CaseNote[]) {
 }
 
 /**
- * Protocolo de Purga Soberana: Apaga todos os processos da empresa do usuário.
+ * Protocolo de Purga Segura:
+ * - Operadores: Apagam apenas os próprios processos.
+ * - Administradores: Apagam todos da empresa se confirmarem explicitamente.
  */
-export async function deleteAllCasesAction() {
+export async function deleteAllCasesAction(confirmWholeCompany: boolean = false) {
   try {
-    const { empresa_id } = await getUserContext();
-    if (!empresa_id) return { success: false, error: "Sessão expirada." };
+    const { auth_id, empresa_id, cargo } = await getUserContext();
+    if (!empresa_id || !auth_id) return { success: false, error: "Sessão expirada." };
 
     const supabase = await createClient();
-    const { error } = await supabase
-      .from('processos')
-      .delete()
-      .eq('empresa_id', empresa_id);
+    let query = supabase.from('processos').delete().eq('empresa_id', empresa_id);
 
+    // Proteção de Visibilidade e Autoridade
+    if (cargo === 'Administrador' && confirmWholeCompany) {
+      // Admin pode limpar a empresa inteira se confirmado
+      console.log(`[Purga Master] Empresa ${empresa_id} por Admin ${auth_id}`);
+    } else {
+      // Operadores ou Admin sem confirmação limpam apenas a própria carteira
+      query = query.eq('created_by', auth_id);
+    }
+
+    const { error } = await query;
     if (error) throw error;
 
-    return { success: true, message: "Base de dados purgada com sucesso." };
+    return { 
+      success: true, 
+      message: cargo === 'Administrador' && confirmWholeCompany 
+        ? "Base de dados da empresa purgada com sucesso." 
+        : "Sua carteira de processos foi limpa com sucesso."
+    };
   } catch (e: any) {
     console.error("[Purga Fail]", e);
     return { success: false, error: e.message };
