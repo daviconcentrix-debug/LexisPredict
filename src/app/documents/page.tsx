@@ -26,7 +26,9 @@ import {
   Calendar,
   Fingerprint,
   Hash,
-  Settings
+  Settings,
+  Briefcase,
+  Globe
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -119,6 +121,19 @@ export default function DocumentGenerator() {
       if (res.success) {
         setExtractedData({
           ...res,
+          cliente: {
+            ...res.cliente,
+            email: res.cliente.email || '',
+            telefone: res.cliente.telefone || '',
+            estadoCivil: res.cliente.estadoCivil || 'casado(a)',
+            profissao: res.cliente.profissao || 'autônomo(a)',
+            nacionalidade: res.cliente.nacionalidade || 'brasileiro(a)',
+          },
+          processos: res.processos?.map((p: any) => ({
+            ...p,
+            cnpjBanco: p.cnpjBanco || '',
+            acao: p.acao || 'AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA'
+          })) || [{ banco: '', cnpjBanco: '', numero: '', acao: 'AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA' }],
           local: selectedState,
           dataExtenso: `${selectedState}, ${new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}`
         });
@@ -138,6 +153,16 @@ export default function DocumentGenerator() {
       ...prev,
       [category]: { ...prev[category], [field]: value }
     }));
+  };
+
+  const updateProcessField = (index: number, field: string, value: string) => {
+    setExtractedData((prev: any) => {
+      const newProcessos = [...(prev.processos || [])];
+      if (newProcessos[index]) {
+        newProcessos[index] = { ...newProcessos[index], [field]: value };
+      }
+      return { ...prev, processos: newProcessos };
+    });
   };
 
   const handleSeal = async () => {
@@ -296,12 +321,21 @@ export default function DocumentGenerator() {
                   <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-3">
                     <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><User size={14} /> Dados do Outorgante</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-6 space-y-6">
+                  <CardContent className="p-6 space-y-4">
                     <div className="grid gap-1"><Label className="text-[9px] font-black uppercase">Nome Completo</Label><Input value={extractedData.cliente.nome} onChange={(e) => updateField('cliente', 'nome', e.target.value)} className="border-black font-black uppercase rounded-none" /></div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-1"><Label className="text-[9px] font-black uppercase">CPF</Label><Input value={extractedData.cliente.cpf} onChange={(e) => updateField('cliente', 'cpf', e.target.value)} className="border-black font-black rounded-none" /></div>
+                      <div className="grid gap-1"><Label className="text-[9px] font-black uppercase">CPF</Label><Input value={extractedData.cliente.cpf} onChange={(e) => updateField('cliente', 'cpf', e.target.value)} className="border-black font-black uppercase rounded-none" /></div>
                       <div className="grid gap-1"><Label className="text-[9px] font-black uppercase">RG</Label><Input value={extractedData.cliente.rg} onChange={(e) => updateField('cliente', 'rg', e.target.value)} className="border-black font-black rounded-none" /></div>
                     </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-1"><Label className="text-[9px] font-black uppercase">E-mail</Label><Input value={extractedData.cliente.email} onChange={(e) => updateField('cliente', 'email', e.target.value)} className="border-black font-bold lowercase rounded-none" /></div>
+                      <div className="grid gap-1"><Label className="text-[9px] font-black uppercase">Telefone</Label><Input value={extractedData.cliente.telefone} onChange={(e) => updateField('cliente', 'telefone', e.target.value)} className="border-black font-bold rounded-none" /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-1"><Label className="text-[9px] font-black uppercase">Estado Civil</Label><Input value={extractedData.cliente.estadoCivil} onChange={(e) => updateField('cliente', 'estadoCivil', e.target.value)} className="border-black font-bold uppercase rounded-none" /></div>
+                      <div className="grid gap-1"><Label className="text-[9px] font-black uppercase">Nacionalidade</Label><Input value={extractedData.cliente.nacionalidade} onChange={(e) => updateField('cliente', 'nacionalidade', e.target.value)} className="border-black font-bold uppercase rounded-none" /></div>
+                    </div>
+                    <div className="grid gap-1"><Label className="text-[9px] font-black uppercase"><Briefcase size={10} className="inline mr-1"/> Profissão</Label><Input value={extractedData.cliente.profissao} onChange={(e) => updateField('cliente', 'profissao', e.target.value)} className="border-black font-bold uppercase rounded-none" /></div>
                     <div className="grid gap-1"><Label className="text-[9px] font-black uppercase flex items-center gap-1.5"><MapPin size={10} /> Endereço Residencial</Label><Input value={extractedData.cliente.endereco} onChange={(e) => updateField('cliente', 'endereco', e.target.value)} className="border-black font-black uppercase rounded-none" /></div>
                   </CardContent>
                 </Card>
@@ -316,10 +350,30 @@ export default function DocumentGenerator() {
                       </div>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
-                        <div className={cn("grid gap-1", !includeBankInfo && "opacity-20 pointer-events-none")}><Label className="text-[9px] font-black uppercase">Instituição Financeira</Label><Input value={extractedData.processos?.[0]?.banco || "BANCO"} onChange={(e) => { const n = [...extractedData.processos]; n[0].banco = e.target.value; setExtractedData({...extractedData, processos: n}); }} className="border-black font-black uppercase rounded-none bg-white" /></div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className={cn("grid gap-1", !includeProcessNumber && "opacity-20 pointer-events-none")}><Label className="text-[9px] font-black uppercase">Processo (CNJ)</Label><Input value={extractedData.processos?.[0]?.numero || "S/N"} onChange={(e) => { const n = [...extractedData.processos]; n[0].numero = e.target.value; setExtractedData({...extractedData, processos: n}); }} className="border-black font-black uppercase rounded-none bg-white font-mono" /></div>
-                          <div className="grid gap-1"><Label className="text-[9px] font-black uppercase">Data Extenso</Label><Input value={extractedData.dataExtenso} onChange={(e) => setExtractedData({...extractedData, dataExtenso: e.target.value})} className="border-black font-black uppercase rounded-none bg-white" /></div>
+                        <div className={cn("grid gap-4", !includeBankInfo && "opacity-20 pointer-events-none")}>
+                          <div className="grid gap-1">
+                            <Label className="text-[9px] font-black uppercase">Instituição Financeira (Réu)</Label>
+                            <Input value={extractedData.processos?.[0]?.banco || "BANCO"} onChange={(e) => updateProcessField(0, 'banco', e.target.value)} className="border-black font-black uppercase rounded-none bg-white" />
+                          </div>
+                          <div className="grid gap-1">
+                            <Label className="text-[9px] font-black uppercase">CNPJ da Instituição</Label>
+                            <Input value={extractedData.processos?.[0]?.cnpjBanco || ""} onChange={(e) => updateProcessField(0, 'cnpjBanco', e.target.value)} className="border-black font-mono rounded-none bg-white" placeholder="00.000.000/0000-00" />
+                          </div>
+                        </div>
+                        
+                        <div className={cn("grid gap-1", !includeProcessNumber && "opacity-20 pointer-events-none")}>
+                          <Label className="text-[9px] font-black uppercase">Processo (CNJ)</Label>
+                          <Input value={extractedData.processos?.[0]?.numero || ""} onChange={(e) => updateProcessField(0, 'numero', e.target.value)} className="border-black font-black uppercase rounded-none bg-white font-mono" />
+                        </div>
+
+                        <div className="grid gap-1">
+                          <Label className="text-[9px] font-black uppercase">Tipo de Ação (Para Cláusula de Poderes)</Label>
+                          <Textarea value={extractedData.processos?.[0]?.acao || ""} onChange={(e) => updateProcessField(0, 'acao', e.target.value)} className="border-black font-bold uppercase rounded-none bg-white text-[10px] min-h-[80px]" />
+                        </div>
+
+                        <div className="grid gap-1">
+                          <Label className="text-[9px] font-black uppercase">Data por Extenso</Label>
+                          <Input value={extractedData.dataExtenso} onChange={(e) => setExtractedData({...extractedData, dataExtenso: e.target.value})} className="border-black font-bold uppercase rounded-none bg-white" />
                         </div>
                     </CardContent>
                   </Card>
@@ -332,7 +386,7 @@ export default function DocumentGenerator() {
                 </CardHeader>
                 <CardContent className="p-10 text-black font-serif text-[11pt] leading-relaxed bg-white space-y-6">
                   <h3 className="text-center font-bold uppercase underline">PROCURAÇÃO "AD JUDICIA"</h3>
-                  <p className="text-justify indent-10"><strong>{extractedData.cliente.nome.toUpperCase()}</strong>, portador do RG sob Nº {extractedData.cliente.rg} e CPF sob Nº {extractedData.cliente.cpf}, residente em {extractedData.cliente.endereco}, nomeia como seu procurador <strong>{selectedLawyer?.nome.toUpperCase()}</strong>, OAB/{selectedState} {selectedLawyer?.oabs[selectedState]}, com endereço profissional em {selectedLawyer?.endereco}.</p>
+                  <p className="text-justify indent-10"><strong>{extractedData.cliente.nome.toUpperCase()}</strong>, {extractedData.cliente.nacionalidade}, {extractedData.cliente.estadoCivil}, {extractedData.cliente.profissao}, portador do RG sob Nº {extractedData.cliente.rg} e CPF sob Nº {extractedData.cliente.cpf}, residente em {extractedData.cliente.endereco}, nomeia como seu procurador <strong>{selectedLawyer?.nome.toUpperCase()}</strong>, OAB/{selectedState} {selectedLawyer?.oabs[selectedState]}, com endereço profissional em {selectedLawyer?.endereco}.</p>
                 </CardContent>
               </Card>
 
