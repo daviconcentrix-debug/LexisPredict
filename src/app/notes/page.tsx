@@ -112,20 +112,31 @@ export default function NotesPage() {
       toast({ title: "Sem dados", description: "Crie algumas notas para análise.", variant: "destructive" });
       return;
     }
+    
     setIsAnalyzing(true);
     try {
-      const result = await analisarNotasIA(notes);
+      // PROTOCOLO DE OTIMIZAÇÃO: Remove imagens (Base64) antes de enviar para o servidor
+      // Isso evita o erro 413 Payload Too Large, enviando apenas o texto para análise.
+      const sanitizedNotes = notes.map(n => ({
+        title: n.title,
+        content: n.content
+      }));
+
+      const result = await analisarNotasIA(sanitizedNotes);
+      
       if (result && !result.error) {
-        // Salva e notifica o Dashboard
         localStorage.setItem('lexisPredict_notes_analysis', JSON.stringify(result));
         window.dispatchEvent(new Event('lexis-insights-updated'));
-        
         toast({ title: "Auditoria Concluída", description: "Insights colados no Dashboard." });
       } else {
-        toast({ title: "Falha IA", description: result.error || "A IA não conseguiu identificar padrões.", variant: "destructive" });
+        toast({ 
+          title: "Falha IA", 
+          description: result?.error || "A IA não conseguiu identificar padrões.", 
+          variant: "destructive" 
+        });
       }
     } catch (e) {
-      toast({ title: "Erro de Conexão", variant: "destructive" });
+      toast({ title: "Erro de Conexão", description: "O volume de dados pode estar excedendo o limite de processamento.", variant: "destructive" });
     } finally {
       setIsAnalyzing(false);
     }
