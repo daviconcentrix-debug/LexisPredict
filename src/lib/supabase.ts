@@ -1,6 +1,6 @@
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
+ * @license Proprietary - All rights reserved. See LICENSE file.
  */
 import { createClient } from '@supabase/supabase-js';
 
@@ -13,7 +13,7 @@ export const isSupabaseConfigured =
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export type UserRole = 'Administrador' | 'Operador' | 'Visualizador';
+export type UserRole = 'Superadmin' | 'Administrador' | 'Operador' | 'Visualizador';
 
 export interface UserProfile {
   id: string;
@@ -30,4 +30,13 @@ export interface Empresa {
   id: string;
   nome: string;
   created_at: string;
+}
+
+/**
+ * Utilitário de Verificação de Autoridade Mestre.
+ * Definido aqui para ser acessível tanto por Client quanto Server Components de forma síncrona.
+ */
+export function checkIfSuperAdmin(user: any) {
+  if (!user) return false;
+  return user.cargo === 'Superadmin' || user.role === 'superadmin';
 }

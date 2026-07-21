@@ -1,31 +1,34 @@
 'use server';
 
-import { supabase, isSupabaseConfigured, UserProfile } from './supabase';
+import { supabase, isSupabaseConfigured, UserProfile, UserRole, checkIfSuperAdmin } from './supabase';
 import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v3000.0 ELITE)
- * Implementação de Lógica UPSERT e Isolamento por Usuário (created_by).
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v4100.0 ELITE)
+ * Governança de Superadmin e Isolamento Multi-tenant.
  */
 
 export async function getUserContext() {
   const cookieStore = await cookies();
   const userEmail = cookieStore.get('lexis_user_email')?.value;
   
-  if (!userEmail) return { auth_id: null, empresa_id: null, cargo: null, email: null };
+  if (!userEmail) return { auth_id: null, empresa_id: null, cargo: null as UserRole | null, email: null };
 
   const { data: profile } = await supabase
     .from('usuarios')
-    .select('id, empresa_id, cargo, email, auth_user_id')
+    .select('id, empresa_id, cargo, email, auth_user_id, role')
     .eq('email', userEmail.toLowerCase().trim())
     .maybeSingle();
     
+  const cargo = (profile?.role === 'superadmin' || profile?.cargo === 'Superadmin') ? 'Superadmin' : profile?.cargo as UserRole;
+
   return { 
     auth_id: profile?.auth_user_id || null,
     empresa_id: profile?.empresa_id || null, 
-    cargo: profile?.cargo || 'Operador',
-    email: profile?.email || null
+    cargo: cargo || 'Operador',
+    email: profile?.email || null,
+    isSuperAdmin: cargo === 'Superadmin'
   };
 }
 
@@ -104,16 +107,21 @@ export async function desativarAdvogadoBanca(id: string) {
 
 export async function getStoredCases(): Promise<LegalCase[]> {
   if (!isSupabaseConfigured) return [];
-  const { empresa_id, auth_id } = await getUserContext();
+  const { empresa_id, auth_id, isSuperAdmin } = await getUserContext();
   if (!empresa_id || !auth_id) return [];
 
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('processos')
       .select('*')
-      .eq('empresa_id', empresa_id)
-      .eq('created_by', auth_id) // RESTRIÇÃO DE VISIBILIDADE OPERACIONAL
-      .order('created_at', { ascending: false });
+      .eq('empresa_id', empresa_id);
+
+    // Superadmin vê tudo da empresa, Operador/Admin vê só os seus (conforme pedido original de isolamento real)
+    if (!isSuperAdmin) {
+      query = query.eq('created_by', auth_id);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) throw error;
     
@@ -171,16 +179,20 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 }
 
 export async function getStoredNotes(): Promise<CaseNote[]> {
-  const { auth_id, empresa_id } = await getUserContext();
+  const { auth_id, empresa_id, isSuperAdmin } = await getUserContext();
   if (!empresa_id || !auth_id) return [];
 
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('notes')
       .select('*')
-      .eq('empresa_id', empresa_id)
-      .eq('created_by', auth_id) // RESTRIÇÃO DE NOTAS
-      .order('created_at', { ascending: false });
+      .eq('empresa_id', empresa_id);
+
+    if (!isSuperAdmin) {
+      query = query.eq('created_by', auth_id);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) throw error;
     return data ? data.map(item => {
@@ -242,16 +254,68 @@ export async function getEmpresaUsers(): Promise<UserProfile[]> {
   return data as UserProfile[];
 }
 
-export async function removeEmpresaUser(userId: string): Promise<boolean> {
-  const { cargo } = await getUserContext();
-  if (cargo !== 'Administrador') return false;
+export async function removeEmpresaUser(userId: string): Promise<{ success: boolean, error?: string }> {
+  const { cargo, auth_id, isSuperAdmin } = await getUserContext();
+  
+  if (cargo !== 'Administrador' && cargo !== 'Superadmin') return { success: false, error: 'Permissão insuficiente' };
+
+  // 1. Buscar alvo para verificar se é superadmin
+  const { data: target } = await supabase.from('usuarios').select('cargo, role, auth_user_id').eq('id', userId).single();
+  if (!target) return { success: false, error: 'Usuário não encontrado' };
+
+  const targetIsSuper = checkIfSuperAdmin(target);
+
+  // 2. Regra Superadmin
+  if (targetIsSuper && !isSuperAdmin) {
+    return { success: false, error: 'Apenas Superadmins podem remover outros Superadmins.' };
+  }
+
+  // 3. Impedir auto-remoção insegura
+  if (target.auth_user_id === auth_id) {
+    return { success: false, error: 'Você não pode se auto-excluir da plataforma.' };
+  }
 
   const { error } = await supabase
     .from('usuarios')
     .delete()
     .eq('id', userId);
 
-  return !error;
+  return { success: !error, error: error?.message };
+}
+
+export async function updateUserRole(userId: string, newRole: UserRole): Promise<{ success: boolean, error?: string }> {
+  const { cargo, isSuperAdmin } = await getUserContext();
+  
+  if (cargo !== 'Administrador' && cargo !== 'Superadmin') return { success: false, error: 'Permissão insuficiente' };
+
+  // 1. Buscar alvo
+  const { data: target } = await supabase.from('usuarios').select('cargo, role').eq('id', userId).single();
+  if (!target) return { success: false, error: 'Usuário não encontrado' };
+
+  const targetIsSuper = checkIfSuperAdmin(target);
+
+  // 2. Proteção Superadmin
+  if (targetIsSuper && !isSuperAdmin) {
+    return { success: false, error: 'Você não tem autoridade para alterar o cargo de um Superadmin.' };
+  }
+
+  if (newRole === 'Superadmin' && !isSuperAdmin) {
+    return { success: false, error: 'Apenas um Superadmin pode promover outros usuários a Superadmin.' };
+  }
+
+  const payload: any = { cargo: newRole };
+  if (isSuperAdmin && newRole === 'Superadmin') {
+    payload.role = 'superadmin';
+  } else if (targetIsSuper && newRole !== 'Superadmin') {
+    payload.role = 'user'; // Rebaixa papel técnico se mudar o cargo
+  }
+
+  const { error } = await supabase
+    .from('usuarios')
+    .update(payload)
+    .eq('id', userId);
+
+  return { success: !error, error: error?.message };
 }
 
 export async function getWhatsAppHistory(phone: string) {

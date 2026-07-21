@@ -1,4 +1,3 @@
-
 /**
  * MOTOR DE INTERNACIONALIZAÇÃO v3500.0 ELITE
  * Dicionários oficiais para o Gabinete W1 Capital.
@@ -38,6 +37,7 @@ export const translations = {
     statusArquivado: "Arquivado",
     statusEncerrado: "Encerrado",
     statusSemPrazo: "Sem Prazo",
+    roleSuperAdmin: "Superadmin",
     roleAdmin: "Administrador",
     roleOperator: "Operador",
     roleViewer: "Visualizador",
@@ -84,6 +84,7 @@ export const translations = {
     statusArquivado: "Archived",
     statusEncerrado: "Closed",
     statusSemPrazo: "No Deadline",
+    roleSuperAdmin: "Superadmin",
     roleAdmin: "Administrator",
     roleOperator: "Operator",
     roleViewer: "Viewer",

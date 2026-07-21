@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -19,10 +18,11 @@ import {
   Loader2,
   Lock,
   UserCheck,
-  Smartphone
+  Smartphone,
+  Crown
 } from 'lucide-react';
-import { getEmpresaUsers, removeEmpresaUser, logAuditAction } from '@/lib/server-db';
-import { UserProfile, supabase } from '@/lib/supabase';
+import { getEmpresaUsers, removeEmpresaUser, logAuditAction, updateUserRole } from '@/lib/server-db';
+import { UserProfile, supabase, UserRole, checkIfSuperAdmin } from '@/lib/supabase';
 import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -63,12 +63,14 @@ export default function TeamManagement() {
   const { profile } = useAuth();
   const { toast } = useToast();
   const t = getTranslation(locale);
-  const isAdmin = profile?.cargo === 'Administrador';
+  
+  const isSuperAdmin = profile?.cargo === 'Superadmin' || profile?.role === 'superadmin';
+  const isAdmin = profile?.cargo === 'Administrador' || isSuperAdmin;
 
   const [userForm, setUserForm] = useState({
     nome: '',
     email: '',
-    cargo: 'Operador' as any,
+    cargo: 'Operador' as UserRole,
     password: ''
   });
 
@@ -99,8 +101,6 @@ export default function TeamManagement() {
 
     setIsSaving(true);
     try {
-      // Nota: Em produção real, isso usaria uma invite API do Supabase.
-      // Aqui, simulamos o provisionamento via Auth API.
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userForm.email,
         password: userForm.password,
@@ -133,33 +133,23 @@ export default function TeamManagement() {
     }
   };
 
-  const handleChangeRole = async (userId: string, newRole: string) => {
-    if (!isAdmin) return;
-    try {
-      const { error } = await supabase.from('usuarios').update({ cargo: newRole }).eq('id', userId);
-      if (error) throw error;
-      
-      await logAuditAction('TEAM_ROLE_CHANGE', `Alterou cargo do usuário ID: ${userId} para ${newRole}`);
+  const handleChangeRole = async (userId: string, newRole: UserRole) => {
+    const res = await updateUserRole(userId, newRole);
+    if (res.success) {
       toast({ title: "Cargo Atualizado" });
       loadTeam();
-    } catch (e) {
-      toast({ title: "Falha técnica", variant: "destructive" });
+    } else {
+      toast({ title: "Ação Negada", description: res.error, variant: "destructive" });
     }
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (id === profile?.id) {
-      toast({ title: "Ação Negada", description: "Você não pode se auto-excluir.", variant: "destructive" });
-      return;
-    }
-    if (!confirm(`CONFIRMAR REVOGAÇÃO: Deseja remover o acesso de ${name} permanentemente?`)) return;
-
-    const success = await removeEmpresaUser(id);
-    if (success) {
+    const res = await removeEmpresaUser(id);
+    if (res.success) {
       toast({ title: "Acesso Revogado" });
       loadTeam();
     } else {
-      toast({ title: "Falha na Revogação", variant: "destructive" });
+      toast({ title: "Ação Negada", description: res.error, variant: "destructive" });
     }
   };
 
@@ -174,12 +164,12 @@ export default function TeamManagement() {
             </div>
             <div>
               <h1 className="font-black text-xl uppercase tracking-tighter">{t.teamTitle}</h1>
-              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-0.5">{profile?.empresa_id || "GABINETE"} • AUTORIDADE MESTRE</p>
+              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-0.5">INSTÂNCIA: {profile?.empresa_id?.split('-')[0] || "GABINETE"} • NÍVEL {isSuperAdmin ? 'MESTRE' : 'ADMIN'}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
              {isAdmin && (
-               <Button onClick={() => setIsNewClientOpen(true)} className="bg-black text-white font-black h-10 px-6 rounded-xl uppercase text-[10px] tracking-widest hover:bg-black/90 transition-all shadow-xl">
+               <Button onClick={() => setIsNewUserOpen(true)} className="bg-black text-white font-black h-10 px-6 rounded-xl uppercase text-[10px] tracking-widest hover:bg-black/90 transition-all shadow-xl">
                  <UserPlus size={16} className="mr-2 text-primary" /> Novo Operador
                </Button>
              )}
@@ -191,64 +181,84 @@ export default function TeamManagement() {
 
         <div className="flex-1 overflow-auto p-8 max-w-6xl mx-auto w-full space-y-10">
           <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-            {users.map((user) => (
-              <Card key={user.id} className="premium-card bg-white border-border/40 rounded-2xl group hover:border-black transition-all overflow-hidden relative">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center border transition-all",
-                      user.cargo === 'Administrador' ? "bg-black text-primary border-black shadow-lg" : "bg-[#f8f9fb] border-border/50 text-muted-foreground"
-                    )}>
-                      {user.cargo === 'Administrador' ? <ShieldCheck size={24} /> : user.cargo === 'Operador' ? <Shield size={24} /> : <Activity size={24} />}
+            {users.map((user) => {
+              const targetIsSuper = checkIfSuperAdmin(user);
+              const canManage = isSuperAdmin || !targetIsSuper;
+
+              return (
+                <Card key={user.id} className="premium-card bg-white border-border/40 rounded-2xl group hover:border-black transition-all overflow-hidden relative">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center border transition-all",
+                        targetIsSuper ? "bg-black text-[#FFD700] border-[#FFD700] shadow-[0_0_15px_rgba(255,215,0,0.3)]" : 
+                        user.cargo === 'Administrador' ? "bg-black text-primary border-black shadow-lg" : "bg-[#f8f9fb] border-border/50 text-muted-foreground"
+                      )}>
+                        {targetIsSuper ? <Crown size={24} /> : 
+                         user.cargo === 'Administrador' ? <ShieldCheck size={24} /> : user.cargo === 'Operador' ? <Shield size={24} /> : <Activity size={24} />}
+                      </div>
+                      <div className="flex flex-col">
+                        <p className="text-[12px] font-black uppercase tracking-tight truncate max-w-[150px]">{user.nome}</p>
+                        <RoleBadge role={user.cargo as any} t={t} isSuper={targetIsSuper} />
+                      </div>
                     </div>
-                    <div className="flex flex-col">
-                      <p className="text-[12px] font-black uppercase tracking-tight truncate max-w-[150px]">{user.nome}</p>
-                      <RoleBadge role={user.cargo} t={t} />
+                    {isAdmin && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-secondary">
+                            <MoreVertical size={16} className="text-muted-foreground" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-white border-border/50 rounded-xl shadow-2xl min-w-[160px] p-2">
+                          {!canManage && (
+                             <DropdownMenuItem disabled className="text-[8px] font-black uppercase text-red-500 text-center bg-red-50">
+                               Autoridade Protegida
+                             </DropdownMenuItem>
+                          )}
+                          
+                          {isSuperAdmin && (
+                            <DropdownMenuItem disabled={!canManage} onClick={() => handleChangeRole(user.id, 'Superadmin')} className="text-[9px] font-black uppercase cursor-pointer hover:bg-secondary rounded-lg px-3 py-2 text-amber-600">
+                               Tornar Superadmin
+                            </DropdownMenuItem>
+                          )}
+                          
+                          <DropdownMenuItem disabled={!canManage} onClick={() => handleChangeRole(user.id, 'Administrador')} className="text-[9px] font-black uppercase cursor-pointer hover:bg-secondary rounded-lg px-3 py-2">
+                             Tornar Administrador
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={!canManage} onClick={() => handleChangeRole(user.id, 'Operador')} className="text-[9px] font-black uppercase cursor-pointer hover:bg-secondary rounded-lg px-3 py-2">
+                             Tornar Operador
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={!canManage} onClick={() => handleChangeRole(user.id, 'Visualizador')} className="text-[9px] font-black uppercase cursor-pointer hover:bg-secondary rounded-lg px-3 py-2">
+                             Tornar Visualizador
+                          </DropdownMenuItem>
+                          <div className="h-px bg-border/50 my-2" />
+                          <DropdownMenuItem 
+                            disabled={!canManage}
+                            onClick={() => handleDelete(user.id, user.nome)}
+                            className="text-[9px] font-black uppercase cursor-pointer text-red-600 focus:bg-red-50 rounded-lg px-3 py-2"
+                          >
+                            Revogar Acesso
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-3 text-muted-foreground p-3 bg-[#f8f9fb] rounded-xl border border-border/20">
+                      <Mail size={14} className="shrink-0 text-primary" />
+                      <span className="text-[10px] font-mono lowercase truncate">{user.email}</span>
                     </div>
-                  </div>
-                  {isAdmin && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-secondary">
-                          <MoreVertical size={16} className="text-muted-foreground" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-white border-border/50 rounded-xl shadow-2xl min-w-[160px] p-2">
-                        <DropdownMenuItem onClick={() => handleChangeRole(user.id, 'Administrador')} className="text-[9px] font-black uppercase cursor-pointer hover:bg-secondary rounded-lg px-3 py-2">
-                           Tornar Administrador
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleChangeRole(user.id, 'Operador')} className="text-[9px] font-black uppercase cursor-pointer hover:bg-secondary rounded-lg px-3 py-2">
-                           Tornar Operador
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleChangeRole(user.id, 'Visualizador')} className="text-[9px] font-black uppercase cursor-pointer hover:bg-secondary rounded-lg px-3 py-2">
-                           Tornar Visualizador
-                        </DropdownMenuItem>
-                        <div className="h-px bg-border/50 my-2" />
-                        <DropdownMenuItem 
-                          onClick={() => handleDelete(user.id, user.nome)}
-                          className="text-[9px] font-black uppercase cursor-pointer text-red-600 focus:bg-red-50 rounded-lg px-3 py-2"
-                        >
-                          Revogar Acesso
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-3 text-muted-foreground p-3 bg-[#f8f9fb] rounded-xl border border-border/20">
-                    <Mail size={14} className="shrink-0 text-primary" />
-                    <span className="text-[10px] font-mono lowercase truncate">{user.email}</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-2">
-                    <div className="flex items-center gap-2">
-                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                       <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Sessão Ativa</span>
+                    <div className="flex justify-between items-center pt-2">
+                      <div className="flex items-center gap-2">
+                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                         <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Sessão Ativa</span>
+                      </div>
+                      <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">P0 SECURITY</span>
                     </div>
-                    <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Protocolo: Nominal</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
 
             {loading && Array.from({length: 3}).map((_, i) => (
               <div key={i} className="h-44 bg-white animate-pulse border border-border/20 rounded-2xl" />
@@ -274,11 +284,12 @@ export default function TeamManagement() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label className="uppercase text-[9px] font-black">Cargo / Permissão</Label>
-                    <Select value={userForm.cargo} onValueChange={val => setUserForm({...userForm, cargo: val})}>
+                    <Select value={userForm.cargo} onValueChange={val => setUserForm({...userForm, cargo: val as UserRole})}>
                       <SelectTrigger className="rounded-xl h-11 bg-secondary/30 border-none font-bold text-[10px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        {isSuperAdmin && <SelectItem value="Superadmin" className="text-[10px] font-bold">SUPERADMIN</SelectItem>}
                         <SelectItem value="Administrador" className="text-[10px] font-bold">ADMINISTRADOR</SelectItem>
                         <SelectItem value="Operador" className="text-[10px] font-bold">OPERADOR</SelectItem>
                         <SelectItem value="Visualizador" className="text-[10px] font-bold">VISUALIZADOR</SelectItem>
@@ -309,19 +320,19 @@ export default function TeamManagement() {
   );
 }
 
-function RoleBadge({ role, t }: { role: string, t: any }) {
+function RoleBadge({ role, t, isSuper }: { role: UserRole, t: any, isSuper: boolean }) {
   const styles: Record<string, string> = {
+    'Superadmin': "text-[#FFD700] border-[#FFD700]/40 bg-black shadow-[0_0_10px_rgba(255,215,0,0.2)]",
     'Administrador': "text-primary border-primary/20 bg-black shadow-sm",
     'Operador': "text-blue-500 border-blue-500/20 bg-blue-50",
     'Visualizador': "text-muted-foreground border-border bg-secondary/50",
   };
 
-  const label = role === 'Administrador' ? t.roleAdmin : role === 'Operador' ? t.roleOperator : t.roleViewer;
+  const label = isSuper ? t.roleSuperAdmin : role === 'Administrador' ? t.roleAdmin : role === 'Operador' ? t.roleOperator : t.roleViewer;
 
   return (
-    <Badge variant="outline" className={cn("px-2 py-0.5 text-[7px] font-black uppercase tracking-[0.1em] rounded-md", styles[role] || styles.Visualizador)}>
+    <Badge variant="outline" className={cn("px-2 py-0.5 text-[7px] font-black uppercase tracking-[0.1em] rounded-md", styles[isSuper ? 'Superadmin' : role] || styles.Visualizador)}>
       {label}
     </Badge>
   );
 }
-
