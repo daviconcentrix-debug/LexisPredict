@@ -5,8 +5,8 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v4100.0 ELITE)
- * Governança de Superadmin e Isolamento Multi-tenant.
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v4200.0 ELITE)
+ * Governança de Superadmin e Isolamento Multi-tenant Rigoroso.
  */
 
 export async function getUserContext() {
@@ -107,21 +107,17 @@ export async function desativarAdvogadoBanca(id: string) {
 
 export async function getStoredCases(): Promise<LegalCase[]> {
   if (!isSupabaseConfigured) return [];
-  const { empresa_id, auth_id, isSuperAdmin } = await getUserContext();
+  const { empresa_id, auth_id } = await getUserContext();
   if (!empresa_id || !auth_id) return [];
 
   try {
-    let query = supabase
+    // Protocolo de Isolamento Real: Independente do cargo, cada um vê apenas o que criou.
+    const { data, error } = await supabase
       .from('processos')
       .select('*')
-      .eq('empresa_id', empresa_id);
-
-    // Superadmin vê tudo da empresa, Operador/Admin vê só os seus (conforme pedido original de isolamento real)
-    if (!isSuperAdmin) {
-      query = query.eq('created_by', auth_id);
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: false });
+      .eq('empresa_id', empresa_id)
+      .eq('created_by', auth_id)
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
     
@@ -179,20 +175,17 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 }
 
 export async function getStoredNotes(): Promise<CaseNote[]> {
-  const { auth_id, empresa_id, isSuperAdmin } = await getUserContext();
+  const { auth_id, empresa_id } = await getUserContext();
   if (!empresa_id || !auth_id) return [];
 
   try {
-    let query = supabase
+    // Protocolo de Isolamento Real: Independente do cargo, cada um vê apenas o que criou.
+    const { data, error } = await supabase
       .from('notes')
       .select('*')
-      .eq('empresa_id', empresa_id);
-
-    if (!isSuperAdmin) {
-      query = query.eq('created_by', auth_id);
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: false });
+      .eq('empresa_id', empresa_id)
+      .eq('created_by', auth_id)
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
     return data ? data.map(item => {
