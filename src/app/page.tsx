@@ -90,6 +90,11 @@ export default function Dashboard() {
     const riskSum = (vencidos * 1.0) + (venceHoje * 0.8) + (atencao * 0.5) + (noPrazo * 0.1);
     const riskScore = activeTotal > 0 ? Math.min(100, Math.round((riskSum / activeTotal) * 100)) : 0;
 
+    // Cálculos de porcentagem em relação aos ativos
+    const pctHoje = activeTotal > 0 ? Math.round((venceHoje / activeTotal) * 100) : 0;
+    const pctVencidos = activeTotal > 0 ? Math.round((vencidos / activeTotal) * 100) : 0;
+    const pctAtencao = activeTotal > 0 ? Math.round((atencao / activeTotal) * 100) : 0;
+
     const statusData = [
       { name: t.statusCritico, value: vencidos, color: '#ef4444' },
       { name: t.statusHoje, value: venceHoje, color: '#3b82f6' },
@@ -97,7 +102,7 @@ export default function Dashboard() {
       { name: t.statusPrazo, value: noPrazo, color: '#10b981' }
     ].filter(d => d.value > 0);
 
-    return { activeTotal, vencidos, venceHoje, atencao, noPrazo, riskScore, statusData };
+    return { activeTotal, vencidos, venceHoje, atencao, noPrazo, riskScore, statusData, pctHoje, pctVencidos, pctAtencao };
   }, [cases, t]);
 
   if (!mounted) return null;
@@ -131,10 +136,10 @@ export default function Dashboard() {
 
         <div className="flex-1 overflow-auto p-10 space-y-10 max-w-[1600px] mx-auto w-full">
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard title={t.statusHoje} value={loading ? "..." : metrics.venceHoje} icon={<Clock />} color={metrics.venceHoje > 0 ? "warning" : "primary"} trend="14%" trendUp={false} />
-            <StatCard title={t.statusVencido} value={loading ? "..." : metrics.vencidos} icon={<ShieldAlert />} color="destructive" trend="2%" trendUp={false} />
-            <StatCard title={t.statusAtencao} value={loading ? "..." : metrics.atencao} icon={<Calendar />} color="warning" trend="5%" trendUp={true} />
-            <StatCard title={t.activeDemands} value={loading ? "..." : metrics.activeTotal} icon={<History />} color="accent" trend="12%" trendUp={true} />
+            <StatCard title={t.statusHoje} value={loading ? "..." : metrics.venceHoje} icon={<Clock />} color={metrics.venceHoje > 0 ? "warning" : "primary"} trend={`${metrics.pctHoje}%`} trendUp={false} />
+            <StatCard title={t.statusVencido} value={loading ? "..." : metrics.vencidos} icon={<ShieldAlert />} color="destructive" trend={`${metrics.pctVencidos}%`} trendUp={false} />
+            <StatCard title={t.statusAtencao} value={loading ? "..." : metrics.atencao} icon={<Calendar />} color="warning" trend={`${metrics.pctAtencao}%`} trendUp={false} />
+            <StatCard title={t.activeDemands} value={loading ? "..." : metrics.activeTotal} icon={<History />} color="accent" />
           </section>
 
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 pb-10">
