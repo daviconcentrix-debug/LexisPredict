@@ -3,7 +3,15 @@
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet } from '@react-pdf/renderer';
+import { Page, Text, View, Document, StyleSheet, Font } from '@react-pdf/renderer';
+
+Font.register({
+  family: 'Times-Roman',
+  fonts: [
+    { src: 'https://cdn.jsdelivr.net/npm/@canvas-fonts/times-new-roman@1.0.4/Times-New-Roman.ttf' },
+    { src: 'https://cdn.jsdelivr.net/npm/@canvas-fonts/times-new-roman@1.0.4/Times-New-Roman-Bold.ttf', fontWeight: 'bold' }
+  ]
+});
 
 const styles = StyleSheet.create({
   page: {
@@ -61,7 +69,7 @@ export function ProcuracaoPDF({ data }: { data: any }) {
   
   const acaoPrincipal = processos?.[0]?.acao || "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA";
   const bancoPrincipal = processos?.[0]?.banco || "INSTITUIÇÃO FINANCEIRA";
-  const cnpjBancoPrincipal = processos?.[0]?.cnpjBanco || "00.000.000/0000-00";
+  const cnpjBancoPrincipal = processos?.[0]?.cnpjBanco;
   const numeroPrincipal = processos?.[0]?.numero || "S/N";
 
   return (
@@ -71,24 +79,24 @@ export function ProcuracaoPDF({ data }: { data: any }) {
         
         <View style={styles.paragraph}>
           <Text>
-            <Text style={styles.bold}>{cliente.nome.toUpperCase()}</Text>, {cliente.nacionalidade || "brasileiro(a)"}, {cliente.estadoCivil || "casado(a)"}, {cliente.profissao || "autônomo(a)"}, portador do RG sob Nº {cliente.rg} e devidamente inscrito no CPF sob Nº {cliente.cpf}, residente e domiciliado à {cliente.endereco}, com endereço eletrônico: {cliente.email || 'Não informado'}, neste ato nomeia como seu procurador:
+            <Text style={styles.bold}>{cliente.nome.toUpperCase()}</Text>, {cliente.nacionalidade || "brasileiro(a)"}, {cliente.estadoCivil || "casado(a)"}, {cliente.profissao || "autônomo(a)"}, portador do RG sob Nº {cliente.rg} e devidamente inscrito no CPF sob Nº {cliente.cpf}, residente e domiciliado à {cliente.endereco}, {cliente.email ? `com endereço eletrônico: ${cliente.email}, ` : ""}neste ato nomeia como seu procurador:
           </Text>
         </View>
 
         <View style={styles.paragraph}>
           <Text>
-            <Text style={styles.bold}>{advogado.nome.toUpperCase()}</Text>, brasileiro, advogado, inscrito na OAB sob o número {advogado.oab}, com endereço profissional na {advogado.endereco}, e endereço eletrônico: {advogado.email}.
+            <Text style={styles.bold}>{advogado.nome.toUpperCase()}</Text>, brasileiro, advogado, inscrito na {advogado.oab.includes('OAB/') ? advogado.oab : `OAB ${advogado.oab}`}, com endereço profissional na {advogado.endereco}, e endereço eletrônico: {advogado.email}.
           </Text>
         </View>
 
         <View style={styles.paragraph}>
           <Text>
             <Text style={styles.bold}>PODERES: </Text>
-            Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <Text style={styles.bold}>“AD JUDICIA”</Text>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <Text style={styles.bold}>{acaoPrincipal.toUpperCase()}</Text> {includeBankInfo ? `promovida contra ${bancoPrincipal.toUpperCase()}, inscrita no CNPJ sob o nº ${cnpjBancoPrincipal}` : ""}{includeProcessNumber ? `, processo nº ${numeroPrincipal}` : ""}.
+            Por este instrumento particular de mandato, o(a) outorgante retro referenciada nomeia e constitui seu bastante procurador o advogado também acima qualificado, a quem confere amplos poderes para o foro em geral, com a cláusula <Text style={styles.bold}>“AD JUDICIA”</Text>, em qualquer Juízo, Instância ou Tribunal, podendo propor contra quem de direito as ações competentes e defendê-lo nas contrárias, seguindo umas e outras, até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhes, ainda, poderes especiais para desistir, transigir, firmar compromissos ou acordos, receber e dar quitação, agindo em conjunto ou separadamente e independente da ordem de nomeação, podendo substabelecer esta em outrem, com ou sem reservas de iguais poderes, especialmente para, na defesa dos interesses do(a) outorgante, agir nos autos da <Text style={styles.bold}>{acaoPrincipal.toUpperCase()}</Text> {includeBankInfo ? `promovida contra ${bancoPrincipal.toUpperCase()}${cnpjBancoPrincipal ? `, inscrita no CNPJ sob o nº ${cnpjBancoPrincipal}` : ""}` : ""}{includeProcessNumber ? `, processo nº ${numeroPrincipal}` : ""}.
           </Text>
         </View>
 
-        <Text style={styles.date}>{local}, {dataExtenso}</Text>
+        <Text style={styles.date}>{dataExtenso}</Text>
 
         <View style={styles.signatureArea}>
           <View style={styles.line} />
