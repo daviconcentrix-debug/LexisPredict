@@ -40,7 +40,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -206,7 +206,7 @@ export default function TeamManagement() {
 
             <div className="flex items-center gap-3">
                {isAdmin && (
-                 <Button onClick={() => setIsNewClientOpen(true)} className="bg-black text-white font-black h-10 px-6 rounded-xl uppercase text-[10px] tracking-widest hover:bg-black/90 transition-all shadow-xl">
+                 <Button onClick={() => setIsNewUserOpen(true)} className="bg-black text-white font-black h-10 px-6 rounded-xl uppercase text-[10px] tracking-widest hover:bg-black/90 transition-all shadow-xl">
                    <UserPlus size={16} className="mr-2 text-primary" /> Novo Operador
                  </Button>
                )}
