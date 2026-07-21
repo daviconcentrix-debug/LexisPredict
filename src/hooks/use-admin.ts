@@ -1,4 +1,3 @@
-
 "use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
@@ -6,12 +5,14 @@
  */
 
 import { useAuth } from '@/components/auth/auth-provider';
+import { checkIfSuperAdmin } from '@/lib/supabase';
 
 export function useAdmin() {
   const { profile, loading, signOut } = useAuth();
 
-  // O Admin agora é baseado no cargo do perfil no Supabase
-  const isAdmin = profile?.cargo === 'Administrador';
+  // Superadmin herda privilégios de Admin e Operador
+  const isSuperAdmin = checkIfSuperAdmin(profile);
+  const isAdmin = profile?.cargo === 'Administrador' || isSuperAdmin;
   const isOperador = profile?.cargo === 'Operador' || isAdmin;
   
   /**
@@ -26,6 +27,7 @@ export function useAdmin() {
   return { 
     isAdmin, 
     isOperador,
+    isSuperAdmin,
     login, 
     logout: signOut, 
     loading,
