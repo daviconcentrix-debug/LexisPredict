@@ -81,7 +81,7 @@ export function HabilitacaoPecaPDF({ data }: { data: any }) {
 
         <View style={styles.paragraph}>
           <Text>
-            Inicialmente, requer-se que as intimações sejam feitas em nome do procurador <Text style={styles.bold}>Dr. {advogado.nome.toUpperCase()}</Text>, inscrito na <Text style={styles.bold}>OAB/{selectedState} {advogado.oab}</Text>, com escritório profissional na {advogado.endereco}, CEP {advogado.cep}, e-mail: {advogado.email}, requerendo que seja feita as respectivas anotações que se fizerem necessárias.
+            Inicialmente, requer-se que as intimações sejam feitas em nome do procurador <Text style={styles.bold}>Dr. {advogado.nome.toUpperCase()}</Text>, {advogado.nacionalidade}, {advogado.estadoCivil}, inscrito na <Text style={styles.bold}>OAB/{selectedState} {advogado.oab}</Text>, com escritório profissional na {advogado.endereco}, CEP {advogado.cep}, e-mail: {advogado.email}, requerendo que seja feita as respectivas anotações que se fizerem necessárias.
           </Text>
         </View>
 
@@ -109,7 +109,7 @@ export function HabilitacaoPecaPDF({ data }: { data: any }) {
 
         <View style={styles.paragraph}>
           <Text>
-            <Text style={styles.bold}>{advogado.nome.toUpperCase()}</Text>, brasileiro, advogado, inscrito na OAB/{selectedState} sob o número {advogado.oab}, com endereço profissional na {advogado.endereco}, CEP {advogado.cep}, e endereço eletrônico: {advogado.email}.
+            <Text style={styles.bold}>{advogado.nome.toUpperCase()}</Text>, {advogado.nacionalidade}, {advogado.estadoCivil}, advogado, inscrito na OAB/{selectedState} sob o número {advogado.oab}, com endereço profissional na {advogado.endereco}, CEP {advogado.cep}, e endereço eletrônico: {advogado.email}.
           </Text>
         </View>
 

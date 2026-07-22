@@ -137,6 +137,9 @@ export default function HabilitacaoPecaGenerator() {
           advogado: {
             nome: selectedLawyer.nome.toUpperCase(),
             oab: oabNum,
+            nacionalidade: selectedLawyer.nacionalidade || 'brasileiro',
+            estadoCivil: selectedLawyer.estado_civil || selectedLawyer.estadoCivil || 'casado',
+            genero: selectedLawyer.genero || 'M',
             endereco: selectedLawyer.endereco,
             email: selectedLawyer.email,
             cep: "03870-100"
@@ -293,7 +296,7 @@ export default function HabilitacaoPecaGenerator() {
                       <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Upload size={14} /> Importar PDF</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
-                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all">
+                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all rounded-none">
                         {fileLoading ? <Loader2 className="animate-spin text-black" size={32} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
                         <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                         <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white/40">Selecione o arquivo forense</p>

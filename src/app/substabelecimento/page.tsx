@@ -130,12 +130,17 @@ export default function SubstabelecimentoGenerator() {
           },
           substabelecente: {
             nome: advLeaving.nome,
-            estadoCivil: advLeaving.genero === 'F' ? 'casada' : 'casado',
+            genero: advLeaving.genero || 'M',
+            nacionalidade: advLeaving.nacionalidade || 'brasileiro',
+            estadoCivil: advLeaving.estado_civil || advLeaving.estadoCivil || (advLeaving.genero === 'F' ? 'casada' : 'casado'),
             oabCompleta: `OAB/${selectedState} sob o n.º ${advLeaving.oabs[selectedState] || ''}`,
             oabCurta: `OAB/${selectedState} ${advLeaving.oabs[selectedState] || ''}`
           },
           substabelecido: {
             nome: advEntering.nome,
+            genero: advEntering.genero || 'M',
+            nacionalidade: advEntering.nacionalidade || 'brasileiro',
+            estadoCivil: advEntering.estado_civil || advEntering.estadoCivil || (advEntering.genero === 'F' ? 'casada' : 'casado'),
             oabCompleta: `OAB/${selectedState} sob o n.º ${advEntering.oabs[selectedState] || ''}`,
             oabCurta: `OAB/${selectedState} ${advEntering.oabs[selectedState] || ''}`
           },
@@ -380,7 +385,7 @@ export default function SubstabelecimentoGenerator() {
                 <CardContent className="p-10 text-black font-serif text-[11pt] leading-relaxed bg-white space-y-6">
                   <h3 className="text-center font-bold uppercase underline">SUBSTABELECIMENTO</h3>
                   <p className="text-center font-bold">(sem reserva de poderes)</p>
-                  <p className="text-justify indent-10">O <Text style={{fontWeight: 'bold'}}>{extractedData.substabelecente.nome.toUpperCase()}</Text>, brasileiro, {extractedData.substabelecente.estadoCivil}, advogado, inscrito na {extractedData.substabelecente.oabCompleta}, <strong>SUBSTABELECE SEM RESERVA DE PODERES</strong> na pessoa do {extractedData.substabelecido.nome.toUpperCase()}, inscrito na {extractedData.substabelecido.oabCompleta}, os poderes conferidos por {extractedData.cliente.nome.toUpperCase()}, para a promoção de {extractedData.processo.acao.toUpperCase()} {includeBankInfo ? `contra o ${extractedData.processo.banco.toUpperCase()}` : ""} {includeProcessNumber ? `, processo nº ${extractedData.processo.numero}` : ""}...</p>
+                  <p className="text-justify indent-10">O <strong>{extractedData.substabelecente.nome.toUpperCase()}</strong>, {extractedData.substabelecente.nacionalidade}, {extractedData.substabelecente.estadoCivil}, advogado, inscrito na {extractedData.substabelecente.oabCompleta}, <strong>SUBSTABELECE SEM RESERVA DE PODERES</strong> na pessoa do {extractedData.substabelecido.nome.toUpperCase()}, {extractedData.substabelecido.nacionalidade}, {extractedData.substabelecido.estadoCivil}, inscrito na {extractedData.substabelecido.oabCompleta}, os poderes conferidos por {extractedData.cliente.nome.toUpperCase()}, para a promoção de {extractedData.processo.acao.toUpperCase()} {includeBankInfo ? `contra o ${extractedData.processo.banco.toUpperCase()}` : ""} {includeProcessNumber ? `, processo nº ${extractedData.processo.numero}` : ""}...</p>
                 </CardContent>
               </Card>
 

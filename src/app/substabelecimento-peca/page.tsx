@@ -142,10 +142,13 @@ export default function SubstabelecimentoPecaGenerator() {
             acao: data.processos?.[0]?.acao || "AÇÃO DE REVISÃO CONTRATUAL COM PEDIDO DE TUTELA DE URGÊNCIA"
           },
           advogadoSubstabelecente: advLeaving.nome.toUpperCase(),
-          estadoCivilSubstabelecente: advLeaving.genero === 'F' ? 'casada' : 'casado',
+          nacionalidadeSubstabelecente: advLeaving.nacionalidade || 'brasileiro',
+          estadoCivilSubstabelecente: advLeaving.estado_civil || advLeaving.estadoCivil || (advLeaving.genero === 'F' ? 'casada' : 'casado'),
           oabSubstabelecente: `OAB/${selectedState} sob o n.º ${oabLeavingNum}`,
           oabSubstabelecenteCurta: `OAB/${selectedState} ${oabLeavingNum}`,
           advogadoSubstabelecido: advEntering.nome.toUpperCase(),
+          nacionalidadeSubstabelecido: advEntering.nacionalidade || 'brasileiro',
+          estadoCivilSubstabelecido: advEntering.estado_civil || advEntering.estadoCivil || (advEntering.genero === 'F' ? 'casada' : 'casado'),
           oabSubstabelecido: `OAB/${selectedState} sob o n.º ${oabEnteringNum}`,
           oabSubstabelecidoCurta: `OAB/${selectedState} ${oabEnteringNum}`,
           cidadeComarca: selectedState === 'SP' ? 'SÃO PAULO' : 'COMARCA LOCAL',
@@ -312,7 +315,7 @@ export default function SubstabelecimentoPecaGenerator() {
                       <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><Upload size={14} /> Importar PDF Original</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
-                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all">
+                      <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/20 p-12 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-black group transition-all rounded-none">
                         {fileLoading ? <Loader2 className="animate-spin text-black" size={32} /> : <FileUp size={48} className="text-black/20 group-hover:text-white mb-4" />}
                         <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                         <p className="text-[10px] font-black uppercase text-black/40 group-hover:text-white/40">Selecione o arquivo forense</p>
@@ -409,7 +412,7 @@ export default function SubstabelecimentoPecaGenerator() {
                 </CardHeader>
                 <CardContent className="p-10 text-black font-serif text-[11pt] leading-relaxed bg-white space-y-6">
                   <h3 className="text-center font-bold uppercase underline">SUBSTABELECIMENTO</h3>
-                  <p className="text-justify indent-10">O <span className="font-bold">{extractedData.advogadoSubstabelecente}</span>, brasileiro, {extractedData.estadoCivilSubstabelecente}, advogado, inscrito na <span className="font-bold">{extractedData.oabSubstabelecente}</span>, <span className="font-bold">SUBSTABELECE SEM RESERVA DE PODERES</span> na pessoa do <span className="font-bold">{extractedData.advogadoSubstabelecido}</span>, inscrito na <span className="font-bold">{extractedData.oabSubstabelecido}</span>, os poderes conferidos por <span className="font-bold">{extractedData.cliente.nome.toUpperCase()}</span>, para a promoção de <span className="font-bold">{extractedData.processo.acao.toUpperCase()}</span>...</p>
+                  <p className="text-justify indent-10">O <span className="font-bold">{extractedData.advogadoSubstabelecente}</span>, {extractedData.nacionalidadeSubstabelecente}, {extractedData.estadoCivilSubstabelecente}, advogado, inscrito na <span className="font-bold">{extractedData.oabSubstabelecente}</span>, <span className="font-bold">SUBSTABELECE SEM RESERVA DE PODERES</span> na pessoa do <span className="font-bold">{extractedData.advogadoSubstabelecido}</span>, {extractedData.nacionalidadeSubstabelecido}, {extractedData.estadoCivilSubstabelecido}, inscrito na <span className="font-bold">{extractedData.oabSubstabelecido}</span>, os poderes conferidos por <span className="font-bold">{extractedData.cliente.nome.toUpperCase()}</span>, para a promoção de <span className="font-bold">{extractedData.processo.acao.toUpperCase()}</span>...</p>
                 </CardContent>
               </Card>
 

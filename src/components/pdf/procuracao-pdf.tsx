@@ -85,7 +85,7 @@ export function ProcuracaoPDF({ data }: { data: any }) {
 
         <View style={styles.paragraph}>
           <Text>
-            <Text style={styles.bold}>{advogado.nome.toUpperCase()}</Text>, brasileiro, advogado, inscrito na {advogado.oab.includes('OAB/') ? advogado.oab : `OAB ${advogado.oab}`}, com endereço profissional na {advogado.endereco}, e endereço eletrônico: {advogado.email}.
+            <Text style={styles.bold}>{advogado.nome.toUpperCase()}</Text>, {advogado.nacionalidade || 'brasileiro'}, {advogado.estadoCivil || 'casado'}, advogado, inscrito na {advogado.oab.includes('OAB/') ? advogado.oab : `OAB ${advogado.oab}`}, com endereço profissional na {advogado.endereco}, e endereço eletrônico: {advogado.email}.
           </Text>
         </View>
 

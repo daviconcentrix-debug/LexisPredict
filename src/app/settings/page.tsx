@@ -1,6 +1,6 @@
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
+ * @license Proprietary - All rights reserved. See LICENSE file.
  */
 "use client";
 
@@ -30,7 +30,9 @@ import {
   User,
   Mail,
   MapPin,
-  Fingerprint
+  Fingerprint,
+  Globe,
+  Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -80,6 +82,8 @@ export default function SettingsPage() {
   const [advForm, setAdvForm] = useState({
     nome: '',
     genero: 'M',
+    nacionalidade: 'brasileiro',
+    estadoCivil: 'casado',
     endereco: '',
     email: '',
     oabs: [] as { uf: string, num: string }[]
@@ -155,6 +159,8 @@ export default function SettingsPage() {
       id: editingAdv?.id,
       nome: advForm.nome,
       genero: advForm.genero,
+      nacionalidade: advForm.nacionalidade,
+      estado_civil: advForm.estadoCivil,
       endereco: advForm.endereco,
       email: advForm.email,
       oabs: oabsJson
@@ -171,7 +177,15 @@ export default function SettingsPage() {
 
   const openAddAdv = () => {
     setEditingAdv(null);
-    setAdvForm({ nome: '', genero: 'M', endereco: '', email: '', oabs: [{ uf: 'SP', num: '' }] });
+    setAdvForm({ 
+      nome: '', 
+      genero: 'M', 
+      nacionalidade: 'brasileiro', 
+      estadoCivil: 'casado', 
+      endereco: '', 
+      email: '', 
+      oabs: [{ uf: 'SP', num: '' }] 
+    });
     setIsAdvModalOpen(true);
   };
 
@@ -181,6 +195,8 @@ export default function SettingsPage() {
     setAdvForm({
       nome: adv.nome,
       genero: adv.genero || 'M',
+      nacionalidade: adv.nacionalidade || (adv.genero === 'F' ? 'brasileira' : 'brasileiro'),
+      estadoCivil: adv.estado_civil || adv.estadoCivil || (adv.genero === 'F' ? 'casada' : 'casado'),
       endereco: adv.endereco || '',
       email: adv.email || '',
       oabs: oabList.length > 0 ? oabList : [{ uf: 'SP', num: '' }]
@@ -318,12 +334,16 @@ export default function SettingsPage() {
                         advogados.map((adv) => (
                         <div key={adv.id} className="p-6 border border-border rounded-lg bg-background/20 backdrop-blur-xl flex items-center justify-between group hover:border-primary/50 transition-all">
                            <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-full bg-black text-primary flex items-center justify-center font-black text-xs">
+                              <div className="w-12 h-12 rounded-full bg-black text-primary flex items-center justify-center font-black text-sm border-2 border-primary/20">
                                 {adv.nome.substring(0,2).toUpperCase()}
                               </div>
                               <div>
-                                 <p className="font-black text-xs uppercase tracking-tight">{adv.nome}</p>
-                                 <p className="text-[9px] text-muted-foreground uppercase mt-1">OAB: {Object.values(adv.oabs).join(' | ')}</p>
+                                 <p className="font-black text-sm uppercase tracking-tight">{adv.nome}</p>
+                                 <div className="flex items-center gap-2 mt-1">
+                                    <p className="text-[9px] text-muted-foreground uppercase font-bold">OAB: {Object.values(adv.oabs || {}).join(' | ')}</p>
+                                    <span className="w-1 h-1 bg-muted-foreground/30 rounded-full" />
+                                    <p className="text-[9px] text-muted-foreground uppercase italic">{adv.nacionalidade || 'brasileiro'} · {adv.estado_civil || 'casado'}</p>
+                                 </div>
                               </div>
                            </div>
                            <div className="flex gap-2">
@@ -384,7 +404,7 @@ export default function SettingsPage() {
         </div>
 
         <Dialog open={isAdvModalOpen} onOpenChange={setIsAdvModalOpen}>
-           <DialogContent className="sm:max-w-[500px] rounded-none border-2 border-black shadow-[12px_12px_0px_#000]">
+           <DialogContent className="sm:max-w-[550px] rounded-none border-2 border-black shadow-[12px_12px_0px_#000]">
               <form onSubmit={handleSaveAdvogado}>
                  <DialogHeader>
                     <DialogTitle className="font-black uppercase tracking-widest text-sm flex items-center gap-2">
@@ -402,6 +422,26 @@ export default function SettingsPage() {
                           <Select value={advForm.genero} onValueChange={v => setAdvForm({...advForm, genero: v})}>
                              <SelectTrigger className="border-black rounded-none h-11"><SelectValue /></SelectTrigger>
                              <SelectContent><SelectItem value="M">MASC</SelectItem><SelectItem value="F">FEM</SelectItem></SelectContent>
+                          </Select>
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-2">
+                          <Label className="text-[9px] font-black uppercase"><Globe size={10} className="inline mr-1"/> Nacionalidade</Label>
+                          <Input value={advForm.nacionalidade} onChange={e => setAdvForm({...advForm, nacionalidade: e.target.value.toLowerCase()})} placeholder="Ex: brasileiro" className="border-black rounded-none h-11 font-bold text-xs" />
+                       </div>
+                       <div className="space-y-2">
+                          <Label className="text-[9px] font-black uppercase"><Info size={10} className="inline mr-1"/> Estado Civil</Label>
+                          <Select value={advForm.estadoCivil} onValueChange={v => setAdvForm({...advForm, estadoCivil: v})}>
+                             <SelectTrigger className="border-black rounded-none h-11"><SelectValue /></SelectTrigger>
+                             <SelectContent>
+                                <SelectItem value="solteiro">Solteiro(a)</SelectItem>
+                                <SelectItem value="casado">Casado(a)</SelectItem>
+                                <SelectItem value="divorciado">Divorciado(a)</SelectItem>
+                                <SelectItem value="viuvo">Viúvo(a)</SelectItem>
+                                <SelectItem value="uniao estavel">União Estável</SelectItem>
+                             </SelectContent>
                           </Select>
                        </div>
                     </div>
