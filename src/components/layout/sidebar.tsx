@@ -30,7 +30,10 @@ import {
   Zap,
   Layers,
   FileSignature,
-  FileStack
+  FileStack,
+  Sun,
+  Moon,
+  CheckCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -38,6 +41,7 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { getTranslation, Locale } from '@/lib/i18n';
 import { checkIfSuperAdmin } from '@/lib/supabase';
+import { useAppStore } from '@/store/use-app-store';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -46,10 +50,10 @@ export function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>('pt');
   const { profile, signOut } = useAuth();
+  const { isDarkMode, setDarkMode } = useAppStore();
   
   const t = getTranslation(locale);
   
-  // Superadmin herda privilégios de Admin para visualização da barra lateral
   const isSuperAdmin = checkIfSuperAdmin(profile);
   const isAdmin = profile?.cargo === 'Administrador' || isSuperAdmin;
 
@@ -63,11 +67,16 @@ export function Sidebar() {
     router.push('/login');
   };
 
+  const toggleTheme = () => {
+    setDarkMode(!isDarkMode);
+  };
+
   const navGroups = [
     {
       title: t.management,
       items: [
         { label: t.dashboard, href: '/', icon: LayoutDashboard },
+        { label: t.tasks, href: '/tarefas', icon: CheckCircle },
         { label: t.cases, href: '/cases', icon: Briefcase },
         { label: t.clients, href: '/clients', icon: Users },
         ...(isAdmin ? [{ label: t.team, href: '/team', icon: UserPlus }] : []),
@@ -99,15 +108,15 @@ export function Sidebar() {
   ];
 
   const SidebarContent = () => (
-    <div className="h-full flex flex-col bg-white border-r border-border/50">
-      <div className="h-20 flex items-center px-6 border-b border-border/30">
+    <div className="h-full flex flex-col bg-sidebar border-r border-sidebar-border">
+      <div className="h-20 flex items-center px-6 border-b border-sidebar-border">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center shadow-xl">
-            <Layers size={22} className="text-primary" />
+          <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-xl">
+            <Layers size={22} />
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-black text-xs tracking-tight uppercase text-foreground leading-none">LexisPredict</span>
+              <span className="font-black text-xs tracking-tight uppercase text-sidebar-foreground leading-none">LexisPredict</span>
               <span className="text-[9px] text-primary font-black uppercase tracking-widest mt-1">Enterprise Elite</span>
             </div>
           )}
@@ -118,7 +127,7 @@ export function Sidebar() {
         {navGroups.map((group) => (
           <div key={group.title} className="space-y-1.5">
             {!collapsed && (
-              <p className="px-3 mb-3 text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-50">
+              <p className="px-3 mb-3 text-[9px] font-black text-sidebar-foreground/50 uppercase tracking-[0.2em]">
                 {group.title}
               </p>
             )}
@@ -129,11 +138,11 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
                   pathname === item.href 
-                    ? "bg-black text-white shadow-lg" 
-                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg" 
+                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
               >
-                <item.icon className={cn("w-4 h-4 shrink-0", pathname === item.href ? "text-primary" : "opacity-60")} />
+                <item.icon className={cn("w-4 h-4 shrink-0", pathname === item.href ? "opacity-100" : "opacity-60")} />
                 {!collapsed && <span className="text-[11px] font-bold tracking-tight uppercase">{item.label}</span>}
               </Link>
             ))}
@@ -141,33 +150,45 @@ export function Sidebar() {
         ))}
       </div>
 
-      <div className="p-4 border-t border-border/30 space-y-4">
+      <div className="p-4 border-t border-sidebar-border space-y-4">
         {!collapsed && (
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-[#f8f9fb] border border-border/30 shadow-sm">
-            <div className="w-9 h-9 rounded-full bg-black flex items-center justify-center text-primary font-black text-xs border border-primary/20">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-sidebar-accent/50 border border-sidebar-border shadow-sm">
+            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-black text-xs border border-primary/20">
               {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[11px] font-black uppercase truncate text-foreground leading-tight">{profile?.nome || 'User'}</span>
-              <span className="text-[9px] text-muted-foreground uppercase font-bold mt-0.5">{profile?.cargo || 'Operator'}</span>
+              <span className="text-[11px] font-black uppercase truncate text-sidebar-foreground leading-tight">{profile?.nome || 'User'}</span>
+              <span className="text-[9px] text-sidebar-foreground/50 uppercase font-bold mt-0.5">{profile?.cargo || 'Operator'}</span>
             </div>
           </div>
         )}
         
         <div className="flex items-center justify-between">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={handleLogout}
-            className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
-          >
-            <LogOut size={16} />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleLogout}
+              title={t.logout}
+              className="h-9 w-9 text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg"
+            >
+              <LogOut size={16} />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleTheme}
+              title="Alternar Tema"
+              className="h-9 w-9 text-sidebar-foreground/60 hover:text-primary rounded-lg"
+            >
+              {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+            </Button>
+          </div>
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex h-9 w-9 text-muted-foreground hover:text-primary rounded-lg"
+            className="hidden lg:flex h-9 w-9 text-sidebar-foreground/60 hover:text-primary rounded-lg"
           >
             {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </Button>
