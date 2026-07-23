@@ -22,7 +22,10 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
-  Settings2
+  Settings2,
+  Plus,
+  Minus,
+  Zap
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -53,21 +56,20 @@ export default function TarefasPage() {
   const [showBacklog, setShowBacklog] = useState(false);
   const { toast } = useToast();
 
-  // Carregar meta do localStorage
+  // Carregar meta do localStorage no carregamento inicial
   useEffect(() => {
     const savedMeta = localStorage.getItem('lexis_tarefas_meta');
     if (savedMeta) {
-      setDailyMeta(parseInt(savedMeta));
+      const parsed = parseInt(savedMeta);
+      if (!isNaN(parsed)) setDailyMeta(parsed);
     }
   }, []);
 
-  const handleMetaChange = (val: string) => {
-    const num = parseInt(val);
-    if (!isNaN(num)) {
-      const clamped = Math.max(10, Math.min(50, num));
-      setDailyMeta(clamped);
-      localStorage.setItem('lexis_tarefas_meta', clamped.toString());
-    }
+  const adjustMeta = (amount: number) => {
+    const newVal = Math.max(10, Math.min(50, dailyMeta + amount));
+    setDailyMeta(newVal);
+    localStorage.setItem('lexis_tarefas_meta', newVal.toString());
+    toast({ title: `Meta atualizada: ${newVal} contatos`, duration: 1500 });
   };
 
   const loadData = useCallback(async () => {
@@ -92,7 +94,6 @@ export default function TarefasPage() {
     );
 
     activeCases.forEach(c => {
-      // Critério: apenas clientes com pendências urgentes
       if (c.status !== 'Vencido' && c.status !== 'É Hoje') return;
 
       const nome = c.cliente || 'NÃO IDENTIFICADO';
@@ -125,24 +126,14 @@ export default function TarefasPage() {
       }
     });
 
-    const sorted = Object.values(groups)
+    return Object.values(groups)
       .filter(g => g.cliente.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => {
-        // Ordenação por criticidade:
-        // 1. Dias de atraso (quem está há mais tempo ganha prioridade)
         if (b.diasAtrasoMax !== a.diasAtrasoMax) return b.diasAtrasoMax - a.diasAtrasoMax;
-        
-        // 2. Volume de vencidos
         if (b.vencidos !== a.vencidos) return b.vencidos - a.vencidos;
-        
-        // 3. Casos "É Hoje"
         if (b.hoje !== a.hoje) return b.hoje - a.hoje;
-
-        // 4. Volume total do cliente
         return b.totalAtivos - a.totalAtivos;
       });
-
-    return sorted;
   }, [cases, search]);
 
   const focusList = useMemo(() => taskGroups.slice(0, dailyMeta), [taskGroups, dailyMeta]);
@@ -170,30 +161,45 @@ export default function TarefasPage() {
         </header>
 
         <div className="flex-1 overflow-auto p-10 max-w-[1400px] mx-auto w-full space-y-10">
-          {/* KPI BAR */}
           {!loading && taskGroups.length > 0 && (
             <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-slate-400 bg-white shadow-sm">
                 <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Na Fila Crítica</p>
                 <h3 className="text-3xl font-black tracking-tighter text-foreground">{taskGroups.length}</h3>
               </div>
-              <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-primary bg-white shadow-sm relative group">
-                <div className="absolute top-4 right-4 opacity-40 group-hover:opacity-100 transition-opacity">
-                  <Settings2 size={14} className="text-primary" />
+              
+              {/* CARD DE META AJUSTÁVEL */}
+              <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-primary bg-white shadow-sm relative group overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-[0.05] group-hover:scale-110 transition-transform">
+                   <Settings2 size={60} />
                 </div>
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Meta de Hoje</p>
-                <div className="flex items-baseline gap-2">
-                  <input 
-                    type="number" 
-                    value={dailyMeta}
-                    onChange={(e) => handleMetaChange(e.target.value)}
-                    className="text-3xl font-black tracking-tighter text-foreground bg-transparent w-20 border-none p-0 focus:ring-0"
-                    min="10"
-                    max="50"
-                  />
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Atendimentos</span>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">Meta de Hoje</p>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black tracking-tighter text-foreground tabular-nums">{dailyMeta}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">unid.</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 ml-auto relative z-10">
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={() => adjustMeta(-5)} 
+                      className="h-8 w-8 rounded-lg border-border hover:bg-secondary hover:text-primary transition-all"
+                    >
+                      <Minus size={14} />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={() => adjustMeta(5)} 
+                      className="h-8 w-8 rounded-lg border-border hover:bg-secondary hover:text-primary transition-all"
+                    >
+                      <Plus size={14} />
+                    </Button>
+                  </div>
                 </div>
               </div>
+
               <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-emerald-500 bg-white shadow-sm">
                 <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Foco de Hoje</p>
                 <h3 className="text-3xl font-black tracking-tighter text-emerald-600">{Math.min(dailyMeta, taskGroups.length)}</h3>
@@ -218,7 +224,6 @@ export default function TarefasPage() {
               </div>
             </div>
 
-            {/* LISTA PRIORITÁRIA */}
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <Target size={18} className="text-primary" />
@@ -242,7 +247,6 @@ export default function TarefasPage() {
               </div>
             </div>
 
-            {/* BACKLOG (RESTO DA FILA) */}
             {backlogList.length > 0 && (
               <div className="pt-10 space-y-4">
                 <Button 
