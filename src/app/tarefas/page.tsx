@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -25,7 +26,9 @@ import {
   Settings2,
   Plus,
   Minus,
-  Zap
+  Zap,
+  UserCheck,
+  CheckCircle2
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -36,6 +39,7 @@ import { fetchRepoCases } from '@/app/actions/case-actions';
 import Link from 'next/link';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/hooks/use-toast';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface TaskGroup {
   cliente: string;
@@ -53,15 +57,31 @@ export default function TarefasPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [dailyMeta, setDailyMeta] = useState(25);
+  const [contatadosHoje, setContatadosHoje] = useState<string[]>([]);
   const [showBacklog, setShowBacklog] = useState(false);
+  const [showContacted, setShowContacted] = useState(false);
   const { toast } = useToast();
 
-  // Carregar meta do localStorage no carregamento inicial
+  const getTodayKey = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return `lexis_tarefas_contatados_${today}`;
+  };
+
+  // Carregar dados do localStorage
   useEffect(() => {
     const savedMeta = localStorage.getItem('lexis_tarefas_meta');
     if (savedMeta) {
       const parsed = parseInt(savedMeta);
       if (!isNaN(parsed)) setDailyMeta(parsed);
+    }
+
+    const savedContatados = localStorage.getItem(getTodayKey());
+    if (savedContatados) {
+      try {
+        setContatadosHoje(JSON.parse(savedContatados));
+      } catch (e) {
+        setContatadosHoje([]);
+      }
     }
   }, []);
 
@@ -70,6 +90,13 @@ export default function TarefasPage() {
     setDailyMeta(newVal);
     localStorage.setItem('lexis_tarefas_meta', newVal.toString());
     toast({ title: `Meta atualizada: ${newVal} contatos`, duration: 1500 });
+  };
+
+  const markAsContacted = (cliente: string) => {
+    const updated = [...contatadosHoje, cliente];
+    setContatadosHoje(updated);
+    localStorage.setItem(getTodayKey(), JSON.stringify(updated));
+    toast({ title: "Atendimento Registrado", description: `${cliente} movido para contatados hoje.` });
   };
 
   const loadData = useCallback(async () => {
@@ -86,8 +113,9 @@ export default function TarefasPage() {
     loadData();
   }, [loadData]);
 
-  const taskGroups = useMemo(() => {
+  const taskData = useMemo(() => {
     const groups: Record<string, TaskGroup> = {};
+    const contactedSet = new Set(contatadosHoje);
 
     const activeCases = cases.filter(c => 
       !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())
@@ -126,18 +154,24 @@ export default function TarefasPage() {
       }
     });
 
-    return Object.values(groups)
+    const sortedAll = Object.values(groups)
       .filter(g => g.cliente.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => {
         if (b.diasAtrasoMax !== a.diasAtrasoMax) return b.diasAtrasoMax - a.diasAtrasoMax;
         if (b.vencidos !== a.vencidos) return b.vencidos - a.vencidos;
-        if (b.hoje !== a.hoje) return b.hoje - a.hoje;
         return b.totalAtivos - a.totalAtivos;
       });
-  }, [cases, search]);
 
-  const focusList = useMemo(() => taskGroups.slice(0, dailyMeta), [taskGroups, dailyMeta]);
-  const backlogList = useMemo(() => taskGroups.slice(dailyMeta), [taskGroups, dailyMeta]);
+    const pending = sortedAll.filter(g => !contactedSet.has(g.cliente));
+    const done = sortedAll.filter(g => contactedSet.has(g.cliente));
+
+    return {
+      focus: pending.slice(0, dailyMeta),
+      backlog: pending.slice(dailyMeta),
+      completed: done,
+      totalPendingCount: pending.length
+    };
+  }, [cases, search, contatadosHoje, dailyMeta]);
 
   return (
     <div className="flex h-screen bg-background font-sans text-foreground overflow-hidden">
@@ -150,7 +184,7 @@ export default function TarefasPage() {
             </div>
             <div>
               <h1 className="font-black text-xl text-foreground uppercase tracking-tight">Tarefas de Contato</h1>
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Gestão de Capacidade Diária</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Execução e Metas do Dia</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -160,49 +194,39 @@ export default function TarefasPage() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-10 max-w-[1400px] mx-auto w-full space-y-10">
-          {!loading && taskGroups.length > 0 && (
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="flex-1 overflow-auto p-10 max-w-[1400px] mx-auto w-full space-y-10 pb-32">
+          {!loading && (
+            <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-slate-400 bg-white shadow-sm">
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Na Fila Crítica</p>
-                <h3 className="text-3xl font-black tracking-tighter text-foreground">{taskGroups.length}</h3>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Aguardando Fila</p>
+                <h3 className="text-3xl font-black tracking-tighter text-foreground">{taskData.totalPendingCount}</h3>
               </div>
               
-              {/* CARD DE META AJUSTÁVEL */}
               <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-primary bg-white shadow-sm relative group overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-[0.05] group-hover:scale-110 transition-transform">
                    <Settings2 size={60} />
                 </div>
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">Meta de Hoje</p>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">Meta Diária</p>
                 <div className="flex items-center gap-4">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black tracking-tighter text-foreground tabular-nums">{dailyMeta}</span>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">unid.</span>
-                  </div>
+                  <span className="text-4xl font-black tracking-tighter text-foreground tabular-nums">{dailyMeta}</span>
                   <div className="flex items-center gap-1.5 ml-auto relative z-10">
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      onClick={() => adjustMeta(-5)} 
-                      className="h-8 w-8 rounded-lg border-border hover:bg-secondary hover:text-primary transition-all"
-                    >
-                      <Minus size={14} />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      onClick={() => adjustMeta(5)} 
-                      className="h-8 w-8 rounded-lg border-border hover:bg-secondary hover:text-primary transition-all"
-                    >
-                      <Plus size={14} />
-                    </Button>
+                    <Button variant="outline" size="icon" onClick={() => adjustMeta(-5)} className="h-8 w-8 rounded-lg border-border hover:bg-secondary hover:text-primary"><Minus size={14} /></Button>
+                    <Button variant="outline" size="icon" onClick={() => adjustMeta(5)} className="h-8 w-8 rounded-lg border-border hover:bg-secondary hover:text-primary"><Plus size={14} /></Button>
                   </div>
                 </div>
               </div>
 
               <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-emerald-500 bg-white shadow-sm">
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Foco de Hoje</p>
-                <h3 className="text-3xl font-black tracking-tighter text-emerald-600">{Math.min(dailyMeta, taskGroups.length)}</h3>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Contatados Hoje</p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-3xl font-black tracking-tighter text-emerald-600">{contatadosHoje.length}</h3>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">unid.</span>
+                </div>
+              </div>
+
+              <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-orange-400 bg-white shadow-sm">
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Faltam p/ Meta</p>
+                <h3 className="text-3xl font-black tracking-tighter text-orange-600">{Math.max(0, dailyMeta - contatadosHoje.length)}</h3>
               </div>
             </section>
           )}
@@ -220,10 +244,11 @@ export default function TarefasPage() {
               </div>
               <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-secondary/30 px-4 py-2 rounded-lg">
                 <AlertCircle size={14} className="text-primary" />
-                <span>A meta limita quantos contatos priorizar hoje.</span>
+                <span>Os contatados hoje são removidos da fila atual.</span>
               </div>
             </div>
 
+            {/* LISTA DE FOCO */}
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <Target size={18} className="text-primary" />
@@ -231,23 +256,24 @@ export default function TarefasPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {focusList.length > 0 ? (
-                  focusList.map((group) => (
-                    <TaskCard key={group.cliente} group={group} isFocus />
+                {taskData.focus.length > 0 ? (
+                  taskData.focus.map((group) => (
+                    <TaskCard key={group.cliente} group={group} isFocus onMarkContacted={() => markAsContacted(group.cliente)} />
                   ))
                 ) : (
                   <div className="col-span-full py-20 flex items-center justify-center">
                     <EmptyState 
-                      icon={CheckCircle} 
-                      title={loading ? "Carregando Fila..." : "Gabinete Limpo"} 
-                      description={loading ? "Sincronizando tarefas prioritárias do servidor." : "Nenhum contato crítico identificado para esta carteira hoje."}
+                      icon={contatadosHoje.length >= dailyMeta ? CheckCircle2 : CheckCircle} 
+                      title={contatadosHoje.length >= dailyMeta ? "Meta Batida!" : "Fila Limpa"} 
+                      description={contatadosHoje.length >= dailyMeta ? "Você atingiu sua meta diária de atendimentos." : "Nenhum contato pendente nesta lista."}
                     />
                   </div>
                 )}
               </div>
             </div>
 
-            {backlogList.length > 0 && (
+            {/* LISTA DE BACKLOG */}
+            {taskData.backlog.length > 0 && (
               <div className="pt-10 space-y-4">
                 <Button 
                   variant="ghost" 
@@ -257,8 +283,8 @@ export default function TarefasPage() {
                   <div className="flex items-center gap-3">
                     <Clock size={18} className="text-slate-400 group-hover:text-primary transition-colors" />
                     <div className="text-left">
-                      <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-600">Resto da Fila Crítica</h3>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">{backlogList.length} contatos aguardando fora da meta</p>
+                      <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-600">Restante da Fila Crítica</h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">{taskData.backlog.length} contatos aguardando fora da meta</p>
                     </div>
                   </div>
                   {showBacklog ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -266,8 +292,44 @@ export default function TarefasPage() {
 
                 {showBacklog && (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in slide-in-from-top-2 duration-300">
-                    {backlogList.map((group) => (
-                      <TaskCard key={group.cliente} group={group} />
+                    {taskData.backlog.map((group) => (
+                      <TaskCard key={group.cliente} group={group} onMarkContacted={() => markAsContacted(group.cliente)} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* LISTA DE CONTATADOS HOJE */}
+            {taskData.completed.length > 0 && (
+              <div className="pt-10 space-y-4">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setShowContacted(!showContacted)}
+                  className="w-full flex items-center justify-between p-6 h-auto bg-emerald-50/50 border border-emerald-100 rounded-xl hover:bg-emerald-50 transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <UserCheck size={18} className="text-emerald-500" />
+                    <div className="text-left">
+                      <h3 className="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">Contatados Hoje</h3>
+                      <p className="text-[10px] font-bold text-emerald-600/60 uppercase">{taskData.completed.length} atendimentos concluídos</p>
+                    </div>
+                  </div>
+                  {showContacted ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </Button>
+
+                {showContacted && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 animate-in slide-in-from-top-2 duration-300">
+                    {taskData.completed.map((group) => (
+                      <div key={group.cliente} className="p-4 bg-white border border-emerald-100 rounded-xl flex items-center gap-3 shadow-sm">
+                         <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                           <CheckCircle2 size={16} />
+                         </div>
+                         <div className="min-w-0">
+                            <p className="text-[11px] font-black uppercase truncate text-slate-700">{group.cliente}</p>
+                            <p className="text-[9px] font-bold text-emerald-600/40 uppercase">Atendido</p>
+                         </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -285,7 +347,7 @@ export default function TarefasPage() {
   );
 }
 
-function TaskCard({ group, isFocus = false }: { group: TaskGroup, isFocus?: boolean }) {
+function TaskCard({ group, isFocus = false, onMarkContacted }: { group: TaskGroup, isFocus?: boolean, onMarkContacted: () => void }) {
   return (
     <div className={cn(
       "premium-card p-6 bg-white border border-border/40 hover:border-primary/40 transition-all group flex flex-col",
@@ -326,12 +388,21 @@ function TaskCard({ group, isFocus = false }: { group: TaskGroup, isFocus?: bool
 
       <div className="mt-8 pt-6 border-t border-border/30 flex items-center justify-between">
         <div className="flex flex-col">
-          <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Canais de Contato</span>
+          <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Ações de Contato</span>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" asChild className="h-9 w-9 rounded-lg text-emerald-600 hover:bg-emerald-50">
               <a href={formatWhatsAppLink(group.telefone)} target="_blank" rel="noopener noreferrer">
                 <MessageCircle size={18} />
               </a>
+            </Button>
+            <Button 
+              title="Marcar como atendido" 
+              variant="ghost" 
+              size="icon" 
+              onClick={onMarkContacted}
+              className="h-9 w-9 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+            >
+              <UserCheck size={18} />
             </Button>
             <Button variant="ghost" size="icon" asChild className="h-9 w-9 rounded-lg text-slate-400 hover:bg-slate-50">
               <Link href={`/cases?search=${encodeURIComponent(group.cliente)}`}>
@@ -342,7 +413,7 @@ function TaskCard({ group, isFocus = false }: { group: TaskGroup, isFocus?: bool
         </div>
         <Button variant="ghost" asChild className="h-10 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-primary hover:bg-primary/5 transition-all">
           <Link href={`/cases?search=${encodeURIComponent(group.cliente)}`}>
-            Ver Casos <ChevronRight size={14} className="ml-1" />
+            Ver Perfil <ChevronRight size={14} className="ml-1" />
           </Link>
         </Button>
       </div>
