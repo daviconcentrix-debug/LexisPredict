@@ -31,7 +31,9 @@ import {
   CheckCircle2,
   Loader2,
   FileText,
-  Calendar
+  Calendar,
+  Archive,
+  PlayCircle
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -54,6 +56,13 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { format } from 'date-fns';
 
 interface TaskGroup {
@@ -83,6 +92,7 @@ export default function TarefasPage() {
   const [attendanceForm, setAttendanceForm] = useState({
     observacao: '',
     proximoRetorno: '',
+    situacao: 'EM ANDAMENTO',
     applyToAll: true
   });
 
@@ -197,6 +207,7 @@ export default function TarefasPage() {
     setAttendanceForm({
       observacao: '',
       proximoRetorno: '',
+      situacao: 'EM ANDAMENTO',
       applyToAll: true
     });
     setIsAttendanceOpen(true);
@@ -220,13 +231,13 @@ export default function TarefasPage() {
           // Atualiza dados de atendimento
           const newCaseData = {
             ...c,
+            situacao: attendanceForm.situacao,
             ultimoRetorno: today,
             observacao: attendanceForm.observacao || c.observacao,
-            proximoPrazo: attendanceForm.proximoRetorno || c.proximoPrazo,
-            statusManual: 'Automatico' // Garante que o motor recalcule o status com a nova data
+            proximoPrazo: attendanceForm.situacao === 'ENCERRADO' ? '' : (attendanceForm.proximoRetorno || c.proximoPrazo),
+            statusManual: 'Automatico'
           };
 
-          // Rodar processarCaso para garantir que status e diasFaltando sejam recalculados
           return processarCaso(newCaseData, thresholds);
         }
         return c;
@@ -237,14 +248,16 @@ export default function TarefasPage() {
       if (result.success) {
         setCases(updatedCases);
         
-        // Atualiza localStorage diário
         const updatedContatados = [...contatadosHoje, activeGroup.cliente];
         setContatadosHoje(updatedContatados);
         localStorage.setItem(getTodayKey(), JSON.stringify(updatedContatados));
 
         setIsAttendanceOpen(false);
         setActiveGroup(null);
-        toast({ title: "Atendimento Sincronizado", description: `Dados gravados com sucesso para ${activeGroup.cliente}.` });
+        toast({ 
+          title: attendanceForm.situacao === 'ENCERRADO' ? "Processo Encerrado" : "Atendimento Sincronizado", 
+          description: `Dados gravados com sucesso para ${activeGroup.cliente}.` 
+        });
       } else {
         throw new Error(result.message);
       }
@@ -437,8 +450,30 @@ export default function TarefasPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="p-6 space-y-6">
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="grid gap-2">
+                  <Label className="uppercase text-[9px] font-black text-muted-foreground flex items-center gap-2">
+                    <Zap size={12} /> Resultado do Contato
+                  </Label>
+                  <Select 
+                    value={attendanceForm.situacao} 
+                    onValueChange={(val) => setAttendanceForm({...attendanceForm, situacao: val})}
+                  >
+                    <SelectTrigger className="rounded-xl h-12 bg-secondary/30 border-none font-bold text-[11px] uppercase">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EM ANDAMENTO" className="text-[10px] font-bold uppercase">
+                        <div className="flex items-center gap-2"><PlayCircle size={14} className="text-blue-500" /> Manter em Andamento</div>
+                      </SelectItem>
+                      <SelectItem value="ENCERRADO" className="text-[10px] font-bold uppercase">
+                        <div className="flex items-center gap-2"><Archive size={14} className="text-red-500" /> Encerrar Processo</div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className={cn("grid gap-2", attendanceForm.situacao === 'ENCERRADO' && "opacity-40 pointer-events-none")}>
                   <Label className="uppercase text-[9px] font-black text-muted-foreground flex items-center gap-2">
                     <Calendar size={12} /> Data do Próximo Retorno
                   </Label>
@@ -447,8 +482,13 @@ export default function TarefasPage() {
                     value={attendanceForm.proximoRetorno}
                     onChange={(e) => setAttendanceForm({...attendanceForm, proximoRetorno: e.target.value})}
                     className="rounded-xl h-12 bg-secondary/30 border-none font-bold text-sm"
+                    disabled={attendanceForm.situacao === 'ENCERRADO'}
                   />
-                  <p className="text-[8px] font-black uppercase text-muted-foreground/60">Ao definir uma nova data, o processo sairá da fila de tarefas atual.</p>
+                  {attendanceForm.situacao === 'ENCERRADO' ? (
+                    <p className="text-[8px] font-black uppercase text-red-600">O prazo será limpo ao encerrar o processo.</p>
+                  ) : (
+                    <p className="text-[8px] font-black uppercase text-muted-foreground/60">Define quando este cliente volta para a fila.</p>
+                  )}
                 </div>
                 
                 <div className="grid gap-2">
@@ -459,7 +499,7 @@ export default function TarefasPage() {
                     placeholder="DETALHES DO QUE FOI TRATADO COM O CLIENTE..."
                     value={attendanceForm.observacao}
                     onChange={(e) => setAttendanceForm({...attendanceForm, observacao: e.target.value.toUpperCase()})}
-                    className="rounded-xl min-h-[120px] bg-secondary/30 border-none font-bold text-[11px] uppercase resize-none"
+                    className="rounded-xl min-h-[100px] bg-secondary/30 border-none font-bold text-[11px] uppercase resize-none"
                   />
                 </div>
 
@@ -479,10 +519,13 @@ export default function TarefasPage() {
               <Button 
                 onClick={handleSaveAttendance} 
                 disabled={isSavingAttendance}
-                className="w-full h-14 bg-black text-white hover:bg-black/90 rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl transition-all"
+                className={cn(
+                  "w-full h-14 text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl transition-all",
+                  attendanceForm.situacao === 'ENCERRADO' ? "bg-red-600 hover:bg-red-700" : "bg-black hover:bg-black/90"
+                )}
               >
-                {isSavingAttendance ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 className="mr-2 text-primary" />}
-                {isSavingAttendance ? "Sincronizando Banco..." : "Finalizar & Agendar Retorno"}
+                {isSavingAttendance ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 className="mr-2 text-white" />}
+                {isSavingAttendance ? "Sincronizando Banco..." : (attendanceForm.situacao === 'ENCERRADO' ? "Finalizar e Encerrar Agora" : "Salvar e Agendar Retorno")}
               </Button>
             </DialogFooter>
           </DialogContent>
