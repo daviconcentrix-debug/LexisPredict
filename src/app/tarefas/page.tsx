@@ -28,18 +28,33 @@ import {
   Minus,
   Zap,
   UserCheck,
-  CheckCircle2
+  CheckCircle2,
+  Loader2,
+  FileText,
+  Calendar
 } from 'lucide-react';
-import { LegalCase } from '@/lib/case-logic';
+import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { fetchRepoCases } from '@/app/actions/case-actions';
+import { fetchRepoCases, syncRepoCases } from '@/app/actions/case-actions';
 import Link from 'next/link';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription
+} from "@/components/ui/dialog";
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { format } from 'date-fns';
 
 interface TaskGroup {
   cliente: string;
@@ -60,6 +75,17 @@ export default function TarefasPage() {
   const [contatadosHoje, setContatadosHoje] = useState<string[]>([]);
   const [showBacklog, setShowBacklog] = useState(false);
   const [showContacted, setShowContacted] = useState(false);
+  
+  // Estado do Atendimento
+  const [isAttendanceOpen, setIsAttendanceOpen] = useState(false);
+  const [isSavingAttendance, setIsSavingAttendance] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<TaskGroup | null>(null);
+  const [attendanceForm, setAttendanceForm] = useState({
+    observacao: '',
+    proximoRetorno: '',
+    applyToAll: true
+  });
+
   const { toast } = useToast();
 
   const getTodayKey = () => {
@@ -67,7 +93,6 @@ export default function TarefasPage() {
     return `lexis_tarefas_contatados_${today}`;
   };
 
-  // Carregar dados do localStorage
   useEffect(() => {
     const savedMeta = localStorage.getItem('lexis_tarefas_meta');
     if (savedMeta) {
@@ -90,13 +115,6 @@ export default function TarefasPage() {
     setDailyMeta(newVal);
     localStorage.setItem('lexis_tarefas_meta', newVal.toString());
     toast({ title: `Meta atualizada: ${newVal} contatos`, duration: 1500 });
-  };
-
-  const markAsContacted = (cliente: string) => {
-    const updated = [...contatadosHoje, cliente];
-    setContatadosHoje(updated);
-    localStorage.setItem(getTodayKey(), JSON.stringify(updated));
-    toast({ title: "Atendimento Registrado", description: `${cliente} movido para contatados hoje.` });
   };
 
   const loadData = useCallback(async () => {
@@ -122,6 +140,7 @@ export default function TarefasPage() {
     );
 
     activeCases.forEach(c => {
+      // Regra de entrada na fila: Vencido ou É Hoje
       if (c.status !== 'Vencido' && c.status !== 'É Hoje') return;
 
       const nome = c.cliente || 'NÃO IDENTIFICADO';
@@ -172,6 +191,69 @@ export default function TarefasPage() {
       totalPendingCount: pending.length
     };
   }, [cases, search, contatadosHoje, dailyMeta]);
+
+  const openAttendance = (group: TaskGroup) => {
+    setActiveGroup(group);
+    setAttendanceForm({
+      observacao: '',
+      proximoRetorno: '',
+      applyToAll: true
+    });
+    setIsAttendanceOpen(true);
+  };
+
+  const handleSaveAttendance = async () => {
+    if (!activeGroup || isSavingAttendance) return;
+    setIsSavingAttendance(true);
+
+    try {
+      const today = format(new Date(), 'dd/MM/yyyy');
+      const savedThreshold = localStorage.getItem('lexisPredict_urgency_alert');
+      const thresholds = { alertLimit: savedThreshold ? parseInt(savedThreshold) : 3 };
+
+      const updatedCases = cases.map(c => {
+        const isMatch = attendanceForm.applyToAll 
+          ? c.cliente === activeGroup.cliente 
+          : activeGroup.cases.some(ac => ac.protocolo === c.protocolo);
+
+        if (isMatch) {
+          // Atualiza dados de atendimento
+          const newCaseData = {
+            ...c,
+            ultimoRetorno: today,
+            observacao: attendanceForm.observacao || c.observacao,
+            proximoPrazo: attendanceForm.proximoRetorno || c.proximoPrazo,
+            statusManual: 'Automatico' // Garante que o motor recalcule o status com a nova data
+          };
+
+          // Rodar processarCaso para garantir que status e diasFaltando sejam recalculados
+          return processarCaso(newCaseData, thresholds);
+        }
+        return c;
+      });
+
+      const result = await syncRepoCases(updatedCases);
+      
+      if (result.success) {
+        setCases(updatedCases);
+        
+        // Atualiza localStorage diário
+        const updatedContatados = [...contatadosHoje, activeGroup.cliente];
+        setContatadosHoje(updatedContatados);
+        localStorage.setItem(getTodayKey(), JSON.stringify(updatedContatados));
+
+        setIsAttendanceOpen(false);
+        setActiveGroup(null);
+        toast({ title: "Atendimento Sincronizado", description: `Dados gravados com sucesso para ${activeGroup.cliente}.` });
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error: any) {
+      toast({ title: "Falha na Gravação", description: error.message || "Erro ao salvar no servidor.", variant: "destructive" });
+    } finally {
+      setIsSavingAttendance(false);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-background font-sans text-foreground overflow-hidden">
@@ -244,7 +326,7 @@ export default function TarefasPage() {
               </div>
               <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-secondary/30 px-4 py-2 rounded-lg">
                 <AlertCircle size={14} className="text-primary" />
-                <span>Os contatados hoje são removidos da fila atual.</span>
+                <span>Registrar o contato atualiza a data de retorno no banco de dados.</span>
               </div>
             </div>
 
@@ -258,7 +340,7 @@ export default function TarefasPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {taskData.focus.length > 0 ? (
                   taskData.focus.map((group) => (
-                    <TaskCard key={group.cliente} group={group} isFocus onMarkContacted={() => markAsContacted(group.cliente)} />
+                    <TaskCard key={group.cliente} group={group} isFocus onMarkContacted={() => openAttendance(group)} />
                   ))
                 ) : (
                   <div className="col-span-full py-20 flex items-center justify-center">
@@ -293,7 +375,7 @@ export default function TarefasPage() {
                 {showBacklog && (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in slide-in-from-top-2 duration-300">
                     {taskData.backlog.map((group) => (
-                      <TaskCard key={group.cliente} group={group} onMarkContacted={() => markAsContacted(group.cliente)} />
+                      <TaskCard key={group.cliente} group={group} onMarkContacted={() => openAttendance(group)} />
                     ))}
                   </div>
                 )}
@@ -327,7 +409,7 @@ export default function TarefasPage() {
                          </div>
                          <div className="min-w-0">
                             <p className="text-[11px] font-black uppercase truncate text-slate-700">{group.cliente}</p>
-                            <p className="text-[9px] font-bold text-emerald-600/40 uppercase">Atendido</p>
+                            <p className="text-[9px] font-bold text-emerald-600/40 uppercase">Sincronizado</p>
                          </div>
                       </div>
                     ))}
@@ -342,6 +424,69 @@ export default function TarefasPage() {
           <div className="flex items-center gap-2"><Copyright size={10} /> 2026 W1 Capital.</div>
           <span>Operações Prioritárias • Davi Alves Figueredo</span>
         </footer>
+
+        {/* MODAL DE ATENDIMENTO */}
+        <Dialog open={isAttendanceOpen} onOpenChange={setIsAttendanceOpen}>
+          <DialogContent className="sm:max-w-[480px] rounded-2xl border-none shadow-2xl overflow-hidden p-0">
+            <DialogHeader className="p-6 bg-secondary/20 border-b">
+              <DialogTitle className="font-black uppercase tracking-tight flex items-center gap-2">
+                <UserCheck className="text-primary" /> Registrar Atendimento
+              </DialogTitle>
+              <DialogDescription className="font-bold uppercase text-[10px] text-muted-foreground">
+                Cliente: {activeGroup?.cliente}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="p-6 space-y-6">
+              <div className="space-y-4">
+                <div className="grid gap-2">
+                  <Label className="uppercase text-[9px] font-black text-muted-foreground flex items-center gap-2">
+                    <Calendar size={12} /> Data do Próximo Retorno
+                  </Label>
+                  <Input 
+                    placeholder="DD/MM/AAAA"
+                    value={attendanceForm.proximoRetorno}
+                    onChange={(e) => setAttendanceForm({...attendanceForm, proximoRetorno: e.target.value})}
+                    className="rounded-xl h-12 bg-secondary/30 border-none font-bold text-sm"
+                  />
+                  <p className="text-[8px] font-black uppercase text-muted-foreground/60">Ao definir uma nova data, o processo sairá da fila de tarefas atual.</p>
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label className="uppercase text-[9px] font-black text-muted-foreground flex items-center gap-2">
+                    <FileText size={12} /> Observações de Gabinete
+                  </Label>
+                  <Textarea 
+                    placeholder="DETALHES DO QUE FOI TRATADO COM O CLIENTE..."
+                    value={attendanceForm.observacao}
+                    onChange={(e) => setAttendanceForm({...attendanceForm, observacao: e.target.value.toUpperCase()})}
+                    className="rounded-xl min-h-[120px] bg-secondary/30 border-none font-bold text-[11px] uppercase resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center space-x-3 bg-secondary/20 p-4 rounded-xl border border-border/10">
+                  <Checkbox 
+                    id="apply-all" 
+                    checked={attendanceForm.applyToAll}
+                    onCheckedChange={(val) => setAttendanceForm({...attendanceForm, applyToAll: !!val})}
+                  />
+                  <Label htmlFor="apply-all" className="text-[10px] font-black uppercase cursor-pointer leading-tight">
+                    Aplicar a todos os {activeGroup?.cases.length} processos deste cliente
+                  </Label>
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="p-6 pt-0 bg-white">
+              <Button 
+                onClick={handleSaveAttendance} 
+                disabled={isSavingAttendance}
+                className="w-full h-14 bg-black text-white hover:bg-black/90 rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl transition-all"
+              >
+                {isSavingAttendance ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 className="mr-2 text-primary" />}
+                {isSavingAttendance ? "Sincronizando Banco..." : "Finalizar & Agendar Retorno"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
@@ -396,7 +541,7 @@ function TaskCard({ group, isFocus = false, onMarkContacted }: { group: TaskGrou
               </a>
             </Button>
             <Button 
-              title="Marcar como atendido" 
+              title="Registrar atendimento no banco" 
               variant="ghost" 
               size="icon" 
               onClick={onMarkContacted}
