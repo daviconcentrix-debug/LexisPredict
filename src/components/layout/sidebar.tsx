@@ -42,6 +42,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescri
 import { getTranslation, Locale } from '@/lib/i18n';
 import { checkIfSuperAdmin } from '@/lib/supabase';
 import { useAppStore } from '@/store/use-app-store';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -153,9 +154,12 @@ export function Sidebar() {
       <div className="p-4 border-t border-sidebar-border space-y-4">
         {!collapsed && (
           <div className="flex items-center gap-3 p-3 rounded-xl bg-sidebar-accent/50 border border-sidebar-border shadow-sm">
-            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-black text-xs border border-primary/20">
-              {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
-            </div>
+            <Avatar className="w-9 h-9 border border-primary/20">
+               <AvatarImage src={profile?.avatar_url || ''} />
+               <AvatarFallback className="bg-primary text-primary-foreground font-black text-xs">
+                 {profile?.nome?.substring(0, 2).toUpperCase() || '??'}
+               </AvatarFallback>
+            </Avatar>
             <div className="flex flex-col min-w-0">
               <span className="text-[11px] font-black uppercase truncate text-sidebar-foreground leading-tight">{profile?.nome || 'User'}</span>
               <span className="text-[9px] text-sidebar-foreground/50 uppercase font-bold mt-0.5">{profile?.cargo || 'Operator'}</span>
