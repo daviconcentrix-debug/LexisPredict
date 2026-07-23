@@ -32,7 +32,9 @@ import {
   MapPin,
   Fingerprint,
   Globe,
-  Info
+  Info,
+  Camera,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -52,8 +54,9 @@ import {
 } from '@/lib/visual-hardware';
 import { exportFullSourceCodeAction } from '@/app/actions/system-actions';
 import { listAdvogadosBanca, upsertAdvogadoBanca, desativarAdvogadoBanca } from '@/lib/server-db';
+import { uploadUserAvatarAction, uploadAdvogadoAvatarAction, removeAvatarAction } from '@/app/actions/avatar-actions';
 import { saveAs } from 'file-saver';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useAuth } from '@/components/auth/auth-provider';
 import Image from 'next/image';
 import {
   Dialog,
@@ -69,16 +72,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState('Hardware');
+  const { profile } = useAuth();
   
   // Banca
   const [advogados, setAdvogados] = useState<any[]>([]);
   const [loadingBanca, setLoadingBanca] = useState(false);
   const [isAdvModalOpen, setIsAdvModalOpen] = useState(false);
   const [editingAdv, setEditingAdv] = useState<any>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  
   const [advForm, setAdvForm] = useState({
     nome: '',
     genero: 'M',
@@ -113,7 +120,8 @@ export default function SettingsPage() {
   const [isExportUnlocked, setIsExportUnlocked] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const userAvatarInputRef = useRef<HTMLInputElement>(null);
+  const advAvatarInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -143,6 +151,42 @@ export default function SettingsPage() {
     const data = await listAdvogadosBanca();
     setAdvogados(data);
     setLoadingBanca(false);
+  };
+
+  const handleUserAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await uploadUserAvatarAction(formData);
+    if (res.success) {
+      toast({ title: "Foto de Perfil Atualizada" });
+      window.location.reload(); // Refresh para atualizar todos os componentes
+    } else {
+      toast({ title: "Erro no Upload", description: res.error, variant: "destructive" });
+    }
+    setIsUploading(false);
+  };
+
+  const handleAdvogadoAvatarUpload = async (advId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await uploadAdvogadoAvatarAction(advId, formData);
+    if (res.success) {
+      toast({ title: "Foto do Advogado Atualizada" });
+      fetchBanca();
+    } else {
+      toast({ title: "Erro no Upload", description: res.error, variant: "destructive" });
+    }
+    setIsUploading(false);
   };
 
   const handleSaveAdvogado = async (e: React.FormEvent) => {
@@ -260,13 +304,38 @@ export default function SettingsPage() {
 
         <div className="flex-1 overflow-auto p-8 max-w-6xl mx-auto w-full">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-            <aside className="space-y-1">
-              <NavButton active={activeTab === 'Hardware'} onClick={() => setActiveTab('Hardware')} icon={<Palette size={14}/>} label="Hardware Visual" />
-              <NavButton active={activeTab === 'Banca'} onClick={() => setActiveTab('Banca')} icon={<Gavel size={14}/>} label="Banca de Advogados" />
-              <NavButton active={activeTab === 'Engine'} onClick={() => setActiveTab('Engine')} icon={<Cpu size={14}/>} label="Núcleo Neural" />
-              {isMasterUnlocked && (
-                <NavButton active={activeTab === 'Export'} onClick={() => setActiveTab('Export')} icon={<Archive size={14}/>} label="Exportação Master" />
-              )}
+            <aside className="space-y-4">
+              <section className="p-6 border border-border rounded-lg bg-background/20 backdrop-blur-xl flex flex-col items-center text-center space-y-4 shadow-xl">
+                 <div className="relative group">
+                    <Avatar className="w-24 h-24 border-4 border-primary/20">
+                       <AvatarImage src={profile?.avatar_url || ''} />
+                       <AvatarFallback className="bg-black text-primary font-black text-xl">{profile?.nome?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <button 
+                      onClick={() => userAvatarInputRef.current?.click()}
+                      className="absolute inset-0 bg-black/40 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                       {isUploading ? <Loader2 className="animate-spin" /> : <Camera size={24} />}
+                    </button>
+                    <input type="file" className="hidden" ref={userAvatarInputRef} onChange={handleUserAvatarUpload} accept="image/*" />
+                 </div>
+                 <div>
+                    <p className="font-black text-xs uppercase">{profile?.nome}</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">{profile?.cargo}</p>
+                 </div>
+                 {profile?.avatar_url && (
+                    <Button variant="ghost" size="sm" onClick={() => removeAvatarAction('user')} className="h-6 text-[8px] font-black uppercase text-red-500 hover:bg-red-50">Remover Foto</Button>
+                 )}
+              </section>
+
+              <nav className="space-y-1">
+                <NavButton active={activeTab === 'Hardware'} onClick={() => setActiveTab('Hardware')} icon={<Palette size={14}/>} label="Hardware Visual" />
+                <NavButton active={activeTab === 'Banca'} onClick={() => setActiveTab('Banca')} icon={<Gavel size={14}/>} label="Banca de Advogados" />
+                <NavButton active={activeTab === 'Engine'} onClick={() => setActiveTab('Engine')} icon={<Cpu size={14}/>} label="Núcleo Neural" />
+                {isMasterUnlocked && (
+                  <NavButton active={activeTab === 'Export'} onClick={() => setActiveTab('Export')} icon={<Archive size={14}/>} label="Exportação Master" />
+                )}
+              </nav>
             </aside>
 
             <div className="md:col-span-3 space-y-12 pb-20">
@@ -334,8 +403,17 @@ export default function SettingsPage() {
                         advogados.map((adv) => (
                         <div key={adv.id} className="p-6 border border-border rounded-lg bg-background/20 backdrop-blur-xl flex items-center justify-between group hover:border-primary/50 transition-all">
                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-full bg-black text-primary flex items-center justify-center font-black text-sm border-2 border-primary/20">
-                                {adv.nome.substring(0,2).toUpperCase()}
+                              <div className="relative group/avatar">
+                                <Avatar className="w-12 h-12 border-2 border-primary/20">
+                                   <AvatarImage src={adv.avatar_url || ''} />
+                                   <AvatarFallback className="bg-black text-primary font-black text-sm">{adv.nome.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <button 
+                                  onClick={() => { setEditingAdv(adv); advAvatarInputRef.current?.click(); }}
+                                  className="absolute inset-0 bg-black/40 text-white rounded-full flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity"
+                                >
+                                   <Camera size={14} />
+                                </button>
                               </div>
                               <div>
                                  <p className="font-black text-sm uppercase tracking-tight">{adv.nome}</p>
@@ -352,6 +430,7 @@ export default function SettingsPage() {
                            </div>
                         </div>
                       ))}
+                      <input type="file" className="hidden" ref={advAvatarInputRef} onChange={(e) => editingAdv && handleAdvogadoAvatarUpload(editingAdv.id, e)} accept="image/*" />
                       {advogados.length === 0 && !loadingBanca && (
                         <div className="p-12 text-center border-2 border-dashed border-border/20 rounded-lg">
                            <p className="text-[10px] font-black uppercase text-muted-foreground">Nenhum advogado cadastrado no gabinete.</p>
