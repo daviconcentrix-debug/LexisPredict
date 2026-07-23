@@ -18,7 +18,11 @@ import {
   MessageCircle,
   Copyright,
   CalendarDays,
-  Users
+  Target,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  Settings2
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -28,16 +32,16 @@ import { Badge } from '@/components/ui/badge';
 import { fetchRepoCases } from '@/app/actions/case-actions';
 import Link from 'next/link';
 import { EmptyState } from '@/components/ui/empty-state';
-import { useAuth } from '@/components/auth/auth-provider';
+import { useToast } from '@/hooks/use-toast';
 
 interface TaskGroup {
   cliente: string;
   vencidos: number;
   hoje: number;
   totalAtivos: number;
+  diasAtrasoMax: number;
   protocoloReferencia: string;
   telefone: string;
-  oldestOverdueISO: string | null;
   cases: LegalCase[];
 }
 
@@ -45,7 +49,26 @@ export default function TarefasPage() {
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const { profile } = useAuth();
+  const [dailyMeta, setDailyMeta] = useState(25);
+  const [showBacklog, setShowBacklog] = useState(false);
+  const { toast } = useToast();
+
+  // Carregar meta do localStorage
+  useEffect(() => {
+    const savedMeta = localStorage.getItem('lexis_tarefas_meta');
+    if (savedMeta) {
+      setDailyMeta(parseInt(savedMeta));
+    }
+  }, []);
+
+  const handleMetaChange = (val: string) => {
+    const num = parseInt(val);
+    if (!isNaN(num)) {
+      const clamped = Math.max(10, Math.min(50, num));
+      setDailyMeta(clamped);
+      localStorage.setItem('lexis_tarefas_meta', clamped.toString());
+    }
+  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -64,12 +87,14 @@ export default function TarefasPage() {
   const taskGroups = useMemo(() => {
     const groups: Record<string, TaskGroup> = {};
 
-    // 1. Filtrar ativos e agrupar por cliente
     const activeCases = cases.filter(c => 
       !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())
     );
 
     activeCases.forEach(c => {
+      // Critério: apenas clientes com pendências urgentes
+      if (c.status !== 'Vencido' && c.status !== 'É Hoje') return;
+
       const nome = c.cliente || 'NÃO IDENTIFICADO';
       if (!groups[nome]) {
         groups[nome] = {
@@ -77,9 +102,9 @@ export default function TarefasPage() {
           vencidos: 0,
           hoje: 0,
           totalAtivos: 0,
+          diasAtrasoMax: 0,
           protocoloReferencia: c.protocolo,
           telefone: c.telefone || '',
-          oldestOverdueISO: null,
           cases: []
         };
       }
@@ -89,10 +114,9 @@ export default function TarefasPage() {
       
       if (c.status === 'Vencido') {
         groups[nome].vencidos++;
-        // Manter a data mais antiga para ordenação
-        const currentISO = c.proximoPrazo?.split('/').reverse().join('-'); // Simplistic DD/MM/YYYY to YYYY-MM-DD
-        if (!groups[nome].oldestOverdueISO || (currentISO && currentISO < groups[nome].oldestOverdueISO)) {
-          groups[nome].oldestOverdueISO = currentISO;
+        const atraso = c.diasFaltando ? Math.abs(c.diasFaltando) : 0;
+        if (atraso > groups[nome].diasAtrasoMax) {
+          groups[nome].diasAtrasoMax = atraso;
         }
       }
       
@@ -101,36 +125,28 @@ export default function TarefasPage() {
       }
     });
 
-    // 2. Filtrar apenas grupos com Vencidos ou Hoje
-    return Object.values(groups)
-      .filter(g => (g.vencidos > 0 || g.hoje > 0) && g.cliente.toLowerCase().includes(search.toLowerCase()))
+    const sorted = Object.values(groups)
+      .filter(g => g.cliente.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => {
         // Ordenação por criticidade:
-        // 1. Volume de vencidos
+        // 1. Dias de atraso (quem está há mais tempo ganha prioridade)
+        if (b.diasAtrasoMax !== a.diasAtrasoMax) return b.diasAtrasoMax - a.diasAtrasoMax;
+        
+        // 2. Volume de vencidos
         if (b.vencidos !== a.vencidos) return b.vencidos - a.vencidos;
         
-        // 2. Data mais antiga entre os vencidos (mais tempo em atraso)
-        if (a.oldestOverdueISO && b.oldestOverdueISO) {
-           return a.oldestOverdueISO.localeCompare(b.oldestOverdueISO);
-        }
-        if (a.oldestOverdueISO) return -1;
-        if (b.oldestOverdueISO) return 1;
-
-        // 3. Volume de casos "É Hoje"
+        // 3. Casos "É Hoje"
         if (b.hoje !== a.hoje) return b.hoje - a.hoje;
 
-        // 4. Volume total de ativos do cliente
+        // 4. Volume total do cliente
         return b.totalAtivos - a.totalAtivos;
       });
+
+    return sorted;
   }, [cases, search]);
 
-  const stats = useMemo(() => {
-    return {
-      totalContatos: taskGroups.length,
-      vencidos: taskGroups.filter(g => g.vencidos > 0).length,
-      hoje: taskGroups.filter(g => g.hoje > 0 && g.vencidos === 0).length
-    };
-  }, [taskGroups]);
+  const focusList = useMemo(() => taskGroups.slice(0, dailyMeta), [taskGroups, dailyMeta]);
+  const backlogList = useMemo(() => taskGroups.slice(dailyMeta), [taskGroups, dailyMeta]);
 
   return (
     <div className="flex h-screen bg-background font-sans text-foreground overflow-hidden">
@@ -143,7 +159,7 @@ export default function TarefasPage() {
             </div>
             <div>
               <h1 className="font-black text-xl text-foreground uppercase tracking-tight">Tarefas de Contato</h1>
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Priorização Estratégica • Hoje</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Gestão de Capacidade Diária</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -157,103 +173,102 @@ export default function TarefasPage() {
           {/* KPI BAR */}
           {!loading && taskGroups.length > 0 && (
             <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-primary bg-white shadow-sm">
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Contatos Recomendados</p>
-                <h3 className="text-3xl font-black tracking-tighter text-foreground">{stats.totalContatos}</h3>
+              <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-slate-400 bg-white shadow-sm">
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Na Fila Crítica</p>
+                <h3 className="text-3xl font-black tracking-tighter text-foreground">{taskGroups.length}</h3>
               </div>
-              <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-red-500 bg-white shadow-sm">
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Com Processos Vencidos</p>
-                <h3 className="text-3xl font-black tracking-tighter text-red-600">{stats.vencidos}</h3>
+              <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-primary bg-white shadow-sm relative group">
+                <div className="absolute top-4 right-4 opacity-40 group-hover:opacity-100 transition-opacity">
+                  <Settings2 size={14} className="text-primary" />
+                </div>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Meta de Hoje</p>
+                <div className="flex items-baseline gap-2">
+                  <input 
+                    type="number" 
+                    value={dailyMeta}
+                    onChange={(e) => handleMetaChange(e.target.value)}
+                    className="text-3xl font-black tracking-tighter text-foreground bg-transparent w-20 border-none p-0 focus:ring-0"
+                    min="10"
+                    max="50"
+                  />
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Atendimentos</span>
+                </div>
               </div>
-              <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-blue-500 bg-white shadow-sm">
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Prazos Apenas para Hoje</p>
-                <h3 className="text-3xl font-black tracking-tighter text-blue-600">{stats.hoje}</h3>
+              <div className="premium-card p-6 flex flex-col justify-center border-l-4 border-l-emerald-500 bg-white shadow-sm">
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Foco de Hoje</p>
+                <h3 className="text-3xl font-black tracking-tighter text-emerald-600">{Math.min(dailyMeta, taskGroups.length)}</h3>
               </div>
             </section>
           )}
 
           <div className="space-y-6">
-            <div className="flex items-center justify-between gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="relative flex-1 max-w-lg">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input 
                   placeholder="Pesquisar por titular na fila..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-11 h-12 bg-white border border-border/50 rounded-xl text-xs font-bold uppercase focus-visible:ring-primary/20"
+                  className="pl-11 h-12 bg-white border border-border/50 rounded-xl text-xs font-bold uppercase focus-visible:ring-primary/20 shadow-sm"
                 />
               </div>
-              <Badge variant="outline" className="bg-secondary/50 border-none font-black text-[10px] uppercase px-4 py-2">
-                Fila Ativa: {taskGroups.length}
-              </Badge>
+              <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-secondary/30 px-4 py-2 rounded-lg">
+                <AlertCircle size={14} className="text-primary" />
+                <span>A meta limita quantos contatos priorizar hoje.</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
-              {taskGroups.length > 0 ? (
-                taskGroups.map((group) => (
-                  <div key={group.cliente} className="premium-card p-6 bg-white border border-border/40 hover:border-primary/40 transition-all group flex flex-col">
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-primary group-hover:text-white transition-all">
-                        <Phone size={24} />
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        {group.vencidos > 0 && (
-                          <Badge className="bg-red-50 text-red-700 border-none text-[8px] font-black uppercase px-2 py-0.5 flex items-center gap-1">
-                            <ShieldAlert size={10} /> {group.vencidos} Vencido{group.vencidos > 1 ? 's' : ''}
-                          </Badge>
-                        )}
-                        {group.hoje > 0 && (
-                          <Badge className="bg-blue-50 text-blue-700 border-none text-[8px] font-black uppercase px-2 py-0.5 flex items-center gap-1">
-                            <Clock size={10} /> {group.hoje} Prazo{group.hoje > 1 ? 's' : ''} Hoje
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
+            {/* LISTA PRIORITÁRIA */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Target size={18} className="text-primary" />
+                <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground">Foco Prioritário do Dia</h2>
+              </div>
 
-                    <div className="space-y-1 flex-1">
-                      <h3 className="font-black text-sm text-foreground uppercase tracking-tight group-hover:text-primary transition-colors truncate">{group.cliente}</h3>
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                        <CalendarDays size={12} className="opacity-40" />
-                        <span>Referência: {group.protocoloReferencia}</span>
-                      </div>
-                    </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {focusList.length > 0 ? (
+                  focusList.map((group) => (
+                    <TaskCard key={group.cliente} group={group} isFocus />
+                  ))
+                ) : (
+                  <div className="col-span-full py-20 flex items-center justify-center">
+                    <EmptyState 
+                      icon={CheckCircle} 
+                      title={loading ? "Carregando Fila..." : "Gabinete Limpo"} 
+                      description={loading ? "Sincronizando tarefas prioritárias do servidor." : "Nenhum contato crítico identificado para esta carteira hoje."}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
 
-                    <div className="mt-8 pt-6 border-t border-border/30 flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Ações de Gabinete</span>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" asChild className="h-9 w-9 rounded-lg text-emerald-600 hover:bg-emerald-50">
-                            <a href={formatWhatsAppLink(group.telefone)} target="_blank" rel="noopener noreferrer">
-                              <MessageCircle size={18} />
-                            </a>
-                          </Button>
-                          <Button variant="ghost" size="icon" asChild className="h-9 w-9 rounded-lg text-slate-400 hover:bg-slate-50">
-                            <Link href={`/cases?search=${encodeURIComponent(group.cliente)}`}>
-                              <ExternalLink size={18} />
-                            </Link>
-                          </Button>
-                        </div>
-                      </div>
-                      <Button variant="ghost" asChild className="h-10 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-primary hover:bg-primary/5 transition-all">
-                        <Link href={`/cases?search=${encodeURIComponent(group.cliente)}`}>
-                          Ver Casos <ChevronRight size={14} className="ml-1" />
-                        </Link>
-                      </Button>
+            {/* BACKLOG (RESTO DA FILA) */}
+            {backlogList.length > 0 && (
+              <div className="pt-10 space-y-4">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setShowBacklog(!showBacklog)}
+                  className="w-full flex items-center justify-between p-6 h-auto bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <Clock size={18} className="text-slate-400 group-hover:text-primary transition-colors" />
+                    <div className="text-left">
+                      <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-600">Resto da Fila Crítica</h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">{backlogList.length} contatos aguardando fora da meta</p>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="col-span-full py-20 flex items-center justify-center">
-                  <EmptyState 
-                    icon={CheckCircle} 
-                    title={loading ? "Carregando Fila..." : "Gabinete Limpo"} 
-                    description={loading ? "Sincronizando tarefas prioritárias do servidor." : "Nenhum contato crítico identificado para esta carteira hoje."}
-                    actionLabel={!loading ? "Ir para Processos" : undefined}
-                    onAction={() => window.location.href = '/cases'}
-                  />
-                </div>
-              )}
-            </div>
+                  {showBacklog ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </Button>
+
+                {showBacklog && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in slide-in-from-top-2 duration-300">
+                    {backlogList.map((group) => (
+                      <TaskCard key={group.cliente} group={group} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -262,6 +277,71 @@ export default function TarefasPage() {
           <span>Operações Prioritárias • Davi Alves Figueredo</span>
         </footer>
       </main>
+    </div>
+  );
+}
+
+function TaskCard({ group, isFocus = false }: { group: TaskGroup, isFocus?: boolean }) {
+  return (
+    <div className={cn(
+      "premium-card p-6 bg-white border border-border/40 hover:border-primary/40 transition-all group flex flex-col",
+      isFocus && "shadow-md ring-1 ring-primary/5"
+    )}>
+      <div className="flex justify-between items-start mb-6">
+        <div className={cn(
+          "w-12 h-12 rounded-xl flex items-center justify-center transition-all",
+          isFocus ? "bg-slate-50 text-primary group-hover:bg-primary group-hover:text-white" : "bg-slate-50 text-slate-400"
+        )}>
+          <Phone size={24} />
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          {group.vencidos > 0 ? (
+            <Badge className="bg-red-50 text-red-700 border-none text-[8px] font-black uppercase px-2 py-0.5 flex items-center gap-1">
+              <ShieldAlert size={10} /> {group.vencidos} Vencido{group.vencidos > 1 ? 's' : ''}
+            </Badge>
+          ) : (
+            <Badge className="bg-blue-50 text-blue-700 border-none text-[8px] font-black uppercase px-2 py-0.5 flex items-center gap-1">
+              <Clock size={10} /> Prazo Hoje
+            </Badge>
+          )}
+          {group.diasAtrasoMax > 0 && (
+            <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter animate-pulse">
+              Há {group.diasAtrasoMax} dia{group.diasAtrasoMax > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-1 flex-1">
+        <h3 className="font-black text-sm text-foreground uppercase tracking-tight group-hover:text-primary transition-colors truncate">{group.cliente}</h3>
+        <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+          <CalendarDays size={12} className="opacity-40" />
+          <span>Ref: {group.protocoloReferencia}</span>
+        </div>
+      </div>
+
+      <div className="mt-8 pt-6 border-t border-border/30 flex items-center justify-between">
+        <div className="flex flex-col">
+          <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Canais de Contato</span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" asChild className="h-9 w-9 rounded-lg text-emerald-600 hover:bg-emerald-50">
+              <a href={formatWhatsAppLink(group.telefone)} target="_blank" rel="noopener noreferrer">
+                <MessageCircle size={18} />
+              </a>
+            </Button>
+            <Button variant="ghost" size="icon" asChild className="h-9 w-9 rounded-lg text-slate-400 hover:bg-slate-50">
+              <Link href={`/cases?search=${encodeURIComponent(group.cliente)}`}>
+                <ExternalLink size={18} />
+              </Link>
+            </Button>
+          </div>
+        </div>
+        <Button variant="ghost" asChild className="h-10 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-primary hover:bg-primary/5 transition-all">
+          <Link href={`/cases?search=${encodeURIComponent(group.cliente)}`}>
+            Ver Casos <ChevronRight size={14} className="ml-1" />
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }
