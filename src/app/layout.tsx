@@ -22,8 +22,8 @@ export const metadata: Metadata = {
     title: 'LexisPredict',
   },
   icons: {
-    icon: 'https://picsum.photos/seed/lexis192/192/192',
-    apple: 'https://picsum.photos/seed/lexis192/192/192',
+    icon: '/logo.png',
+    apple: '/logo.png',
   },
 };
 
