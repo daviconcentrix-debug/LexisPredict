@@ -2,12 +2,12 @@
 "use client";
 
 /**
- * @fileOverview Módulo de Onboarding Interativo v100.0
- * Conduz o usuário pelas principais funcionalidades estratégicas do LexisPredict.
+ * @fileOverview Módulo de Onboarding Interativo v200.0 ELITE
+ * Conduz o usuário por TODAS as abas estratégicas do LexisPredict sem perdas de progresso.
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   X, 
@@ -19,10 +19,21 @@ import {
   Briefcase, 
   FileSearch, 
   Palette,
-  Sparkles
+  Sparkles,
+  Users,
+  FileText,
+  FileSignature,
+  Repeat,
+  FileStack,
+  MessageCircle,
+  Upload,
+  StickyNote,
+  ScanText,
+  BarChart3,
+  ShieldAlert,
+  Printer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/use-app-store';
 
 interface TourStep {
@@ -34,145 +45,216 @@ interface TourStep {
 
 const TOUR_STEPS: TourStep[] = [
   {
-    title: "Seja Bem-vindo ao LexisPredict",
-    content: "Este é o seu Mission Control. Aqui você visualiza a saúde global da sua carteira, o índice de risco e o Briefing Neural gerado pela nossa inteligência.",
+    title: "Misson Control (Dashboard)",
+    content: "Seja bem-vindo ao LexisPredict Elite. Aqui você tem o controle total da sua carteira, o índice de risco global e o Briefing Neural processado por nossa IA.",
     icon: <Zap className="text-primary" />,
     route: "/"
   },
   {
     title: "Fila de Atendimento",
-    content: "No módulo de Tarefas, o sistema organiza automaticamente quem você deve contatar hoje com base em prazos vencidos e urgências críticas.",
+    content: "O sistema organiza automaticamente sua fila de contatos com base em prazos vencidos e urgências, permitindo que você bata suas metas diárias com precisão.",
     icon: <Target className="text-red-500" />,
     route: "/tarefas"
   },
   {
     title: "Gestão de Carteira",
-    content: "Em Processos, você tem a tabela completa. Use os filtros por advogado para equilibrar a carga de trabalho da sua banca.",
+    content: "Visualize toda a sua banca de processos com filtros dinâmicos por advogado. Controle a volumetria e a saúde jurídica de cada caso individualmente.",
     icon: <Briefcase className="text-blue-500" />,
     route: "/cases"
   },
   {
+    title: "Diretório de Equipe",
+    content: "Gerencie sua cadeia de comando. Promova membros, audite acessos e visualize o ranking de autoridade do seu gabinete.",
+    icon: <Users className="text-purple-500" />,
+    route: "/team"
+  },
+  {
     title: "Auditoria 3D Elite",
-    content: "O Veredito é nossa ferramenta mais poderosa. Insira um CNJ para que a IA analise todo o histórico do tribunal e sugira o próximo passo estratégico.",
+    content: "A ferramenta de triagem mais poderosa do mercado. Insira um CNJ para que a IA analise o histórico do DataJud e gere um parecer estratégico completo.",
     icon: <FileSearch className="text-emerald-500" />,
     route: "/veredito"
   },
   {
-    title: "Selagem de Documentos",
-    content: "Gere Procurações, Habilitações e Substabelecimentos em segundos. Nossa IA extrai os dados dos contratos e preenche as peças automaticamente.",
-    icon: <Sparkles className="text-amber-500" />,
+    title: "Gerador de Procurações",
+    content: "Automatize a criação de procurações ad judicia. A IA extrai os dados do contrato e preenche a peça em segundos com selagem digital.",
+    icon: <FileText className="text-amber-500" />,
     route: "/documents"
   },
   {
+    title: "Módulo de Habilitação",
+    content: "Gere peças de habilitação combinadas com procuração. Tudo o que você precisa para ingressar em um processo em um único clique.",
+    icon: <FileSignature className="text-orange-500" />,
+    route: "/habilitacao-peca"
+  },
+  {
+    title: "Substabelecimento Digital",
+    content: "Transfira poderes de forma segura. Gere substabelecimentos sem reserva de poderes com conformidade técnica total.",
+    icon: <Repeat className="text-indigo-500" />,
+    route: "/substabelecimento"
+  },
+  {
+    title: "Peça de Substabelecimento",
+    content: "Documentação específica para peticionamento de substabelecimento, garantindo a atualização correta do patrono nos autos.",
+    icon: <FileStack className="text-rose-500" />,
+    route: "/substabelecimento-peca"
+  },
+  {
+    title: "Terminal WhatsApp",
+    content: "Comunicação direta e automatizada. Envie despachos gerados por IA via Evolution API e mantenha o histórico real sincronizado.",
+    icon: <MessageCircle className="text-emerald-600" />,
+    route: "/whatsapp"
+  },
+  {
+    title: "Unidade de Ingestão",
+    content: "Importe seus dumps de dados ou planilhas CSV. O sistema corrige codificações e datas automaticamente para uma sincronia perfeita.",
+    icon: <Upload className="text-blue-400" />,
+    route: "/import"
+  },
+  {
+    title: "Livro de Evidências",
+    content: "Registre notas, fotos e andamentos estratégicos. Use a IA para auditar suas evidências e extrair pontos fortes e riscos operacionais.",
+    icon: <StickyNote className="text-yellow-500" />,
+    route: "/notes"
+  },
+  {
+    title: "Motor de OCR Soberano",
+    content: "Transcrição visual de alta precisão. Converta scans e fotos de documentos em texto editável utilizando processamento neural local.",
+    icon: <ScanText className="text-cyan-500" />,
+    route: "/tools/ocr"
+  },
+  {
+    title: "Business Intelligence",
+    content: "Indicadores gráficos de volumetria por tribunal e performance de banca. Transforme dados em decisões executivas.",
+    icon: <BarChart3 className="text-pink-500" />,
+    route: "/analytics"
+  },
+  {
+    title: "Algoritmo de Urgência",
+    content: "Calibre a sensibilidade do motor de alertas. Defina os pesos matemáticos que determinam quando um processo deve ser priorizado.",
+    icon: <ShieldAlert className="text-red-600" />,
+    route: "/urgency"
+  },
+  {
     title: "Hardware Visual",
-    content: "Personalize a atmosfera do seu gabinete. Altere cores, opacidades e wallpapers para criar um ambiente executivo sob medida.",
-    icon: <Palette className="text-purple-500" />,
+    content: "Personalize a atmosfera do seu gabinete. Ajuste cores, opacidades, blurs e wallpapers para um ambiente de trabalho premium.",
+    icon: <Palette className="text-violet-500" />,
     route: "/settings"
+  },
+  {
+    title: "Omni Export Master",
+    content: "O Dossiê Omnipresente. Gere um único PDF contendo o 'print' técnico de absolutamente todas as abas do seu gabinete.",
+    icon: <Printer className="text-slate-800" />,
+    route: "/master-export"
   }
 ];
 
 export function GuidedTour() {
   const router = useRouter();
-  const { isTutorialActive, setTutorialActive, setTutorialCompleted } = useAppStore();
-  const [currentStep, setCurrentStep] = useState(0);
+  const { 
+    isTutorialActive, 
+    setTutorialActive, 
+    setTutorialCompleted,
+    tutorialStep,
+    setTutorialStep
+  } = useAppStore();
 
   useEffect(() => {
-    if (isTutorialActive) {
-      router.push(TOUR_STEPS[currentStep].route);
+    if (isTutorialActive && TOUR_STEPS[tutorialStep]) {
+      router.push(TOUR_STEPS[tutorialStep].route);
     }
-  }, [currentStep, isTutorialActive, router]);
+  }, [tutorialStep, isTutorialActive, router]);
 
   if (!isTutorialActive) return null;
 
   const handleNext = () => {
-    if (currentStep < TOUR_STEPS.length - 1) {
-      setCurrentStep(prev => prev + 1);
+    if (tutorialStep < TOUR_STEPS.length - 1) {
+      setTutorialStep(tutorialStep + 1);
     } else {
       finishTour();
     }
   };
 
   const handlePrev = () => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
+    if (tutorialStep > 0) {
+      setTutorialStep(tutorialStep - 1);
     }
   };
 
   const finishTour = () => {
     setTutorialActive(false);
     setTutorialCompleted(true);
-    setCurrentStep(0);
+    setTutorialStep(0);
     router.push('/');
   };
 
-  const step = TOUR_STEPS[currentStep];
+  const step = TOUR_STEPS[tutorialStep];
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="w-full max-w-lg bg-white border-4 border-black shadow-[15px_15px_0px_#000] relative overflow-hidden flex flex-col">
-        {/* Barra de Progresso */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gray-100">
+    <div className="fixed inset-0 z-[250] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="w-full max-w-xl bg-white border-4 border-black shadow-[20px_20px_0px_#000] relative overflow-hidden flex flex-col">
+        {/* Barra de Progresso Real */}
+        <div className="absolute top-0 left-0 right-0 h-2 bg-gray-100">
           <div 
-            className="h-full bg-primary transition-all duration-500" 
-            style={{ width: `${((currentStep + 1) / TOUR_STEPS.length) * 100}%` }}
+            className="h-full bg-primary transition-all duration-700 ease-out" 
+            style={{ width: `${((tutorialStep + 1) / TOUR_STEPS.length) * 100}%` }}
           />
         </div>
 
         <button 
           onClick={finishTour}
-          className="absolute top-4 right-4 p-2 hover:bg-black hover:text-white transition-colors"
+          className="absolute top-6 right-6 p-2 hover:bg-black hover:text-white transition-all z-10"
         >
-          <X size={20} />
+          <X size={24} />
         </button>
 
-        <div className="p-10 pt-14 space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-black flex items-center justify-center text-white border-2 border-black">
-              {React.cloneElement(step.icon as React.ReactElement, { size: 28 })}
+        <div className="p-12 pt-16 space-y-8">
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 bg-black flex items-center justify-center text-white border-2 border-black shadow-lg">
+              {React.cloneElement(step.icon as React.ReactElement, { size: 32 })}
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Passo {currentStep + 1} de {TOUR_STEPS.length}</p>
-              <h2 className="text-xl font-black uppercase tracking-tighter">{step.title}</h2>
+              <p className="text-[11px] font-black uppercase tracking-[0.4em] opacity-40 mb-1">Módulo {tutorialStep + 1} de {TOUR_STEPS.length}</p>
+              <h2 className="text-2xl font-black uppercase tracking-tighter leading-none">{step.title}</h2>
             </div>
           </div>
 
-          <p className="text-sm font-bold uppercase leading-relaxed text-black/70 tracking-tight italic">
-            "{step.content}"
-          </p>
+          <div className="bg-[#f8f9fb] border-l-4 border-primary p-8">
+            <p className="text-sm font-bold uppercase leading-relaxed text-black/80 tracking-tight italic">
+              "{step.content}"
+            </p>
+          </div>
 
-          <div className="pt-6 flex items-center justify-between border-t-2 border-black/5">
-            <div className="flex gap-2">
-              <Button 
-                variant="ghost" 
-                onClick={handlePrev} 
-                disabled={currentStep === 0}
-                className="h-10 px-4 font-black uppercase text-[10px] border-2 border-transparent hover:border-black rounded-none"
-              >
-                <ChevronLeft size={16} className="mr-1" /> Anterior
-              </Button>
-            </div>
+          <div className="pt-8 flex items-center justify-between border-t-2 border-black/5">
+            <Button 
+              variant="ghost" 
+              onClick={handlePrev} 
+              disabled={tutorialStep === 0}
+              className="h-12 px-6 font-black uppercase text-[10px] border-2 border-transparent hover:border-black rounded-none transition-all disabled:opacity-20"
+            >
+              <ChevronLeft size={18} className="mr-2" /> Anterior
+            </Button>
             
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <Button 
                 variant="ghost" 
                 onClick={finishTour}
-                className="h-10 px-4 font-black uppercase text-[10px] text-black/40 hover:text-black rounded-none"
+                className="h-12 px-6 font-black uppercase text-[10px] text-black/40 hover:text-black rounded-none"
               >
                 Pular
               </Button>
               <Button 
                 onClick={handleNext}
-                className="h-10 px-8 bg-black text-white hover:bg-primary hover:text-black font-black uppercase text-[10px] rounded-none shadow-[4px_4px_0px_#00D1FF] transition-all"
+                className="h-12 px-10 bg-black text-white hover:bg-primary hover:text-black font-black uppercase text-[11px] tracking-widest rounded-none shadow-[6px_6px_0px_#00D1FF] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
               >
-                {currentStep === TOUR_STEPS.length - 1 ? "Finalizar" : "Próximo"} <ChevronRight size={16} className="ml-1" />
+                {tutorialStep === TOUR_STEPS.length - 1 ? "Concluir Onboarding" : "Próximo Módulo"} <ChevronRight size={18} className="ml-2" />
               </Button>
             </div>
           </div>
         </div>
 
-        <div className="bg-[#f8f9fb] border-t-2 border-black p-4 flex items-center justify-center gap-2">
-          <ShieldCheck size={14} className="text-primary" />
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40">Protocolo de Onboarding W1 Capital</span>
+        <div className="bg-black text-white p-4 flex items-center justify-center gap-3">
+          <ShieldCheck size={16} className="text-primary" />
+          <span className="text-[10px] font-black uppercase tracking-[0.3em]">Ambiente Certificado • W1 Capital</span>
         </div>
       </div>
     </div>
