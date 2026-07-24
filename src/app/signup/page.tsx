@@ -1,4 +1,7 @@
-
+/**
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
+ */
 "use client";
 
 import React, { useState, useRef } from 'react';
@@ -9,10 +12,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Mail, Lock, Copyright, KeyRound } from 'lucide-react';
+import { Mail, Lock, Copyright, KeyRound, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { TermsOfServiceContent } from '@/components/legal/TermsOfServiceContent';
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -22,6 +34,7 @@ export default function SignupPage() {
     empresa: '',
     authCode: '',
   });
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -30,6 +43,16 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!acceptedTerms) {
+      toast({ 
+        title: "Ação Requerida", 
+        description: "Você precisa aceitar os Termos de Uso para prosseguir.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
     if (signupLock.current) return;
     signupLock.current = true;
     setLoading(true);
@@ -50,7 +73,7 @@ export default function SignupPage() {
     }
 
     try {
-      // 1. Gerenciamento de Empresa (Check-then-Action)
+      // 1. Gerenciamento de Empresa
       const nomeEmpresa = formData.empresa.trim().toUpperCase();
       let { data: existingEmpresa } = await supabase
         .from('empresas')
@@ -71,7 +94,7 @@ export default function SignupPage() {
         createdEmpresaId = newEmpresa.id;
       }
 
-      // 2. Cadastro Auth Direto no Supabase
+      // 2. Cadastro Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: cleanEmail,
         password: formData.password,
@@ -81,13 +104,7 @@ export default function SignupPage() {
       if (authError) throw authError;
       if (!authData.user) throw new Error("Falha ao provisionar usuário no Auth.");
 
-      // 3. Criação de Perfil de Gabinete (Atômica)
-      const { data: existingProfile } = await supabase
-        .from('usuarios')
-        .select('id')
-        .eq('auth_user_id', authData.user.id)
-        .maybeSingle();
-
+      // 3. Criação de Perfil
       const profilePayload = {
         auth_user_id: authData.user.id,
         empresa_id: createdEmpresaId,
@@ -96,11 +113,8 @@ export default function SignupPage() {
         cargo: 'Administrador'
       };
 
-      if (existingProfile) {
-        await supabase.from('usuarios').update(profilePayload).eq('id', existingProfile.id);
-      } else {
-        await supabase.from('usuarios').insert(profilePayload);
-      }
+      const { error: profileError } = await supabase.from('usuarios').insert(profilePayload);
+      if (profileError) throw profileError;
       
       toast({ 
         title: "Instância Ativada", 
@@ -211,6 +225,33 @@ export default function SignupPage() {
                     className="pl-10 border-black border-2 h-11 text-black font-black uppercase text-xs bg-white rounded-none focus-visible:ring-black" 
                     required 
                   />
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3 pt-4">
+                <Checkbox 
+                  id="terms" 
+                  checked={acceptedTerms} 
+                  onCheckedChange={(val) => setAcceptedTerms(!!val)}
+                  className="mt-1 border-black border-2 rounded-none data-[state=checked]:bg-black"
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <label htmlFor="terms" className="text-[10px] font-black uppercase cursor-pointer">
+                    Li e aceito os Termos de Uso e Licença
+                  </label>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <button type="button" className="text-[9px] font-black uppercase text-primary underline text-left">Ver Termos de Uso</button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[700px] rounded-none border-2 border-black shadow-[12px_12px_0px_#000]">
+                      <DialogHeader>
+                        <DialogTitle className="font-black uppercase flex items-center gap-2">
+                           <ShieldCheck size={20} className="text-primary" /> Acordo de Licenciamento
+                        </DialogTitle>
+                      </DialogHeader>
+                      <TermsOfServiceContent />
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </div>
 

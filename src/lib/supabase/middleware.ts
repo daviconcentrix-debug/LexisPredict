@@ -17,9 +17,15 @@ export async function updateSession(request: NextRequest) {
     },
   })
 
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // Se não houver configuração, permite a navegação para que o erro possa ser tratado na UI ou logs
+  if (!url || !key) return response;
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    key,
     {
       cookies: {
         get(name: string) {
@@ -77,15 +83,6 @@ export async function updateSession(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - manifest.json (PWA manifest)
-     * - icons/ (PWA icons)
-     * - api/ (API routes handled separately)
-     */
     '/((?!_next/static|_next/image|favicon.ico|manifest.json|icons|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

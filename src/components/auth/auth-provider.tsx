@@ -1,4 +1,3 @@
-
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -33,7 +32,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const lastUserId = useRef<string | null>(null);
 
   const loadProfile = async (userId: string) => {
-    if (!isSupabaseConfigured || (fetchingProfile.current && lastUserId.current === userId)) return null;
+    if (!isSupabaseConfigured || !supabase || (fetchingProfile.current && lastUserId.current === userId)) return null;
     
     fetchingProfile.current = true;
     lastUserId.current = userId;
@@ -64,6 +63,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
+
+    // Se o Supabase não estiver configurado, encerra o carregamento e não tenta acessar .auth
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
 
     // Sessão Inicial
     supabase.auth.getSession().then(({ data }) => {
@@ -105,6 +110,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = async () => {
+    if (!supabase) return;
     setLoading(true);
     await supabase.auth.signOut();
     setUser(null);

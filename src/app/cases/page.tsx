@@ -1,4 +1,3 @@
-
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -15,21 +14,19 @@ import {
   Plus, 
   Briefcase, 
   Edit2, 
-  CheckCircle, 
   CheckCircle2,
   Clock, 
   Copyright, 
-  ShieldCheck, 
-  FileText, 
   MessageCircle, 
-  Info,
   Zap,
   Loader2,
-  AlertTriangle,
   CalendarDays,
   Filter,
   Download,
-  ShieldAlert
+  ShieldAlert,
+  Eye,
+  EyeOff,
+  Sparkles
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -56,6 +53,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from '@/components/ui/textarea';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { isCasoEncerrado } from '@/lib/status-encerrado';
+import { calcularProbabilidadeEncerramento } from '@/lib/probabilidade-encerramento';
 
 const CaseRow = React.memo(({ 
   c, 
@@ -70,6 +69,13 @@ const CaseRow = React.memo(({
   onEdit: (c: LegalCase) => void, 
   onDelete: (id: string) => void
 }) => {
+  const prob = calcularProbabilidadeEncerramento({
+    status: c.status,
+    situacao: c.situacao,
+    observacao: c.observacao,
+    diasVencidos: c.diasFaltando && c.diasFaltando < 0 ? Math.abs(c.diasFaltando) : 0
+  });
+
   return (
     <tr className="hover:bg-secondary/30 transition-all border-b border-border/50 group">
       <td className="px-8 py-5">
@@ -79,9 +85,14 @@ const CaseRow = React.memo(({
         </div>
       </td>
       <td className="px-8 py-5">
-        <Badge variant="outline" className="bg-white border-border/50 font-black text-[9px] text-muted-foreground uppercase rounded-md h-7 px-3">
-          {c.tribunal}
-        </Badge>
+        <div className="flex flex-col gap-2">
+          <Badge variant="outline" className="bg-card border-border/50 font-black text-[9px] text-muted-foreground uppercase rounded-md h-7 px-3 w-fit">
+            {c.tribunal}
+          </Badge>
+          <div className="flex items-center gap-1 text-[8px] font-black text-primary/60 uppercase tracking-tighter" title="Estimativa heurística automática">
+            <Sparkles size={10} /> Prob. Encerramento: {prob}%
+          </div>
+        </div>
       </td>
       <td className="px-8 py-5 text-[11px] text-foreground font-bold uppercase">
         {c.advogado}
@@ -97,7 +108,7 @@ const CaseRow = React.memo(({
       </td>
       <td className="px-8 py-5">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg border border-border/50 flex items-center justify-center bg-gray-50 group-hover:bg-white transition-all">
+          <div className="w-8 h-8 rounded-lg border border-border/50 flex items-center justify-center bg-secondary/50 group-hover:bg-background transition-all">
             <Clock className="w-4 h-4 text-muted-foreground/40" />
           </div>
           <span className="text-[11px] text-foreground font-bold uppercase whitespace-nowrap">
@@ -108,12 +119,12 @@ const CaseRow = React.memo(({
       <td className="px-8 py-5 text-right">
         <div className="flex items-center justify-end gap-2">
           {isOperador && (
-            <Button title="Registrar Atendimento Hoje" variant="ghost" size="icon" onClick={() => onLogReturn(c.protocolo)} className="text-emerald-600 hover:bg-emerald-50 h-9 w-9 rounded-lg">
+            <Button title="Registrar Atendimento Hoje" variant="ghost" size="icon" onClick={() => onLogReturn(c.protocolo)} className="text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 h-9 w-9 rounded-lg">
               <CheckCircle2 size={18} />
             </Button>
           )}
           {c.telefone && (
-             <Button title="WhatsApp" variant="ghost" size="icon" asChild className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all h-9 w-9 rounded-lg">
+             <Button title="WhatsApp" variant="ghost" size="icon" asChild className="text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-700 transition-all h-9 w-9 rounded-lg">
                <a href={formatWhatsAppLink(c.telefone)} target="_blank" rel="noopener noreferrer">
                  <MessageCircle size={18} />
                </a>
@@ -129,7 +140,7 @@ const CaseRow = React.memo(({
               <Button title="Editar" variant="ghost" size="icon" onClick={() => onEdit(c)} className="text-muted-foreground hover:bg-secondary h-9 w-9 rounded-lg">
                 <Edit2 size={18} />
               </Button>
-              <Button title="Excluir" variant="ghost" size="icon" onClick={() => onDelete(c.id)} className="text-muted-foreground hover:text-red-600 hover:bg-red-50 h-9 w-9 rounded-lg">
+              <Button title="Excluir" variant="ghost" size="icon" onClick={() => onDelete(c.id)} className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 h-9 w-9 rounded-lg">
                 <Trash2 size={18} />
               </Button>
             </>
@@ -150,6 +161,7 @@ function CasesContent() {
   const deferredSearch = useDeferredValue(search);
   
   const [loading, setLoading] = useState(true);
+  const [showClosed, setShowClosed] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isPurging, setIsPurging] = useState(false);
@@ -160,7 +172,6 @@ function CasesContent() {
   const [mounted, setMounted] = useState(false);
   const { isAdmin, isOperador } = useAdmin();
   const { toast } = useToast();
-  const initialLoadDone = useRef(false);
 
   const [formState, setFormState] = useState({
     cliente: '',
@@ -180,7 +191,6 @@ function CasesContent() {
       const repoData = await fetchRepoCases();
       if (Array.isArray(repoData)) {
         setCases(repoData);
-        initialLoadDone.current = true;
       }
     } finally {
       setLoading(false);
@@ -196,10 +206,7 @@ function CasesContent() {
       const thresholds = { alertLimit: savedThreshold ? parseInt(savedThreshold) : 3 };
 
       const updatedCases = cases.map(c => {
-        const sit = String(c.situacao).toUpperCase();
-        if (['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(sit)) {
-          return c;
-        }
+        if (isCasoEncerrado(c)) return c;
         return processarCaso({ ...c, STATUS_MANUAL: 'Automatico' }, thresholds);
       });
 
@@ -216,7 +223,6 @@ function CasesContent() {
   const handleExportPlanilha = async () => {
     if (cases.length === 0 || isExporting) return;
     setIsExporting(true);
-    
     try {
       const result = await exportCasesToCSVAction();
       if (result.success && result.base64) {
@@ -224,12 +230,8 @@ function CasesContent() {
         link.href = `data:text/csv;base64,${result.base64}`;
         link.download = result.filename || `export_processos.csv`;
         link.click();
-        toast({ title: "Exportação Concluída", description: "Planilha gerada com sucesso." });
-      } else {
-        toast({ title: "Falha na Exportação", description: result.error, variant: "destructive" });
+        toast({ title: "Exportação Concluída" });
       }
-    } catch (err) {
-      toast({ title: "Erro Crítico", description: "Não foi possível gerar o arquivo.", variant: "destructive" });
     } finally {
       setIsExporting(false);
     }
@@ -244,9 +246,7 @@ function CasesContent() {
         setCases([]);
         setIsPurgeModalOpen(false);
         setPurgeConfirmText('');
-        toast({ title: "Base Purificada", description: "Todos os seus processos foram removidos." });
-      } else {
-        toast({ title: "Falha na Purga", description: res.error, variant: "destructive" });
+        toast({ title: "Base Purificada" });
       }
     } finally {
       setIsPurging(false);
@@ -297,7 +297,7 @@ function CasesContent() {
     const updated = cases.map(c => c.protocolo === protocolo ? { ...c, ultimoRetorno: today } : c);
     setCases(updated);
     await syncRepoCases(updated);
-    toast({ title: "Atendimento Registrado", description: `Último retorno atualizado para ${today}.` });
+    toast({ title: "Atendimento Registrado" });
   }, [cases, isOperador, toast]);
 
   const handleEditClick = useCallback((c: LegalCase) => {
@@ -329,17 +329,21 @@ function CasesContent() {
 
   const filtered = useMemo(() => {
     const searchLower = deferredSearch.toLowerCase();
-    return cases.filter(c => 
-      (c.cliente || '').toLowerCase().includes(searchLower) || 
-      (c.protocolo || '').includes(deferredSearch)
-    );
-  }, [cases, deferredSearch]);
+    return cases.filter(c => {
+      const matchesSearch = (c.cliente || '').toLowerCase().includes(searchLower) || 
+                            (c.protocolo || '').includes(deferredSearch);
+      const isEncerrado = isCasoEncerrado(c);
+      
+      if (showClosed) return matchesSearch;
+      return matchesSearch && !isEncerrado;
+    });
+  }, [cases, deferredSearch, showClosed]);
 
   return (
-    <div className="flex h-screen bg-[#f8f9fb] font-sans text-foreground">
+    <div className="flex h-screen bg-background font-sans text-foreground">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-20 border-b border-border/50 bg-white/60 backdrop-blur-xl flex items-center justify-between px-10 shrink-0 z-40">
+        <header className="h-20 border-b border-border/50 bg-card/60 backdrop-blur-xl flex items-center justify-between px-10 shrink-0 z-40">
           <div className="flex items-center gap-4">
             <h1 className="font-black text-xl text-foreground uppercase tracking-tight">Processos do Gabinete</h1>
             <Badge variant="outline" className="bg-secondary/50 border-none font-bold uppercase text-[9px] px-3 py-1 rounded-full">
@@ -347,10 +351,23 @@ function CasesContent() {
             </Badge>
           </div>
           <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowClosed(!showClosed)}
+              className={cn(
+                "h-10 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all",
+                showClosed ? "bg-black text-white" : "text-muted-foreground hover:bg-secondary"
+              )}
+            >
+              {showClosed ? <Eye size={16} className="mr-2" /> : <EyeOff size={16} className="mr-2" />}
+              {showClosed ? "Ocultar Encerrados" : "Mostrar Encerrados"}
+            </Button>
+            
             {isOperador && (
                <Dialog open={isPurgeModalOpen} onOpenChange={setIsPurgeModalOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="ghost" className="h-10 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest text-red-600 hover:bg-red-50">
+                  <Button variant="ghost" className="h-10 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">
                     <Trash2 size={16} className="mr-2" /> Limpar Base
                   </Button>
                 </DialogTrigger>
@@ -391,16 +408,10 @@ function CasesContent() {
               </Button>
             )}
             {isOperador && (
-              <Button onClick={() => handleBatchUpdateStatus()} disabled={isUpdating} variant="ghost" className="h-10 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest text-muted-foreground hover:bg-secondary">
-                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap size={16} className="mr-2 text-primary" />}
-                Recalibrar
-              </Button>
-            )}
-            {isOperador && (
               <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCase(null); }}>
                 <DialogTrigger asChild>
-                  <Button className="h-11 px-6 rounded-xl bg-black text-white hover:bg-black/90 font-black uppercase text-[10px] tracking-widest shadow-xl">
-                    <Plus className="w-4 h-4 mr-2 text-primary" /> Novo Registro
+                  <Button className="h-11 px-6 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-black uppercase text-[10px] tracking-widest shadow-xl">
+                    <Plus className="w-4 h-4 mr-2" /> Novo Registro
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[550px] rounded-2xl overflow-hidden border-none shadow-2xl">
@@ -451,6 +462,7 @@ function CasesContent() {
                                   <SelectItem value="ARQUIVADO">ARQUIVADO</SelectItem>
                                   <SelectItem value="SUSPENSO">SUSPENSO</SelectItem>
                                   <SelectItem value="EXTINTO">EXTINTO</SelectItem>
+                                  <SelectItem value="IMOVEL">IMOVEL / IMÓVEL</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -486,7 +498,7 @@ function CasesContent() {
                       </div>
                     </ScrollArea>
                     <DialogFooter className="p-6 pt-0">
-                      <Button type="submit" className="w-full h-12 bg-black text-white hover:bg-black/90 rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl">
+                      <Button type="submit" className="w-full h-12 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl">
                         Sincronizar Dados de Gabinete
                       </Button>
                     </DialogFooter>
@@ -501,7 +513,7 @@ function CasesContent() {
         </header>
 
         <div className="flex-1 flex flex-col p-8 overflow-hidden">
-          <div className="premium-card flex-1 flex flex-col overflow-hidden border-none bg-white">
+          <div className="premium-card flex-1 flex flex-col overflow-hidden border-none">
             <div className="p-5 border-b border-border/30 flex items-center justify-between gap-6 shrink-0">
               <div className="relative flex-1 max-w-lg">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -513,8 +525,8 @@ function CasesContent() {
                 />
               </div>
               <div className="flex items-center gap-3">
-                 <Badge className="bg-black text-white text-[10px] font-black uppercase h-9 px-5 rounded-lg flex items-center gap-2 border-none">
-                   <Filter size={14} className="text-primary" /> {filtered.length} Registros
+                 <Badge className="bg-primary text-primary-foreground text-[10px] font-black uppercase h-9 px-5 rounded-lg flex items-center gap-2 border-none">
+                   <Filter size={14} /> {filtered.length} Registros
                  </Badge>
               </div>
             </div>
@@ -522,7 +534,7 @@ function CasesContent() {
             <div className="flex-1 overflow-auto">
               {filtered.length > 0 ? (
                 <table className="w-full text-left border-collapse min-w-[1000px]">
-                  <thead className="sticky top-0 bg-white z-20 border-b border-border shadow-sm">
+                  <thead className="sticky top-0 bg-card z-20 border-b border-border shadow-sm">
                     <tr className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">
                       <th className="px-8 py-5">Identificação</th>
                       <th className="px-8 py-5">Tribunal</th>
@@ -560,7 +572,7 @@ function CasesContent() {
           </div>
         </div>
 
-        <footer className="h-10 border-t border-border/30 bg-white flex items-center justify-center gap-6 text-[10px] text-muted-foreground/60 font-bold uppercase tracking-[0.3em] shrink-0">
+        <footer className="h-10 border-t border-border/30 bg-card/60 flex items-center justify-center gap-6 text-[10px] text-muted-foreground/60 font-bold uppercase tracking-[0.3em] shrink-0">
           <Copyright size={10} /> 2026 W1 Capital • Advanced Legal Operations
         </footer>
       </main>
@@ -570,13 +582,13 @@ function CasesContent() {
 
 function StatusBadge({ status }: { status: any }) {
   const styles: Record<string, string> = {
-    'Vencido': "bg-red-50 text-red-700 border-red-100",
-    'É Hoje': "bg-blue-50 text-blue-700 border-blue-100 animate-pulse",
-    'Caso Crítico': "bg-red-50 text-red-700 border-red-100",
-    'Atenção': "bg-orange-50 text-orange-700 border-orange-100",
-    'No Prazo': "bg-emerald-50 text-emerald-700 border-emerald-100",
-    'Arquivado': "bg-gray-100 text-gray-700 border-gray-200",
-    'Encerrado': "bg-gray-100 text-gray-700 border-gray-200",
+    'Vencido': "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-100 dark:border-red-900/30",
+    'É Hoje': "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-900/30 animate-pulse",
+    'Caso Crítico': "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-100 dark:border-red-900/30",
+    'Atenção': "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-orange-100 dark:border-orange-900/30",
+    'No Prazo': "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30",
+    'Arquivado': "bg-secondary text-muted-foreground border-border",
+    'Encerrado': "bg-secondary text-muted-foreground border-border",
   };
 
   return (

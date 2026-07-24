@@ -11,7 +11,10 @@ export const isSupabaseConfigured =
   supabaseUrl !== '' && 
   supabaseAnonKey !== '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Inicialização segura: evita crash se as variáveis estiverem vazias
+export const supabase = isSupabaseConfigured 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null as any;
 
 export type UserRole = 'Superadmin' | 'Administrador' | 'Operador' | 'Visualizador';
 
@@ -24,6 +27,7 @@ export interface UserProfile {
   cargo: UserRole;
   role?: string;
   created_at: string;
+  avatar_url?: string | null;
 }
 
 export interface Empresa {

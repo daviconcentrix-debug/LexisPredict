@@ -10,7 +10,6 @@ import Link from 'next/link';
 import { 
   LayoutDashboard, 
   Briefcase, 
-  Users, 
   Upload, 
   BarChart3, 
   ShieldAlert, 
@@ -25,7 +24,6 @@ import {
   ChevronRight,
   UserPlus,
   Repeat,
-  Shield,
   Bot,
   Zap,
   Layers,
@@ -43,6 +41,7 @@ import { getTranslation, Locale } from '@/lib/i18n';
 import { checkIfSuperAdmin } from '@/lib/supabase';
 import { useAppStore } from '@/store/use-app-store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { InstallAppButton } from '@/components/mobile/InstallAppButton';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -79,7 +78,6 @@ export function Sidebar() {
         { label: t.dashboard, href: '/', icon: LayoutDashboard },
         { label: t.tasks, href: '/tarefas', icon: CheckCircle },
         { label: t.cases, href: '/cases', icon: Briefcase },
-        { label: t.clients, href: '/clients', icon: Users },
         ...(isAdmin ? [{ label: t.team, href: '/team', icon: UserPlus }] : []),
       ]
     },
@@ -152,6 +150,8 @@ export function Sidebar() {
       </div>
 
       <div className="p-4 border-t border-sidebar-border space-y-4">
+        {!collapsed && <InstallAppButton />}
+        
         {!collapsed && (
           <div className="flex items-center gap-3 p-3 rounded-xl bg-sidebar-accent/50 border border-sidebar-border shadow-sm">
             <Avatar className="w-9 h-9 border border-primary/20">

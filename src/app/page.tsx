@@ -1,4 +1,7 @@
-
+/**
+ * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
+ * @license Proprietary - All rights reserved.
+ */
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -36,6 +39,7 @@ import {
   Cell,
   Tooltip
 } from 'recharts';
+import { isCasoEncerrado } from '@/lib/status-encerrado';
 
 export default function Dashboard() {
   const { cases, setCases, locale, lastSync, updateLastSync } = useAppStore();
@@ -79,18 +83,17 @@ export default function Dashboard() {
   }, [mounted, cases.length, loadData]);
 
   const metrics = useMemo(() => {
-    const ativos = cases.filter(c => !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase()));
+    const ativos = cases.filter(c => !isCasoEncerrado(c));
     const activeTotal = ativos.length;
     
-    const vencidos = cases.filter(c => c.status === 'Vencido' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
-    const venceHoje = cases.filter(c => c.status === 'É Hoje' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
-    const atencao = cases.filter(c => c.status === 'Atenção' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length;
-    const noPrazo = cases.filter(c => c.status === 'No Prazo' && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase())).length; 
+    const vencidos = ativos.filter(c => c.status === 'Vencido').length;
+    const venceHoje = ativos.filter(c => c.status === 'É Hoje').length;
+    const atencao = ativos.filter(c => c.status === 'Atenção').length;
+    const noPrazo = ativos.filter(c => c.status === 'No Prazo').length; 
     
     const riskSum = (vencidos * 1.0) + (venceHoje * 0.8) + (atencao * 0.5) + (noPrazo * 0.1);
     const riskScore = activeTotal > 0 ? Math.min(100, Math.round((riskSum / activeTotal) * 100)) : 0;
 
-    // Cálculos de porcentagem em relação aos ativos
     const pctHoje = activeTotal > 0 ? Math.round((venceHoje / activeTotal) * 100) : 0;
     const pctVencidos = activeTotal > 0 ? Math.round((vencidos / activeTotal) * 100) : 0;
     const pctAtencao = activeTotal > 0 ? Math.round((atencao / activeTotal) * 100) : 0;
@@ -108,13 +111,13 @@ export default function Dashboard() {
   if (!mounted) return null;
 
   return (
-    <div className="flex h-screen bg-[#f8f9fb] font-sans text-foreground overflow-hidden">
+    <div className="flex h-screen bg-background font-sans text-foreground overflow-hidden">
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-20 border-b border-border/50 bg-white/60 backdrop-blur-xl flex items-center justify-between px-10 shrink-0 z-40">
+        <header className="h-20 border-b border-border/50 bg-card/60 backdrop-blur-xl flex items-center justify-between px-10 shrink-0 z-40">
           <div className="flex flex-col">
             <div className="flex items-center gap-3">
-              <LayoutDashboard size={20} className="text-black" />
+              <LayoutDashboard size={20} className="text-foreground" />
               <h1 className="font-black text-xl tracking-tight uppercase text-foreground">{t.dashboard}</h1>
             </div>
             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-1">Gabinete Estratégico • W1 Capital</p>
@@ -144,14 +147,14 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 pb-10">
             <div className="xl:col-span-8 space-y-8">
-               <section className="premium-card p-8 relative overflow-hidden group bg-white">
+               <section className="premium-card p-8 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:scale-110 transition-transform pointer-events-none">
                     <Sparkles size={140} />
                   </div>
                   <div className="flex items-center justify-between mb-8 border-b border-border/30 pb-4">
                     <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 bg-black text-white flex items-center justify-center rounded-xl shadow-lg">
-                         <Zap size={24} className="text-primary" />
+                       <div className="w-12 h-12 bg-primary/10 text-primary flex items-center justify-center rounded-xl shadow-lg">
+                         <Zap size={24} />
                        </div>
                        <div>
                          <h3 className="font-black text-lg uppercase tracking-tight leading-none">{t.briefingTitle}</h3>
@@ -163,7 +166,7 @@ export default function Dashboard() {
                   {iaInsights ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                        <div className="space-y-6">
-                          <p className="text-[10px] font-black text-emerald-600 uppercase flex items-center gap-2 tracking-widest bg-emerald-50 w-fit px-3 py-1 rounded-full"><TrendingUp size={14}/> {t.strengths}</p>
+                          <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase flex items-center gap-2 tracking-widest bg-emerald-50 dark:bg-emerald-950/30 w-fit px-3 py-1 rounded-full"><TrendingUp size={14}/> {t.strengths}</p>
                           <ul className="space-y-4">
                             {iaInsights.pontosFortes?.slice(0, 4).map((item: string, idx: number) => (
                               <li key={idx} className="text-[12px] font-bold leading-relaxed text-foreground/80 uppercase flex gap-4">
@@ -173,7 +176,7 @@ export default function Dashboard() {
                           </ul>
                        </div>
                        <div className="space-y-6">
-                          <p className="text-[10px] font-black text-red-600 uppercase flex items-center gap-2 tracking-widest bg-red-50 w-fit px-3 py-1 rounded-full"><TrendingDown size={14}/> {t.risks}</p>
+                          <p className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase flex items-center gap-2 tracking-widest bg-red-50 dark:bg-red-950/30 w-fit px-3 py-1 rounded-full"><TrendingDown size={14}/> {t.risks}</p>
                           <ul className="space-y-4">
                             {iaInsights.riscosDetectados?.slice(0, 4).map((item: string, idx: number) => (
                               <li key={idx} className="text-[12px] font-bold leading-relaxed text-foreground/80 uppercase flex gap-4">
@@ -184,7 +187,7 @@ export default function Dashboard() {
                        </div>
                     </div>
                   ) : (
-                    <div className="py-16 flex flex-col items-center justify-center text-center space-y-6 border-2 border-dashed border-border/20 rounded-2xl bg-gray-50/50">
+                    <div className="py-16 flex flex-col items-center justify-center text-center space-y-6 border-2 border-dashed border-border/20 rounded-2xl bg-secondary/10">
                        <Sparkles size={40} className="text-muted-foreground/20" />
                        <p className="text-xs font-black uppercase text-muted-foreground tracking-widest">Aguardando Auditoria Neural...</p>
                        <Button variant="link" asChild className="text-[11px] font-black uppercase underline text-primary">
@@ -194,19 +197,19 @@ export default function Dashboard() {
                   )}
                </section>
 
-               <section className="premium-card overflow-hidden bg-white">
+               <section className="premium-card overflow-hidden">
                   <div className="px-8 py-6 border-b border-border/30 flex items-center justify-between bg-secondary/10">
                      <div className="flex items-center gap-3">
                        <Target size={18} className="text-red-500" />
                        <h3 className="text-[11px] font-black uppercase tracking-[0.25em]">{t.priorityQueue}</h3>
                      </div>
-                     <Link href="/cases" className="text-[10px] font-black uppercase text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors">
-                       {t.cases} <ArrowRight size={14} />
+                     <Link href="/tarefas" className="text-[10px] font-black uppercase text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors">
+                       Ver Fila <ArrowRight size={14} />
                      </Link>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                      <thead className="bg-white border-b border-border/30">
+                      <thead className="bg-card border-b border-border/30">
                         <tr className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
                           <th className="px-8 py-4">Tribunal</th>
                           <th className="px-8 py-4">Titular</th>
@@ -215,13 +218,13 @@ export default function Dashboard() {
                       </thead>
                       <tbody className="divide-y divide-border/20">
                         {cases
-                          .filter(c => ['Vencido', 'É Hoje', 'Atenção'].includes(c.status) && !['ENCERRADO', 'ARQUIVADO', 'EXTINTO', 'SUSPENSO'].includes(String(c.situacao).toUpperCase()))
+                          .filter(c => ['Vencido', 'É Hoje', 'Atenção'].includes(c.status) && !isCasoEncerrado(c))
                           .sort((a, b) => (a.diasFaltando || 0) - (b.diasFaltando || 0))
                           .slice(0, 8)
                           .map((c) => (
                             <tr key={c.id} className="hover:bg-secondary/20 transition-colors group">
                               <td className="px-8 py-5">
-                                <Badge variant="outline" className="text-[9px] font-black uppercase border-border/50 rounded-lg h-7 px-3 bg-white">{c.tribunal}</Badge>
+                                <Badge variant="outline" className="text-[9px] font-black uppercase border-border/50 rounded-lg h-7 px-3 bg-background">{c.tribunal}</Badge>
                               </td>
                               <td className="px-8 py-5">
                                 <div className="flex flex-col">
@@ -232,9 +235,9 @@ export default function Dashboard() {
                               <td className="px-8 py-5 text-right">
                                 <span className={cn(
                                   "text-[10px] font-black uppercase px-3 py-1 rounded-full",
-                                  c.status === 'Vencido' ? "bg-red-100 text-red-700" : 
-                                  c.status === 'É Hoje' ? "bg-blue-100 text-blue-700" : 
-                                  "bg-orange-100 text-orange-700"
+                                  c.status === 'Vencido' ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" : 
+                                  c.status === 'É Hoje' ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" : 
+                                  "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400"
                                 )}>
                                   {c.status}
                                 </span>
@@ -248,7 +251,7 @@ export default function Dashboard() {
             </div>
 
             <div className="xl:col-span-4 space-y-8">
-               <section className="premium-card p-8 space-y-8 bg-white">
+               <section className="premium-card p-8 space-y-8">
                   <div className="flex justify-between items-end">
                      <div className="space-y-1">
                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t.riskIndex}</p>
@@ -260,7 +263,7 @@ export default function Dashboard() {
                   </div>
                </section>
 
-               <section className="premium-card p-8 h-[440px] flex flex-col bg-white">
+               <section className="premium-card p-8 h-[440px] flex flex-col">
                   <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-10">Status da Carteira</h3>
                   <div className="flex-1 min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
@@ -270,13 +273,13 @@ export default function Dashboard() {
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', textTransform: 'uppercase', fontSize: '10px', fontWeight: '900' }} />
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', textTransform: 'uppercase', fontSize: '10px', fontWeight: '900', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
                </section>
 
-               <section className="bg-black text-white p-8 rounded-2xl shadow-2xl space-y-6 relative overflow-hidden group">
+               <section className="bg-primary text-primary-foreground p-8 rounded-2xl shadow-2xl space-y-6 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:rotate-12 transition-transform">
                     <Activity size={80} />
                   </div>
@@ -284,7 +287,7 @@ export default function Dashboard() {
                     <h3 className="text-2xl font-black uppercase tracking-tight">Relatório Consolidado</h3>
                     <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed opacity-60">Gere agora o dossiê executivo completo com toda a telemetria do gabinete.</p>
                   </div>
-                  <Button variant="outline" asChild className="w-full bg-white text-black border-none hover:bg-primary hover:text-black font-black h-14 uppercase text-[11px] tracking-widest transition-all rounded-xl shadow-lg relative">
+                  <Button variant="outline" asChild className="w-full bg-background text-foreground border-none hover:bg-background/90 font-black h-14 uppercase text-[11px] tracking-widest transition-all rounded-xl shadow-lg relative">
                     <Link href="/report">Sincronizar & Gerar</Link>
                   </Button>
                </section>
@@ -292,7 +295,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <footer className="h-10 border-t border-border/50 bg-white flex items-center justify-center gap-6 text-[10px] text-muted-foreground/60 font-black uppercase tracking-[0.4em] shrink-0">
+        <footer className="h-10 border-t border-border/50 bg-card/60 flex items-center justify-center gap-6 text-[10px] text-muted-foreground/60 font-black uppercase tracking-[0.4em] shrink-0">
           <div className="flex items-center gap-2"><Copyright size={10} /> 2026 W1 Capital.</div>
           <span>Advanced Monitoring • Davi Alves Figueredo</span>
         </footer>
