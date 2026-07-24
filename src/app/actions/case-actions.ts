@@ -1,8 +1,10 @@
+
 'use server';
 
 import { getStoredCases, saveStoredCases, getStoredNotes, saveStoredNotes, getUserContext } from '@/lib/server-db';
-import { LegalCase, CaseNote } from '@/lib/case-logic';
+import { LegalCase, CaseNote, processarCaso } from '@/lib/case-logic';
 import { createClient } from '@/lib/supabase/server';
+import { isCasoEncerrado } from '@/lib/status-encerrado';
 
 export async function fetchRepoCases() {
   return await getStoredCases();
@@ -21,10 +23,47 @@ export async function syncRepoNotes(notes: CaseNote[]) {
 }
 
 /**
+ * Motor de Recalibração de Prazos v2.0
+ * Executa o recálculo de status de todos os processos ativos no servidor.
+ * Divide a gravação em lotes (chunks) para evitar falhas de timeout.
+ */
+export async function recalibrateCasesAction(alertLimit: number = 3) {
+  try {
+    const { auth_id, empresa_id } = await getUserContext();
+    if (!empresa_id || !auth_id) return { success: false, error: "Sessão expirada." };
+
+    const cases = await getStoredCases();
+    if (!cases || cases.length === 0) return { success: true, count: 0 };
+
+    // 1. Recalcular apenas os não encerrados
+    const updatedCases = cases.map(c => {
+      if (isCasoEncerrado(c)) return c;
+      // Força o motor a reassumir o status baseado nas datas
+      return processarCaso({ ...c, statusManual: 'Automatico' }, { alertLimit });
+    });
+
+    // 2. Salvar em lotes de 50 para garantir estabilidade
+    const chunkSize = 50;
+    for (let i = 0; i < updatedCases.length; i += chunkSize) {
+      const chunk = updatedCases.slice(i, i + chunkSize);
+      const res = await saveStoredCases(chunk);
+      if (!res.success) throw new Error(res.message);
+    }
+
+    return { 
+      success: true, 
+      count: updatedCases.length,
+      message: "Todos os prazos foram reprocessados pelo motor neural."
+    };
+  } catch (e: any) {
+    console.error("[Recalibrate Fail]", e);
+    return { success: false, error: e.message || "Erro interno no recálculo." };
+  }
+}
+
+/**
  * Protocolo de Purga Restrita:
  * Garante que apenas os processos criados pelo usuário logado sejam removidos.
- * Impede a deleção acidental de dados de outros membros da mesma empresa,
- * independentemente do nível de acesso (Administrador ou Operador).
  */
 export async function deleteAllCasesAction() {
   try {
@@ -33,8 +72,6 @@ export async function deleteAllCasesAction() {
 
     const supabase = await createClient();
     
-    // Executa a purga filtrando obrigatoriamente pelo criador (Isolamento Real)
-    // Deleta apenas registros onde empresa_id coincide E o criador é o usuário da sessão.
     const { error } = await supabase
       .from('processos')
       .delete()
