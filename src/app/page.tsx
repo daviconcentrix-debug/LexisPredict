@@ -1,9 +1,8 @@
-passe o page tsx corrigido então
+"use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
+ * @license Proprietary - All rights reserved. See LICENSE file.
  */
-"use client";
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { StatCard } from '@/components/dashboard/stat-card';
