@@ -363,6 +363,24 @@ function CasesContent() {
               {showClosed ? <Eye size={16} className="mr-2" /> : <EyeOff size={16} className="mr-2" />}
               {showClosed ? "Ocultar Encerrados" : "Mostrar Encerrados"}
             </Button>
+
+            {isOperador && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBatchUpdateStatus(false)}
+                disabled={isUpdating || loading || cases.length === 0}
+                className="h-10 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest text-muted-foreground hover:bg-secondary"
+              >
+                {isUpdating ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCcw size={16} className="mr-2" />
+                )}
+                Recalibrar Prazos
+              </Button>
+            )}
+
             
             {isOperador && (
                <Dialog open={isPurgeModalOpen} onOpenChange={setIsPurgeModalOpen}>
