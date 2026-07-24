@@ -1,24 +1,30 @@
 {
-  "name": "LexisPredict Elite",
+  "name": "LexisPredict",
   "short_name": "LexisPredict",
-  "description": "Gabinete Inteligente de Gestão Jurídica e Operações Forenses",
+  "description": "Gestão de processos, prazos e documentos — W1 Capital",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#0a1628",
+  "theme_color": "#0a1628",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "https://picsum.photos/seed/lexis192/192/192",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "https://picsum.photos/seed/lexis512/512/512",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
