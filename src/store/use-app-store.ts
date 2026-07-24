@@ -18,6 +18,7 @@ interface AppState {
   lastSync: string | null;
   tutorialCompleted: boolean;
   isTutorialActive: boolean;
+  tutorialStep: number;
   aiCosts: {
     totalTokens: number;
     totalCalls: number;
@@ -31,6 +32,7 @@ interface AppState {
   setDarkMode: (isDark: boolean) => void;
   setTutorialCompleted: (completed: boolean) => void;
   setTutorialActive: (active: boolean) => void;
+  setTutorialStep: (step: number) => void;
   updateLastSync: () => void;
   addAiMetrics: (tokens: number) => void;
   clearState: () => void;
@@ -47,6 +49,7 @@ export const useAppStore = create<AppState>()(
       lastSync: null,
       tutorialCompleted: false,
       isTutorialActive: false,
+      tutorialStep: 0,
       aiCosts: {
         totalTokens: 0,
         totalCalls: 0,
@@ -66,6 +69,7 @@ export const useAppStore = create<AppState>()(
       },
       setTutorialCompleted: (tutorialCompleted) => set({ tutorialCompleted }),
       setTutorialActive: (isTutorialActive) => set({ isTutorialActive }),
+      setTutorialStep: (tutorialStep) => set({ tutorialStep }),
       updateLastSync: () => set({ lastSync: new Date().toISOString() }),
       addAiMetrics: (tokens) => set((state) => ({
         aiCosts: {
@@ -73,7 +77,7 @@ export const useAppStore = create<AppState>()(
           totalCalls: state.aiCosts.totalCalls + 1
         }
       })),
-      clearState: () => set({ cases: [], notes: [], lastSync: null, aiCosts: { totalTokens: 0, totalCalls: 0 } }),
+      clearState: () => set({ cases: [], notes: [], lastSync: null, aiCosts: { totalTokens: 0, totalCalls: 0 }, tutorialStep: 0 }),
     }),
     {
       name: 'lexispredict-enterprise-storage',
