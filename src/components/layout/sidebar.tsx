@@ -33,7 +33,8 @@ import {
   Sun,
   Moon,
   CheckCircle,
-  Printer
+  Printer,
+  HelpCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ import { checkIfSuperAdmin } from '@/lib/supabase';
 import { useAppStore } from '@/store/use-app-store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { InstallAppButton } from '@/components/mobile/InstallAppButton';
+import { GuidedTour } from '@/components/onboarding/guided-tour';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -52,7 +54,7 @@ export function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>('pt');
   const { profile, signOut } = useAuth();
-  const { isDarkMode, setDarkMode } = useAppStore();
+  const { isDarkMode, setDarkMode, setTutorialActive } = useAppStore();
   
   const t = getTranslation(locale);
   
@@ -71,6 +73,11 @@ export function Sidebar() {
 
   const toggleTheme = () => {
     setDarkMode(!isDarkMode);
+  };
+
+  const startTour = () => {
+    setTutorialActive(true);
+    setIsMobileOpen(false);
   };
 
   const navGroups = [
@@ -124,7 +131,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <div className="flex-1 py-8 px-4 space-y-8 overflow-y-auto text-black">
+      <div className="flex-1 py-8 px-4 space-y-8 overflow-y-auto">
         {navGroups.map((group) => (
           <div key={group.title} className="space-y-1.5">
             {!collapsed && (
@@ -149,6 +156,16 @@ export function Sidebar() {
             ))}
           </div>
         ))}
+
+        <div className="px-3 pt-4 border-t border-sidebar-border/10">
+          <button 
+            onClick={startTour}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/60 hover:bg-primary/10 hover:text-primary transition-all group"
+          >
+            <HelpCircle size={16} className="shrink-0 opacity-60 group-hover:opacity-100" />
+            {!collapsed && <span className="text-[11px] font-black tracking-tight uppercase">Guia do Sistema</span>}
+          </button>
+        </div>
       </div>
 
       <div className="p-4 border-t border-sidebar-border space-y-4">
@@ -199,6 +216,7 @@ export function Sidebar() {
 
   return (
     <>
+      <GuidedTour />
       <div className="lg:hidden fixed top-5 left-5 z-[100]">
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>
