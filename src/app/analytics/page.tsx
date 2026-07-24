@@ -15,7 +15,8 @@ import {
   AlertCircle,
   TrendingUp,
   BarChart3,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  Gavel
 } from 'lucide-react';
 import { LegalCase } from '@/lib/case-logic';
 import { cn } from '@/lib/utils';
@@ -70,15 +71,25 @@ export default function AnalyticsPage() {
     };
 
     const tribunalCounts: Record<string, number> = {};
+    const lawyerCounts: Record<string, number> = {};
+
     cases.forEach(c => {
       const trib = c.tribunal || "Outros";
       tribunalCounts[trib] = (tribunalCounts[trib] || 0) + 1;
+
+      const lawyer = c.advogado || "NÃO ATRIBUÍDO";
+      lawyerCounts[lawyer] = (lawyerCounts[lawyer] || 0) + 1;
     });
 
     const topTribunals = Object.entries(tribunalCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6)
       .map(([name, count]) => ({ name: name.split(' - ')[0], count }));
+
+    const topLawyers = Object.entries(lawyerCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([name, count]) => ({ name, count }));
 
     const pieData = [
       { name: 'Vencidos', value: statusCounts.vencidos, color: '#ef4444' },
@@ -87,7 +98,7 @@ export default function AnalyticsPage() {
       { name: 'No Prazo', value: statusCounts.noPrazo, color: '#10b981' },
     ].filter(d => d.value > 0);
 
-    return { total, totalAtivos, statusCounts, topTribunals, pieData };
+    return { total, totalAtivos, statusCounts, topTribunals, topLawyers, pieData };
   }, [cases]);
 
   const handleExportPDF = () => window.print();
@@ -115,7 +126,7 @@ export default function AnalyticsPage() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-10 space-y-10 max-w-[1600px] mx-auto w-full print:p-0 print:bg-white">
+        <div className="flex-1 overflow-auto p-10 space-y-10 max-w-[1600px] mx-auto w-full print:p-0 print:bg-white pb-32">
           {/* TOP CARDS */}
           <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricCard label="Total da Carteira" value={metrics?.total || 0} icon={<Users />} color="blue" />
@@ -126,7 +137,7 @@ export default function AnalyticsPage() {
 
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
             {/* TRIBUNAL ANALYSIS */}
-            <div className="xl:col-span-8 premium-card p-8 bg-white min-h-[450px] flex flex-col">
+            <div className="xl:col-span-8 premium-card p-8 bg-white min-h-[400px] flex flex-col">
               <div className="flex items-center justify-between mb-10">
                 <div className="flex items-center gap-3">
                   <Scale size={18} className="text-muted-foreground" />
@@ -154,7 +165,7 @@ export default function AnalyticsPage() {
             </div>
 
             {/* STATUS DISTRIBUTION */}
-            <div className="xl:col-span-4 premium-card p-8 bg-white h-[450px] flex flex-col">
+            <div className="xl:col-span-4 premium-card p-8 bg-white h-[400px] flex flex-col">
               <div className="flex items-center gap-3 mb-10">
                 <PieChartIcon size={18} className="text-muted-foreground" />
                 <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Higiene da Carteira</h3>
@@ -187,6 +198,43 @@ export default function AnalyticsPage() {
                     <span className="text-[9px] font-black uppercase text-muted-foreground truncate">{item.name}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* LAWYER PERFORMANCE */}
+            <div className="xl:col-span-12 premium-card p-8 bg-white min-h-[400px] flex flex-col">
+              <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-3">
+                  <Gavel size={18} className="text-muted-foreground" />
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Distribuição por Advogado</h3>
+                </div>
+                <Badge variant="secondary" className="bg-secondary/50 border-none text-[10px] font-black uppercase px-3 py-1 rounded-full">Top 6 Banca</Badge>
+              </div>
+              <div className="flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={metrics?.topLawyers || []} layout="vertical" margin={{ left: 50, right: 30 }}>
+                    <XAxis type="number" hide />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      fontSize={10} 
+                      fontWeight={900} 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fill: '#64748b'}} 
+                      width={150}
+                    />
+                    <Tooltip 
+                      cursor={{fill: '#f1f5f9'}}
+                      contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase'}}
+                    />
+                    <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={30}>
+                      {metrics?.topLawyers.map((entry, index) => (
+                        <Cell key={`cell-lawyer-${index}`} fill={index === 0 ? '#00D1FF' : '#000'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
