@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -45,7 +46,7 @@ import {
   DialogDescription
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
-import { fetchRepoCases, syncRepoCases, deleteAllCasesAction } from '@/app/actions/case-actions';
+import { fetchRepoCases, syncRepoCases, deleteAllCasesAction, recalibrateCasesAction } from '@/app/actions/case-actions';
 import { exportCasesToCSVAction } from '@/app/actions/export-actions';
 import { format } from 'date-fns';
 import { useAdmin } from '@/hooks/use-admin';
@@ -137,10 +138,10 @@ const CaseRow = React.memo(({
           </Button>
           {isOperador && (
             <>
-              <Button title="Editar" variant="ghost" size="icon" onClick={() => onEdit(c)} className="text-muted-foreground hover:bg-secondary h-9 w-9 rounded-lg">
+              <Button title="Editar" variant="ghost" size="icon" onClick={() => handleEditClick(c)} className="text-muted-foreground hover:bg-secondary h-9 w-9 rounded-lg">
                 <Edit2 size={18} />
               </Button>
-              <Button title="Excluir" variant="ghost" size="icon" onClick={() => onDelete(c.id)} className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 h-9 w-9 rounded-lg">
+              <Button title="Excluir" variant="ghost" size="icon" onClick={() => handleDeleteCase(c.id)} className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 h-9 w-9 rounded-lg">
                 <Trash2 size={18} />
               </Button>
             </>
@@ -197,28 +198,36 @@ function CasesContent() {
     }
   }, []);
 
-  const handleBatchUpdateStatus = useCallback(async (silent = false) => {
+  const handleBatchUpdateStatus = async () => {
     if (!isOperador || cases.length === 0 || isUpdating) return;
-    if (!silent) setIsUpdating(true);
+    setIsUpdating(true);
     
     try {
       const savedThreshold = localStorage.getItem('lexisPredict_urgency_alert');
-      const thresholds = { alertLimit: savedThreshold ? parseInt(savedThreshold) : 3 };
+      const alertLimit = savedThreshold ? parseInt(savedThreshold) : 3;
 
-      const updatedCases = cases.map(c => {
-        if (isCasoEncerrado(c)) return c;
-        return processarCaso({ ...c, STATUS_MANUAL: 'Automatico' }, thresholds);
-      });
-
-      const result = await syncRepoCases(updatedCases);
+      const result = await recalibrateCasesAction(alertLimit);
+      
       if (result.success) {
-        setCases(updatedCases);
-        if (!silent) toast({ title: "Sincronia Concluída", description: "Todos os prazos ativos foram recalculados pelo motor." });
+        toast({ title: "Recalibração Concluída", description: result.message });
+        await loadData();
+      } else {
+        toast({ 
+          title: "Falha na Recalibração", 
+          description: result.error || "Erro desconhecido.", 
+          variant: "destructive" 
+        });
       }
+    } catch (err: any) {
+      toast({ 
+        title: "Erro de Conexão", 
+        description: "Não foi possível completar o reprocessamento.", 
+        variant: "destructive" 
+      });
     } finally {
-      if (!silent) setIsUpdating(false);
+      setIsUpdating(false);
     }
-  }, [cases, isOperador, isUpdating, toast]);
+  };
 
   const handleExportPlanilha = async () => {
     if (cases.length === 0 || isExporting) return;
@@ -272,7 +281,7 @@ function CasesContent() {
         'PRÓXIMO PRAZO': formState.proximoPrazo,
         SITUAÇÃO: formState.situacao,
         ULTIMO_RETORNO: formState.ultimoRetorno,
-        STATUS_MANUAL: formState.statusManual,
+        statusManual: formState.statusManual,
         OBSERVACAO: formState.observacao,
         TELEFONE: formState.telefone
       }, { alertLimit: savedThreshold ? parseInt(savedThreshold) : 3 });
@@ -368,19 +377,14 @@ function CasesContent() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleBatchUpdateStatus(false)}
+                onClick={handleBatchUpdateStatus}
                 disabled={isUpdating || loading || cases.length === 0}
-                className="h-10 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest text-muted-foreground hover:bg-secondary"
+                className="h-10 px-4 rounded-xl font-bold uppercase text-[10px] tracking-widest"
               >
-                {isUpdating ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <RefreshCcw size={16} className="mr-2" />
-                )}
+                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCcw size={16} className="mr-2" />}
                 Recalibrar Prazos
               </Button>
             )}
-
             
             {isOperador && (
                <Dialog open={isPurgeModalOpen} onOpenChange={setIsPurgeModalOpen}>
