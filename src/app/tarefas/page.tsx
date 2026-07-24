@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -33,7 +34,9 @@ import {
   Calendar,
   Archive,
   PlayCircle,
-  Sparkles
+  Sparkles,
+  Gavel,
+  User
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -75,6 +78,7 @@ interface TaskGroup {
   diasAtrasoMax: number;
   protocoloReferencia: string;
   telefone: string;
+  advogado: string;
   cases: LegalCase[];
 }
 
@@ -161,6 +165,7 @@ export default function TarefasPage() {
           diasAtrasoMax: 0,
           protocoloReferencia: c.protocolo,
           telefone: c.telefone || '',
+          advogado: c.advogado || 'NÃO ATRIBUÍDO',
           cases: []
         };
       }
@@ -417,6 +422,10 @@ function TaskCard({ group, isFocus = false, onMarkContacted }: { group: TaskGrou
       <div className="space-y-1 flex-1">
         <h3 className="font-black text-sm text-foreground uppercase tracking-tight truncate">{group.cliente}</h3>
         <p className="text-[9px] font-bold text-muted-foreground uppercase">Ref: {group.protocoloReferencia}</p>
+        <div className="flex items-center gap-1.5 mt-2 text-primary font-black uppercase text-[8px] tracking-widest bg-primary/5 px-2 py-1 rounded-md w-fit">
+          <Gavel size={10} />
+          {group.advogado}
+        </div>
       </div>
       <div className="mt-8 pt-6 border-t border-border/30 flex items-center justify-between">
         <div className="flex items-center gap-2">

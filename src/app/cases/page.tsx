@@ -27,7 +27,8 @@ import {
   ShieldAlert,
   Eye,
   EyeOff,
-  Sparkles
+  Sparkles,
+  User
 } from 'lucide-react';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { cn, formatWhatsAppLink } from '@/lib/utils';
@@ -159,6 +160,7 @@ function CasesContent() {
   const [search, setSearch] = useState(initialSearch);
   const deferredSearch = useDeferredValue(search);
   
+  const [lawyerFilter, setLawyerFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [showClosed, setShowClosed] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -351,17 +353,27 @@ function CasesContent() {
     }
   }, [cases, isOperador, toast]);
 
+  const lawyers = useMemo(() => {
+    const list = Array.from(new Set(cases.map(c => c.advogado))).filter(Boolean).sort();
+    return list;
+  }, [cases]);
+
   const filtered = useMemo(() => {
     const searchLower = deferredSearch.toLowerCase();
     return cases.filter(c => {
       const matchesSearch = (c.cliente || '').toLowerCase().includes(searchLower) || 
                             (c.protocolo || '').includes(deferredSearch);
+      
+      const matchesLawyer = lawyerFilter === 'ALL' || c.advogado === lawyerFilter;
+      
       const isEncerrado = isCasoEncerrado(c);
       
-      if (showClosed) return matchesSearch;
-      return matchesSearch && !isEncerrado;
+      let pass = matchesSearch && matchesLawyer;
+      if (!showClosed && isEncerrado) pass = false;
+      
+      return pass;
     });
-  }, [cases, deferredSearch, showClosed]);
+  }, [cases, deferredSearch, showClosed, lawyerFilter]);
 
   return (
     <div className="flex h-screen bg-background font-sans text-foreground">
@@ -456,15 +468,35 @@ function CasesContent() {
         <div className="flex-1 flex flex-col p-8 overflow-hidden">
           <div className="premium-card flex-1 flex flex-col overflow-hidden border-none">
             <div className="p-5 border-b border-border/30 flex items-center justify-between gap-6 shrink-0">
-              <div className="relative flex-1 max-w-lg">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input 
-                  placeholder="Pesquisar por titular ou protocolo judicial..." 
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-11 h-11 bg-secondary/30 border-none rounded-xl text-xs font-bold uppercase focus-visible:ring-primary/20"
-                />
+              <div className="flex flex-1 items-center gap-4 max-w-2xl">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input 
+                    placeholder="Pesquisar por titular ou protocolo judicial..." 
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-11 h-11 bg-secondary/30 border-none rounded-xl text-xs font-bold uppercase focus-visible:ring-primary/20"
+                  />
+                </div>
+                
+                <div className="w-64">
+                  <Select value={lawyerFilter} onValueChange={setLawyerFilter}>
+                    <SelectTrigger className="h-11 bg-secondary/30 border-none rounded-xl text-[10px] font-black uppercase">
+                      <div className="flex items-center gap-2">
+                        <User size={14} className="text-primary" />
+                        <SelectValue placeholder="FILTRAR ADVOGADO" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL" className="text-[10px] font-black uppercase">TODOS OS ADVOGADOS</SelectItem>
+                      {lawyers.map(l => (
+                        <SelectItem key={l} value={l} className="text-[10px] font-black uppercase">{l}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+              
               <div className="flex items-center gap-3">
                  <Badge className="bg-primary text-primary-foreground text-[10px] font-black uppercase h-9 px-5 rounded-lg flex items-center gap-2 border-none">
                    <Filter size={14} /> {filtered.length} Registros
@@ -512,101 +544,6 @@ function CasesContent() {
             </div>
           </div>
         </div>
-
-        <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCase(null); }}>
-          <DialogContent className="sm:max-w-[550px] rounded-2xl overflow-hidden border-none shadow-2xl">
-            <form onSubmit={handleSaveCase}>
-              <DialogHeader className="p-6 bg-secondary/20 border-b">
-                <DialogTitle className="font-black uppercase tracking-tight">
-                  {editingCase ? 'Editar Registro de Gabinete' : 'Novo Registro de Gabinete'}
-                </DialogTitle>
-              </DialogHeader>
-              <ScrollArea className="max-h-[70vh]">
-                <div className="p-6 space-y-6">
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Titular / Cliente</Label>
-                        <Input value={formState.cliente} onChange={(e) => setFormState({...formState, cliente: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-bold uppercase" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">WhatsApp / Telefone</Label>
-                        <Input value={formState.telefone} onChange={(e) => setFormState({...formState, telefone: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-mono" placeholder="(00) 00000-0000" />
-                      </div>
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">CNJ / Protocolo</Label>
-                      <Input value={formState.protocolo} onChange={(e) => setFormState({...formState, protocolo: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-mono" />
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                          <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Advogado</Label>
-                          <Input value={formState.advogado} onChange={(e) => setFormState({...formState, advogado: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none font-bold uppercase" />
-                      </div>
-                      <div className="grid gap-2">
-                          <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Próximo Prazo</Label>
-                          <Input value={formState.proximoPrazo} onChange={(e) => setFormState({...formState, proximoPrazo: e.target.value})} className="rounded-xl h-11 bg-secondary/20 border-none" placeholder="DD/MM/AAAA" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Situação do Processo</Label>
-                        <Select value={formState.situacao} onValueChange={(val) => setFormState({...formState, situacao: val})}>
-                          <SelectTrigger className="rounded-xl h-11 bg-secondary/20 border-none font-bold text-[10px] uppercase">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="EM ANDAMENTO">EM ANDAMENTO</SelectItem>
-                            <SelectItem value="ENCERRADO">ENCERRADO</SelectItem>
-                            <SelectItem value="ARQUIVADO">ARQUIVADO</SelectItem>
-                            <SelectItem value="SUSPENSO">SUSPENSO</SelectItem>
-                            <SelectItem value="EXTINTO">EXTINTO</SelectItem>
-                            <SelectItem value="IMOVEL">IMOVEL / IMÓVEL</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Status de Prazo</Label>
-                        <Select value={formState.statusManual} onValueChange={(val) => setFormState({...formState, statusManual: val})}>
-                          <SelectTrigger className="rounded-xl h-11 bg-secondary/20 border-none font-bold text-[10px] uppercase">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Automatico">🤖 AUTOMÁTICO (MOTOR IA)</SelectItem>
-                            <SelectItem value="Vencido">🔴 VENCIDO</SelectItem>
-                            <SelectItem value="É Hoje">🔵 É HOJE</SelectItem>
-                            <SelectItem value="Atenção">🟠 ATENÇÃO</SelectItem>
-                            <SelectItem value="No Prazo">🟢 NO PRAZO</SelectItem>
-                            <SelectItem value="Sem Prazo">⚪ SEM PRAZO</SelectItem>
-                            <SelectItem value="Caso Crítico">🔥 CASO CRÍTICO</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Observações de Gabinete</Label>
-                      <Textarea 
-                        value={formState.observacao} 
-                        onChange={(e) => setFormState({...formState, observacao: e.target.value})} 
-                        className="rounded-xl bg-secondary/20 border-none min-h-[100px] text-xs font-bold uppercase resize-none" 
-                        placeholder="DETALHES ESTRATÉGICOS DO CASO..."
-                      />
-                    </div>
-                  </div>
-                </div>
-              </ScrollArea>
-              <DialogFooter className="p-6 pt-0">
-                <Button type="submit" className="w-full h-12 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl">
-                  {editingCase ? 'Sincronizar Atualização' : 'Criar Registro no Repositório'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
 
         <footer className="h-10 border-t border-border/30 bg-card/60 flex items-center justify-center gap-6 text-[10px] text-muted-foreground/60 font-bold uppercase tracking-[0.3em] shrink-0">
           <Copyright size={10} /> 2026 W1 Capital • Advanced Legal Operations

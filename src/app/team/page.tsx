@@ -24,10 +24,11 @@ import {
   Trophy,
   Medal,
   Star,
-  ShieldHalf
+  ShieldHalf,
+  Eye
 } from 'lucide-react';
 import { getEmpresaUsers, removeEmpresaUser, logAuditAction, updateUserRole } from '@/lib/server-db';
-import { UserProfile, supabase, UserRole, checkIfSuperAdmin } from '@/lib/supabase';
+import { UserProfile, supabase, UserRole, checkIfSuperAdmin, checkIfSupervisor } from '@/lib/supabase';
 import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -71,8 +72,8 @@ export default function TeamManagement() {
   const { toast } = useToast();
   const t = getTranslation(locale);
   
-  const isSuperAdmin = profile?.cargo === 'Superadmin' || profile?.role === 'superadmin';
-  const isAdmin = profile?.cargo === 'Administrador' || isSuperAdmin;
+  const isSuperAdmin = checkIfSuperAdmin(profile);
+  const isAdmin = profile?.cargo === 'Administrador' || isSuperAdmin || profile?.cargo === 'Supervisor';
 
   const [userForm, setUserForm] = useState({
     nome: '',
@@ -162,7 +163,8 @@ export default function TeamManagement() {
 
   // Ranking / Hierarquia Logic
   const roleWeights: Record<string, number> = {
-    'Superadmin': 4000,
+    'Superadmin': 5000,
+    'Supervisor': 4000,
     'Administrador': 3000,
     'Operador': 2000,
     'Visualizador': 1000
@@ -222,7 +224,8 @@ export default function TeamManagement() {
             <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20 animate-in fade-in duration-500">
               {users.map((user) => {
                 const targetIsSuper = checkIfSuperAdmin(user);
-                const canManage = isSuperAdmin || !targetIsSuper;
+                const targetIsSupervisor = checkIfSupervisor(user);
+                const canManage = isSuperAdmin || (!targetIsSuper && !targetIsSupervisor) || (isSuperAdmin && targetIsSupervisor);
 
                 return (
                   <Card key={user.id} className="premium-card bg-white border-border/40 rounded-2xl group hover:border-black transition-all overflow-hidden relative">
@@ -231,9 +234,11 @@ export default function TeamManagement() {
                         <div className={cn(
                           "w-12 h-12 rounded-xl flex items-center justify-center border transition-all",
                           targetIsSuper ? "bg-black text-[#FFD700] border-[#FFD700] shadow-[0_0_15px_rgba(255,215,0,0.3)]" : 
+                          targetIsSupervisor ? "bg-primary/20 text-primary border-primary" :
                           user.cargo === 'Administrador' ? "bg-black text-primary border-black shadow-lg" : "bg-[#f8f9fb] border-border/50 text-muted-foreground"
                         )}>
                           {targetIsSuper ? <Crown size={24} /> : 
+                           targetIsSupervisor ? <Eye size={24} /> :
                            user.cargo === 'Administrador' ? <ShieldCheck size={24} /> : user.cargo === 'Operador' ? <Shield size={24} /> : <Activity size={24} />}
                         </div>
                         <div className="flex flex-col">
@@ -260,6 +265,10 @@ export default function TeamManagement() {
                                  Tornar Superadmin
                               </DropdownMenuItem>
                             )}
+
+                            <DropdownMenuItem disabled={!canManage} onClick={() => handleChangeRole(user.id, 'Supervisor')} className="text-[9px] font-black uppercase cursor-pointer hover:bg-secondary rounded-lg px-3 py-2 text-primary font-bold">
+                               Tornar Supervisor
+                            </DropdownMenuItem>
                             
                             <DropdownMenuItem disabled={!canManage} onClick={() => handleChangeRole(user.id, 'Administrador')} className="text-[9px] font-black uppercase cursor-pointer hover:bg-secondary rounded-lg px-3 py-2">
                                Tornar Administrador
@@ -321,12 +330,13 @@ export default function TeamManagement() {
               <div className="space-y-3">
                 {rankedUsers.map((user, index) => {
                    const isSuper = checkIfSuperAdmin(user);
+                   const isSupervisor = checkIfSupervisor(user);
                    const rank = index + 1;
                    
                    return (
                      <div key={user.id} className={cn(
                        "flex items-center justify-between p-5 bg-white border-2 border-border/40 rounded-2xl hover:border-black transition-all group",
-                       isSuper && "border-black shadow-[6px_6px_0px_rgba(0,0,0,0.1)]"
+                       (isSuper || isSupervisor) && "border-black shadow-[6px_6px_0px_rgba(0,0,0,0.1)]"
                      )}>
                         <div className="flex items-center gap-6">
                            <div className={cn(
@@ -339,9 +349,10 @@ export default function TeamManagement() {
                            <div className="flex items-center gap-4">
                               <div className={cn(
                                 "w-12 h-12 rounded-xl flex items-center justify-center transition-all",
-                                isSuper ? "bg-black text-[#FFD700]" : "bg-secondary/50 text-muted-foreground"
+                                isSuper ? "bg-black text-[#FFD700]" : 
+                                isSupervisor ? "bg-primary text-white" : "bg-secondary/50 text-muted-foreground"
                               )}>
-                                 {isSuper ? <Crown size={20} /> : <UserCheck size={20} />}
+                                 {isSuper ? <Crown size={20} /> : isSupervisor ? <Eye size={20} /> : <UserCheck size={20} />}
                               </div>
                               <div>
                                  <p className="font-black text-sm uppercase tracking-tight leading-none mb-1.5">{user.nome}</p>
@@ -358,7 +369,8 @@ export default function TeamManagement() {
                               <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1 opacity-60">Status de Perfil</p>
                               <Badge className={cn(
                                 "bg-emerald-50 text-emerald-700 border-none text-[8px] font-black uppercase px-3",
-                                isSuper && "bg-black text-[#FFD700]"
+                                isSuper && "bg-black text-[#FFD700]",
+                                isSupervisor && "bg-primary text-white"
                               )}>
                                 Ativo no Núcleo
                               </Badge>
@@ -399,6 +411,7 @@ export default function TeamManagement() {
                       </SelectTrigger>
                       <SelectContent>
                         {isSuperAdmin && <SelectItem value="Superadmin" className="text-[10px] font-bold">SUPERADMIN</SelectItem>}
+                        <SelectItem value="Supervisor" className="text-[10px] font-bold">SUPERVISOR (MASTER)</SelectItem>
                         <SelectItem value="Administrador" className="text-[10px] font-bold">ADMINISTRADOR</SelectItem>
                         <SelectItem value="Operador" className="text-[10px] font-bold">OPERADOR</SelectItem>
                         <SelectItem value="Visualizador" className="text-[10px] font-bold">VISUALIZADOR</SelectItem>
@@ -432,12 +445,16 @@ export default function TeamManagement() {
 function RoleBadge({ role, t, isSuper }: { role: UserRole, t: any, isSuper: boolean }) {
   const styles: Record<string, string> = {
     'Superadmin': "text-[#FFD700] border-[#FFD700]/40 bg-black shadow-[0_0_10px_rgba(255,215,0,0.2)]",
+    'Supervisor': "text-primary border-primary bg-primary/10 shadow-sm",
     'Administrador': "text-primary border-primary/20 bg-black shadow-sm",
     'Operador': "text-blue-500 border-blue-500/20 bg-blue-50",
     'Visualizador': "text-muted-foreground border-border bg-secondary/50",
   };
 
-  const label = isSuper ? t.roleSuperAdmin : role === 'Administrador' ? t.roleAdmin : role === 'Operador' ? t.roleOperator : t.roleViewer;
+  const label = isSuper ? t.roleSuperAdmin : 
+                role === 'Supervisor' ? t.roleSupervisor :
+                role === 'Administrador' ? t.roleAdmin : 
+                role === 'Operador' ? t.roleOperator : t.roleViewer;
 
   return (
     <Badge variant="outline" className={cn("px-2 py-0.5 text-[7px] font-black uppercase tracking-[0.1em] rounded-md", styles[isSuper ? 'Superadmin' : role] || styles.Visualizador)}>

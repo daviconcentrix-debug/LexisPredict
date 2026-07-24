@@ -1,19 +1,19 @@
 'use server';
 
-import { supabase, isSupabaseConfigured, UserProfile, UserRole, checkIfSuperAdmin } from './supabase';
+import { supabase, isSupabaseConfigured, UserProfile, UserRole, checkIfSuperAdmin, checkIfSupervisor } from './supabase';
 import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
  * REPOSITÓRIO CENTRAL LEXISPREDICT (v5000.0 ELITE)
- * Governança de Superadmin e Sincronia Ilimitada (Bypass do Limite de 1000).
+ * Governança de Supervisor e Sincronia Ilimitada.
  */
 
 export async function getUserContext() {
   const cookieStore = await cookies();
   const userEmail = cookieStore.get('lexis_user_email')?.value;
   
-  if (!userEmail) return { auth_id: null, empresa_id: null, cargo: null as UserRole | null, email: null, isSuperAdmin: false };
+  if (!userEmail) return { auth_id: null, empresa_id: null, cargo: null as UserRole | null, email: null, isSuperAdmin: false, isSupervisor: false };
 
   const { data: profile } = await supabase
     .from('usuarios')
@@ -21,14 +21,17 @@ export async function getUserContext() {
     .eq('email', userEmail.toLowerCase().trim())
     .maybeSingle();
     
-  const cargo = (profile?.role === 'superadmin' || profile?.cargo === 'Superadmin') ? 'Superadmin' : profile?.cargo as UserRole;
+  const cargo = profile?.cargo as UserRole;
+  const isSuperAdmin = checkIfSuperAdmin(profile);
+  const isSupervisor = checkIfSupervisor(profile);
 
   return { 
     auth_id: profile?.auth_user_id || null,
     empresa_id: profile?.empresa_id || null, 
     cargo: cargo || 'Operador',
     email: profile?.email || null,
-    isSuperAdmin: cargo === 'Superadmin'
+    isSuperAdmin,
+    isSupervisor
   };
 }
 
@@ -103,11 +106,11 @@ export async function desativarAdvogadoBanca(id: string) {
   return { success: !error };
 }
 
-// --- GESTÃO DE PROCESSOS (VISÃO GLOBAL PARA SUPERADMIN) ---
+// --- GESTÃO DE PROCESSOS (ISOLAMENTO TOTAL ATIVO / MASTER PARA SUPERVISOR) ---
 
 export async function getStoredCases(): Promise<LegalCase[]> {
   if (!isSupabaseConfigured) return [];
-  const { empresa_id, auth_id, isSuperAdmin } = await getUserContext();
+  const { empresa_id, auth_id, isSupervisor } = await getUserContext();
   if (!empresa_id || !auth_id) return [];
 
   try {
@@ -116,7 +119,6 @@ export async function getStoredCases(): Promise<LegalCase[]> {
     const pageSize = 1000;
     let hasMore = true;
 
-    // Motor de Paginação Automática: Captura todos os registros acima de 1000
     while (hasMore) {
       let query = supabase
         .from('processos')
@@ -125,8 +127,8 @@ export async function getStoredCases(): Promise<LegalCase[]> {
         .order('created_at', { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
-      // Protocolo Elite: Superadmin vê tudo da empresa. Operador vê apenas o que criou.
-      if (!isSuperAdmin) {
+      // Regra de Ouro: Apenas o Supervisor vê tudo. Outros vêem apenas o que criaram.
+      if (!isSupervisor) {
         query = query.eq('created_by', auth_id);
       }
 
@@ -182,7 +184,6 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
       };
     });
 
-    // Salva em lotes de 50 para evitar limites de payload
     const chunkSize = 50;
     for (let i = 0; i < payload.length; i += chunkSize) {
       const chunk = payload.slice(i, i + chunkSize);
@@ -200,7 +201,7 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 }
 
 export async function getStoredNotes(): Promise<CaseNote[]> {
-  const { auth_id, empresa_id, isSuperAdmin } = await getUserContext();
+  const { auth_id, empresa_id, isSupervisor } = await getUserContext();
   if (!empresa_id || !auth_id) return [];
 
   try {
@@ -217,7 +218,7 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
         .order('created_at', { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
-      if (!isSuperAdmin) {
+      if (!isSupervisor) {
         query = query.eq('created_by', auth_id);
       }
 
@@ -295,7 +296,7 @@ export async function getEmpresaUsers(): Promise<UserProfile[]> {
 export async function removeEmpresaUser(userId: string): Promise<{ success: boolean, error?: string }> {
   const { cargo, auth_id, isSuperAdmin } = await getUserContext();
   
-  if (cargo !== 'Administrador' && cargo !== 'Superadmin') return { success: false, error: 'Permissão insuficiente' };
+  if (cargo !== 'Administrador' && cargo !== 'Superadmin' && cargo !== 'Supervisor') return { success: false, error: 'Permissão insuficiente' };
 
   // 1. Buscar alvo para verificar se é superadmin
   const { data: target } = await supabase.from('usuarios').select('cargo, role, auth_user_id').eq('id', userId).single();
@@ -324,7 +325,7 @@ export async function removeEmpresaUser(userId: string): Promise<{ success: bool
 export async function updateUserRole(userId: string, newRole: UserRole): Promise<{ success: boolean, error?: string }> {
   const { cargo, isSuperAdmin } = await getUserContext();
   
-  if (cargo !== 'Administrador' && cargo !== 'Superadmin') return { success: false, error: 'Permissão insuficiente' };
+  if (cargo !== 'Administrador' && cargo !== 'Superadmin' && cargo !== 'Supervisor') return { success: false, error: 'Permissão insuficiente' };
 
   // 1. Buscar alvo
   const { data: target } = await supabase.from('usuarios').select('cargo, role').eq('id', userId).single();

@@ -16,7 +16,7 @@ export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null as any;
 
-export type UserRole = 'Superadmin' | 'Administrador' | 'Operador' | 'Visualizador';
+export type UserRole = 'Superadmin' | 'Administrador' | 'Operador' | 'Visualizador' | 'Supervisor';
 
 export interface UserProfile {
   id: string;
@@ -37,10 +37,17 @@ export interface Empresa {
 }
 
 /**
- * Utilitário de Verificação de Autoridade Mestre.
- * Definido aqui para ser acessível tanto por Client quanto Server Components de forma síncrona.
+ * Utilitário de Verificação de Autoridade Mestre de Sistema.
  */
 export function checkIfSuperAdmin(user: any) {
   if (!user) return false;
   return user.cargo === 'Superadmin' || user.role === 'superadmin';
+}
+
+/**
+ * Utilitário de Verificação de Visão Master (Supervisor).
+ */
+export function checkIfSupervisor(user: any) {
+  if (!user) return false;
+  return user.cargo === 'Supervisor';
 }

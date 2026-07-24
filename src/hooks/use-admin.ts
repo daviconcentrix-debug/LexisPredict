@@ -5,14 +5,15 @@
  */
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { checkIfSuperAdmin } from '@/lib/supabase';
+import { checkIfSuperAdmin, checkIfSupervisor } from '@/lib/supabase';
 
 export function useAdmin() {
   const { profile, loading, signOut } = useAuth();
 
   // Superadmin herda privilégios de Admin e Operador
   const isSuperAdmin = checkIfSuperAdmin(profile);
-  const isAdmin = profile?.cargo === 'Administrador' || isSuperAdmin;
+  const isSupervisor = checkIfSupervisor(profile);
+  const isAdmin = profile?.cargo === 'Administrador' || isSuperAdmin || isSupervisor;
   const isOperador = profile?.cargo === 'Operador' || isAdmin;
   
   /**
@@ -28,6 +29,7 @@ export function useAdmin() {
     isAdmin, 
     isOperador,
     isSuperAdmin,
+    isSupervisor,
     login, 
     logout: signOut, 
     loading,
