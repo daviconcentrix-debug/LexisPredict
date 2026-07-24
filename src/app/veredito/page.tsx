@@ -1,9 +1,8 @@
-
-"use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
  */
+"use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -21,7 +20,9 @@ import {
   Zap, 
   Loader2, 
   AlertCircle,
-  Gavel
+  Gavel,
+  ShieldCheck,
+  Target
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ChanceEncerramentoCard } from '@/components/dashboard/chance-encerramento-card';
+import { analisarChanceEncerramento } from '@/lib/chance-encerramento-logic';
 
 export default function VereditoPage() {
   const [cnj, setCnj] = useState('');
@@ -172,6 +175,12 @@ export default function VereditoPage() {
     toast({ title: "Copiado para Área de Transferência" });
   };
 
+  // Cálculo de Chance Baseado no Resultado DataJud
+  const chanceAnalysis = result ? analisarChanceEncerramento({
+    situacao: result.dataJudRaw?.classe || '',
+    observacao: result.resumoTecnico || ''
+  }) : null;
+
   return (
     <div className="flex h-screen bg-[#f3f2f2] font-sans text-black relative z-10">
       <Sidebar />
@@ -257,29 +266,53 @@ export default function VereditoPage() {
                     </TabsList>
 
                     <TabsContent value="details" className="mt-0">
-                      <Card className="bg-white border-2 border-black shadow-none rounded-none border-t-0">
-                        <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-4">
-                          <CardTitle className="text-[10px] font-black text-black uppercase flex items-center gap-2">
-                            <FileText size={16} /> Diagnóstico Estratégico Senior
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-8 space-y-10">
-                          <div className="space-y-3 p-6 bg-[#f3f2f2] border-2 border-black">
-                            <Label className="text-[10px] font-black uppercase opacity-60">Resumo Resolutivo</Label>
-                            <p className="text-sm leading-relaxed text-black font-black uppercase italic">{result.resumoTecnico}</p>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                            <div className="space-y-3">
-                              <Label className="text-[10px] font-black uppercase text-red-600">Análise de Risco (Cláusula 3.2)</Label>
-                              <p className="text-[11px] text-black leading-relaxed border-l-4 border-black pl-5 font-black uppercase">{result.analiseRisco}</p>
+                      <div className="space-y-6">
+                        <Card className="bg-white border-2 border-black shadow-none rounded-none border-t-0">
+                          <CardHeader className="bg-[#f8f9fb] border-b-2 border-black py-4">
+                            <CardTitle className="text-[10px] font-black text-black uppercase flex items-center gap-2">
+                              <FileText size={16} /> Diagnóstico Estratégico Senior
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-8 space-y-10">
+                            <div className="space-y-3 p-6 bg-[#f3f2f2] border-2 border-black">
+                              <Label className="text-[10px] font-black uppercase opacity-60">Resumo Resolutivo</Label>
+                              <p className="text-sm leading-relaxed text-black font-black uppercase italic">{result.resumoTecnico}</p>
                             </div>
-                            <div className="space-y-3">
-                              <Label className="text-[10px] font-black uppercase text-blue-600">Estratégia Operacional</Label>
-                              <p className="text-[11px] text-black leading-relaxed border-l-4 border-black pl-5 font-black uppercase">{result.proximosPassos}</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                              <div className="space-y-3">
+                                <Label className="text-[10px] font-black uppercase text-red-600">Análise de Risco (Cláusula 3.2)</Label>
+                                <p className="text-[11px] text-black leading-relaxed border-l-4 border-black pl-5 font-black uppercase">{result.analiseRisco}</p>
+                              </div>
+                              <div className="space-y-3">
+                                <Label className="text-[10px] font-black uppercase text-blue-600">Estratégia Operacional</Label>
+                                <p className="text-[11px] text-black leading-relaxed border-l-4 border-black pl-5 font-black uppercase">{result.proximosPassos}</p>
+                              </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                          </CardContent>
+                        </Card>
+
+                        {/* Nova Seção: Chance de Encerramento */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                           {chanceAnalysis && (
+                             <ChanceEncerramentoCard analysis={chanceAnalysis} />
+                           )}
+                           
+                           {result.conclusaoEncerramento && (
+                             <Card className="bg-primary/5 border-2 border-black shadow-[8px_8px_0px_#000] rounded-none">
+                               <CardHeader className="bg-black text-white p-4">
+                                  <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                                    <ShieldCheck size={14} /> Conclusão Neural
+                                  </CardTitle>
+                               </CardHeader>
+                               <CardContent className="p-6">
+                                  <p className="text-[11px] font-black uppercase leading-relaxed text-black/80 italic">
+                                    {result.conclusaoEncerramento}
+                                  </p>
+                               </CardContent>
+                             </Card>
+                           )}
+                        </div>
+                      </div>
                     </TabsContent>
 
                     <TabsContent value="whatsapp" className="mt-0">
