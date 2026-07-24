@@ -1,4 +1,3 @@
-
 'use server';
 
 import { supabase, isSupabaseConfigured, UserProfile, UserRole, checkIfSuperAdmin, checkIfSupervisor } from './supabase';
@@ -52,6 +51,57 @@ export async function logAuditAction(action: string, detail: string) {
   } catch (e) {
     console.warn('[Audit] Falha ao registrar log.');
   }
+}
+
+// --- GESTÃO DE EQUIPE ---
+
+export async function getEmpresaUsers(): Promise<UserProfile[]> {
+  const { empresa_id } = await getUserContext();
+  if (!empresa_id) return [];
+
+  const { data, error } = await supabase
+    .from('usuarios')
+    .select('*')
+    .eq('empresa_id', empresa_id)
+    .order('nome', { ascending: true });
+
+  if (error) {
+    console.error('[DB] Erro ao buscar equipe:', error.message);
+    throw error;
+  }
+  return (data || []) as UserProfile[];
+}
+
+export async function removeEmpresaUser(userId: string) {
+  const { empresa_id, isSuperAdmin, isSupervisor } = await getUserContext();
+  const isAdmin = isSuperAdmin || isSupervisor;
+
+  if (!empresa_id || !isAdmin) return { success: false, error: 'Permissão insuficiente.' };
+
+  const { error } = await supabase
+    .from('usuarios')
+    .delete()
+    .eq('id', userId)
+    .eq('empresa_id', empresa_id);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function updateUserRole(userId: string, newRole: UserRole) {
+  const { empresa_id, isSuperAdmin, isSupervisor } = await getUserContext();
+  const isAdmin = isSuperAdmin || isSupervisor;
+
+  if (!empresa_id || !isAdmin) return { success: false, error: 'Permissão insuficiente.' };
+
+  const { error } = await supabase
+    .from('usuarios')
+    .update({ cargo: newRole })
+    .eq('id', userId)
+    .eq('empresa_id', empresa_id);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
 }
 
 // --- GESTÃO DE ADVOGADOS DA BANCA ---
@@ -261,9 +311,6 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
   }
 }
 
-/**
- * Operação Atômica de Inserção de Nota
- */
 export async function saveSingleNote(note: Partial<CaseNote>): Promise<{ success: boolean; data?: any }> {
   const { auth_id, empresa_id } = await getUserContext();
   if (!empresa_id || !auth_id) return { success: false };
@@ -271,7 +318,7 @@ export async function saveSingleNote(note: Partial<CaseNote>): Promise<{ success
   console.log("[DB] [INSERT NOTE]", note.title);
   
   const dbNote = {
-    id: note.id || undefined, // Deixa o DB gerar se não houver
+    id: note.id || undefined,
     title: note.title || 'Nota',
     content: note.imageUrl ? JSON.stringify({ text: note.content, imageUrl: note.imageUrl }) : note.content,
     empresa_id: empresa_id,
@@ -287,9 +334,6 @@ export async function saveSingleNote(note: Partial<CaseNote>): Promise<{ success
   return { success: true, data };
 }
 
-/**
- * Operação Atômica de Atualização
- */
 export async function updateStoredNote(id: string, updates: Partial<CaseNote>): Promise<{ success: boolean }> {
   const { empresa_id } = await getUserContext();
   if (!empresa_id) return { success: false };
@@ -312,9 +356,6 @@ export async function updateStoredNote(id: string, updates: Partial<CaseNote>): 
   return { success: !error };
 }
 
-/**
- * Operação Atômica de Exclusão
- */
 export async function deleteStoredNote(id: string): Promise<{ success: boolean }> {
   const { empresa_id } = await getUserContext();
   if (!empresa_id) return { success: false };
