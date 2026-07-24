@@ -1,3 +1,4 @@
+
 'use server';
 
 import { supabase, isSupabaseConfigured, UserProfile, UserRole, checkIfSuperAdmin, checkIfSupervisor } from './supabase';
@@ -5,7 +6,7 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v5000.0 ELITE)
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v5100.0 ELITE)
  * Governança de Supervisor e Sincronia Ilimitada.
  */
 
@@ -17,7 +18,7 @@ export async function getUserContext() {
 
   const { data: profile } = await supabase
     .from('usuarios')
-    .select('id, empresa_id, cargo, email, auth_user_id, role')
+    .select('id, empresa_id, cargo, email, auth_user_id')
     .eq('email', userEmail.toLowerCase().trim())
     .maybeSingle();
     
@@ -106,7 +107,7 @@ export async function desativarAdvogadoBanca(id: string) {
   return { success: !error };
 }
 
-// --- GESTÃO DE PROCESSOS (ISOLAMENTO TOTAL ATIVO / MASTER PARA SUPERVISOR) ---
+// --- GESTÃO DE PROCESSOS ---
 
 export async function getStoredCases(): Promise<LegalCase[]> {
   if (!isSupabaseConfigured) return [];
@@ -127,7 +128,6 @@ export async function getStoredCases(): Promise<LegalCase[]> {
         .order('created_at', { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
-      // Regra de Ouro: Apenas o Supervisor vê tudo. Outros vêem apenas o que criaram.
       if (!isSupervisor) {
         query = query.eq('created_by', auth_id);
       }
@@ -200,6 +200,8 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
   }
 }
 
+// --- GESTÃO DE NOTAS (ANTI-DUPLICAÇÃO) ---
+
 export async function getStoredNotes(): Promise<CaseNote[]> {
   const { auth_id, empresa_id, isSupervisor } = await getUserContext();
   if (!empresa_id || !auth_id) return [];
@@ -259,123 +261,67 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
   }
 }
 
-export async function saveStoredNotes(notes: CaseNote[]): Promise<{ success: boolean }> {
+/**
+ * Operação Atômica de Inserção de Nota
+ */
+export async function saveSingleNote(note: Partial<CaseNote>): Promise<{ success: boolean; data?: any }> {
   const { auth_id, empresa_id } = await getUserContext();
   if (!empresa_id || !auth_id) return { success: false };
 
-  try {
-    const dbNotes = notes.map(n => ({
-      title: n.title || 'Nota',
-      content: n.imageUrl ? JSON.stringify({ text: n.content, imageUrl: n.imageUrl }) : n.content,
-      empresa_id: empresa_id,
-      created_by: auth_id
-    }));
+  console.log("[DB] [INSERT NOTE]", note.title);
+  
+  const dbNote = {
+    id: note.id || undefined, // Deixa o DB gerar se não houver
+    title: note.title || 'Nota',
+    content: note.imageUrl ? JSON.stringify({ text: note.content, imageUrl: note.imageUrl }) : note.content,
+    empresa_id: empresa_id,
+    created_by: auth_id
+  };
 
-    const { error } = await supabase.from('notes').upsert(dbNotes);
-    if (error) throw error;
-    
-    return { success: true };
-  } catch (error) {
+  const { data, error } = await supabase.from('notes').insert(dbNote).select().single();
+  if (error) {
+    console.error("[DB] [INSERT FAIL]", error.message);
     return { success: false };
   }
+  
+  return { success: true, data };
 }
 
-export async function getEmpresaUsers(): Promise<UserProfile[]> {
+/**
+ * Operação Atômica de Atualização
+ */
+export async function updateStoredNote(id: string, updates: Partial<CaseNote>): Promise<{ success: boolean }> {
   const { empresa_id } = await getUserContext();
-  if (!empresa_id) return [];
+  if (!empresa_id) return { success: false };
 
-  const { data, error } = await supabase
-    .from('usuarios')
-    .select('*')
+  console.log("[DB] [UPDATE NOTE]", id);
+
+  const dbUpdates: any = {};
+  if (updates.title !== undefined) dbUpdates.title = updates.title;
+  if (updates.content !== undefined || updates.imageUrl !== undefined) {
+    dbUpdates.content = updates.imageUrl ? JSON.stringify({ text: updates.content, imageUrl: updates.imageUrl }) : updates.content;
+  }
+
+  const { error } = await supabase
+    .from('notes')
+    .update(dbUpdates)
+    .eq('id', id)
     .eq('empresa_id', empresa_id);
 
-  if (error) return [];
-  return data as UserProfile[];
+  if (error) console.error("[DB] [UPDATE FAIL]", error.message);
+  return { success: !error };
 }
 
-export async function removeEmpresaUser(userId: string): Promise<{ success: boolean, error?: string }> {
-  const { cargo, auth_id, isSuperAdmin } = await getUserContext();
+/**
+ * Operação Atômica de Exclusão
+ */
+export async function deleteStoredNote(id: string): Promise<{ success: boolean }> {
+  const { empresa_id } = await getUserContext();
+  if (!empresa_id) return { success: false };
+
+  console.log("[DB] [DELETE NOTE]", id);
+  const { error } = await supabase.from('notes').delete().eq('id', id).eq('empresa_id', empresa_id);
   
-  if (cargo !== 'Administrador' && cargo !== 'Superadmin' && cargo !== 'Supervisor') return { success: false, error: 'Permissão insuficiente' };
-
-  // 1. Buscar alvo para verificar se é superadmin
-  const { data: target } = await supabase.from('usuarios').select('cargo, role, auth_user_id').eq('id', userId).single();
-  if (!target) return { success: false, error: 'Usuário não encontrado' };
-
-  const targetIsSuper = checkIfSuperAdmin(target);
-
-  // 2. Regra Superadmin
-  if (targetIsSuper && !isSuperAdmin) {
-    return { success: false, error: 'Apenas Superadmins podem remover outros Superadmins.' };
-  }
-
-  // 3. Impedir auto-remoção insegura
-  if (target.auth_user_id === auth_id) {
-    return { success: false, error: 'Você não pode se auto-excluir da plataforma.' };
-  }
-
-  const { error } = await supabase
-    .from('usuarios')
-    .delete()
-    .eq('id', userId);
-
-  return { success: !error, error: error?.message };
-}
-
-export async function updateUserRole(userId: string, newRole: UserRole): Promise<{ success: boolean, error?: string }> {
-  const { cargo, isSuperAdmin } = await getUserContext();
-  
-  if (cargo !== 'Administrador' && cargo !== 'Superadmin' && cargo !== 'Supervisor') return { success: false, error: 'Permissão insuficiente' };
-
-  // 1. Buscar alvo
-  const { data: target } = await supabase.from('usuarios').select('cargo, role').eq('id', userId).single();
-  if (!target) return { success: false, error: 'Usuário não encontrado' };
-
-  const targetIsSuper = checkIfSuperAdmin(target);
-
-  // 2. Proteção Superadmin
-  if (targetIsSuper && !isSuperAdmin) {
-    return { success: false, error: 'Você não tem autoridade para alterar o cargo de um Superadmin.' };
-  }
-
-  if (newRole === 'Superadmin' && !isSuperAdmin) {
-    return { success: false, error: 'Apenas um Superadmin pode promover outros usuários a Superadmin.' };
-  }
-
-  const payload: any = { cargo: newRole };
-  if (isSuperAdmin && newRole === 'Superadmin') {
-    payload.role = 'superadmin';
-  } else if (targetIsSuper && newRole !== 'Superadmin') {
-    payload.role = 'user'; // Rebaixa papel técnico se mudar o cargo
-  }
-
-  const { error } = await supabase
-    .from('usuarios')
-    .update(payload)
-    .eq('id', userId);
-
-  return { success: !error, error: error?.message };
-}
-
-export async function getWhatsAppHistory(phone: string) {
-  const cleanPhone = phone.replace(/\D/g, '');
-  let searchPhone = cleanPhone;
-  
-  if (cleanPhone.length === 10 || cleanPhone.length === 11) {
-    searchPhone = `55${cleanPhone}`;
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('whatsapp_messages')
-      .select('*')
-      .eq('contact_number', searchPhone)
-      .order('timestamp', { ascending: true });
-
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('[DB] WhatsApp History Fetch Fail:', error);
-    return [];
-  }
+  if (error) console.error("[DB] [DELETE FAIL]", error.message);
+  return { success: !error };
 }

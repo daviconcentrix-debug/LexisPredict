@@ -1,10 +1,14 @@
 
 'use server';
 
-import { getStoredCases, saveStoredCases, getStoredNotes, saveStoredNotes, getUserContext } from '@/lib/server-db';
-import { LegalCase, CaseNote, processarCaso } from '@/lib/case-logic';
+import { getStoredCases, saveStoredCases, getUserContext } from '@/lib/server-db';
+import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { createClient } from '@/lib/supabase/server';
 import { isCasoEncerrado } from '@/lib/status-encerrado';
+
+/**
+ * @fileOverview Actions de Processos v2.0
+ */
 
 export async function fetchRepoCases() {
   return await getStoredCases();
@@ -14,18 +18,9 @@ export async function syncRepoCases(cases: LegalCase[]) {
   return await saveStoredCases(cases);
 }
 
-export async function fetchRepoNotes() {
-  return await getStoredNotes();
-}
-
-export async function syncRepoNotes(notes: CaseNote[]) {
-  return await saveStoredNotes(notes);
-}
-
 /**
  * Motor de Recalibração de Prazos v2.0
  * Executa o recálculo de status de todos os processos ativos no servidor.
- * Divide a gravação em lotes (chunks) para evitar falhas de timeout.
  */
 export async function recalibrateCasesAction(alertLimit: number = 3) {
   try {
@@ -35,14 +30,11 @@ export async function recalibrateCasesAction(alertLimit: number = 3) {
     const cases = await getStoredCases();
     if (!cases || cases.length === 0) return { success: true, count: 0 };
 
-    // 1. Recalcular apenas os não encerrados
     const updatedCases = cases.map(c => {
       if (isCasoEncerrado(c)) return c;
-      // Força o motor a reassumir o status baseado nas datas
       return processarCaso({ ...c, statusManual: 'Automatico' }, { alertLimit });
     });
 
-    // 2. Salvar em lotes de 50 para garantir estabilidade
     const chunkSize = 50;
     for (let i = 0; i < updatedCases.length; i += chunkSize) {
       const chunk = updatedCases.slice(i, i + chunkSize);
@@ -62,8 +54,7 @@ export async function recalibrateCasesAction(alertLimit: number = 3) {
 }
 
 /**
- * Protocolo de Purga Restrita:
- * Garante que apenas os processos criados pelo usuário logado sejam removidos.
+ * Protocolo de Purga Restrita
  */
 export async function deleteAllCasesAction() {
   try {
