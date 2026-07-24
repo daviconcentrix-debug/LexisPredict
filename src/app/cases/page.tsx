@@ -15,7 +15,7 @@ import {
   Plus, 
   Briefcase, 
   Edit2, 
-  CheckCircle2,
+  CheckCircle2, 
   Clock, 
   Copyright, 
   MessageCircle, 
@@ -544,6 +544,125 @@ function CasesContent() {
             </div>
           </div>
         </div>
+
+        {/* MODAL DE GESTÃO DE REGISTRO */}
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent className="sm:max-w-[600px] rounded-2xl border-none shadow-2xl max-h-[90vh] overflow-y-auto">
+            <form onSubmit={handleSaveCase}>
+              <DialogHeader className="p-6 bg-secondary/20 border-b">
+                <DialogTitle className="font-black uppercase tracking-tight">
+                  {editingCase ? 'Editar Registro' : 'Novo Registro de Gabinete'}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="p-6 space-y-4">
+                <div className="grid gap-2">
+                  <Label className="uppercase text-[9px] font-black text-muted-foreground">Nome do Titular / Cliente</Label>
+                  <Input 
+                    value={formState.cliente} 
+                    onChange={e => setFormState({...formState, cliente: e.target.value.toUpperCase()})} 
+                    className="rounded-xl h-11 bg-secondary/30 border-none font-bold uppercase" 
+                    placeholder="NOME COMPLETO" 
+                    required 
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label className="uppercase text-[9px] font-black text-muted-foreground">Protocolo Judicial (CNJ)</Label>
+                    <Input 
+                      value={formState.protocolo} 
+                      onChange={e => setFormState({...formState, protocolo: e.target.value})} 
+                      className="rounded-xl h-11 bg-secondary/30 border-none font-mono" 
+                      placeholder="0000000-00.0000.0.00.0000" 
+                      required 
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="uppercase text-[9px] font-black text-muted-foreground">Telefone WhatsApp</Label>
+                    <Input 
+                      value={formState.telefone} 
+                      onChange={e => setFormState({...formState, telefone: e.target.value})} 
+                      className="rounded-xl h-11 bg-secondary/30 border-none font-mono" 
+                      placeholder="(00) 00000-0000" 
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label className="uppercase text-[9px] font-black text-muted-foreground">Advogado Responsável</Label>
+                    <Input 
+                      value={formState.advogado} 
+                      onChange={e => setFormState({...formState, advogado: e.target.value.toUpperCase()})} 
+                      className="rounded-xl h-11 bg-secondary/30 border-none font-bold uppercase" 
+                      placeholder="NOME DO ADVOGADO" 
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="uppercase text-[9px] font-black text-muted-foreground">Situação Operacional</Label>
+                    <Select value={formState.situacao} onValueChange={val => setFormState({...formState, situacao: val})}>
+                      <SelectTrigger className="rounded-xl h-11 bg-secondary/30 border-none font-bold text-[10px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="EM ANDAMENTO" className="text-[10px] font-bold uppercase">EM ANDAMENTO</SelectItem>
+                        <SelectItem value="ENCERRADO" className="text-[10px] font-bold uppercase">ENCERRADO</SelectItem>
+                        <SelectItem value="ARQUIVADO" className="text-[10px] font-bold uppercase">ARQUIVADO</SelectItem>
+                        <SelectItem value="SUSPENSO" className="text-[10px] font-bold uppercase">SUSPENSO</SelectItem>
+                        <SelectItem value="IMOVEL" className="text-[10px] font-bold uppercase">IMÓVEL / PATRIMONIAL</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label className="uppercase text-[9px] font-black text-muted-foreground">Próximo Prazo (Gabinete)</Label>
+                    <Input 
+                      value={formState.proximoPrazo} 
+                      onChange={e => setFormState({...formState, proximoPrazo: e.target.value})} 
+                      className="rounded-xl h-11 bg-secondary/30 border-none font-bold" 
+                      placeholder="DD/MM/AAAA" 
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="uppercase text-[9px] font-black text-muted-foreground">Último Retorno / Atendimento</Label>
+                    <Input 
+                      value={formState.ultimoRetorno} 
+                      onChange={e => setFormState({...formState, ultimoRetorno: e.target.value})} 
+                      className="rounded-xl h-11 bg-secondary/30 border-none font-bold" 
+                      placeholder="DD/MM/AAAA" 
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label className="uppercase text-[9px] font-black text-muted-foreground">Controle de Status</Label>
+                  <Select value={formState.statusManual} onValueChange={val => setFormState({...formState, statusManual: val})}>
+                    <SelectTrigger className="rounded-xl h-11 bg-secondary/30 border-none font-bold text-[10px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Automatico" className="text-[10px] font-bold uppercase">Cálculo Automático (Prazo)</SelectItem>
+                      <SelectItem value="Caso Crítico" className="text-[10px] font-bold uppercase text-red-600">⚠ Caso Crítico (Manual)</SelectItem>
+                      <SelectItem value="Arquivado" className="text-[10px] font-bold uppercase">Arquivado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label className="uppercase text-[9px] font-black text-muted-foreground">Observações Técnicas</Label>
+                  <Textarea 
+                    value={formState.observacao} 
+                    onChange={e => setFormState({...formState, observacao: e.target.value.toUpperCase()})} 
+                    className="rounded-xl min-h-[80px] bg-secondary/30 border-none font-bold text-[10px] uppercase resize-none" 
+                    placeholder="NOTAS DE GABINETE..." 
+                  />
+                </div>
+              </div>
+              <DialogFooter className="p-6 pt-0">
+                <Button type="submit" disabled={loading} className="w-full h-12 bg-black text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl">
+                  {editingCase ? "Salvar Alterações" : "Ativar Novo Registro"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         <footer className="h-10 border-t border-border/30 bg-card/60 flex items-center justify-center gap-6 text-[10px] text-muted-foreground/60 font-bold uppercase tracking-[0.3em] shrink-0">
           <Copyright size={10} /> 2026 W1 Capital • Advanced Legal Operations
