@@ -1,4 +1,3 @@
-
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved.
@@ -22,14 +21,16 @@ REGRAS DE PARECER:
 2. Análise de Risco: Identifique vulnerabilidades imediatas.
 3. Próximos Passos: Defina a estratégia operacional para o advogado.
 4. Mensagem Cliente: Redija um texto profissional para WhatsApp, assinado pelo Setor Processual.
+5. Conclusão de Encerramento: Uma análise narrativa (máximo 3 linhas) justificando se o processo está perto do fim ou não, baseada na fase processual.
 
 FORMATO JSON OBRIGATÓRIO:
 { 
   "resumoTecnico": "string", 
   "analiseRisco": "string", 
   "proximosPassos": "string", 
-  "mensagemCliente": "string" 
-}`;
+  "mensagemCliente": "string",
+  "conclusaoEncerramento": "string"
+ }`;
 
 const VereditoInputSchema = z.object({
   cnj: z.string(),
@@ -41,6 +42,7 @@ const VereditoOutputSchema = z.object({
   analiseRisco: z.string(),
   proximosPassos: z.string(),
   mensagemCliente: z.string(),
+  conclusaoEncerramento: z.string().optional(),
   success: z.boolean(),
   dataJudRaw: z.any().optional(),
   error: z.boolean().optional(),
