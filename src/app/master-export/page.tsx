@@ -11,7 +11,8 @@ import {
   ShieldCheck, Loader2, Layers, Copyright, Activity, 
   Target, Briefcase, BarChart3, Users, StickyNote, 
   FileSearch, Printer, CheckCircle2, Scale, Zap,
-  TrendingUp, Clock, Gavel, Calendar, Fingerprint
+  TrendingUp, Clock, Gavel, Calendar, Fingerprint,
+  ArrowLeft
 } from 'lucide-react';
 import { fetchRepoCases, fetchRepoNotes } from '@/app/actions/case-actions';
 import { getEmpresaUsers } from '@/lib/server-db';
@@ -24,6 +25,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, PieChart, Pie 
 } from 'recharts';
 import Image from 'next/image';
+import Link from 'next/link';
 
 export default function MasterExportPage() {
   const [loading, setLoading] = useState(true);
@@ -113,8 +115,14 @@ export default function MasterExportPage() {
       <div className="print:hidden sticky top-0 z-[100] bg-white/80 backdrop-blur-xl border-b-2 border-black p-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <Button variant="ghost" asChild className="h-10 px-4 font-black uppercase text-[10px] border-2 border-transparent hover:border-black rounded-none transition-all">
+              <Link href="/">
+                <ArrowLeft size={16} className="mr-2" /> Voltar ao Gabinete
+              </Link>
+            </Button>
+            <div className="h-6 w-px bg-black/10 mx-2" />
             <Badge className="bg-black text-primary font-black uppercase text-[10px] px-4 rounded-none h-8">Sincronia Omni 100%</Badge>
-            <p className="text-[10px] font-bold uppercase text-black/60">Dossiê Completo • Gerado em {new Date().toLocaleString()}</p>
+            <p className="text-[10px] font-bold uppercase text-black/60 hidden sm:block">Dossiê Completo • Gerado em {new Date().toLocaleString()}</p>
           </div>
           <Button onClick={() => window.print()} className="bg-black hover:bg-black/90 text-white font-black uppercase text-[10px] h-10 px-8 rounded-none shadow-[4px_4px_0px_#00D1FF] hover:shadow-none transition-all">
             <Printer size={16} className="mr-2" /> Imprimir Tudo em PDF
