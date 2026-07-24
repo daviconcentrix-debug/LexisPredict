@@ -1,7 +1,6 @@
-
 'use server';
 
-import { getStoredCases, saveStoredCases, getUserContext } from '@/lib/server-db';
+import { getStoredCases, saveStoredCases, getUserContext, getStoredNotes } from '@/lib/server-db';
 import { LegalCase, processarCaso } from '@/lib/case-logic';
 import { createClient } from '@/lib/supabase/server';
 import { isCasoEncerrado } from '@/lib/status-encerrado';
@@ -12,6 +11,10 @@ import { isCasoEncerrado } from '@/lib/status-encerrado';
 
 export async function fetchRepoCases() {
   return await getStoredCases();
+}
+
+export async function fetchRepoNotes() {
+  return await getStoredNotes();
 }
 
 export async function syncRepoCases(cases: LegalCase[]) {
