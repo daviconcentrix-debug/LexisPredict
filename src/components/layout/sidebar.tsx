@@ -1,3 +1,4 @@
+
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
  * @license Proprietary - All rights reserved. See LICENSE file.
@@ -31,7 +32,8 @@ import {
   FileStack,
   Sun,
   Moon,
-  CheckCircle
+  CheckCircle,
+  Printer
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -84,7 +86,6 @@ export function Sidebar() {
     {
       title: t.operations,
       items: [
-        { label: "Consultoria IA", href: '/chat-ia', icon: Bot },
         { label: t.audit, href: '/veredito', icon: FileSearch },
         { label: "Procuração", href: '/documents', icon: FileText },
         { label: "Habilitação", href: '/habilitacao-peca', icon: FileSignature },
@@ -102,6 +103,7 @@ export function Sidebar() {
         { label: t.analytics, href: '/analytics', icon: BarChart3 },
         { label: t.urgency, href: '/urgency', icon: ShieldAlert },
         { label: t.settings, href: '/settings', icon: Settings },
+        { label: "Omni Export", href: '/master-export', icon: Printer },
       ]
     }
   ];
@@ -122,7 +124,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <div className="flex-1 py-8 px-4 space-y-8 overflow-y-auto">
+      <div className="flex-1 py-8 px-4 space-y-8 overflow-y-auto text-black">
         {navGroups.map((group) => (
           <div key={group.title} className="space-y-1.5">
             {!collapsed && (
@@ -169,33 +171,27 @@ export function Sidebar() {
         
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <button 
               onClick={handleLogout}
               title={t.logout}
-              className="h-9 w-9 text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg"
+              className="h-9 w-9 text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg flex items-center justify-center transition-colors"
             >
               <LogOut size={16} />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            </button>
+            <button 
               onClick={toggleTheme}
               title="Alternar Tema"
-              className="h-9 w-9 text-sidebar-foreground/60 hover:text-primary rounded-lg"
+              className="h-9 w-9 text-sidebar-foreground/60 hover:text-primary rounded-lg flex items-center justify-center transition-colors"
             >
               {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
-            </Button>
+            </button>
           </div>
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <button 
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex h-9 w-9 text-sidebar-foreground/60 hover:text-primary rounded-lg"
+            className="hidden lg:flex h-9 w-9 text-sidebar-foreground/60 hover:text-primary rounded-lg items-center justify-center transition-colors"
           >
             {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-          </Button>
+          </button>
         </div>
       </div>
     </div>
