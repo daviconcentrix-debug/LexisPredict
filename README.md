@@ -1,113 +1,264 @@
-# LexisPredict Elite
+# ⚖️ LexisPredict Elite
 
-### Operações jurídicas e controle de prazos — em um só gabinete digital
+### Enterprise Legal Operations Platform
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js" alt="Next.js" />
-  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Supabase-Backend-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
-  <img src="https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge" alt="License" />
-</p>
+> Plataforma SaaS para gestão processual, operações jurídicas, inteligência operacional e automação documental.
 
 <p align="center">
-  <b>Plataforma de gestão processual, prazos e geração de peças</b><br/>
-  Desenvolvida para assessorias e escritórios que trocam planilha por operação real.
-</p>
 
-<p align="center">
-  <a href="mailto:w1capitalassessoria@protonmail.com"><strong>Contato comercial</strong></a>
-  ·
-  <a href="#módulos">Módulos</a>
-  ·
-  <a href="#stack">Stack</a>
-  ·
-  <a href="#licença">Licença</a>
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)
+![Multi Tenant](https://img.shields.io/badge/Multi--Tenant-SaaS-blue?style=for-the-badge)
+![AI](https://img.shields.io/badge/AI-Integrated-purple?style=for-the-badge)
+![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)
+
 </p>
 
 ---
 
-## Por que existe
+## Visão Geral
 
-Escritórios e assessorias convivem com:
+O **LexisPredict Elite** é uma plataforma SaaS desenvolvida para escritórios de advocacia, assessorias financeiras e operações jurídicas que necessitam centralizar processos, documentos, comunicação, indicadores e inteligência artificial em um único ambiente.
 
-- planilhas desatualizadas  
-- prazos perdidos  
-- procurações e substabelecimentos manuais  
-- informação espalhada em WhatsApp, PDF e Excel  
-
-**LexisPredict** concentra isso em um fluxo único: processos → prazos → peças → comunicação.
-
-> Nascido do uso real em operação — não de um protótipo de vitrine.
+Ao invés de distribuir informações entre planilhas, WhatsApp, PDFs e sistemas isolados, o LexisPredict concentra toda a operação jurídica em uma única plataforma.
 
 ---
 
-## Módulos
+# Principais Recursos
 
-| Módulo | O que entrega |
-|--------|----------------|
-| **Processos** | Cadastro, listagem, status, observações e acompanhamento |
-| **Prazos & risco** | Visão de vencidos, atenção, no prazo e distribuição por tribunal (CNJ) |
-| **Importação** | Ingestão de planilhas CSV para popular a base rapidamente |
-| **Documentos** | Geração de **Procuração**, **Substabelecimento** e **Habilitação** |
-| **IA operacional** | Extração de dados de contratos e apoio em chat / veredito |
-| **WhatsApp** | Terminal integrado para rotina de atendimento |
-| **Analytics** | Indicadores e visão gerencial |
-| **Equipe & notas** | Multi-usuário por empresa e anotações internas |
-| **Configurações** | Temas, preferências e personalização visual |
-
----
-
-## Destaques
-
-- **Multi-empresa** — isolamento por organização (`empresa_id`)
-- **Peças jurídicas** — PDF pronto a partir de dados extraídos ou preenchidos
-- **CNJ → tribunal** — categorização a partir do número do processo
-- **Dashboard** — foco em o que vence e o que exige ação
-- **Interface executiva** — visual sóbrio, pensado para uso diário longo
-- **Stack moderna** — Next.js 15, TypeScript, Supabase
+- Gestão completa de processos
+- Controle inteligente de prazos
+- Dashboard executivo
+- IA integrada para apoio jurídico
+- Geração automática de documentos
+- Gestão de equipe
+- Controle de observações internas
+- Importação massiva via CSV
+- Arquitetura Multi-Tenant
+- Controle por perfis de acesso
+- Integração com Supabase
+- Operação baseada em Server Actions
+- Sistema preparado para alta escalabilidade
 
 ---
 
-## Stack
+# Funcionalidades
 
-```text
-Frontend     Next.js 15 (App Router) · TypeScript · Tailwind · shadcn/ui
-Backend      Server Actions · Supabase (Auth + Postgres)
-IA           Integrações multi-provedor (configuráveis por ambiente)
-PDF          @react-pdf/renderer · extração de texto de contratos
-Deploy       Vercel (produção) · desenvolvimento assistido em studio
+## Processos
 
-Visão rápida da arquitetura
-text┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Interface Web  │────▶│  Server Actions  │────▶│  Supabase DB    │
-│  (gabinete)     │     │  (regras + IA)   │     │  (multi-tenant) │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-         │                        │
-         │                        ├──── Documentos PDF
-         │                        ├──── Import CSV
-         └────────────────────────┴──── WhatsApp / APIs externas
+- Cadastro
+- Consulta
+- Pesquisa rápida
+- Histórico
+- Controle de status
+- Controle de risco
+- Distribuição por tribunal
+- Timeline
 
+---
 
-Para quem é
+## Documentos
 
-Perfil Uso típico Assessoria financeira / revisão bancária Volume de casos + peças recorrentes Escritório pequeno/médio Trocar planilha por sistema únic oOperação com equipe Multi-usuário, status e prazos visíveis
+Geração automática de:
 
-Status do projeto
+- Procuração
+- Substabelecimento
+- Habilitação
+- Documentos personalizados
 
-Item Situaçã oUso em operação real AtivoCore (processos, auth, peças)Estável na linha de produçã oComercialização Em estruturação Contribuições externas Não abertas (código proprietário)
+---
 
-Licença
-Software proprietário. Todos os direitos reservados.
-Copyright © 2026 Davi Alves Figueredo
-W1 Capital Assessoria Financeira Ltda.
-É proibido copiar, modificar, distribuir, sublicenciar ou explorar comercialmente este software sem autorização expressa por escrito do titular.
-Este repositório pode ser público apenas para portfólio e demonstração.
-Publicação no GitHub não constitui licença de uso open source.
+## Inteligência Artificial
 
-Contato
-Comercial / parcerias: w1capitalassessoria@protonmail.com, Autor:Davi Alves Figueredo, Produto: LexisPredict Elite
+O módulo de IA oferece suporte para:
 
+- análise jurídica
+- interpretação de contratos
+- geração de respostas
+- auxílio operacional
+- resumo de processos
+- geração de peças
+- chatbot interno
 
-  LexisPredict Elite — gabinete digital para quem vive de prazo e processo.
+Arquitetura preparada para múltiplos provedores de IA.
+
+---
+
+## Dashboard Executivo
+
+Indicadores em tempo real:
+
+- processos ativos
+- encerrados
+- críticos
+- próximos vencimentos
+- produtividade
+- distribuição por tribunal
+- acompanhamento operacional
+
+---
+
+## Gestão da Equipe
+
+- Multiusuário
+- Controle por empresa
+- Isolamento de dados
+- Controle de operadores
+- Distribuição automática de carteira
+
+---
+
+## Importação Inteligente
+
+Importação automática de grandes volumes de processos através de CSV.
+
+Durante a importação o sistema realiza:
+
+- normalização
+- saneamento
+- deduplicação
+- conversão de datas
+- validação
+- identificação automática de tribunais
+- classificação de risco
+
+---
+
+# Arquitetura
 
 ```
+                        Internet
+                            │
+                            ▼
+                  Next.js 15 (App Router)
+                            │
+                ┌───────────┴───────────┐
+                │                       │
+         Server Actions            IA Services
+                │                       │
+                ├──────────────┐        │
+                ▼              ▼        ▼
+          Supabase Auth   PostgreSQL   AI Providers
+                │              │
+                └─────── Multi-Tenant ───────┘
+```
+
+---
+
+# Stack
+
+## Front-end
+
+- Next.js 15
+- React
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Zustand
+
+## Back-end
+
+- Server Actions
+- Supabase
+- PostgreSQL
+- Row Level Security (RLS)
+
+## Inteligência Artificial
+
+- Arquitetura Multi Provider
+- Chat Engine
+- Prompt Engine
+- Context Builder
+
+## Documentos
+
+- React PDF
+- Extração de texto
+- Geração automática de PDFs
+
+---
+
+# Segurança
+
+O sistema foi desenvolvido utilizando arquitetura Multi-Tenant.
+
+Cada empresa possui isolamento completo dos seus dados através de:
+
+- empresa_id
+- Row Level Security (RLS)
+- autenticação Supabase
+- controle por perfil
+- permissões administrativas
+
+---
+
+# Público-alvo
+
+- Escritórios de advocacia
+- Assessorias financeiras
+- Empresas de cobrança
+- Bancas especializadas
+- Operações jurídicas corporativas
+
+---
+
+# Status do Projeto
+
+| Área | Status |
+|-------|--------|
+| Plataforma | Em produção |
+| Multi-Tenant | Estável |
+| IA | Ativa |
+| Dashboard | Estável |
+| Documentos | Estável |
+| Importação | Estável |
+| Gestão Processual | Estável |
+
+---
+
+# Diferenciais
+
+- Arquitetura SaaS
+- Multi-Tenant
+- Alta performance
+- IA integrada
+- Importação inteligente
+- Interface executiva
+- Controle operacional completo
+- Escalável
+- Desenvolvido para uso em produção
+
+---
+
+# Licença
+
+Copyright © 2026
+
+**Davi Alves Figueredo**
+
+**W1 Capital Assessoria Financeira Ltda.**
+
+Todos os direitos reservados.
+
+Este software é proprietário.
+
+É proibida sua reprodução, distribuição, modificação ou utilização comercial sem autorização expressa do titular.
+
+A disponibilização deste repositório no GitHub não constitui licença Open Source.
+
+---
+
+# Contato
+
+📧 **Comercial**
+
+w1capitalassessoria@protonmail.com
+
+**Produto:** LexisPredict Elite
+
+**Autor:** Davi Alves Figueredo
+
+---
+
+> **LexisPredict Elite** — Enterprise Legal Operations Platform.
