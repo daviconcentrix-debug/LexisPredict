@@ -1,3 +1,4 @@
+
 "use client";
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
@@ -39,12 +40,14 @@ import {
   Tooltip
 } from 'recharts';
 import { isCasoEncerrado } from '@/lib/status-encerrado';
+
 export default function Dashboard() {
-  const { cases, setCases, locale, lastSync, updateLastSync } = useAppStore();
+  const { cases, setCases, locale, sync, updateLastSync } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [iaInsights, setIaInsights] = useState<any>(null);
   const t = getTranslation(locale);
+
   const loadInsights = useCallback(() => {
     if (typeof window === 'undefined') return;
     const savedInsights = localStorage.getItem('lexisPredict_notes_analysis');
@@ -52,6 +55,7 @@ export default function Dashboard() {
       try { setIaInsights(JSON.parse(savedInsights)); } catch (e) { setIaInsights(null); }
     }
   }, []);
+
   useEffect(() => {
     setMounted(true);
     loadInsights();
@@ -59,6 +63,7 @@ export default function Dashboard() {
     window.addEventListener('lexis-insights-updated', handleStorageUpdate);
     return () => window.removeEventListener('lexis-insights-updated', handleStorageUpdate);
   }, [loadInsights]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -71,9 +76,11 @@ export default function Dashboard() {
       setLoading(false);
     }
   }, [setCases, updateLastSync]);
+
   useEffect(() => {
     if (mounted && cases.length === 0) loadData();
   }, [mounted, cases.length, loadData]);
+
   const metrics = useMemo(() => {
     const ativos = cases.filter(c => !isCasoEncerrado(c));
     const activeTotal = ativos.length;
@@ -88,15 +95,19 @@ export default function Dashboard() {
     const pctHoje = activeTotal > 0 ? Math.round((venceHoje / activeTotal) * 100) : 0;
     const pctVencidos = activeTotal > 0 ? Math.round((vencidos / activeTotal) * 100) : 0;
     const pctAtencao = activeTotal > 0 ? Math.round((atencao / activeTotal) * 100) : 0;
+
     const statusData = [
       { name: t.statusCritico, value: vencidos, color: '#ef4444' },
       { name: t.statusHoje, value: venceHoje, color: '#3b82f6' },
       { name: t.statusAtencao, value: atencao, color: '#f97316' },
       { name: t.statusPrazo, value: noPrazo, color: '#10b981' }
     ].filter(d => d.value > 0);
+
     return { activeTotal, vencidos, venceHoje, atencao, noPrazo, riskScore, statusData, pctHoje, pctVencidos, pctAtencao };
   }, [cases, t]);
+
   if (!mounted) return null;
+
   return (
     <div className="flex h-screen bg-background font-sans text-foreground overflow-hidden">
       <Sidebar />
@@ -111,7 +122,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-4">
             <Badge variant="outline" className="text-[9px] font-black uppercase border-none bg-secondary/50 px-3">
-              {t.activeTelemetry}: {lastSync ? new Date(lastSync).toLocaleTimeString() : '...'}
+              {t.activeTelemetry}: {sync.lastSync ? new Date(sync.lastSync).toLocaleTimeString() : '...'}
             </Badge>
             <Button variant="outline" size="sm" asChild className="premium-card h-10 px-6 rounded-xl text-[11px] font-black uppercase tracking-wider border-none">
               <Link href="/report">
