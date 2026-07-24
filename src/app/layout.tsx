@@ -1,4 +1,3 @@
-
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -23,8 +22,8 @@ export const metadata: Metadata = {
     title: 'LexisPredict',
   },
   icons: {
-    icon: '/icons/icon-192x192.png',
-    apple: '/icons/icon-192x192.png',
+    icon: 'https://picsum.photos/seed/lexis192/192/192',
+    apple: 'https://picsum.photos/seed/lexis192/192/192',
   },
 };
 
