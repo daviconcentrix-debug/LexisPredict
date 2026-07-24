@@ -1,157 +1,43 @@
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * @license Proprietary - All rights reserved.
  */
 'use server';
 
 import { ai, z } from '@/ai/genkit';
 import { fetchDataJud } from '@/lib/datajud';
-
-const API_KEYS = {
-  XAI: process.env.XAI_API_KEY,
-  AIRFORCE: process.env.AIRFORCE_API_KEY,
-  GROQ: process.env.GROQ_API_KEY
-};
-
-const SYSTEM_INSTRUCTIONS = `Você é o Veredito AI Elite v5.0. 
-Sua missão é realizar uma Auditoria 3D de dados processuais e retornar um parecer rigoroso em JSON.
-
-REGRAS DE PARECER:
-1. Resumo Técnico: Máximo 6 linhas focadas no status atual.
-2. Análise de Risco: Identifique vulnerabilidades imediatas.
-3. Próximos Passos: Defina a estratégia operacional para o advogado.
-4. Mensagem Cliente: Redija um texto profissional para WhatsApp, assinado pelo Setor Processual.
-5. Conclusão de Encerramento: Uma análise narrativa (máximo 3 linhas) justificando se o processo está perto do fim ou não, baseada na fase processual.
-
-FORMATO JSON OBRIGATÓRIO:
-{ 
-  "resumoTecnico": "string", 
-  "analiseRisco": "string", 
-  "proximosPassos": "string", 
-  "mensagemCliente": "string",
-  "conclusaoEncerramento": "string"
- }`;
-
-const VereditoInputSchema = z.object({
-  cnj: z.string(),
-  preferredModel: z.string().optional()
-});
-
-const VereditoOutputSchema = z.object({
-  resumoTecnico: z.string(),
-  analiseRisco: z.string(),
-  proximosPassos: z.string(),
-  mensagemCliente: z.string(),
-  conclusaoEncerramento: z.string().optional(),
-  success: z.boolean(),
-  dataJudRaw: z.any().optional(),
-  error: z.boolean().optional(),
-  message: z.string().optional()
-});
-
-async function callEngineWithRetry(url: string, key: string | undefined, model: string, context: string) {
-  if (!key) return null;
-  
-  try {
-    const isXAI = url.includes('x.ai');
-    const messages = [
-      { role: 'system', content: SYSTEM_INSTRUCTIONS },
-      { role: 'user', content: `DADOS DO PROCESSO:\n${context}` }
-    ];
-
-    const body: any = { 
-      model,
-      temperature: 0.1,
-      response_format: { type: 'json_object' }
-    };
-
-    if (url.endsWith('/responses')) {
-      body.input = messages;
-      body.reasoning_effort = "high";
-    } else {
-      body.messages = messages;
-    }
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 
-        'Authorization': `Bearer ${key}`, 
-        'Content-Type': 'application/json' 
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(45000)
-    });
-    
-    if (!res.ok) return null;
-    const data = await res.json();
-    const content = data?.choices?.[0]?.message?.content || data?.output?.message?.content || data?.output?.[0]?.text;
-    
-    if (!content) return null;
-    
-    // Limpeza de JSON robusta
-    let clean = content.replace(/```json/gi, '').replace(/```/g, '').trim();
-    return JSON.parse(clean);
-  } catch (e) {
-    return null;
-  }
-}
+import { processChat } from '@/lib/ai/chat-service';
+import { SYSTEM_PROMPTS } from '@/lib/ai/prompts';
 
 export const vereditoAIFlow = ai.defineFlow(
   { 
     name: 'vereditoAIFlow', 
-    inputSchema: VereditoInputSchema, 
-    outputSchema: VereditoOutputSchema 
+    inputSchema: z.object({ cnj: z.string(), preferredModel: z.string().optional() }), 
+    outputSchema: z.any() 
   },
   async input => {
-    const { cnj, preferredModel = 'xai' } = input;
-    
-    // 1. Coleta DataJud
-    const dataJudData = await fetchDataJud(cnj);
-    if (dataJudData?.error) {
-       return { 
-         resumoTecnico: "", analiseRisco: "", proximosPassos: "", mensagemCliente: "",
-         success: false, error: true, message: dataJudData.message 
-       };
-    }
+    const dataJudData = await fetchDataJud(input.cnj);
+    if (dataJudData?.error) return { success: false, message: dataJudData.message };
 
-    const context = dataJudData ? JSON.stringify(dataJudData) : `Processo: ${cnj}`;
-    
-    // 2. Orquestração Neural Multi-Engine
-    const engines = [
-      { id: 'xai', url: 'https://api.x.ai/v1/responses', key: API_KEYS.XAI, model: 'grok-4.5' },
-      { id: 'airforce', url: 'https://api.airforce/v1/chat/completions', key: API_KEYS.AIRFORCE, model: 'deepseek-v3' },
-      { id: 'groq', url: 'https://api.groq.com/openai/v1/chat/completions', key: API_KEYS.GROQ, model: 'llama-3.3-70b-versatile' }
-    ];
+    const res = await processChat({
+      message: `DADOS DO PROCESSO:\n${JSON.stringify(dataJudData)}`,
+      preferredProvider: input.preferredModel as any,
+      responseFormat: 'json',
+      temperature: 0.1
+    });
 
-    // Priorizar motor escolhido
-    const prioritized = [...engines];
-    const idx = prioritized.findIndex(e => e.id === preferredModel);
-    if (idx > -1) {
-      const [fav] = prioritized.splice(idx, 1);
-      prioritized.unshift(fav);
-    }
-
-    for (const engine of prioritized) {
-      if (!engine.key) continue;
-      const result = await callEngineWithRetry(engine.url, engine.key, engine.model, context);
-      if (result && result.resumoTecnico) {
+    if (res.success) {
+      try {
         return {
-          ...result,
+          ...JSON.parse(res.content),
           success: true,
-          dataJudRaw: dataJudData || { numeroProcesso: cnj, movimentos: [] }
+          dataJudRaw: dataJudData
         };
+      } catch (e) {
+        return { success: false, message: "Falha na decodificação do parecer." };
       }
     }
 
-    return {
-      resumoTecnico: "Falha na análise neural profunda.",
-      analiseRisco: "Motores em recalibração.",
-      proximosPassos: "Tente novamente em instantes.",
-      mensagemCliente: "",
-      success: false,
-      error: true,
-      message: "Limite de processamento neural atingido."
-    };
+    return { success: false, message: res.content };
   }
 );
 
