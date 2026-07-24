@@ -190,7 +190,7 @@ export function GuidedTour() {
   const step = TOUR_STEPS[tutorialStep];
 
   return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[250] flex items-center justify-center p-6 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-300">
       <div className="w-full max-w-xl bg-white border-4 border-black shadow-[20px_20px_0px_#000] relative overflow-hidden flex flex-col">
         {/* Barra de Progresso Real */}
         <div className="absolute top-0 left-0 right-0 h-2 bg-gray-100">
