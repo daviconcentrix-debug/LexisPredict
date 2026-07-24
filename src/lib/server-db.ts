@@ -5,15 +5,15 @@ import { LegalCase, CaseNote, formatDateToISO } from './case-logic';
 import { cookies } from 'next/headers';
 
 /**
- * REPOSITÓRIO CENTRAL LEXISPREDICT (v4200.0 ELITE)
- * Governança de Superadmin e Isolamento Multi-tenant Rigoroso.
+ * REPOSITÓRIO CENTRAL LEXISPREDICT (v5000.0 ELITE)
+ * Governança de Superadmin e Sincronia Ilimitada (Bypass do Limite de 1000).
  */
 
 export async function getUserContext() {
   const cookieStore = await cookies();
   const userEmail = cookieStore.get('lexis_user_email')?.value;
   
-  if (!userEmail) return { auth_id: null, empresa_id: null, cargo: null as UserRole | null, email: null };
+  if (!userEmail) return { auth_id: null, empresa_id: null, cargo: null as UserRole | null, email: null, isSuperAdmin: false };
 
   const { data: profile } = await supabase
     .from('usuarios')
@@ -103,30 +103,51 @@ export async function desativarAdvogadoBanca(id: string) {
   return { success: !error };
 }
 
-// --- GESTÃO DE PROCESSOS (ISOLAMENTO POR CRIADOR) ---
+// --- GESTÃO DE PROCESSOS (VISÃO GLOBAL PARA SUPERADMIN) ---
 
 export async function getStoredCases(): Promise<LegalCase[]> {
   if (!isSupabaseConfigured) return [];
-  const { empresa_id, auth_id } = await getUserContext();
+  const { empresa_id, auth_id, isSuperAdmin } = await getUserContext();
   if (!empresa_id || !auth_id) return [];
 
   try {
-    // Protocolo de Isolamento Real: Independente do cargo, cada um vê apenas o que criou.
-    const { data, error } = await supabase
-      .from('processos')
-      .select('*')
-      .eq('empresa_id', empresa_id)
-      .eq('created_by', auth_id)
-      .order('created_at', { ascending: false });
+    let allData: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
-    if (error) throw error;
+    // Motor de Paginação Automática: Captura todos os registros acima de 1000
+    while (hasMore) {
+      let query = supabase
+        .from('processos')
+        .select('*')
+        .eq('empresa_id', empresa_id)
+        .order('created_at', { ascending: false })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      // Protocolo Elite: Superadmin vê tudo da empresa. Operador vê apenas o que criou.
+      if (!isSuperAdmin) {
+        query = query.eq('created_by', auth_id);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allData = [...allData, ...data];
+        hasMore = data.length === pageSize;
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
     
-    return data ? data.map(item => ({
+    return allData.map(item => ({
       ...(item.dados as LegalCase),
       db_id: item.id.toString(),
       proximoPrazo: item.proximo_retorno || (item.dados as any).proximoPrazo || '',
       ultimoRetorno: item.ultimo_retorno || (item.dados as any).ultimoRetorno || '',
-    })) : [];
+    }));
   } catch (error) {
     console.error('[DB] Fetch Fail:', error);
     return [];
@@ -161,11 +182,15 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
       };
     });
 
-    const { error: upsertError } = await supabase
-      .from('processos')
-      .upsert(payload, { onConflict: 'protocolo_ref, empresa_id' });
-
-    if (upsertError) throw upsertError;
+    // Salva em lotes de 50 para evitar limites de payload
+    const chunkSize = 50;
+    for (let i = 0; i < payload.length; i += chunkSize) {
+      const chunk = payload.slice(i, i + chunkSize);
+      const { error: upsertError } = await supabase
+        .from('processos')
+        .upsert(chunk, { onConflict: 'protocolo_ref, empresa_id' });
+      if (upsertError) throw upsertError;
+    }
 
     return { success: true, message: "Sincronia concluída." };
   } catch (error: any) {
@@ -175,20 +200,40 @@ export async function saveStoredCases(cases: LegalCase[]): Promise<{ success: bo
 }
 
 export async function getStoredNotes(): Promise<CaseNote[]> {
-  const { auth_id, empresa_id } = await getUserContext();
+  const { auth_id, empresa_id, isSuperAdmin } = await getUserContext();
   if (!empresa_id || !auth_id) return [];
 
   try {
-    // Protocolo de Isolamento Real: Independente do cargo, cada um vê apenas o que criou.
-    const { data, error } = await supabase
-      .from('notes')
-      .select('*')
-      .eq('empresa_id', empresa_id)
-      .eq('created_by', auth_id)
-      .order('created_at', { ascending: false });
+    let allData: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
-    if (error) throw error;
-    return data ? data.map(item => {
+    while (hasMore) {
+      let query = supabase
+        .from('notes')
+        .select('*')
+        .eq('empresa_id', empresa_id)
+        .order('created_at', { ascending: false })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (!isSuperAdmin) {
+        query = query.eq('created_by', auth_id);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allData = [...allData, ...data];
+        hasMore = data.length === pageSize;
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return allData.map(item => {
       let imageUrl;
       let displayContent = item.content || '';
       try {
@@ -207,7 +252,7 @@ export async function getStoredNotes(): Promise<CaseNote[]> {
         color: 'bg-white',
         updatedAt: new Date(item.created_at).toLocaleString('pt-BR')
       };
-    }) : [];
+    });
   } catch (error) {
     return [];
   }
