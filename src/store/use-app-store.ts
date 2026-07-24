@@ -1,7 +1,7 @@
 
 /**
  * @copyright 2026 Davi Alves Figueredo / W1 Capital Assessoria Financeira Ltda.
- * MOTOR DE ESTADO GLOBAL v100.0 (ZUSTAND)
+ * MOTOR DE ESTADO GLOBAL v110.0 (ZUSTAND)
  * Gerencia o estado persistente de processos, notas e preferências de UI.
  */
 import { create } from 'zustand';
@@ -14,7 +14,10 @@ interface AppState {
   notes: CaseNote[];
   locale: Locale;
   theme: string;
+  isDarkMode: boolean;
   lastSync: string | null;
+  tutorialCompleted: boolean;
+  isTutorialActive: boolean;
   aiCosts: {
     totalTokens: number;
     totalCalls: number;
@@ -25,6 +28,9 @@ interface AppState {
   setNotes: (notes: CaseNote[]) => void;
   setLocale: (locale: Locale) => void;
   setTheme: (theme: string) => void;
+  setDarkMode: (isDark: boolean) => void;
+  setTutorialCompleted: (completed: boolean) => void;
+  setTutorialActive: (active: boolean) => void;
   updateLastSync: () => void;
   addAiMetrics: (tokens: number) => void;
   clearState: () => void;
@@ -37,7 +43,10 @@ export const useAppStore = create<AppState>()(
       notes: [],
       locale: 'pt',
       theme: 'white-prestige',
+      isDarkMode: false,
       lastSync: null,
+      tutorialCompleted: false,
+      isTutorialActive: false,
       aiCosts: {
         totalTokens: 0,
         totalCalls: 0,
@@ -47,6 +56,16 @@ export const useAppStore = create<AppState>()(
       setNotes: (notes) => set({ notes }),
       setLocale: (locale) => set({ locale }),
       setTheme: (theme) => set({ theme }),
+      setDarkMode: (isDarkMode) => {
+        set({ isDarkMode });
+        if (typeof document !== 'undefined') {
+          if (isDarkMode) document.documentElement.classList.add('dark');
+          else document.documentElement.classList.remove('dark');
+          localStorage.setItem('lexis_dark_mode', String(isDarkMode));
+        }
+      },
+      setTutorialCompleted: (tutorialCompleted) => set({ tutorialCompleted }),
+      setTutorialActive: (isTutorialActive) => set({ isTutorialActive }),
       updateLastSync: () => set({ lastSync: new Date().toISOString() }),
       addAiMetrics: (tokens) => set((state) => ({
         aiCosts: {
